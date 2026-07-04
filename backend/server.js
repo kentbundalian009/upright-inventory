@@ -8,7 +8,7 @@ import "./lib/redis.js"; // Sinisigurong mag-co-connect si Upstash sa boot-up ng
 // API Routes Imports
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
-import rawmaterialRoutes from "./routes/rawmaterialRoutes.js"; 
+import rawMaterialRoutes from "./routes/rawMaterialRoutes.js"; 
 import assetsRoutes from "./routes/assetsRoutes.js"; 
 import suppliesRoutes from "./routes/suppliesRoutes.js"; 
 import suppliesMovementRoutes from "./routes/suppliesMovementRoutes.js"; 
@@ -45,7 +45,7 @@ app.use("/api/supplies-movements", protectRoute, suppliesMovementRoutes);
 app.use("/api/conversions", protectRoute, conversionRoutes);
 app.use("/api/products", protectRoute, productRoutes); 
 app.use("/api/packing-lists", protectRoute, packingListRoutes); 
-app.use("/api/raw-materials", protectRoute, rawmaterialRoutes); 
+app.use("/api/raw-materials", protectRoute, rawMaterialRoutes); 
 app.use("/api/activity-logs", protectRoute, activityLogRoutes);
 app.use("/api/purchase-orders", protectRoute, purchaseOrderRoutes);
 app.use("/api/settings/thresholds", protectRoute, settingRoutes); // 🔧 IDINAGDAG: Para sa threshold settings
