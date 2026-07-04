@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 // 🌟 INILAGAY DITO: I-import si axios para sa global header configuration
 import axios from 'axios'; 
-import Sidebar from "../components/Common/Sidebar"; 
+import Sidebar from "../components/Common/SIdebar"; 
 import Topbar from "../components/Common/Topbar";
 
 // Dashboard file imports
