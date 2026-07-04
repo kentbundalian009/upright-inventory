@@ -5,6 +5,11 @@ import mongoose from "mongoose"; // 👈 IDINAGDAG: Kailangan ito para gumana an
 import connectDB from "./lib/db.js";
 import "./lib/redis.js"; // Sinisigurong mag-co-connect si Upstash sa boot-up ng server
 
+import path from "path";
+import { fileURLToPath } from "url";
+
+
+
 // API Routes Imports
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -24,6 +29,9 @@ import settingRoutes from "./routes/settingRoutes.js"; // 🔧 IDINAGDAG: Para s
 import { protectRoute } from "./middleware/authMiddleware.js"; 
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -63,13 +71,18 @@ app.get("/", (req, res) => {
 const PORT = process.env.PORT || 5000;
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.resolve(__dirname, "frontend/build")));
+  // Ituro sa "dist" folder ng frontend (dahil nasa loob ka ng backend folder, aatras tayo ng isa: "../frontend/dist")
+  app.use(express.static(path.resolve(__dirname, "../frontend/dist")));
 
   app.get("*", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "frontend", "build", "index.html"));
+    res.sendFile(path.resolve(__dirname, "../frontend", "dist", "index.html"));
+  });
+} else {
+  // Gagana lang ito kapag local development (npm run dev)
+  app.get("/", (req, res) => {
+    res.send("API is running in development mode...");
   });
 }
-
 
 
 
