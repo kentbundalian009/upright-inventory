@@ -59,21 +59,13 @@ app.use("/api/purchase-orders", protectRoute, purchaseOrderRoutes);
 app.use("/api/settings/thresholds", protectRoute, settingRoutes); // 🔧 IDINAGDAG: Para sa threshold settings
 
 
-// Test Route
-app.get("/", (req, res) => {
-  res.send("API is running...");
-});
-
-
-
-
-
 const PORT = process.env.PORT || 5000;
 
 if (process.env.NODE_ENV === "production") {
-  // Ituro sa "dist" folder ng frontend (dahil nasa loob ka ng backend folder, aatras tayo ng isa: "../frontend/dist")
+  // Ituro sa "dist" folder ng frontend
   app.use(express.static(path.resolve(__dirname, "../frontend/dist")));
 
+  // Lahat ng hindi API request, ibabato sa React frontend
   app.get("*", (req, res) => {
     res.sendFile(path.resolve(__dirname, "../frontend", "dist", "index.html"));
   });
@@ -84,20 +76,16 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-
-
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
 
-// 🛠️ DATABASE FIXER: Awtomatikong lilinisin ang lumang sirang index kapag naka-connect na ang MongoDB
+// 🛠️ DATABASE FIXER: Awtomatikong lilinisin ang lumang sirang index...
 mongoose.connection.once('open', async () => {
   try {
-    // Pilitin nating i-drop ang multo ng "wipNo_1" index na nagpapahirap sa system mo
     await mongoose.connection.db.collection('conversions').dropIndex('wipNo_1');
     console.log("🔥 SUCCESS: Ang mapaminsalang wipNo index ay tuluyan nang nabura!");
   } catch (err) {
-    // Kung wala na ito o nabura na dati, magpapakita lang ito bilang note nang hindi sumasabog ang node server mo
     console.log("Index Sync Note:", err.message);
   }
 });
