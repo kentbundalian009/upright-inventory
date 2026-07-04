@@ -7,8 +7,12 @@ import PageHeader from '../Common/PageHeader';
 // I-import ang react-hot-toast
 import toast, { Toaster } from 'react-hot-toast';
 
-const SUPPLIES_URL = "http://localhost:5000/api/supplies"; 
-const MOVEMENT_URL = "http://localhost:5000/api/supplies-movements";
+const API_BASE_URL = import.meta.env.MODE === 'production'
+  ? 'https://one-inventory.onrender.com/api'
+  : 'http://localhost:5000/api';
+
+const SUPPLIES_URL = `${API_BASE_URL}/supplies`;
+const MOVEMENT_URL = `${API_BASE_URL}/supplies-movements`;
 
 function SuppliesMovements() {
   const [dbSupplies, setDbSupplies] = useState([]);

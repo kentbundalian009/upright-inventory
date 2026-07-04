@@ -12,8 +12,10 @@ import {
 } from 'recharts';
 import PageHeader from '../Common/PageHeader';
 
-// Base URL para sa iyong backend API port
-const BASE_API_URL = "http://localhost:5000/api";
+// Base URL para sa iyong backend API port (Dynamic: Render kapag live, Localhost kapag dev)
+const BASE_API_URL = import.meta.env.MODE === 'production'
+  ? 'https://one-inventory.onrender.com/api'
+  : 'http://localhost:5000/api';
 
 function InventoryDashboard() {
     const [loading, setLoading] = useState(true);

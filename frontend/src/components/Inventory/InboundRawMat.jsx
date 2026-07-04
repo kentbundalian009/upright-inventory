@@ -7,8 +7,12 @@ import PageHeader from '../Common/PageHeader';
 // Import react-hot-toast
 import toast, { Toaster } from 'react-hot-toast';
 
-const RAW_MAT_URL = "http://localhost:5000/api/raw-materials";
-const PO_URL = "http://localhost:5000/api/purchase-orders";
+const API_BASE_URL = import.meta.env.MODE === 'production'
+  ? 'https://one-inventory.onrender.com/api'
+  : 'http://localhost:5000/api';
+
+const RAW_MAT_URL = `${API_BASE_URL}/raw-materials`;
+const PO_URL = `${API_BASE_URL}/purchase-orders`;
 
 // Helper function upang makuha ang kasalukuyang petsa sa format na YYYY-MM-DD base sa lokal na oras ng computer
 const getTodayDateString = () => {

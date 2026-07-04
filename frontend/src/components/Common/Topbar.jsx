@@ -67,14 +67,19 @@ function Topbar() {
         return;
       }
 
-      // Tawagin ang backend logout endpoint
-      const response = await fetch("http://localhost:5000/api/auth/logout", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
+      // 1. Alamin muna kung production o local development ang tumatakbo
+const API_BASE_URL = import.meta.env.MODE === 'production'
+    ? 'https://one-inventory.onrender.com'
+    : 'http://localhost:5000';
+
+// 2. Tawagin ang backend logout endpoint gamit ang dynamic URL
+const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json"
+    }
+});
 
       if (response.ok) {
         console.log("Logout backend success!");

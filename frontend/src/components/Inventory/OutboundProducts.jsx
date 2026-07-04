@@ -6,8 +6,12 @@ import autoTable from 'jspdf-autotable';
 import PageHeader from '../Common/PageHeader';
 import toast, { Toaster } from 'react-hot-toast';
 
-const PRODUCTS_URL = "http://localhost:5000/api/products";
-const PL_URL = "http://localhost:5000/api/packing-lists";
+const API_BASE_URL = import.meta.env.MODE === 'production'
+  ? 'https://one-inventory.onrender.com/api'
+  : 'http://localhost:5000/api';
+
+const PRODUCTS_URL = `${API_BASE_URL}/products`;
+const PL_URL = `${API_BASE_URL}/packing-lists`;
 
 // Security Master Passkey kapag pinilit i-cancel ang isang "Outbound" log type
 const MASTER_CANCELLATION_KEY = "VOID-CONFIRM-2026";

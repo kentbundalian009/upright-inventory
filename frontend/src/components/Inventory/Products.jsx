@@ -4,7 +4,9 @@ import axios from 'axios';
 import PageHeader from '../Common/PageHeader';
 
 // 🛠️ ABSOLUTE URL: Ginawa nating pareho sa Outbound para sigurado ang salpakan sa backend network port mo
-const API_URL = "http://localhost:5000/api/products";
+const API_URL = import.meta.env.MODE === 'production'
+  ? 'https://one-inventory.onrender.com/api/products'
+  : 'http://localhost:5000/api/products';
 
 function Products() {
   // 1. DATABASE AT LIFECYCLE STATES

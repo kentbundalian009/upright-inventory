@@ -8,7 +8,9 @@ import PageHeader from '../Common/PageHeader';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const BASE_API_URL = "http://localhost:5000/api";
+const BASE_API_URL = import.meta.env.MODE === 'production'
+  ? 'https://one-inventory.onrender.com/api'
+  : 'http://localhost:5000/api';
 
 function Reports() {
     const [activeModule, setActiveModule] = useState('raw-materials');

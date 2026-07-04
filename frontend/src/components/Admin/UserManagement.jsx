@@ -71,27 +71,33 @@ function UserManagement() {
     }, [successMessage]);
 
     // 2. READ: FETCH DATA FROM BACKEND API
-    const fetchUsers = async () => {
-        try {
-            setLoading(true);
-            const response = await axios.get('http://localhost:5000/api/users');
-            
-            if (Array.isArray(response.data)) {
-                setUsers(response.data);
-            } else if (response.data && Array.isArray(response.data.data)) {
-                setUsers(response.data.data);
-            } else {
-                setUsers([]);
-            }
-            setError(null);
-        } catch (err) {
-            console.error("Error fetching users:", err);
-            setError("Hindi makuha ang mga user records mula sa server.");
+const fetchUsers = async () => {
+    try {
+        setLoading(true);
+
+        // ✅ MATALINONG URL: Awtomatikong magpapalit depende kung saan ka naka-open
+        const API_BASE_URL = import.meta.env.MODE === 'production'
+            ? 'https://one-inventory.onrender.com'
+            : 'http://localhost:5000';
+
+        const response = await axios.get(`${API_BASE_URL}/api/users`);
+        
+        if (Array.isArray(response.data)) {
+            setUsers(response.data);
+        } else if (response.data && Array.isArray(response.data.data)) {
+            setUsers(response.data.data);
+        } else {
             setUsers([]);
-        } finally {
-            setLoading(false);
         }
-    };
+        setError(null);
+    } catch (err) {
+        console.error("Error fetching users:", err);
+        setError("Hindi makuha ang mga user records mula sa server.");
+        setUsers([]);
+    } finally {
+        setLoading(false);
+    }
+};
 
     useEffect(() => {
         fetchUsers();

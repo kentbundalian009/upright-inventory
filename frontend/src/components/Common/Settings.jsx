@@ -48,14 +48,17 @@ useEffect(() => {
                 console.error("Hindi mahanap ang ID sa user object.");
             }
 
-            // KUNIN ANG SARIWANG DATA SA BACKEND DATABASE NA MAY KASAMANG TOKEN
-            const response = await fetch(`http://localhost:5000/api/users/profile/${userId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            // Ilagay muna ang base URL handler sa taas ng function o bago mag-fetch
+const API_BASE_URL = import.meta.env.MODE === 'production'
+    ? 'https://one-inventory.onrender.com'
+    : 'http://localhost:5000';
 
+const response = await fetch(`${API_BASE_URL}/api/users/profile/${userId}`, {
+    method: 'GET',
+    headers: {
+        'Authorization': `Bearer ${token}`
+    }
+});
             if (response.ok) {
                 const freshUser = await response.json();
 
@@ -131,17 +134,22 @@ useEffect(() => {
         }
 
         try {
-            const response = await fetch(`http://localhost:5000/api/users/change-password/${userId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    currentPassword,
-                    newPassword
-                })
-            });
+            // Ilagay muna ang base URL handler sa taas ng function o bago mag-fetch
+const API_BASE_URL = import.meta.env.MODE === 'production'
+    ? 'https://one-inventory.onrender.com'
+    : 'http://localhost:5000';
+
+const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId}`, {
+    method: 'PUT',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+        currentPassword,
+        newPassword
+    })
+});
 
             const data = await response.json();
 

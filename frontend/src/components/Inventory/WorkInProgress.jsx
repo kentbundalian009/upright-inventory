@@ -5,9 +5,13 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from '../Common/PageHeader';
 
-const RAW_MAT_URL = "http://localhost:5000/api/raw-materials";
-const PRODUCTS_URL = "http://localhost:5000/api/products";
-const CONVERSION_URL = "http://localhost:5000/api/conversions";
+const API_BASE_URL = import.meta.env.MODE === 'production'
+  ? 'https://one-inventory.onrender.com/api'
+  : 'http://localhost:5000/api';
+
+const RAW_MAT_URL = `${API_BASE_URL}/raw-materials`;
+const PRODUCTS_URL = `${API_BASE_URL}/products`;
+const CONVERSION_URL = `${API_BASE_URL}/conversions`;
 
 function WorkInProgress() {
   const [dbMaterials, setDbMaterials] = useState([]);
