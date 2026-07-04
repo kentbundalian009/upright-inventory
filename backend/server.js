@@ -65,10 +65,10 @@ if (process.env.NODE_ENV === "production") {
   // Ituro sa "dist" folder ng frontend
   app.use(express.static(path.resolve(__dirname, "../frontend/dist")));
 
-  // Lahat ng hindi API request, ibabato sa React frontend
-  app.get("*", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "../frontend", "dist", "index.html"));
-  });
+  /// BAGONG CODE (LIGTAS AT TAMA):
+app.get('/:splat*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+});
 } else {
   // Gagana lang ito kapag local development (npm run dev)
   app.get("/", (req, res) => {
