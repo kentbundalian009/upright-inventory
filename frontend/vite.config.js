@@ -5,10 +5,11 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // 🚀 ADDS THE PROXY CONFIGURATION HERE:
   server: {
     proxy: {
       '/api': {
+        // Gagana lang ito sa local development. Sa production/Render, 
+        // ang server.js na mismo ang magsisilbi ng files kaya hindi na ito tatamaan.
         target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
