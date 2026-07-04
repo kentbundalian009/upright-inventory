@@ -105,7 +105,7 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
           <div className="py-4 px-4 flex flex-col items-center border-b border-white/10">
             <div className={`transition-all duration-300 bg-white rounded-full p-2 flex items-center justify-center shadow-inner ${isCollapsed ? "md:w-9 md:h-9 w-16 h-16" : "w-16 h-16"}`}>
               <img
-                src="/public/one.logo.png"
+                src="/one.logo.png"
                 alt="logo"
                 className="w-full h-full object-contain"
                 onError={(e) => { e.target.style.display = 'none'; }}

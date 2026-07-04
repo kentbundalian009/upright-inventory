@@ -79,7 +79,12 @@ function Login() {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      // ✅ MATALINONG URL: Gagamit ng Render URL sa production, at localhost naman kapag nag-dedevelop ka sa PC
+      const API_BASE_URL = import.meta.env.MODE === 'production'
+        ? 'https://one-inventory.onrender.com'
+        : 'http://localhost:5000';
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ Username: username, Password: password }),
@@ -92,7 +97,6 @@ function Login() {
       }
 
       // KUNG SUCCESSFUL ANG LOGIN:
-      // I-reset ang mga counter sa storage
       localStorage.removeItem('loginAttempts');
       localStorage.removeItem('lockoutUntil');
 
@@ -107,13 +111,12 @@ function Login() {
 
       navigate('/dashboard'); 
     } catch (err) {
-      // KUNG NAGkamali / FAILED LOGIN:
+      // KUNG NAGKAMALI / FAILED LOGIN:
       const nextAttempts = attempts + 1;
       setAttempts(nextAttempts);
       localStorage.setItem('loginAttempts', nextAttempts.toString());
 
       if (nextAttempts >= 6) {
-        // Pag umabot sa 6, i-lockout ng 10 minuto (10 * 60 * 1000 ms)
         const tenMinutes = 10 * 60 * 1000;
         const lockoutEndTime = Date.now() + tenMinutes;
         
@@ -121,7 +124,6 @@ function Login() {
         setLockoutTimeLeft(tenMinutes / 1000);
         setError(`Account locked. Too many failed attempts. Please wait 10:00.`);
       } else {
-        // Paalalahanan kung ilang attempts na lang ang natitira
         setError(`${err.message} (${6 - nextAttempts} attempts remaining)`);
       }
     } finally {
