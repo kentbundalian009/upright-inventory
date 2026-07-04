@@ -65,8 +65,8 @@ if (process.env.NODE_ENV === "production") {
   // Ituro sa "dist" folder ng frontend
   app.use(express.static(path.resolve(__dirname, "../frontend/dist")));
 
-  /// BAGONG CODE (LIGTAS AT TAMA):
-app.get('/:splat*', (req, res) => {
+  /// PINAKALIGTAS AT TAMA NA CONFIG:
+app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 } else {
