@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/public/one.logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>One Inventory</title>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script>
+      (function() {
+        // 1. Gumawa ng malaking "STOP" text gamit ang CSS styling sa console
+const stopStyle = `
+  color: #dc2626;
+  font-family: 'Poppins', sans-serif;
+  font-size: 4.5rem;
+  font-weight: 900;
+  -webkit-text-stroke: 1px #000;
+  line-height: 1;
+`;
+
+const messageStyle = `
+  color: #18174e;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+`;
+
+const subMessageStyle = `
+  color: #555;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+`;
+
+console.log("%cSTOP!", stopStyle);
+
+console.log(
+  "%cThis is a browser feature intended for developers. If someone told you to copy and paste something here to enable a feature or hack someone's account, it is a scam and could give them access to your One Inventory account.",
+  messageStyle
+);
+
+console.log(
+  "%cAuthorized personnel only. Secure protocols enforced.",
+  subMessageStyle
+);
+
+        // 2. OPTIONAL CRITICAL TRICK: I-clear o i-disable ang console function para hindi sila makapag-type agad
+        // Kung gusto mo talagang pigilan ang pag-log, pwede mong i-override ang console.log pagkatapos ipakita ang babala:
+        /*
+        setTimeout(() => {
+          console.log = function() {};
+          console.error = function() {};
+          console.warn = function() {};
+        }, 1000);
+        */
+      })();
+    </script>
+
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

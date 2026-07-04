@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@media print {
+  /* Itago ang lahat ng bagay sa screen maliban sa modal backdrop at mismong modal */
+  body > * {
+    visibility: hidden;
+  }
+  /* Ipakita lamang ang modal container at mga laman nito */
+  .fixed.inset-0.z-50, .fixed.inset-0.z-50 * {
+    visibility: visible;
+  }
+  .fixed.inset-0.z-50 {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+  /* Itago ang mga buttons sa mismong PDF */
+  .print\:hidden {
+    display: none !important;
+  }
+}

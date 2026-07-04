@@ -1,0 +1,5 @@
+<option value="All Health Status">All Conditions</option>
+                            <option value="Healthy">🟢 Healthy Stock</option>
+                            <option value="Re-Stock">🟡 Restock Warning</option>
+                            <option value="Critical">🔴 Critical Stock</option>
+                            <option value="Overstock">🔵 Overstocked</option>
