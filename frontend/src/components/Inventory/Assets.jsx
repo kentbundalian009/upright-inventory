@@ -464,11 +464,11 @@ function Assets() {
             {/* 📥 4. ITONG BUTTON ANG IDINAGDAG PARA SA PDF EXPORT */}
             <button
               onClick={downloadPDFReport}
-              className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm w-full cursor-pointer transition-all"
-            >Export
+              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all"
+            >Download PDF
             </button>
 
-            <button onClick={openAddModal} disabled={showArchivedOnly} className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm w-full cursor-pointer transition-all">
+            <button onClick={openAddModal} disabled={showArchivedOnly} className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all">
               Add Asset
             </button>
           </div>

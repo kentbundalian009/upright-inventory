@@ -45,9 +45,10 @@ const packingListSchema = new mongoose.Schema(
     },
     items: [
       {
-        productId: {
+        // 🌟 PINALITAN: productId -> materialId, ref: "RawMaterial"
+        materialId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Product", // Saktong tugma sa Product model mo
+          ref: "RawMaterial", 
           required: true,
         },
         qtyRequested: {

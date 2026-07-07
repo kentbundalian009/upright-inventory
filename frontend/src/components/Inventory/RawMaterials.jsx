@@ -457,13 +457,12 @@ function RawMaterials() {
                                 
                                 {filteredRawMaterials.length === 0 && !loading && (
                                     <tr>
-                                        <td colSpan="10" className="text-center py-8 text-slate-400">
-                                            <div className="flex flex-col items-center justify-center gap-1">
-                                                <AlertCircle className="w-6 h-6 text-[#18174e]/30" />
-                                                <p className="italic text-sm text-slate-500">Walang nahanap batay sa iyong napiling filter values o walang laman ang vault.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
+                    <td colSpan="10" className="text-center py-10 text-slate-400 font-medium italic">
+                      <div className="flex items-center justify-center gap-2">
+                        <span>No records match the selected filters or search queries.</span>
+                      </div>
+                    </td>
+                  </tr>
                                 )}
                             </tbody>
                         </table>

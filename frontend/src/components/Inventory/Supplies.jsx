@@ -8,10 +8,8 @@ function Supplies() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showArchivedOnly, setShowArchivedOnly] = useState(false);
-
   // 🎉 State para sa Success Notification
   const [successMessage, setSuccessMessage] = useState(null);
-
   // 🔔 States para sa Custom Confirmation Modal
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState({
@@ -20,16 +18,15 @@ function Supplies() {
     actionType: 'archive', // 'archive' o 'restore'
     onConfirm: () => { }
   });
-
   // 🎯 Dropdown Filtering Options (Para sa filter bar)
   const categories = ['All Categories', ...new Set(suppliesList.map(item => item.Category).filter(Boolean))];
   const segments = ['All Segments', ...new Set(suppliesList.map(item => item.Segment).filter(Boolean))];
   const descriptions = ['All Item Descriptions', ...new Set(suppliesList.map(item => item.ItemDescription).filter(Boolean))];
-
   // 🚀 DATALIST OPTIONS PARA SA LOOB NG MODAL (Unique values mula sa DB)
   const uniqueCategoriesInDB = [...new Set(suppliesList.map(item => item.Category).filter(Boolean))];
   const uniqueSegmentsInDB = [...new Set(suppliesList.map(item => item.Segment).filter(Boolean))];
   const uniqueDescriptionsInDB = [...new Set(suppliesList.map(item => item.ItemDescription).filter(Boolean))];
+  const uniqueBrandsInDB = [...new Set(suppliesList.map(item => item.Brand).filter(Boolean))];
   const uniqueDimensionsInDB = [...new Set(suppliesList.map(item => item.Dimension).filter(Boolean))];
   const uniqueUomsInDB = [...new Set(suppliesList.map(item => item.UOM).filter(Boolean))];
   const uniqueAccountsInDB = [...new Set(suppliesList.map(item => item.AccountTo).filter(Boolean))];
@@ -39,17 +36,16 @@ function Supplies() {
   const [selectedSegment, setSelectedSegment] = useState('All Segments');
   const [selectedDescription, setSelectedDescription] = useState('All Item Descriptions');
   const [searchTerm, setSearchTerm] = useState('');
-
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState(null);
-
   // Form States (Mga pwedeng baguhin na meta-data)
   const [supplyCode, setSupplyCode] = useState('');
   const [supplyCategory, setSupplyCategory] = useState('');
   const [supplySegment, setSupplySegment] = useState('');
   const [itemDescription, setItemDescription] = useState('');
+  const [supplyBrand, setSupplyBrand] = useState('');
   const [supplyDimension, setSupplyDimension] = useState('');
   const [supplyUom, setSupplyUom] = useState('');
   const [accountTo, setAccountTo] = useState('');
@@ -58,7 +54,6 @@ function Supplies() {
   const [currentActualCount, setCurrentActualCount] = useState(0);
   const [currentGoodCount, setCurrentGoodCount] = useState(0);
   const [currentDamagedCount, setCurrentDamagedCount] = useState(0);
-
   // Helper para magpakita ng success message na nawawala pagkalipas ng 3 segundo
   const showToast = (msg) => {
     setSuccessMessage(msg);
@@ -66,7 +61,6 @@ function Supplies() {
       setSuccessMessage(null);
     }, 3000);
   };
-
   const fetchSupplies = async () => {
     try {
       setLoading(true);
@@ -85,7 +79,6 @@ function Supplies() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchSupplies();
   }, []);
@@ -97,6 +90,7 @@ function Supplies() {
     setSupplyCategory('');
     setSupplySegment('');
     setItemDescription('');
+    setSupplyBrand('');
     setSupplyDimension('');
     setSupplyUom('');
     setAccountTo('');
@@ -115,26 +109,25 @@ function Supplies() {
     setSupplyCategory(supply.Category || '');
     setSupplySegment(supply.Segment || '');
     setItemDescription(supply.ItemDescription || '');
+    setSupplyBrand(supply.Brand || '');
     setSupplyDimension(supply.Dimension || '');
     setSupplyUom(supply.UOM || '');
     setAccountTo(supply.AccountTo || '');
-
     // 🔒 Kinukuha lang ang existing value pero hindi papayagan i-edit sa form
     setCurrentActualCount(supply.ActualCount || 0);
     setCurrentGoodCount(supply.ConditionBreakdown?.Good || supply.ActualCount || 0);
     setCurrentDamagedCount(supply.ConditionBreakdown?.Damaged || supply.DamagedCount || 0);
     setIsModalOpen(true);
   };
-
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-
     // Tanging descriptive fields lang ang ipapasa para walang dayaan sa quantity override
     const payload = {
       Code: supplyCode.trim(),
       Category: supplyCategory.trim(),
       Segment: supplySegment.trim(),
       ItemDescription: itemDescription.trim(),
+      Brand: supplyBrand.trim(),
       Dimension: supplyDimension.trim(),
       UOM: supplyUom.trim(),
       AccountTo: accountTo.trim(),
@@ -145,7 +138,6 @@ function Supplies() {
         Damaged: currentDamagedCount,
       }
     };
-
     try {
       if (isEditing) {
         await axios.put(`/api/supplies/${currentId}`, payload);
@@ -160,7 +152,6 @@ function Supplies() {
       alert(err.response?.data?.message || "Nagka-error sa pag-save ng item.");
     }
   };
-
   // 🛠️ Bagong triggers gamit ang iyong custom confirmation modal
   const handleArchiveSupply = (supply) => {
     setConfirmModalConfig({
@@ -189,7 +180,7 @@ function Supplies() {
       actionType: 'restore',
       onConfirm: async () => {
         try {
-          await axios.put(`/api/supplies/${supply._id}`, { ...supply, isArchived: false });
+          await axios.put(`/api/supplies/${supply._id}/unarchive`, { ...supply, isArchived: false });
           showToast(`Success: Restored supply "${supply.ItemDescription}"!`);
           fetchSupplies();
         } catch (err) {
@@ -205,7 +196,6 @@ function Supplies() {
   const currentDisplayList = suppliesList.filter(supply =>
     showArchivedOnly ? supply.isArchived === true : !supply.isArchived
   );
-
   const filteredSupplies = currentDisplayList.filter(supply => {
     const matchesCategory = selectedCategory === 'All Categories' || supply.Category === selectedCategory;
     const matchesSegment = selectedSegment === 'All Segments' || supply.Segment === selectedSegment;
@@ -213,6 +203,7 @@ function Supplies() {
 
     const matchesSearch =
       (supply.Code && supply.Code.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (supply.Brand && supply.Brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (supply.Dimension && supply.Dimension.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (supply.ItemDescription && supply.ItemDescription.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (supply.AccountTo && supply.AccountTo.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -222,7 +213,6 @@ function Supplies() {
 
   const activeCount = suppliesList.filter(s => !s.isArchived).length;
   const archivedCount = suppliesList.filter(s => s.isArchived).length;
-
   return (
     <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased relative">
       <PageHeader activeTab="supplies" />
@@ -251,8 +241,7 @@ function Supplies() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowArchivedOnly(!showArchivedOnly)}
-                className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-700 border-slate-200'
-                  }`}
+                className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-700 border-slate-200'}`}
               >
                 {showArchivedOnly ? (
                   <><EyeOff className="w-3.5 h-3.5" /> Show Active Supplies ({activeCount})</>
@@ -278,15 +267,15 @@ function Supplies() {
 
             <div className="relative w-full">
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-              <input type="text" placeholder="Search Code, Dimension..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none text-slate-700" />
+              <input type="text" placeholder="Search Code, Brand, Dimension..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none text-slate-700" />
             </div>
 
             <button
               onClick={openAddModal}
               disabled={showArchivedOnly}
-              className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-sm w-full cursor-pointer transition-all h-[38px]"
+              className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all"
             >
-              <Plus className="w-4 h-4" /> Add Supply
+              Add Supply
             </button>
           </div>
 
@@ -302,6 +291,7 @@ function Supplies() {
                   <th className="py-3 px-4">Code</th>
                   <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4">Item Description</th>
+                  <th className="py-3 px-4">Brand</th>
                   <th className="py-3 px-4">Dimension</th>
                   <th className="py-3 px-4 text-center bg-indigo-950">Actual Count</th>
                   <th className="py-3 px-4">UOM</th>
@@ -313,9 +303,9 @@ function Supplies() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan="7" className="text-center py-10 text-slate-400 font-medium italic">
+                    <td colSpan="10" className="text-center py-10 text-slate-400 font-medium italic">
                       <div className="flex items-center justify-center gap-2">
-                        <span>Fetching secure supplies data from database...</span>
+                        <span>Fetching secure asset data from database...</span>
                       </div>
                     </td>
                   </tr>
@@ -324,6 +314,7 @@ function Supplies() {
                     <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{supply.Code}</td>
                     <td className="py-3 px-4"><span className="bg-slate-100 px-2 py-1 rounded text-xs text-slate-700">{supply.Category}</span></td>
                     <td className="py-3 px-4 text-slate-800 font-semibold">{supply.ItemDescription}</td>
+                    <td className="py-3 px-4 font-semibold text-slate-700">{supply.Brand || '—'}</td>
                     <td className="py-3 px-4">{supply.Dimension || '—'}</td>
                     <td className="py-3 px-4 text-center font-bold font-mono text-base text-slate-900 bg-slate-50/40">{supply.ActualCount}</td>
                     <td className="py-3 px-4 text-slate-500">{supply.UOM}</td>
@@ -364,10 +355,9 @@ function Supplies() {
 
                 {filteredSupplies.length === 0 && !loading && (
                   <tr>
-                    <td colSpan="9" className="text-center py-8 text-slate-400">
-                      <div className="flex flex-col items-center justify-center gap-1">
-                        <AlertCircle className="w-6 h-6 text-[#18174e]/30" />
-                        <p className="italic text-sm text-slate-500">Walang nahanap batay sa iyong napiling filter values o walang laman ang vault.</p>
+                    <td colSpan="10" className="text-center py-10 text-slate-400 font-medium italic">
+                      <div className="flex items-center justify-center gap-2">
+                        <span>No records match the selected filters or search queries.</span>
                       </div>
                     </td>
                   </tr>
@@ -410,6 +400,7 @@ function Supplies() {
                     {uniqueCategoriesInDB.map((cat, i) => <option key={i} value={cat} />)}
                   </datalist>
                 </div>
+
                 <div>
                   <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Segment *</label>
                   <input type="text" required list="modal-segments-list" placeholder="Enter segment" value={supplySegment} onChange={(e) => setSupplySegment(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" />
@@ -427,7 +418,16 @@ function Supplies() {
                 </datalist>
               </div>
 
+              {/* BRAND AT DIMENSION GRID */}
               <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Brand</label>
+                  <input type="text" list="modal-brands-list" placeholder="Enter brand name" value={supplyBrand} onChange={(e) => setSupplyBrand(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" />
+                  <datalist id="modal-brands-list">
+                    {uniqueBrandsInDB.map((brand, i) => <option key={i} value={brand} />)}
+                  </datalist>
+                </div>
+
                 <div>
                   <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Dimension *</label>
                   <input type="text" list="modal-dimensions-list" placeholder="Enter dimension" value={supplyDimension} onChange={(e) => setSupplyDimension(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" />
@@ -435,13 +435,14 @@ function Supplies() {
                     {uniqueDimensionsInDB.map((dim, i) => <option key={i} value={dim} />)}
                   </datalist>
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">UOM *</label>
-                  <input type="text" required list="modal-uoms-list" placeholder="Enter unit of measure" value={supplyUom} onChange={(e) => setSupplyUom(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" />
-                  <datalist id="modal-uoms-list">
-                    {uniqueUomsInDB.map((uom, i) => <option key={i} value={uom} />)}
-                  </datalist>
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">UOM *</label>
+                <input type="text" required list="modal-uoms-list" placeholder="Enter unit of measure" value={supplyUom} onChange={(e) => setSupplyUom(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" />
+                <datalist id="modal-uoms-list">
+                  {uniqueUomsInDB.map((uom, i) => <option key={i} value={uom} />)}
+                </datalist>
               </div>
 
               <div>

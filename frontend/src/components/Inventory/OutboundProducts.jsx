@@ -714,12 +714,12 @@ function OutboundProducts() {
               <div className="flex items-center gap-2">
                 <button 
                   onClick={() => handleOpenVoidModal(selectedSlip)} 
-                  className="flex items-center gap-1 bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
+                  className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Void Transaction
                 </button>
 
-                <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer">
+                <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer">
                   <Download className="w-3.5 h-3.5" /> Download PDF
                 </button>
                 <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer">
@@ -729,8 +729,8 @@ function OutboundProducts() {
             </div>
 
             {selectedSlip.transactionType?.toLowerCase() === 'outbound' && (
-              <div className="bg-rose-50 text-rose-800 border border-rose-200 rounded-lg px-3 py-2 flex items-center gap-2 text-xs font-semibold">
-                <ShieldAlert className="w-4 h-4 text-rose-500 shrink-0" />
+              <div className="bg-red-200 text-red-800 border border-red-500 rounded-lg px-3 py-2 flex items-center gap-2 text-xs font-semibold">
+                <ShieldAlert className="w-4 h-4 text-red-700 shrink-0" />
                 <span>Notice: Cancelling active Outbound entries strictly demands high-level managerial approval passkey.</span>
               </div>
             )}

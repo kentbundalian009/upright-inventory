@@ -9,8 +9,8 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const BASE_API_URL = import.meta.env.MODE === 'production'
-  ? 'https://one-inventory.onrender.com/api'
-  : 'http://localhost:5000/api';
+    ? 'https://one-inventory.onrender.com/api'
+    : 'http://localhost:5000/api';
 
 function Reports() {
     const [activeModule, setActiveModule] = useState('raw-materials');
@@ -34,6 +34,7 @@ function Reports() {
     const [purchaseOrders, setPurchaseOrders] = useState([]);
     const [wipConversions, setWipConversions] = useState([]);
     const [suppliesMovements, setSuppliesMovements] = useState([]);
+    const [packingLists, setPackingLists] = useState([]);
 
     const monthsList = [
         { value: '01', label: 'January' }, { value: '02', label: 'February' },
@@ -63,12 +64,13 @@ function Reports() {
         setLoading(true);
         try {
             const config = getAuthConfig();
-            const [resRaw, resSupp, resInbound, resWIP, resSuppMove] = await Promise.all([
+            const [resRaw, resSupp, resInbound, resWIP, resSuppMove, resPL] = await Promise.all([
                 axios.get(`${BASE_API_URL}/raw-materials`, config).catch(() => null),
                 axios.get(`${BASE_API_URL}/supplies`, config).catch(() => null),
                 axios.get(`${BASE_API_URL}/purchase-orders`, config).catch(() => null),
                 axios.get(`${BASE_API_URL}/conversions`, config).catch(() => null),
                 axios.get(`${BASE_API_URL}/supplies-movements`, config).catch(() => null),
+                axios.get(`${BASE_API_URL}/packing-lists`, config).catch(() => null),
             ]);
 
             if (resRaw?.status === 200) setRawMaterialsData(resRaw.data);
@@ -76,6 +78,7 @@ function Reports() {
             if (resInbound?.status === 200) setPurchaseOrders(resInbound.data);
             if (resWIP?.status === 200) setWipConversions(resWIP.data);
             if (resSuppMove?.status === 200) setSuppliesMovements(resSuppMove.data);
+            if (resPL?.status === 200) setPackingLists(resPL.data);
         } catch (error) {
             console.error("Error fetching data for reports:", error);
         } finally {
@@ -120,56 +123,103 @@ function Reports() {
 
             // 1. RAW MATERIALS MODULE LOGIC
             if (activeModule === 'raw-materials') {
+                // A. Trace Purchase Orders (Inbound Logs)
                 purchaseOrders.forEach(po => {
                     const txDate = po.deliveryDate || po.createdAt || po.date;
                     if (matchDate(txDate)) {
-                        const matchItem = po.items?.find(it =>
-                            it.materialId?.Code === item.Code ||
+                        const matchedPoItem = po.items?.find(it =>
+                            it.materialId?._id === item._id ||
                             it.materialId === item._id ||
+                            it.materialId?.Code === item.Code ||
                             it.Code === item.Code
                         );
-                        const qty = matchItem?.actualCountReceived || matchItem?.qty || matchItem?.quantity || 0;
-                        if (qty > 0) {
-                            inflows.push({ type: 'IN', qty: qty, label: po.supplier || 'Supplier Inbound', date: formatDate(txDate) });
+                        if (matchedPoItem) {
+                            const qty = matchedPoItem.qtyReceived || matchedPoItem.qtyOrdered || matchedPoItem.actualCountReceived || matchedPoItem.qty || matchedPoItem.quantity || 0;
+                            if (qty > 0) {
+                                inflows.push({
+                                    type: 'IN',
+                                    qty: qty,
+                                    label: po.poNumber ? `PO: ${po.poNumber}` : (po.supplier || 'Supplier Inbound'),
+                                    date: formatDate(txDate)
+                                });
+                            }
                         }
                     }
                 });
 
+                // B. Trace WIP Conversions (Production Movements)
                 wipConversions.forEach(wip => {
-                    const txDate = wip.dateProcessed || wip.createdAt;
+                    const txDate = wip.conversionDate || wip.dateProcessed || wip.createdAt;
                     if (matchDate(txDate)) {
-                        const matchedInput = wip.inputs?.find(input =>
-                            input.materialId?._id === item._id ||
-                            input.materialId === item._id ||
-                            input.materialId?.Code === item.Code
+                        // Bawas kapag ginamit sa components/WIP (Outflow / Consumption)
+                        const matchedConsumed = (wip.materialsConsumed || wip.inputs)?.find(it =>
+                            it.materialId?._id === item._id ||
+                            it.materialId === item._id ||
+                            it.materialId?.Code === item.Code
                         );
-
-                        if (matchedInput) {
-                            const qty = matchedInput.qtyUsed || 0;
+                        if (matchedConsumed) {
+                            const qty = matchedConsumed.qtyUsed || 0;
                             if (qty > 0) {
                                 outflows.push({
                                     type: 'WIP',
                                     qty: qty,
-                                    label: `${wip.conversionNo || 'WIP'} (${wip.productionType || 'Deducted'})`,
+                                    label: wip.wipOrderNo ? `To WIP: ${wip.wipOrderNo}` : `${wip.conversionNo || 'WIP'} (${wip.productionType || 'Deducted'})`,
                                     date: formatDate(txDate)
                                 });
                             }
                         }
 
-                        const matchedOutput = wip.outputs?.find(output =>
-                            output.itemType === 'RawMaterial' &&
-                            (output.itemId?._id === item._id ||
-                            output.itemId === item._id || output.itemId?.Code === item.Code)
+                        // Dagdag mula sa production returns (Inflow / Return)
+                        const matchedReturned = wip.materialsReturned?.find(it =>
+                            it.materialId?._id === item._id ||
+                            it.materialId === item._id ||
+                            it.materialId?.Code === item.Code
                         );
-                        if (matchedOutput) {
-                            const qty = matchedOutput.qtyProduced || 0;
+                        if (matchedReturned) {
+                            const qty = matchedReturned.qtyReturned || 0;
                             if (qty > 0) {
                                 inflows.push({
                                     type: 'WIP_RET',
                                     qty: qty,
-                                    label: `${wip.conversionNo || 'WIP'} Return`,
+                                    label: `Return: ${wip.wipOrderNo || 'Job Order'}`,
                                     date: formatDate(txDate)
                                 });
+                            }
+                        }
+                    }
+                });
+
+                // C. Trace Packing Lists (Outbound / Reserve Deliveries)
+                packingLists.forEach(pl => {
+                    const txDate = pl.shipmentDate || pl.createdAt;
+                    if (matchDate(txDate)) {
+                        const matchedPLItem = pl.items?.find(it =>
+                            it.materialId?._id === item._id ||
+                            it.materialId === item._id ||
+                            it.materialId?.Code === item.Code
+                        );
+
+                        if (matchedPLItem) {
+                            const qty = pl.transactionType === "Outbound"
+                                ? (matchedPLItem.actualCountShipped || 0)
+                                : (matchedPLItem.qtyRequested || 0);
+
+                            if (qty > 0) {
+                                if (pl.transactionType === "Outbound") {
+                                    outflows.push({
+                                        type: 'OUT',
+                                        qty: qty,
+                                        label: `${pl.plNo || 'PL'} - ${pl.customer || 'Outbound'}`,
+                                        date: formatDate(txDate)
+                                    });
+                                } else if (pl.transactionType === "Reserve") {
+                                    outflows.push({
+                                        type: 'RESERVE',
+                                        qty: qty,
+                                        label: `${pl.plNo || 'RES'} - ${pl.customer || 'Reserved'}`,
+                                        date: formatDate(txDate)
+                                    });
+                                }
                             }
                         }
                     }
@@ -306,10 +356,8 @@ function Reports() {
             const centerX = pageWidth / 2;
             const centerY = pageHeight / 2;
             let titleModule = reportModules?.find(m => m.id === activeModule)?.label || activeModule || "Inventory";
-            
             if (viewMode === 'category') titleModule += " (By Category Summary)";
             if (viewMode === 'segment') titleModule += " (By Segment Summary)";
-
             const targetMonthLabel = monthsList?.find(m => m.value === selectedMonth)?.label || selectedMonth || "Month";
             const currentYearStr = selectedYear || new Date().getFullYear();
             const activeModuleStr = activeModule ? activeModule.toUpperCase() : "REGISTRY";
@@ -389,7 +437,6 @@ function Reports() {
                     doc.setFont("helvetica", "normal");
                     doc.setTextColor(200, 200, 220);
                     doc.text(`Material Flow Logistics & Audit Trail Control Registry  |  System Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
-
                     doc.setFont("helvetica", "normal");
                     doc.setFontSize(8);
                     doc.setTextColor(120, 120, 120);
@@ -419,17 +466,15 @@ function Reports() {
                             doc.setLineWidth(1.2);
                             const cleanLine = line.trim();
 
-                            if (/^RESERVE\b/i.test(cleanLine)) {
-                                doc.setDrawColor(59, 130, 246);
+                            // PDF Marker Colors aligning with requirements
+                            if (/^RESERVE\b|^WIP\b/i.test(cleanLine)) {
+                                doc.setDrawColor(245, 158, 11); // Yellow for WIP and Reserve
                                 doc.line(data.cell.x, lineYStart, data.cell.x, safeYEnd);
                             } else if (/^IN\b|^WIP_RET\b/i.test(cleanLine)) {
-                                doc.setDrawColor(16, 185, 129);
+                                doc.setDrawColor(16, 185, 129); // Green for IN & WIP Return
                                 doc.line(data.cell.x, lineYStart, data.cell.x, safeYEnd);
                             } else if (/^OUT\b/i.test(cleanLine)) {
-                                doc.setDrawColor(239, 68, 68);
-                                doc.line(data.cell.x, lineYStart, data.cell.x, safeYEnd);
-                            } else if (/^WIP\b/i.test(cleanLine)) {
-                                doc.setDrawColor(245, 158, 11);
+                                doc.setDrawColor(239, 68, 68); // Red for OUT
                                 doc.line(data.cell.x, lineYStart, data.cell.x, safeYEnd);
                             }
                         });
@@ -450,7 +495,6 @@ function Reports() {
                     7: { cellWidth: 66, fontSize: 7 }
                 }
             });
-
             doc.save(`${activeModuleStr}_${viewMode.toUpperCase()}_CONSOLIDATED_${targetMonthLabel.toUpperCase()}_${currentYearStr}.pdf`);
         } catch (e) {
             console.error("🔴 PDF CRITICAL FAILURE REASON:", e);
@@ -476,16 +520,14 @@ function Reports() {
                             className="w-full bg-slate-50 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none border border-transparent focus:border-[#18174e]"
                         />
                     </div>
-                    
-                    {/* Dagdag na flexible controls */}
+
                     <div className="flex flex-wrap md:flex-nowrap gap-3 items-center w-full md:w-auto">
-                        
                         {/* 1. View Grouping Select */}
                         <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
                             <Filter className="w-3.5 h-3.5 text-slate-400" />
-                            <select 
-                                value={viewMode} 
-                                onChange={(e) => setViewMode(e.target.value)} 
+                            <select
+                                value={viewMode}
+                                onChange={(e) => setViewMode(e.target.value)}
                                 className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer text-slate-700"
                             >
                                 <option value="detailed">Detailed (Per Item)</option>
@@ -496,9 +538,9 @@ function Reports() {
 
                         {/* 2. Hide Zero Quantity Checkbox */}
                         <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-700 cursor-pointer hover:bg-slate-100">
-                            <input 
-                                type="checkbox" 
-                                checked={hideZeroQty} 
+                            <input
+                                type="checkbox"
+                                checked={hideZeroQty}
                                 onChange={(e) => setHideZeroQty(e.target.checked)}
                                 className="accent-[#18174e] cursor-pointer rounded"
                             />
@@ -512,8 +554,8 @@ function Reports() {
                             <option value="2026">2026</option>
                             <option value="2025">2025</option>
                         </select>
-                        <button onClick={handleDownloadPDF} className="bg-[#18174e] hover:bg-[#252375] text-white text-sm px-4 py-2 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap">
-                            <Download className="w-4 h-4" /> Export PDF
+                        <button onClick={handleDownloadPDF} className="bg-green-600 hover:bg-green-700 text-white text-xs px-4 py-2 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap">
+                          Download PDF
                         </button>
                     </div>
                 </div>
@@ -533,10 +575,9 @@ function Reports() {
                                         setActiveModule(m.id);
                                         setGlobalSearch('');
                                     }}
-                                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all relative cursor-pointer ${
-                                        isActive
-                                            ? 'bg-[#18174e] text-white font-bold shadow-md'
-                                            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all relative cursor-pointer ${isActive
+                                        ? 'bg-[#18174e] text-white font-bold shadow-md'
+                                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
                                     }`}
                                 >
                                     <Icon size={16} className="flex-shrink-0" />
@@ -554,7 +595,6 @@ function Reports() {
                         <div className="bg-white rounded-xl border border-slate-100 overflow-hidden min-h-[350px]">
                             {loading ? (
                                 <div className="flex justify-center items-center min-h-[350px]"><Loader2 className="animate-spin text-[#18174e]" /></div>
-                                
                             ) : consolidatedData.length > 0 ? (
                                 <div className="overflow-x-auto w-full">
                                     <table className="w-full text-left text-sm border-collapse">
@@ -591,10 +631,14 @@ function Reports() {
                                                         <div className="flex flex-col gap-1 min-w-[220px]">
                                                             {item.inflows.length > 0 ? (
                                                                 item.inflows.map((inf, idx) => (
-                                                                    <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium border ${inf.type === 'IN' || inf.type === 'WIP_RET' ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-amber-50 text-amber-800 border-amber-100'}`}>
+                                                                    <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium border ${
+                                                                        inf.type === 'IN' || inf.type === 'WIP_RET' 
+                                                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-100' 
+                                                                            : 'bg-amber-50 text-amber-800 border-amber-100'
+                                                                    }`}>
                                                                         <span className="font-black text-emerald-600">{inf.type}</span>
                                                                         <span className="text-slate-400">|</span>
-                                                                        <span className="font-bold">{inf.qty}</span>
+                                                                        <span className="font-bold">+{inf.qty}</span>
                                                                         <span className="text-slate-400">|</span>
                                                                         <span className="text-slate-600 font-semibold truncate max-w-[100px]">{inf.label}</span>
                                                                         <span className="text-slate-400">|</span>
@@ -611,17 +655,28 @@ function Reports() {
                                                     <td className="p-3">
                                                         <div className="flex flex-col gap-1 min-w-[220px]">
                                                             {item.outflows.length > 0 ? (
-                                                                item.outflows.map((out, idx) => (
-                                                                    <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium border ${out.type === 'RESERVE' ? 'bg-amber-50 text-amber-800 border-amber-100' : 'bg-rose-50 text-rose-800 border-rose-100'}`}>
-                                                                        <span className={`font-black ${out.type === 'RESERVE' ? 'text-amber-600' : 'text-rose-600'}`}>{out.type}</span>
-                                                                        <span className="text-slate-400">|</span>
-                                                                        <span className="font-bold">{out.qty}</span>
-                                                                        <span className="text-slate-400">|</span>
-                                                                        <span className="text-slate-600 font-semibold truncate max-w-[100px]">{out.label}</span>
-                                                                        <span className="text-slate-400">|</span>
-                                                                        <span className="text-slate-500 font-mono">{out.date}</span>
-                                                                    </div>
-                                                                ))
+                                                                item.outflows.map((out, idx) => {
+                                                                    // Determine colors based on requirements
+                                                                    let badgeStyles = "bg-rose-50 text-rose-800 border-rose-100";
+                                                                    let textStyle = "text-rose-600";
+                                                                    
+                                                                    if (out.type === 'WIP' || out.type === 'RESERVE') {
+                                                                        badgeStyles = "bg-amber-50 text-amber-800 border-amber-100";
+                                                                        textStyle = "text-amber-600";
+                                                                    }
+                                                                    
+                                                                    return (
+                                                                        <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium border ${badgeStyles}`}>
+                                                                            <span className={`font-black ${textStyle}`}>{out.type}</span>
+                                                                            <span className="text-slate-400">|</span>
+                                                                            <span className="font-bold">-{out.qty}</span>
+                                                                            <span className="text-slate-400">|</span>
+                                                                            <span className="text-slate-600 font-semibold truncate max-w-[100px]">{out.label}</span>
+                                                                            <span className="text-slate-400">|</span>
+                                                                            <span className="text-slate-500 font-mono">{out.date}</span>
+                                                                        </div>
+                                                                    );
+                                                                })
                                                             ) : (
                                                                 <span className="text-[10px] text-slate-400 italic px-1">No outflows</span>
                                                             )}

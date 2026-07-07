@@ -34,7 +34,7 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
     { id: 'user-activity', name: 'User Activity', icon: Activity, roles: ['Admin'] },
     
     // INVENTORY ACCESSIBLE ONLY
-    { id: 'raw-materials', name: 'Rackings', icon: Layers, roles: ['Inventory'] },
+    { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, roles: ['Inventory'] },
     { id: 'inbound-raw-mat', name: 'Inbound Raw Materials', icon: ArrowDownCircle, roles: ['Inventory'] },
     // 🌟 INALIS DITO: Products (Records)
     { id: 'work-in-progress', name: 'Work in Progress', icon: TrendingUp, roles: ['Inventory'] },

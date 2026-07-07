@@ -734,7 +734,7 @@ function SuppliesMovements() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-slate-800 text-lg">Slip View: {selectedSlip.slipNo}</h3>
               <div className="flex items-center gap-2">
-                <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer">
+                <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer">
                   <Download className="w-3.5 h-3.5" /> Download PDF
                 </button>
                 <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer">

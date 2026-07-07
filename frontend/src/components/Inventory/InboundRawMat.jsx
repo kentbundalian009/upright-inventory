@@ -381,7 +381,7 @@ function InboundRawMat() {
 
   const handleDownloadHistoryPDF = () => {
     if (filteredPoRecords.length === 0) {
-      return showErrorToast("Walang data na magagawaan ng report.");
+      return showErrorToast("No records available to generate the History Report PDF.");
     }
 
     try {
@@ -540,7 +540,7 @@ function InboundRawMat() {
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
               <div className="flex justify-between items-center mb-0.5">
                 <label className="block text-sm font-bold text-emerald-800 uppercase">Step 1: Type / Select Materials for Stock Addition</label>
-                <button type="button" onClick={() => setIsMatModalOpen(true)} className="flex items-center gap-1 bg-[#18174e] text-white font-bold px-2.5 py-1 rounded-lg text-xs cursor-pointer"><Plus className="w-3.5 h-3.5" /> Add New Raw Materials</button>
+                <button type="button" onClick={() => setIsMatModalOpen(true)} className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-md cursor-pointer transition-all">Add New Rackings Item</button>
               </div>
               <div className="relative"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                 <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search item code or description..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
@@ -717,7 +717,7 @@ function InboundRawMat() {
                 <button
                   type="button"
                   onClick={handleDownloadHistoryPDF}
-                  className="flex items-center gap-1 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-md transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-[11px] bg-green-600 hover:bg-green-700 text-white font-bold px-2 py-1 rounded-md transition-colors cursor-pointer"
                   title="I-download ang lahat ng lumalabas sa history log bilang PDF"
                 >
                   <Download className="w-3 h-3" /> Report
@@ -760,7 +760,7 @@ function InboundRawMat() {
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 className="font-bold text-slate-800 text-lg">PO Details: {selectedPo.poNo}</h3>
         <div className="flex items-center gap-2">
-          <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"><Download className="w-3.5 h-3.5" /> Download PDF</button>
+          <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"><Download className="w-3.5 h-3.5" /> Download PDF</button>
           <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50"><X className="w-5 h-5" /></button>
         </div>
       </div>

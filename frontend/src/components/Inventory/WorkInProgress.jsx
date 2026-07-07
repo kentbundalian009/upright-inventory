@@ -633,7 +633,7 @@ function WorkInProgress() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-slate-800 text-lg">Production Record Sheet: {selectedConversion.conversionNo}</h3>
               <div className="flex items-center gap-2">
-                <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-emerald-700 transition-colors"><Download className="w-3.5 h-3.5" /> Download PDF</button>
+                <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-green-700 transition-colors"><Download className="w-3.5 h-3.5" /> Download PDF</button>
                 <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer"><X className="w-5 h-5" /></button>
               </div>
             </div>
