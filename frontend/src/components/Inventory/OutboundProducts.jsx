@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios'; 
+import axios from 'axios';
 import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -10,16 +10,16 @@ const API_BASE_URL = import.meta.env.MODE === 'production'
   ? 'https://one-inventory.onrender.com/api'
   : 'http://localhost:5000/api';
 
-const PRODUCTS_URL = `${API_BASE_URL}/products`;
+const RAW_MAT_URL = `${API_BASE_URL}/raw-materials`;
 const PL_URL = `${API_BASE_URL}/packing-lists`;
 
 // Security Master Passkey kapag pinilit i-cancel ang isang "Outbound" log type
 const MASTER_CANCELLATION_KEY = "VOID-CONFIRM-2026";
 
 function OutboundProducts() {
-  const [dbProducts, setDbProducts] = useState([]);
+  const [dbRawMaterials, setDbRawMaterials] = useState([]);
   const [plRecords, setPlRecords] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [rawMatSearchQuery, setRawMatSearchQuery] = useState('');
   const [historySearchQuery, setHistorySearchQuery] = useState(''); 
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,7 +37,7 @@ function OutboundProducts() {
   const [manifestItems, setManifestItems] = useState([]);
   const [referencePlNo, setReferencePlNo] = useState(''); 
   const [preparedBy, setPreparedBy] = useState('System User');
-
+  
   // Unique lists para sa dropdown suggestions
   const [existingCustomers, setExistingCustomers] = useState([]);
   const [existingCarriers, setExistingCarriers] = useState([]);
@@ -70,12 +70,13 @@ function OutboundProducts() {
 
   const fetchData = async () => {
     try {
-      const [productsRes, plsRes] = await Promise.all([
-        axios.get(PRODUCTS_URL), 
+      const [rawMatRes, plsRes] = await Promise.all([
+        axios.get(RAW_MAT_URL), 
         axios.get(PL_URL)
       ]);
-      if (productsRes.data) {
-        setDbProducts(productsRes.data.filter(p => !p.isArchived));
+
+      if (rawMatRes.data) {
+        setDbRawMaterials(rawMatRes.data.filter(p => !p.isArchived));
       }
       if (plsRes.data) {
         setPlRecords(plsRes.data);
@@ -89,7 +90,7 @@ function OutboundProducts() {
         setExistingDestinations(uniqueDestinations);
       }
     } catch (err) { 
-      console.error("Error loading registry data:", err); 
+      console.error("Error loading registry data:", err);
       showErrorToast("Failed to load registry data from server.");
     }
   };
@@ -108,13 +109,13 @@ function OutboundProducts() {
     }
   }, []);
 
-  const handleSelectProduct = (item) => {
-    if (manifestItems.some(i => i.productId === item._id)) {
-      showErrorToast("This product is already in the manifest list.");
-      return setSearchQuery('');
+  const handleSelectRawMaterial = (item) => {
+    if (manifestItems.some(i => i.materialId === item._id || i.productId === item._id)) {
+      showErrorToast("This material is already in the manifest list.");
+      return setRawMatSearchQuery('');
     }
     setManifestItems([...manifestItems, {
-      productId: item._id, 
+      materialId: item._id, // Ginawang materialId para magtugma sa raw material schema
       Code: item.Code, 
       ItemDescription: item.ItemDescription,
       qtyRequested: 1, 
@@ -122,7 +123,7 @@ function OutboundProducts() {
       actualCountShipped: 1, 
       remarks: ''
     }]);
-    setSearchQuery('');
+    setRawMatSearchQuery('');
   };
 
   const handleFastReturnCopy = (reserveSlip) => {
@@ -133,13 +134,13 @@ function OutboundProducts() {
     setReferencePlNo(reserveSlip.plNo); 
     
     const fastItems = reserveSlip.items.map(it => {
-      const targetProduct = it.productId || it.materialId;
+      const targetMaterial = it.materialId || it.productId;
       return {
-        productId: targetProduct?._id || targetProduct,
-        Code: targetProduct?.Code || 'N/A',
-        ItemDescription: targetProduct?.ItemDescription || '-',
+        materialId: targetMaterial?._id || targetMaterial,
+        Code: targetMaterial?.Code || 'N/A',
+        ItemDescription: targetMaterial?.ItemDescription || '-',
         qtyRequested: it.qtyRequested,
-        UOM: targetProduct?.UOM || 'pcs',
+        UOM: targetMaterial?.UOM || 'pcs',
         actualCountShipped: it.qtyRequested, 
         remarks: `Released from Reserve Slip ${reserveSlip.plNo}`
       };
@@ -161,14 +162,14 @@ function OutboundProducts() {
   const handleSubmitPL = async (e) => {
     e.preventDefault();
     if (manifestItems.length === 0) {
-      showErrorToast("Please add product lines into your list manifest.");
+      showErrorToast("Please add material lines into your list manifest.");
       return;
     }
 
     const payload = {
       transactionType, shipmentDate, customer, carrier, destinationAddress, preparedBy, referencePlNo,
       items: manifestItems.map(i => ({
-        productId: i.productId, 
+        materialId: i.materialId || i.productId, 
         qtyRequested: Number(i.qtyRequested),
         actualCountShipped: Number(i.actualCountShipped), 
         remarks: i.remarks
@@ -178,7 +179,7 @@ function OutboundProducts() {
     try {
       const res = await axios.post(PL_URL, payload);
       if (res.status === 200 || res.status === 201) {
-        showSuccessToast(`Product ${transactionType} Slip generated and stock updated!`);
+        showSuccessToast(`Material ${transactionType} Slip generated and stock updated!`);
         setManifestItems([]); setCustomer(''); setCarrier(''); setDestinationAddress(''); setReferencePlNo('');
         setTransactionType('Outbound');
         fetchData(); 
@@ -190,152 +191,130 @@ function OutboundProducts() {
   };
 
   const handleDownloadPDF = () => {
-  if (!selectedSlip) return;
-  try {
-    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    if (!selectedSlip) return;
+    try {
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const centerX = pageWidth / 2;
+      const centerY = pageHeight / 2;
+      const formattedDate = new Date().toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
 
-    // Kunin ang mga sukat ng A4 (Portrait)
-    const pageWidth = 210;
-    const pageHeight = 297;
-    const centerX = pageWidth / 2;
-    const centerY = pageHeight / 2;
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
 
-    const formattedDate = new Date().toLocaleString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
+      // Row 1 Meta
+      doc.text("Slip Number:", 14, 42); 
+      doc.setFont("helvetica", "normal"); 
+      doc.text(`${selectedSlip.plNo}`, 45, 42);
+      doc.setFont("helvetica", "bold"); 
+      doc.text("Date Logged:", 120, 42); 
+      doc.setFont("helvetica", "normal"); 
+      doc.text(`${selectedSlip.shipmentDate ? new Date(selectedSlip.shipmentDate).toLocaleDateString() : '-'}`, 155, 42);
 
-    // --- MGA DETALYE SA ITAAS NG TALAHANAYAN (Metadata Section) ---
-    // Nanatili sa labas ng didDrawPage para iwas-patong kapag multi-page overflow
-    doc.setTextColor(40, 40, 40);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
+      // Row 2 Meta
+      doc.setFont("helvetica", "bold"); 
+      doc.text("Action Type:", 14, 49); 
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(79, 70, 229);
+      doc.text(`${selectedSlip.transactionType}`, 45, 49);
 
-    // Row 1 Meta
-    doc.text("Slip Number:", 14, 42); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(`${selectedSlip.plNo}`, 45, 42);
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("Prepared By:", 120, 49); 
+      doc.setFont("helvetica", "normal"); 
+      doc.text(`${selectedSlip.preparedBy || preparedBy}`, 155, 49);
 
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Date Logged:", 120, 42); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(`${selectedSlip.shipmentDate ? new Date(selectedSlip.shipmentDate).toLocaleDateString() : '-'}`, 155, 42);
+      // Row 3 Meta
+      doc.setFont("helvetica", "bold");
+      doc.text("Customer Name:", 14, 56); 
+      doc.setFont("helvetica", "normal"); 
+      doc.text(`${selectedSlip.customer || 'N/A'}`, 45, 56);
 
-    // Row 2 Meta
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Action Type:", 14, 49); 
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(79, 70, 229); // Accent text color para sa validation mode status
-    doc.text(`${selectedSlip.transactionType}`, 45, 49);
+      // Row 4 Meta
+      doc.setFont("helvetica", "bold");
+      doc.text("Destination:", 14, 63); 
+      doc.setFont("helvetica", "normal"); 
+      doc.text(`${selectedSlip.destinationAddress || 'N/A'}`, 45, 63);
 
-    doc.setTextColor(40, 40, 40);
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Prepared By:", 120, 49); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(`${selectedSlip.preparedBy || preparedBy}`, 155, 49);
+      const tableColumns = ["Material Profile", "Requested QTY", "Shipped QTY Count", "Item Remarks"];
+      const tableRows = selectedSlip.items?.map(it => {
+        const targetMaterial = it.materialId || it.productId;
+        return [
+          `${targetMaterial?.Code || 'N/A'}\n${targetMaterial?.ItemDescription || '-'}`,
+          `${it.qtyRequested} ${targetMaterial?.UOM || ''}`,
+          `${it.actualCountShipped} ${targetMaterial?.UOM || ''}`,
+          it.remarks || "-"
+        ];
+      }) || [];
 
-    // Row 3 Meta
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Customer Name:", 14, 56); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(`${selectedSlip.customer || 'N/A'}`, 45, 56);
+      autoTable(doc, {
+        startY: 72, 
+        head: [tableColumns],
+        body: tableRows,
+        theme: 'grid',
+        didDrawPage: (data) => {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.06 })); 
+          const logoWidth = 80;  
+          const logoHeight = 80; 
+          const logoX = centerX - (logoWidth / 2);
+          const logoY = centerY - (logoHeight / 2);
+          doc.addImage('/one.logo.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
+          doc.restoreGraphicsState();
 
-    // Row 4 Meta
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Destination:", 14, 63); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(`${selectedSlip.destinationAddress || 'N/A'}`, 45, 63);
+          doc.setFillColor(24, 23, 78);
+          doc.rect(0, 0, pageWidth, 30, 'F');
 
-    // --- PAGHAHANDA NG DATA NG TALAHANAYAN ---
-    const tableColumns = ["Product Profile", "Requested QTY", "Shipped QTY Count", "Item Remarks"];
-    const tableRows = selectedSlip.items?.map(it => {
-      const targetProduct = it.productId || it.materialId;
-      return [
-        `${targetProduct?.Code || 'N/A'}\n${targetProduct?.ItemDescription || '-'}`,
-        `${it.qtyRequested} ${targetProduct?.UOM || ''}`,
-        `${it.actualCountShipped} ${targetProduct?.UOM || ''}`,
-        it.remarks || "-"
-      ];
-    }) || [];
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(14);
+          doc.text(`MATERIAL OUTBOUND SLIP (${selectedSlip.transactionType.toUpperCase()})`, centerX, 13, { align: 'center' });
+          
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(200, 200, 220);
+          doc.text(`Warehouse Logistics & Outbound Control Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
 
-    // --- AUTOTABLE GENERATION WITH THUMBNAIL LAYOUT ---
-    autoTable(doc, {
-      startY: 72, // Inadjust para sa 4 rows ng metadata text
-      head: [tableColumns],
-      body: tableRows,
-      theme: 'grid',
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(120, 120, 120);
+          doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10); 
+          
+          const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
+          doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
+        },
+        headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, valign: 'middle' },
+        bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
+        alternateRowStyles: { fillColor: [248, 249, 250] },
+        styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 },
+        columnStyles: { 
+          0: { cellWidth: 85 }, 
+          1: { cellWidth: 28, halign: 'center' }, 
+          2: { cellWidth: 32, halign: 'center', fontStyle: 'bold' }, 
+          3: { cellWidth: 41 } 
+        }
+      });
       
-      // Pag-inject ng pinag-isang unpormeng background styling at elements
-      didDrawPage: (data) => {
-        // 1. Watermark Layer
-        doc.saveGraphicsState();
-        doc.setGState(new doc.GState({ opacity: 0.06 })); 
-        const logoWidth = 80;  
-        const logoHeight = 80; 
-        const logoX = centerX - (logoWidth / 2);
-        const logoY = centerY - (logoHeight / 2);
-        doc.addImage('/one.logo.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
-        doc.restoreGraphicsState();
+      doc.save(`OUTBOUND_SLIP_${selectedSlip.plNo}.pdf`);
+      showSuccessToast("PDF Downloaded successfully!");
+    } catch(e) {
+      showErrorToast("Failed to download PDF slip configuration.");
+    }
+  };
 
-        // 2. Branding Header Top Bar Block
-        doc.setFillColor(24, 23, 78);
-        doc.rect(0, 0, pageWidth, 30, 'F');
-
-        // 3. Header Texts (Centered para sa design symmetry alignment)
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.text(`PRODUCT OUTBOUND SLIP (${selectedSlip.transactionType.toUpperCase()})`, centerX, 13, { align: 'center' });
-        
-        doc.setFontSize(8.5);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(200, 200, 220); 
-        doc.text(`Warehouse Logistics & Outbound Control Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
-
-        // 4. System Standard Absolute Footer
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(120, 120, 120);
-        doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10); 
-        
-        const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
-        doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
-      },
-
-      headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, valign: 'middle' },
-      bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
-      alternateRowStyles: { fillColor: [248, 249, 250] },
-      styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 },
-      columnStyles: { 
-        0: { cellWidth: 85 }, 
-        1: { cellWidth: 28, halign: 'center' }, 
-        2: { cellWidth: 32, halign: 'center', fontStyle: 'bold' }, 
-        3: { cellWidth: 41 } 
-      }
-    });
-
-    // --- SIGNATORIES SECTION ---
-    const finalY = doc.lastAutoTable.finalY + 20;
-    // Pinipigilan nitong sumalta ang pirma sa sagad na footer space boundary zone
-    
-    doc.save(`OUTBOUND_SLIP_${selectedSlip.plNo}.pdf`);
-    showSuccessToast("PDF Downloaded successfully!");
-  } catch(e) {
-    showErrorToast("Failed to download PDF slip configuration.");
-  }
-};
-
-  // Trigger function para mabuksan ang Custom Void Modal
   const handleOpenVoidModal = (slip) => {
     setSelectedSlip(slip);
     setPasskeyInput('');
     setIsVoidModalOpen(true);
   };
 
-  // Server Request Execution para sa Void Operation
   const handleExecuteCancellation = async () => {
     const isReserve = selectedSlip.transactionType?.toLowerCase() === 'reserve';
-
     if (!isReserve && passkeyInput !== MASTER_CANCELLATION_KEY) {
       showErrorToast("ACCESS DENIED: Invalid authorization token code.");
       return;
@@ -356,9 +335,9 @@ function OutboundProducts() {
     }
   };
 
-  const filteredSuggestions = dbProducts.filter(item => 
-    item.Code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.ItemDescription?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredRawMatSuggestions = dbRawMaterials.filter(item => 
+    item.Code?.toLowerCase().includes(rawMatSearchQuery.toLowerCase()) ||
+    item.ItemDescription?.toLowerCase().includes(rawMatSearchQuery.toLowerCase())
   );
 
   const completedPlNumbers = plRecords
@@ -374,7 +353,7 @@ function OutboundProducts() {
     rec.plNo?.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
     rec.customer?.toLowerCase().includes(historySearchQuery.toLowerCase())
   );
-  
+
   const displayedHistoryLogs = historySearchQuery ? filteredHistoryLogs : filteredHistoryLogs.slice(0, 4);
 
   return (
@@ -429,7 +408,7 @@ function OutboundProducts() {
           <div className="border-b border-slate-100 pb-3 flex items-center justify-between text-sm font-bold text-slate-600">
             <div className="flex items-center gap-2">
               <ArrowLeftRight className="w-4 h-4 text-[#18174e]" />
-              <span>Products Outbound & Logistics Slip</span>
+              <span>Materials Outbound & Logistics Slip</span>
             </div>
             {manifestItems.length > 0 && (
               <button type="button" onClick={() => { setManifestItems([]); setReferencePlNo(''); setTransactionType('Outbound'); showSuccessToast("Form grid cleared."); }} className="text-xs font-bold text-rose-500 hover:underline cursor-pointer">Clear Form Grid</button>
@@ -524,75 +503,50 @@ function OutboundProducts() {
               </div>
             </div>
 
+            {/* --- STEP 1: ALLOCATE RAW MATERIAL (INPUT) --- */}
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
-              <label className="block text-sm font-bold text-[#18174e] uppercase">Search Products Registry Catalog</label>
+              <label className="block text-sm font-bold text-red-800 uppercase">Step 1: Type / Select Materials for Stock Deduction  </label>
               <div className="relative"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search item code or details..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
+                <input type="text" value={rawMatSearchQuery} onChange={e => setRawMatSearchQuery(e.target.value)} placeholder="Search raw material code or description..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
               </div>
-              {searchQuery && (
-  <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
-    {filteredSuggestions.length > 0 ? (
-      filteredSuggestions.map(item => (
-        <div 
-          key={item._id} 
-          onClick={() => handleSelectProduct(item)} 
-          className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors"
-        >
-          {/* Unang Linya: Code, UOM, at Available Stock Status Badge */}
-          <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">
-                {item.Code}
-              </span>
-              <span className="text-xs font-medium text-slate-400 lowercase italic">
-                {item.UOM || 'pcs'}
-              </span>
-            </div>
-            <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-              Avail: {item.ActualCount || 0}
-            </span>
-          </div>
-
-          {/* Pangalawang Linya: Description */}
-          <span className="text-slate-800 font-semibold text-sm truncate">
-            {item.ItemDescription}
-          </span>
-
-          {/* Pangatlong Linya: Dynamic Badges para sa Cat, Seg, at Dim (Para lalong consistent!) */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-            <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-              Cat: {item.Category || item.category || 'Product'}
-            </span>
-            
-            {(item.Segment || item.segment) && (
-              <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-                Seg: {item.Segment || item.segment}
-              </span>
-            )}
-            
-            {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-              <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">
-                Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}
-              </span>
-            )}
-          </div>
-        </div>
-      ))
-    ) : (
-      <div className="p-3 text-xs italic text-slate-400 text-center">
-        No products found matching.
-      </div>
-    )}
-  </div>
-)}
+              {rawMatSearchQuery && (
+                <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
+                  {filteredRawMatSuggestions.length > 0 ? (
+                    filteredRawMatSuggestions.map(item => (
+                      <div key={item._id} onClick={() => handleSelectRawMaterial(item)} className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors">
+                        <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
+                            <span className="text-xs font-medium text-slate-400 lowercase italic">{item.UOM || 'pcs'}</span>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            Avail: {item.ActualCount || 0}
+                          </span>
+                        </div>
+                        <span className="text-slate-800 font-semibold text-sm truncate">{item.ItemDescription}</span>
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
+                          <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Cat: {item.Category || item.category || 'Raw Material'}</span>
+                          {(item.Segment || item.segment) && <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Seg: {item.Segment || item.segment}</span>}
+                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
+                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-xs italic text-slate-400 text-center">No raw material stock found matching.</div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-2">
+              <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically deducted</span>
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
                 <table className="w-full text-left border-collapse text-sm">
                   <thead>
                     <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
-                      <th className="py-3 px-4">Product Code</th>
+                      <th className="py-3 px-4">Material Code</th>
                       <th className="py-3 px-4">Description</th>
                       <th className="py-3 px-4 text-center w-16">QTY</th>
                       <th className="py-3 px-4 text-center">UOM</th>
@@ -676,85 +630,79 @@ function OutboundProducts() {
         </div>
       </div>
 
-      {/* 🔴 CUSTOM VOID TRANSACTION CONFIRMATION MODAL */}
-{isVoidModalOpen && selectedSlip && (
-  <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex justify-center items-start z-50 p-4 pt-10 animate-in fade-in duration-200">
-    <div className="bg-white border border-slate-200 rounded-xl w-full max-w-md p-6 shadow-2xl relative animate-in slide-in-from-top-5 duration-300">
-      
-      {/* Title Block */}
-      <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
-        <h3 className="font-bold text-slate-800 text-sm tracking-wide flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-[#18174e]" /> Void Transaction Log
-        </h3>
-        <button 
-          onClick={() => setIsVoidModalOpen(false)} 
-          className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer flex items-center"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+      {/* CUSTOM VOID TRANSACTION CONFIRMATION MODAL */}
+      {isVoidModalOpen && selectedSlip && (
+        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex justify-center items-start z-50 p-4 pt-10 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-md p-6 shadow-2xl relative animate-in slide-in-from-top-5 duration-300">
+            
+            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 text-sm tracking-wide flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-[#18174e]" /> Void Transaction Log
+              </h3>
+              <button 
+                onClick={() => setIsVoidModalOpen(false)} 
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer flex items-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-      {/* Message Body / Inputs Content */}
-      <div className="mt-4 space-y-4">
-        
-        {/* Security Warning Notice Box */}
-        <div className="bg-slate-50 text-slate-600 border border-slate-100 rounded-lg p-4 text-xs font-medium leading-relaxed flex flex-col gap-2">
-          <div className="font-bold text-xs text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
-            <ShieldAlert className="w-4 h-4 text-[#18174e] shrink-0" />
-            Security Warning Notice
+            <div className="mt-4 space-y-4">
+              <div className="bg-slate-50 text-slate-600 border border-slate-100 rounded-lg p-4 text-xs font-medium leading-relaxed flex flex-col gap-2">
+                <div className="font-bold text-xs text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
+                  <ShieldAlert className="w-4 h-4 text-[#18174e] shrink-0" />
+                  Security Warning Notice
+                </div>
+                {selectedSlip.transactionType?.toLowerCase() === 'outbound' ? (
+                  <span>
+                    This is an active <span className="font-bold text-[#18174e]">OUTBOUND</span> dispatch record. 
+                    Cancelling dispatched orders disrupts supply chain tracking and returns items back to the active stock pile. 
+                    You must provide a valid system reversal passkey.
+                  </span>
+                ) : (
+                  <span>
+                    Are you sure you want to cancel Reserve Slip: <span className="font-bold text-[#18174e]">{selectedSlip.plNo}</span>? 
+                    All locked stock volumes from this log will be fully returned to available registry counts.
+                  </span>
+                )}
+              </div>
+
+              {selectedSlip.transactionType?.toLowerCase() === 'outbound' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    Management Reversal Passkey
+                  </label>
+                  <input 
+                    type="password"
+                    value={passkeyInput}
+                    onChange={e => setPasskeyInput(e.target.value)}
+                    placeholder="Enter authorized key token" 
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] focus:ring-1 focus:ring-[#18174e]/20 text-slate-700 placeholder-slate-400 font-mono"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
+              <button 
+                type="button" 
+                onClick={() => setIsVoidModalOpen(false)} 
+                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
+              >
+                Keep Log Entry
+              </button>
+              <button 
+                type="button" 
+                onClick={handleExecuteCancellation}
+                className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
+              >
+                Confirm System Void
+              </button>
+            </div>
+
           </div>
-          {selectedSlip.transactionType?.toLowerCase() === 'outbound' ? (
-            <span>
-              This is an active <span className="font-bold text-[#18174e]">OUTBOUND</span> dispatch record. 
-              Cancelling dispatched orders disrupts supply chain tracking and returns items back to the active stock pile. 
-              You must provide a valid system reversal passkey.
-            </span>
-          ) : (
-            <span>
-              Are you sure you want to cancel Reserve Slip: <span className="font-bold text-[#18174e]">{selectedSlip.plNo}</span>? 
-              All locked stock volumes from this log will be fully returned to available registry counts.
-            </span>
-          )}
         </div>
-
-        {/* FIELD: MANAGEMENT REVERSAL PASSKEY (Conditional) */}
-        {selectedSlip.transactionType?.toLowerCase() === 'outbound' && (
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
-              Management Reversal Passkey
-            </label>
-            <input 
-              type="password"
-              value={passkeyInput}
-              onChange={e => setPasskeyInput(e.target.value)}
-              placeholder="Enter authorized key token" 
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] focus:ring-1 focus:ring-[#18174e]/20 text-slate-700 placeholder-slate-400 font-mono"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
-        <button 
-          type="button" 
-          onClick={() => setIsVoidModalOpen(false)} 
-          className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
-        >
-          Keep Log Entry
-        </button>
-        <button 
-          type="button" 
-          onClick={handleExecuteCancellation}
-          className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
-        >
-          Confirm System Void
-        </button>
-      </div>
-
-    </div>
-  </div>
-)}
+      )}
 
       {/* VIEW DETAILS LOG MODAL */}
       {isModalOpen && selectedSlip && (
@@ -799,27 +747,27 @@ function OutboundProducts() {
               )}
             </div>
 
-            <div className="overflow-x-auto border border-slate-100 rounded-xl">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#18174e] text-white font-bold uppercase">
+            <div className="overflow-x-auto overflow-y-auto max-h-64 border border-slate-100 rounded-xl relative">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-[#18174e] text-white font-bold uppercase sticky top-0 z-10 shadow-sm">
                   <tr>
-                    <th className="p-3">Product Profile</th>
+                    <th className="p-3">Material Profile</th>
                     <th className="p-3 text-center">QTY Ordered</th>
                     <th className="p-3 text-center">Verified Shipped</th>
                     <th className="p-3">Remarks</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 bg-white">
                   {selectedSlip.items?.map((it, idx) => {
-                    const targetProduct = it.productId || it.materialId;
+                    const targetMaterial = it.materialId || it.productId;
                     return (
-                      <tr key={idx}>
+                      <tr key={idx} className="hover:bg-slate-50/50">
                         <td className="p-3">
-                          <div className="font-bold text-[#18174e]">{targetProduct?.Code || "N/A"}</div>
-                          <div className="text-slate-400 text-[11px] max-w-xs truncate">{targetProduct?.ItemDescription || "-"}</div>
+                          <div className="font-bold text-[#18174e]">{targetMaterial?.Code || "N/A"}</div>
+                          <div className="text-slate-400 text-[11px] max-w-xs truncate" title={targetMaterial?.ItemDescription}>{targetMaterial?.ItemDescription || "-"}</div>
                         </td>
-                        <td className="p-3 text-center font-semibold text-slate-700">{it.qtyRequested} {targetProduct?.UOM}</td>
-                        <td className="p-3 text-center font-bold text-emerald-600">{it.actualCountShipped} {targetProduct?.UOM}</td>
+                        <td className="p-3 text-center font-semibold text-slate-700">{it.qtyRequested} {targetMaterial?.UOM}</td>
+                        <td className="p-3 text-center font-bold text-emerald-600">{it.actualCountShipped} {targetMaterial?.UOM}</td>
                         <td className="p-3 italic text-slate-500">{it.remarks || "-"}</td>
                       </tr>
                     );
@@ -827,6 +775,7 @@ function OutboundProducts() {
                 </tbody>
               </table>
             </div>
+
           </div>
         </div>
       )}

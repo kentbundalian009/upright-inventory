@@ -138,7 +138,7 @@ function Login() {
       <div className="flex flex-col items-center text-center mb-8">
         <div className="bg-white rounded-full p-2 flex items-center justify-center shadow-inner w-16 h-16">
           <img
-            src="/public/one.logo.png"
+            src="/one.logo.png"
             alt="logo"
             className="w-full h-full object-contain"
             onError={(e) => { e.target.style.display = 'none'; }}

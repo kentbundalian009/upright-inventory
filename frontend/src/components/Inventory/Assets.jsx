@@ -40,7 +40,7 @@ function Assets() {
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedSegment, setSelectedSegment] = useState('All Segments');
   const [selectedDescription, setSelectedDescription] = useState('All Item Descriptions');
-  const [selectedConditionFilter, setSelectedConditionFilter] = useState('All'); 
+  const [selectedConditionFilter, setSelectedConditionFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modal States
@@ -99,7 +99,7 @@ function Assets() {
   const handleActualCountChange = (val) => {
     const count = Number(val) || 0;
     setActualCount(count);
-    setGoodCount(count); 
+    setGoodCount(count);
     setUsedCount(0);
     setDamagedCount(0);
   };
@@ -144,7 +144,7 @@ function Assets() {
     setAssetBrand(asset.Brand || '');
     setAssetUom(asset.UOM);
     setActualCount(asset.ActualCount || 0);
-    
+
     setGoodCount(asset.ConditionBreakdown?.Good || 0);
     setUsedCount(asset.ConditionBreakdown?.Used || 0);
     setDamagedCount(asset.ConditionBreakdown?.Damaged || 0);
@@ -241,7 +241,7 @@ function Assets() {
   };
 
   // Filtering Logic
-  const currentDisplayList = assetsList.filter(asset => 
+  const currentDisplayList = assetsList.filter(asset =>
     showArchivedOnly ? asset.isArchived === true : !asset.isArchived
   );
 
@@ -249,7 +249,7 @@ function Assets() {
     const matchesCategory = selectedCategory === 'All Categories' || asset.Category === selectedCategory;
     const matchesSegment = selectedSegment === 'All Segments' || asset.Segment === selectedSegment;
     const matchesDescription = selectedDescription === 'All Item Descriptions' || asset.ItemDescription === selectedDescription;
-    
+
     let matchesCondition = true;
     if (selectedConditionFilter === 'Has Good') matchesCondition = (asset.ConditionBreakdown?.Good > 0);
     if (selectedConditionFilter === 'Has Used') matchesCondition = (asset.ConditionBreakdown?.Used > 0);
@@ -290,26 +290,26 @@ function Assets() {
       doc.setFontSize(10);
 
       // Row 1 Meta
-      doc.text("Report Type:", 14, 42); 
-      doc.setFont("helvetica", "normal"); 
+      doc.text("Report Type:", 14, 42);
+      doc.setFont("helvetica", "normal");
       doc.text("Asset Management Registry", 45, 42);
 
-      doc.setFont("helvetica", "bold"); 
-      doc.text("Date Generated:", 180, 42); 
-      doc.setFont("helvetica", "normal"); 
+      doc.setFont("helvetica", "bold");
+      doc.text("Date Generated:", 180, 42);
+      doc.setFont("helvetica", "normal");
       doc.text(`${new Date().toLocaleDateString()}`, 215, 42);
 
       // Row 2 Meta
-      doc.setFont("helvetica", "bold"); 
-      doc.text("Target Category:", 14, 49); 
+      doc.setFont("helvetica", "bold");
+      doc.text("Target Category:", 14, 49);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(79, 70, 229); // Accent text color
       doc.text(`${selectedCategory}`, 45, 49);
 
       doc.setTextColor(40, 40, 40);
-      doc.setFont("helvetica", "bold"); 
-      doc.text("Registry Status:", 180, 49); 
-      doc.setFont("helvetica", "normal"); 
+      doc.setFont("helvetica", "bold");
+      doc.text("Registry Status:", 180, 49);
+      doc.setFont("helvetica", "normal");
       doc.text(`${showArchivedOnly ? 'Archived Assets Only' : 'Active Registry Only'}`, 215, 49);
 
       // --- PAGHAHANDA NG DATA NG TALAHANAYAN ---
@@ -328,17 +328,17 @@ function Assets() {
 
       // --- AUTOTABLE GENERATION WITH EMBEDDED TOP BANNER & WATERMARK ---
       autoTable(doc, {
-        startY: 58, 
+        startY: 58,
         head: [tableColumns],
         body: tableRows,
         theme: 'grid',
-        
+
         didDrawPage: (data) => {
           // 1. Watermark Layer
           doc.saveGraphicsState();
-          doc.setGState(new doc.GState({ opacity: 0.05 })); 
-          const logoWidth = 75;  
-          const logoHeight = 75; 
+          doc.setGState(new doc.GState({ opacity: 0.05 }));
+          const logoWidth = 75;
+          const logoHeight = 75;
           const logoX = centerX - (logoWidth / 2);
           const logoY = centerY - (logoHeight / 2);
           doc.addImage('/one.logo.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
@@ -353,18 +353,18 @@ function Assets() {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(14);
           doc.text(`ASSET INVENTORY MASTER REPORT`, centerX, 13, { align: 'center' });
-          
+
           doc.setFontSize(8.5);
           doc.setFont("helvetica", "normal");
-          doc.setTextColor(200, 200, 220); 
+          doc.setTextColor(200, 200, 220);
           doc.text(`Internal Material Control & Asset Management System  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
 
           // 4. System Standard Absolute Footer
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8);
           doc.setTextColor(120, 120, 120);
-          doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10); 
-          
+          doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10);
+
           const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
           doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
         },
@@ -374,9 +374,9 @@ function Assets() {
         bodyStyles: { fontSize: 7.5, textColor: [60, 60, 60], valign: 'middle' },
         alternateRowStyles: { fillColor: [248, 249, 250] },
         styles: { overflow: 'linebreak', cellPadding: 2.5, lineColor: [230, 230, 230], lineWidth: 0.2 },
-        
+
         // Exact horizontal allocation for Landscape width (Total 269mm layout boundary)
-        columnStyles: { 
+        columnStyles: {
           0: { cellWidth: 22 }, // Code
           1: { cellWidth: 28 }, // Category
           2: { cellWidth: 55 }, // Description
@@ -391,7 +391,7 @@ function Assets() {
 
       // --- SIGNATORIES SECTION ---
       const finalY = doc.lastAutoTable.finalY + 18;
-      
+
 
       // Dynamic naming architecture
       const sanitizeCategory = selectedCategory.replace(/[^a-z0-9]/gi, '_').toLowerCase();
@@ -422,7 +422,7 @@ function Assets() {
       )}
 
       <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col gap-6">
-        
+
         {/* FILTERS BAR */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
@@ -432,9 +432,8 @@ function Assets() {
             </div>
             <button
               onClick={() => setShowArchivedOnly(!showArchivedOnly)}
-              className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
-                showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-700 border-slate-200'
-              }`}
+              className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-700 border-slate-200'
+                }`}
             >
               {showArchivedOnly ? <><EyeOff className="w-3.5 h-3.5" /> Show Active Assets ({activeCount})</> : <><Archive className="w-3.5 h-3.5" /> View Archive Vault ({archivedCount})</>}
             </button>
@@ -463,14 +462,14 @@ function Assets() {
             </div>
 
             {/* 📥 4. ITONG BUTTON ANG IDINAGDAG PARA SA PDF EXPORT */}
-            <button 
-              onClick={downloadPDFReport} 
+            <button
+              onClick={downloadPDFReport}
               className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm w-full cursor-pointer transition-all"
             >Export
             </button>
 
             <button onClick={openAddModal} disabled={showArchivedOnly} className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm w-full cursor-pointer transition-all">
-             Add Asset
+              Add Asset
             </button>
           </div>
           <div className="h-px bg-slate-100 w-full mt-3"></div>
@@ -496,56 +495,73 @@ function Assets() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr><td colSpan="10" className="text-center py-8 text-slate-500">Loading masterlist database...</td></tr>
-                ) : filteredAssets.map((asset) => (
-                  <tr key={asset._id} className="hover:bg-slate-50/80 text-slate-600 font-medium text-sm whitespace-nowrap">
-                    <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{asset.Code}</td>
-                    <td className="py-3 px-4"><span className="bg-slate-100 px-2 py-1 rounded text-xs text-slate-700">{asset.Category}</span></td>
-                    <td className="py-3 px-4 text-slate-800 font-semibold">{asset.ItemDescription}</td>
-                    <td className="py-3 px-4">{asset.Brand || '—'}</td>
-                    <td className="py-3 px-4 text-center font-bold font-mono text-base text-slate-900 bg-slate-50/40">{asset.ActualCount}</td>
-                    <td className="py-3 px-4 text-slate-500">{asset.UOM}</td>
-                    
-                    <td className="py-3 px-4">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {(asset.ConditionBreakdown?.Good > 0) && (
-                          <span className="text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-bold">
-                            Good: {asset.ConditionBreakdown.Good}
-                          </span>
-                        )}
-                        {(asset.ConditionBreakdown?.Used > 0) && (
-                          <span className="text-[11px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded font-bold">
-                            Used: {asset.ConditionBreakdown.Used}
-                          </span>
-                        )}
-                        {(asset.ConditionBreakdown?.Damaged > 0) && (
-                          <span className="text-[11px] bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded font-bold">
-                            Repair: {asset.ConditionBreakdown.Damaged}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-4 font-mono text-slate-500">
-                      {asset.AcquisitionDate ? new Date(asset.AcquisitionDate).toLocaleDateString() : '—'}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-slate-700">{asset.AccountTo || '—'}</td>
-                    
-                    <td className="py-3 px-4 text-center">
+                  <tr>
+                    <td colSpan="10" className="text-center py-10 text-slate-400 font-medium italic">
                       <div className="flex items-center justify-center gap-2">
-                        {!showArchivedOnly ? (
-                          <>
-                            <button onClick={() => openEditModal(asset)} className="p-1 border border-slate-200 rounded text-indigo-600 hover:bg-indigo-600 hover:text-white cursor-pointer"><Edit2 className="w-3.5 h-3.5" /></button>
-                            <button onClick={() => triggerArchiveConfirm(asset)} className="p-1 border border-slate-200 rounded text-rose-600 hover:bg-rose-600 hover:text-white cursor-pointer"><Archive className="w-3.5 h-3.5" /></button>
-                          </>
-                        ) : (
-                          <button onClick={() => triggerUnarchiveConfirm(asset)} className="flex items-center gap-1 px-2 py-1 bg-white border border-emerald-200 rounded text-emerald-600 hover:bg-emerald-600 hover:text-white text-xs font-bold cursor-pointer">
-                            <RotateCcw className="w-3 h-3" /> Restore</button>
-                        )}
+                        <span>Fetching secure asset data from database...</span>
                       </div>
                     </td>
                   </tr>
-                ))}
+                ) : filteredAssets.length === 0 ? (
+                  <tr>
+                    <td colSpan="10" className="text-center py-10 text-slate-400 font-medium italic">
+                      <div className="flex items-center justify-center gap-2">
+                        <span>No records match the selected filters or search queries.</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredAssets.map((asset) => (
+                    <tr key={asset._id} className="hover:bg-slate-50/80 text-slate-600 font-medium text-sm whitespace-nowrap">
+                      <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{asset.Code}</td>
+                      <td className="py-3 px-4"><span className="bg-slate-100 px-2 py-1 rounded text-xs text-slate-700">{asset.Category}</span></td>
+                      <td className="py-3 px-4 text-slate-800 font-semibold">{asset.ItemDescription}</td>
+                      <td className="py-3 px-4">{asset.Brand || '—'}</td>
+                      <td className="py-3 px-4 text-center font-bold font-mono text-base text-slate-900 bg-slate-50/40">{asset.ActualCount}</td>
+                      <td className="py-3 px-4 text-slate-500">{asset.UOM}</td>
+
+                      <td className="py-3 px-4">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {(asset.ConditionBreakdown?.Good > 0) && (
+                            <span className="text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-bold">
+                              Good: {asset.ConditionBreakdown.Good}
+                            </span>
+                          )}
+                          {(asset.ConditionBreakdown?.Used > 0) && (
+                            <span className="text-[11px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded font-bold">
+                              Used: {asset.ConditionBreakdown.Used}
+                            </span>
+                          )}
+                          {(asset.ConditionBreakdown?.Damaged > 0) && (
+                            <span className="text-[11px] bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded font-bold">
+                              Repair: {asset.ConditionBreakdown.Damaged}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-4 font-mono text-slate-500">
+                        {asset.AcquisitionDate ? new Date(asset.AcquisitionDate).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-slate-700">{asset.AccountTo || '—'}</td>
+
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          {!showArchivedOnly ? (
+                            <>
+                              <button onClick={() => openEditModal(asset)} className="p-1 border border-slate-200 rounded text-indigo-600 hover:bg-indigo-600 hover:text-white cursor-pointer"><Edit2 className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => triggerArchiveConfirm(asset)} className="p-1 border border-slate-200 rounded text-rose-600 hover:bg-rose-600 hover:text-white cursor-pointer"><Archive className="w-3.5 h-3.5" /></button>
+                            </>
+                          ) : (
+                            <button onClick={() => triggerUnarchiveConfirm(asset)} className="flex items-center gap-1 px-2 py-1 bg-white border border-emerald-200 rounded text-emerald-600 hover:bg-emerald-600 hover:text-white text-xs font-bold cursor-pointer">
+                              <RotateCcw className="w-3 h-3" /> Restore
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -571,14 +587,14 @@ function Assets() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category *</label>
-                  <input 
-                    type="text" 
-                    required 
+                  <input
+                    type="text"
+                    required
                     list="modal-categories-list"
                     placeholder="Enter category name"
-                    value={assetCategory} 
-                    onChange={(e) => setAssetCategory(e.target.value)} 
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" 
+                    value={assetCategory}
+                    onChange={(e) => setAssetCategory(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
                   />
                   <datalist id="modal-categories-list">
                     {uniqueCategoriesInDB.map((cat, i) => (
@@ -588,14 +604,14 @@ function Assets() {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Segment *</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required
                     list="modal-segments-list"
                     placeholder="Enter segment"
-                    value={assetSegment} 
-                    onChange={(e) => setAssetSegment(e.target.value)} 
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" 
+                    value={assetSegment}
+                    onChange={(e) => setAssetSegment(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
                   />
                   <datalist id="modal-segments-list">
                     {uniqueSegmentsInDB.map((seg, i) => (
@@ -608,14 +624,14 @@ function Assets() {
               {/* ITEM DESCRIPTION */}
               <div>
                 <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Description *</label>
-                <input 
-                  type="text" 
-                  required 
+                <input
+                  type="text"
+                  required
                   list="modal-descriptions-list"
-                  placeholder="Enter item description" 
-                  value={itemDescription} 
-                  onChange={(e) => setItemDescription(e.target.value)} 
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" 
+                  placeholder="Enter item description"
+                  value={itemDescription}
+                  onChange={(e) => setItemDescription(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
                 />
                 <datalist id="modal-descriptions-list">
                   {uniqueDescriptionsInDB.map((desc, i) => (
@@ -628,13 +644,13 @@ function Assets() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Brand *</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     list="modal-brands-list"
                     placeholder="Enter brand name"
-                    value={assetBrand} 
-                    onChange={(e) => setAssetBrand(e.target.value)} 
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" 
+                    value={assetBrand}
+                    onChange={(e) => setAssetBrand(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
                   />
                   <datalist id="modal-brands-list">
                     {uniqueBrandsInDB.map((brand, i) => (
@@ -644,14 +660,14 @@ function Assets() {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">UOM *</label>
-                  <input 
-                    type="text" 
-                    required 
+                  <input
+                    type="text"
+                    required
                     list="modal-uoms-list"
                     placeholder="Enter unit of measure"
-                    value={assetUom} 
-                    onChange={(e) => setAssetUom(e.target.value)} 
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" 
+                    value={assetUom}
+                    onChange={(e) => setAssetUom(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
                   />
                   <datalist id="modal-uoms-list">
                     {uniqueUomsInDB.map((uom, i) => (
@@ -664,20 +680,20 @@ function Assets() {
               {/* ACTUAL COUNT INPUT FIELD */}
               <div>
                 <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Actual Count * (Direct Input)</label>
-                <input 
-                  type="number" 
-                  min="1" 
-                  required 
-                  value={actualCount} 
-                  onChange={(e) => handleActualCountChange(e.target.value)} 
-                  className="w-full bg-white border-2 border-indigo-200 rounded-lg px-3 py-2 text-sm font-bold font-mono text-indigo-950 focus:border-[#18174e] focus:outline-none" 
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={actualCount}
+                  onChange={(e) => handleActualCountChange(e.target.value)}
+                  className="w-full bg-white border-2 border-indigo-200 rounded-lg px-3 py-2 text-sm font-bold font-mono text-indigo-950 focus:border-[#18174e] focus:outline-none"
                 />
               </div>
 
               {/* KONDISYON BREAKDOWN QUANTITIES */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
                 <span className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Condition Status Breakdown:</span>
-                
+
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="block text-[11px] font-semibold text-emerald-600 mb-0.5">🟢 Good Qty</label>
@@ -702,13 +718,13 @@ function Assets() {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Account To *</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     list="modal-accounts-list"
                     placeholder="Enter account name"
-                    value={accountTo} 
-                    onChange={(e) => setAccountTo(e.target.value)} 
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" 
+                    value={accountTo}
+                    onChange={(e) => setAccountTo(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
                   />
                   <datalist id="modal-accounts-list">
                     {uniqueAccountsInDB.map((acc, i) => (
@@ -731,14 +747,14 @@ function Assets() {
       {isConfirmModalOpen && (
         <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex justify-center items-start z-50 p-4 pt-5 animate-in fade-in duration-200">
           <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm p-5 shadow-2xl relative animate-in slide-in-from-top-5 duration-300">
-            
+
             {/* Title Block */}
             <div className="border-b border-slate-100 pb-2">
               <h3 className="font-bold text-slate-800 text-sm tracking-wide">
                 {confirmModalConfig.title}
               </h3>
             </div>
-            
+
             {/* Message Body */}
             <p className="text-sm text-slate-600 leading-relaxed mt-3">
               {confirmModalConfig.message}
@@ -746,21 +762,20 @@ function Assets() {
 
             {/* Action Buttons */}
             <div className="flex items-center justify-end gap-2 mt-5">
-              <button 
-                type="button" 
-                onClick={() => setIsConfirmModalOpen(false)} 
+              <button
+                type="button"
+                onClick={() => setIsConfirmModalOpen(false)}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
-                onClick={handleConfirmAction} 
-                className={`text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer ${
-                  confirmModalConfig.actionType === 'archive' 
-                    ? 'bg-rose-600 hover:bg-rose-700' 
-                    : 'bg-emerald-600 hover:bg-emerald-700'
-                }`}
+              <button
+                type="button"
+                onClick={handleConfirmAction}
+                className={`text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer ${confirmModalConfig.actionType === 'archive'
+                  ? 'bg-rose-600 hover:bg-rose-700'
+                  : 'bg-emerald-600 hover:bg-emerald-700'
+                  }`}
               >
                 Confirm
               </button>

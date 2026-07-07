@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Search, 
-    AlertCircle, 
-    Filter, 
-    X, 
-    Edit2, 
-    Archive, 
-    Eye, 
-    EyeOff, 
-    RefreshCw, 
-    UserPlus, 
-    CheckCircle2 
+import {
+    Search,
+    AlertCircle,
+    Filter,
+    X,
+    Edit2,
+    Archive,
+    Eye,
+    EyeOff,
+    RefreshCw,
+    UserPlus,
+    CheckCircle2
 } from 'lucide-react';
 import axios from 'axios';
 import PageHeader from '../Common/PageHeader';
@@ -20,10 +20,10 @@ function UserManagement() {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    
+
     // Toggle feature para sa Active vs Archived view
     const [showArchivedOnly, setShowArchivedOnly] = useState(false);
-    
+
     // States para sa Filtering at Search
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRole, setSelectedRole] = useState('All Roles');
@@ -40,11 +40,11 @@ function UserManagement() {
         actionType: 'archive',
         targetUser: null
     });
-    
+
     // Modals States (Forms)
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    
+
     // Form Inputs (Add User)
     const [employeeNo, setEmployeeNo] = useState('');
     const [username, setUsername] = useState('');
@@ -71,33 +71,33 @@ function UserManagement() {
     }, [successMessage]);
 
     // 2. READ: FETCH DATA FROM BACKEND API
-const fetchUsers = async () => {
-    try {
-        setLoading(true);
+    const fetchUsers = async () => {
+        try {
+            setLoading(true);
 
-        // ✅ MATALINONG URL: Awtomatikong magpapalit depende kung saan ka naka-open
-        const API_BASE_URL = import.meta.env.MODE === 'production'
-            ? 'https://one-inventory.onrender.com'
-            : 'http://localhost:5000';
+            // ✅ MATALINONG URL: Awtomatikong magpapalit depende kung saan ka naka-open
+            const API_BASE_URL = import.meta.env.MODE === 'production'
+                ? 'https://one-inventory.onrender.com'
+                : 'http://localhost:5000';
 
-        const response = await axios.get(`${API_BASE_URL}/api/users`);
-        
-        if (Array.isArray(response.data)) {
-            setUsers(response.data);
-        } else if (response.data && Array.isArray(response.data.data)) {
-            setUsers(response.data.data);
-        } else {
+            const response = await axios.get(`${API_BASE_URL}/api/users`);
+
+            if (Array.isArray(response.data)) {
+                setUsers(response.data);
+            } else if (response.data && Array.isArray(response.data.data)) {
+                setUsers(response.data.data);
+            } else {
+                setUsers([]);
+            }
+            setError(null);
+        } catch (err) {
+            console.error("Error fetching users:", err);
+            setError("Hindi makuha ang mga user records mula sa server.");
             setUsers([]);
+        } finally {
+            setLoading(false);
         }
-        setError(null);
-    } catch (err) {
-        console.error("Error fetching users:", err);
-        setError("Hindi makuha ang mga user records mula sa server.");
-        setUsers([]);
-    } finally {
-        setLoading(false);
-    }
-};
+    };
 
     useEffect(() => {
         fetchUsers();
@@ -120,7 +120,7 @@ const fetchUsers = async () => {
             setErrorMessage('Mangyaring punan ang lahat ng field.');
             return;
         }
-        
+
         // Dagdag na UI layer check para sigurado bago mag-submit
         if (passwordStrength.label === 'Weak' || !password) {
             setErrorMessage('Hindi maaaring mag-save ng account na may Weak Password.');
@@ -226,7 +226,7 @@ const fetchUsers = async () => {
     const passwordStrength = checkPasswordStrength(password);
 
     // 4. SEPARATION & FILTERING LOGIC
-    const currentDisplayList = users.filter(item => 
+    const currentDisplayList = users.filter(item =>
         showArchivedOnly ? item.isArchived === true : !item.isArchived
     );
 
@@ -281,9 +281,8 @@ const fetchUsers = async () => {
 
                             <button
                                 onClick={() => setShowArchivedOnly(!showArchivedOnly)}
-                                className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
-                                    showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                                }`}
+                                className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                    }`}
                             >
                                 {showArchivedOnly ? (
                                     <>
@@ -340,8 +339,10 @@ const fetchUsers = async () => {
                             <tbody className="divide-y divide-slate-100">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="6" className="text-center py-8 text-slate-500 font-medium">
-                                            Kasalukuyang kinukuha ang mga records...
+                                        <td colSpan="7" className="text-center py-10 text-slate-400 font-medium italic">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <span>Fetching secure user data from database...</span>
+                                            </div>
                                         </td>
                                     </tr>
                                 ) : error ? (
@@ -351,11 +352,10 @@ const fetchUsers = async () => {
                                         </td>
                                     </tr>
                                 ) : filteredUsers.map((user) => (
-                                    <tr 
-                                        key={user._id || user.EmpNo} 
-                                        className={`hover:bg-slate-50/80 transition-colors text-slate-600 font-medium whitespace-nowrap text-sm ${
-                                            user.isArchived ? 'bg-rose-50/20' : ''
-                                        }`}
+                                    <tr
+                                        key={user._id || user.EmpNo}
+                                        className={`hover:bg-slate-50/80 transition-colors text-slate-600 font-medium whitespace-nowrap text-sm ${user.isArchived ? 'bg-rose-50/20' : ''
+                                            }`}
                                     >
                                         <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{user.EmpNo}</td>
                                         <td className="py-3 px-4">
@@ -370,22 +370,22 @@ const fetchUsers = async () => {
                                             <div className="flex items-center justify-center gap-2">
                                                 {!showArchivedOnly ? (
                                                     <>
-                                                        <button 
-                                                            onClick={() => { setErrorMessage(null); openEditModal(user); }} 
+                                                        <button
+                                                            onClick={() => { setErrorMessage(null); openEditModal(user); }}
                                                             className="p-1 bg-white border border-slate-200 rounded text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer"
                                                         >
                                                             <Edit2 className="w-3.5 h-3.5" />
                                                         </button>
-                                                        <button 
-                                                            onClick={() => triggerArchiveModal(user)} 
+                                                        <button
+                                                            onClick={() => triggerArchiveModal(user)}
                                                             className="p-1 bg-white border border-slate-200 rounded text-rose-600 hover:bg-rose-600 hover:text-white transition-all cursor-pointer"
                                                         >
                                                             <Archive className="w-3.5 h-3.5" />
                                                         </button>
                                                     </>
                                                 ) : (
-                                                    <button 
-                                                        onClick={() => triggerRestoreModal(user)} 
+                                                    <button
+                                                        onClick={() => triggerRestoreModal(user)}
                                                         className="p-1 bg-white border border-emerald-200 rounded text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs px-2 py-0.5 font-bold"
                                                     >
                                                         <RefreshCw className="w-3 h-3" /> Restore Account
@@ -395,7 +395,7 @@ const fetchUsers = async () => {
                                         </td>
                                     </tr>
                                 ))}
-                                
+
                                 {filteredUsers.length === 0 && !loading && (
                                     <tr>
                                         <td colSpan="6" className="text-center py-8 text-slate-400">
@@ -465,7 +465,7 @@ const fetchUsers = async () => {
                             </div>
                             <div className="flex items-center justify-end gap-2 mt-6">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer">Cancel</button>
-                                
+
                                 {/* 🔒 CONDITIONAL RENDERING: Naka-hide ang button kapag Empty o kaya naman ay Weak ang Password */}
                                 {passwordStrength.label !== 'Weak' && passwordStrength.label !== 'Empty' && (
                                     <button type="submit" className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer animate-in fade-in duration-200">
@@ -530,14 +530,14 @@ const fetchUsers = async () => {
             {isConfirmModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex justify-center items-start z-50 p-4 pt-5 animate-in fade-in duration-200">
                     <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm p-5 shadow-2xl relative animate-in slide-in-from-top-5 duration-300">
-                        
+
                         {/* Title Block */}
                         <div className="border-b border-slate-100 pb-2">
                             <h3 className="font-bold text-slate-800 text-sm tracking-wide">
                                 {confirmModalConfig.title}
                             </h3>
                         </div>
-                        
+
                         {/* Message Body */}
                         <p className="text-sm text-slate-600 leading-relaxed mt-3">
                             {confirmModalConfig.message}
@@ -545,25 +545,24 @@ const fetchUsers = async () => {
 
                         {/* Action Buttons */}
                         <div className="flex items-center justify-end gap-2 mt-5">
-                            <button 
-                                type="button" 
-                                onClick={() => setIsConfirmModalOpen(false)} 
+                            <button
+                                type="button"
+                                onClick={() => setIsConfirmModalOpen(false)}
                                 className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
                             >
                                 Cancel
                             </button>
-                            <button 
-                                type="button" 
-                                onClick={handleConfirmAction} 
-                                className={`text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer ${
-                                    confirmModalConfig.actionType === 'archive' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'
-                                }`}
+                            <button
+                                type="button"
+                                onClick={handleConfirmAction}
+                                className={`text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer ${confirmModalConfig.actionType === 'archive' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                                    }`}
                             >
                                 Confirm
                             </button>
                         </div>
                     </div>
-                </div> 
+                </div>
             )}
         </div>
     );

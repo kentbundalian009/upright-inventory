@@ -18,7 +18,7 @@ function Supplies() {
     title: '',
     message: '',
     actionType: 'archive', // 'archive' o 'restore'
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   // 🎯 Dropdown Filtering Options (Para sa filter bar)
@@ -100,7 +100,7 @@ function Supplies() {
     setSupplyDimension('');
     setSupplyUom('');
     setAccountTo('');
-    
+
     // Pag bagong item, default sa 0 dahil dadaan pa sa movement transaction
     setCurrentActualCount(0);
     setCurrentGoodCount(0);
@@ -202,7 +202,7 @@ function Supplies() {
     setIsConfirmModalOpen(true);
   };
 
-  const currentDisplayList = suppliesList.filter(supply => 
+  const currentDisplayList = suppliesList.filter(supply =>
     showArchivedOnly ? supply.isArchived === true : !supply.isArchived
   );
 
@@ -239,7 +239,7 @@ function Supplies() {
       )}
 
       <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col gap-6">
-        
+
         {/* FILTERS BAR */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
@@ -247,13 +247,12 @@ function Supplies() {
               <Filter className="w-4 h-4 text-[#18174e]" />
               <span>{showArchivedOnly ? 'Viewing Archive Supplies Vault' : 'Filter Supplies'}</span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowArchivedOnly(!showArchivedOnly)}
-                className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
-                  showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-700 border-slate-200'
-                }`}
+                className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-700 border-slate-200'
+                  }`}
               >
                 {showArchivedOnly ? (
                   <><EyeOff className="w-3.5 h-3.5" /> Show Active Supplies ({activeCount})</>
@@ -282,15 +281,15 @@ function Supplies() {
               <input type="text" placeholder="Search Code, Dimension..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none text-slate-700" />
             </div>
 
-            <button 
-              onClick={openAddModal} 
-              disabled={showArchivedOnly} 
+            <button
+              onClick={openAddModal}
+              disabled={showArchivedOnly}
               className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-sm w-full cursor-pointer transition-all h-[38px]"
             >
               <Plus className="w-4 h-4" /> Add Supply
             </button>
           </div>
-          
+
           <div className="h-px bg-slate-100 w-full mt-3"></div>
         </div>
 
@@ -313,7 +312,13 @@ function Supplies() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr><td colSpan="9" className="text-center py-8 text-slate-500">Loading masterlist database...</td></tr>
+                  <tr>
+                    <td colSpan="7" className="text-center py-10 text-slate-400 font-medium italic">
+                      <div className="flex items-center justify-center gap-2">
+                        <span>Fetching secure supplies data from database...</span>
+                      </div>
+                    </td>
+                  </tr>
                 ) : filteredSupplies.map((supply) => (
                   <tr key={supply._id} className="hover:bg-slate-50/80 text-slate-600 font-medium text-sm whitespace-nowrap">
                     <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{supply.Code}</td>
@@ -322,7 +327,7 @@ function Supplies() {
                     <td className="py-3 px-4">{supply.Dimension || '—'}</td>
                     <td className="py-3 px-4 text-center font-bold font-mono text-base text-slate-900 bg-slate-50/40">{supply.ActualCount}</td>
                     <td className="py-3 px-4 text-slate-500">{supply.UOM}</td>
-                    
+
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-center gap-1.5">
                         {((supply.ConditionBreakdown?.Good || supply.ActualCount) > 0) && (
@@ -339,7 +344,7 @@ function Supplies() {
                     </td>
 
                     <td className="py-3 px-4 font-semibold text-slate-700">{supply.AccountTo || '—'}</td>
-                    
+
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-2">
                         {!showArchivedOnly ? (
@@ -356,7 +361,7 @@ function Supplies() {
                     </td>
                   </tr>
                 ))}
-                
+
                 {filteredSupplies.length === 0 && !loading && (
                   <tr>
                     <td colSpan="9" className="text-center py-8 text-slate-400">
@@ -460,14 +465,14 @@ function Supplies() {
       {isConfirmModalOpen && (
         <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex justify-center items-start z-50 p-4 pt-5 animate-in fade-in duration-200">
           <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm p-5 shadow-2xl relative animate-in slide-in-from-top-5 duration-300">
-            
+
             {/* Title Block (No Icons) */}
             <div className="border-b border-slate-100 pb-2">
               <h3 className="font-bold text-slate-800 text-sm tracking-wide">
                 {confirmModalConfig.title}
               </h3>
             </div>
-            
+
             {/* Message Body */}
             <p className="text-sm text-slate-600 leading-relaxed mt-3">
               {confirmModalConfig.message}
@@ -475,21 +480,20 @@ function Supplies() {
 
             {/* Action Buttons */}
             <div className="flex items-center justify-end gap-2 mt-5">
-              <button 
-                type="button" 
-                onClick={() => setIsConfirmModalOpen(false)} 
+              <button
+                type="button"
+                onClick={() => setIsConfirmModalOpen(false)}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
-                onClick={confirmModalConfig.onConfirm} 
-                className={`text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer ${
-                  confirmModalConfig.actionType === 'archive' 
-                    ? 'bg-rose-600 hover:bg-rose-700' 
+              <button
+                type="button"
+                onClick={confirmModalConfig.onConfirm}
+                className={`text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer ${confirmModalConfig.actionType === 'archive'
+                    ? 'bg-rose-600 hover:bg-rose-700'
                     : 'bg-emerald-600 hover:bg-emerald-700'
-                }`}
+                  }`}
               >
                 Confirm
               </button>

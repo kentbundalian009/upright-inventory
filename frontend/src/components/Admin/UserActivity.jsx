@@ -119,7 +119,6 @@ function UserActivity() {
                                     <tr>
                                         <td colSpan="7" className="text-center py-10 text-slate-400 font-medium italic">
                                             <div className="flex items-center justify-center gap-2">
-                                                <RefreshCw className="w-4 h-4 animate-spin text-[#18174e]" />
                                                 <span>Fetching secure audit logs from database...</span>
                                             </div>
                                         </td>

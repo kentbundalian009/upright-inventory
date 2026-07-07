@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios'; 
+import axios from 'axios';
 import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, CheckCircle2, AlertCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -18,17 +18,17 @@ function SuppliesMovements() {
   const [dbSupplies, setDbSupplies] = useState([]);
   const [movementRecords, setMovementRecords] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [historySearchQuery, setHistorySearchQuery] = useState(''); 
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   // Slip Form States
-  const [transactionType, setTransactionType] = useState('Borrow'); 
-  const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]); 
+  const [transactionType, setTransactionType] = useState('Borrow');
+  const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
   const [partyName, setPartyName] = useState('');
   const [originAddress, setOriginAddress] = useState('');
   const [manifestItems, setManifestItems] = useState([]);
-  const [referenceSlipNo, setReferenceSlipNo] = useState(''); 
+  const [referenceSlipNo, setReferenceSlipNo] = useState('');
   const [preparedBy, setPreparedBy] = useState('System User');
 
   // Dynamic Suggestion Hooks
@@ -78,20 +78,20 @@ function SuppliesMovements() {
       }
       if (movementsRes.data) {
         setMovementRecords(movementsRes.data);
-        
+
         const parties = [...new Set(movementsRes.data.map(m => m.partyName).filter(Boolean))];
         const locations = [...new Set(movementsRes.data.map(m => m.originAddress).filter(Boolean))];
         setExistingParties(parties);
         setExistingLocations(locations);
       }
-    } catch (err) { 
-      console.error("Error loading registry data:", err); 
+    } catch (err) {
+      console.error("Error loading registry data:", err);
       showErrorToast("Hindi ma-load ang data mula sa server.");
     }
   };
 
-  useEffect(() => { 
-    fetchData(); 
+  useEffect(() => {
+    fetchData();
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
@@ -107,8 +107,8 @@ function SuppliesMovements() {
 
   const handleSelectSupply = (item) => {
     if (manifestItems.some(i => i.supplyId === item._id)) return setSearchQuery('');
-    
-    const maxAvailable = isDamagedDeductingType 
+
+    const maxAvailable = isDamagedDeductingType
       ? (item.ConditionBreakdown?.Damaged ?? item.DamagedCount ?? 0)
       : (item.ConditionBreakdown?.Good ?? item.ActualCount ?? 0);
 
@@ -118,14 +118,14 @@ function SuppliesMovements() {
     }
 
     setManifestItems([...manifestItems, {
-      supplyId: item._id, 
-      Code: item.Code, 
+      supplyId: item._id,
+      Code: item.Code,
       ItemDescription: item.ItemDescription,
-      qty: 1, 
-      UOM: item.UOM, 
-      goodConditionQty: isDamagedDeductingType ? 0 : 1, 
-      damagedQty: isDamagedDeductingType ? 1 : 0, 
-      maxLimit: maxAvailable, 
+      qty: 1,
+      UOM: item.UOM,
+      goodConditionQty: isDamagedDeductingType ? 0 : 1,
+      damagedQty: isDamagedDeductingType ? 1 : 0,
+      maxLimit: maxAvailable,
       remarks: ''
     }]);
     setSearchQuery('');
@@ -135,32 +135,32 @@ function SuppliesMovements() {
     setTransactionType("Return");
     setPartyName(borrowSlip.partyName || '');
     setOriginAddress(borrowSlip.originAddress || '');
-    setReferenceSlipNo(borrowSlip.slipNo); 
-    
+    setReferenceSlipNo(borrowSlip.slipNo);
+
     const fastItems = borrowSlip.items.map(it => ({
       supplyId: it.supplyId?._id || it.supplyId,
       Code: it.supplyId?.Code || 'N/A',
       ItemDescription: it.supplyId?.ItemDescription || '-',
       qty: it.qty,
       UOM: it.supplyId?.UOM || 'pcs',
-      goodConditionQty: it.qty, 
-      damagedQty: 0, 
+      goodConditionQty: it.qty,
+      damagedQty: 0,
       maxLimit: 9999,
       remarks: `Returned from ${borrowSlip.slipNo}`
     }));
-    
+
     setManifestItems(fastItems);
     showSuccessToast(`Form loaded mula sa slip ${borrowSlip.slipNo}`);
   };
 
   const handleUpdateField = (index, field, val) => {
     const updated = [...manifestItems];
-    
+
     if (field === 'remarks') {
       updated[index][field] = val;
     } else {
       let numericVal = Math.max(0, Number(val));
-      
+
       if (field === 'qty' && isDeductingType) {
         if (numericVal > updated[index].maxLimit) {
           showErrorToast(`Hanggang ${updated[index].maxLimit} lang ang pwedeng i-out sa transaksyong ito.`);
@@ -174,9 +174,9 @@ function SuppliesMovements() {
         if (field === 'qty') {
           if (isDamagedDeductingType) {
             updated[index]['goodConditionQty'] = 0;
-            updated[index]['damagedQty'] = numericVal; 
+            updated[index]['damagedQty'] = numericVal;
           } else {
-            updated[index]['goodConditionQty'] = numericVal; 
+            updated[index]['goodConditionQty'] = numericVal;
             updated[index]['damagedQty'] = 0;
           }
         }
@@ -216,192 +216,192 @@ function SuppliesMovements() {
     const payload = {
       transactionType, transactionDate, partyName, originAddress, preparedBy, referenceSlipNo,
       items: manifestItems.map(i => ({
-        supplyId: i.supplyId, 
+        supplyId: i.supplyId,
         qty: Number(i.qty),
         goodConditionQty: Number(i.goodConditionQty),
-        damagedQty: Number(i.damagedQty), 
+        damagedQty: Number(i.damagedQty),
         remarks: i.remarks
       }))
     };
 
     try {
       const config = getAuthConfig();
-      const res = await axios.post(MOVEMENT_URL, payload, config); 
-      
+      const res = await axios.post(MOVEMENT_URL, payload, config);
+
       if (res.status === 200 || res.status === 201) {
         showSuccessToast(`Supply Transaction finalized successfully!`);
         setManifestItems([]); setPartyName(''); setOriginAddress(''); setReferenceSlipNo('');
-        setTransactionType('Borrow'); 
-        fetchData(); 
+        setTransactionType('Borrow');
+        fetchData();
       }
-    } catch (err) { 
+    } catch (err) {
       const errMessage = err.response?.data?.message || "Failed to execute transaction registry record.";
-      showErrorToast(errMessage); 
+      showErrorToast(errMessage);
     }
   };
 
   const handleDownloadPDF = () => {
-  if (!selectedSlip) return;
-  try {
-    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    if (!selectedSlip) return;
+    try {
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
-    // Kunin ang mga sukat ng A4 (Portrait)
-    const pageWidth = 210;
-    const pageHeight = 297;
-    const centerX = pageWidth / 2;
-    const centerY = pageHeight / 2;
+      // Kunin ang mga sukat ng A4 (Portrait)
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const centerX = pageWidth / 2;
+      const centerY = pageHeight / 2;
 
-    const formattedDate = new Date().toLocaleString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
+      const formattedDate = new Date().toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
 
-    // --- MGA DETALYE SA ITAAS NG TALAHANAYAN (Metadata Section) ---
-    // Bukod sa didDrawPage para iwas-double text artifact sa multi-page document
-    doc.setTextColor(40, 40, 40);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
+      // --- MGA DETALYE SA ITAAS NG TALAHANAYAN (Metadata Section) ---
+      // Bukod sa didDrawPage para iwas-double text artifact sa multi-page document
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
 
-    // Row 1 Meta
-    doc.text("Slip Number:", 14, 42); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(`${selectedSlip.slipNo}`, 45, 42);
+      // Row 1 Meta
+      doc.text("Slip Number:", 14, 42);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedSlip.slipNo}`, 45, 42);
 
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Date Logged:", 120, 42); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(`${selectedSlip.transactionDate ? new Date(selectedSlip.transactionDate).toLocaleDateString() : '-'}`, 155, 42);
+      doc.setFont("helvetica", "bold");
+      doc.text("Date Logged:", 120, 42);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedSlip.transactionDate ? new Date(selectedSlip.transactionDate).toLocaleDateString() : '-'}`, 155, 42);
 
-    // Row 2 Meta
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Action Type:", 14, 49); 
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(79, 70, 229); // Accent indigo text
-    doc.text(`${selectedSlip.transactionType}`, 45, 49);
+      // Row 2 Meta
+      doc.setFont("helvetica", "bold");
+      doc.text("Action Type:", 14, 49);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(79, 70, 229); // Accent indigo text
+      doc.text(`${selectedSlip.transactionType}`, 45, 49);
 
-    doc.setTextColor(40, 40, 40);
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Prepared By:", 120, 49); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(`${selectedSlip.preparedBy || preparedBy}`, 155, 49);
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("Prepared By:", 120, 49);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedSlip.preparedBy || preparedBy}`, 155, 49);
 
-    // Row 3 Meta
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Full Name:", 14, 56); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(`${selectedSlip.partyName || 'N/A'}`, 45, 56);
+      // Row 3 Meta
+      doc.setFont("helvetica", "bold");
+      doc.text("Full Name:", 14, 56);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedSlip.partyName || 'N/A'}`, 45, 56);
 
-    // Row 4 Meta
-    doc.setFont("helvetica", "bold"); 
-    doc.text("Location/Dept:", 14, 63); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(`${selectedSlip.originAddress || 'N/A'}`, 45, 63);
+      // Row 4 Meta
+      doc.setFont("helvetica", "bold");
+      doc.text("Location/Dept:", 14, 63);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedSlip.originAddress || 'N/A'}`, 45, 63);
 
-    // --- PAGHAHANDA NG DATA NG TALAHANAYAN ---
-    const tableColumns = ["Supplies Profile", "Total QTY", "Good Cond.", "Damaged", "Item Remarks"];
-    const tableRows = selectedSlip.items?.map(it => [
-      `${it.supplyId?.Code || 'N/A'}\n${it.supplyId?.ItemDescription || '-'}`,
-      `${it.qty} ${it.supplyId?.UOM || ''}`,
-      `${it.goodConditionQty ?? 0} ${it.supplyId?.UOM || ''}`,
-      `${it.damagedQty ?? 0} ${it.supplyId?.UOM || ''}`,
-      it.remarks || "-"
-    ]) || [];
+      // --- PAGHAHANDA NG DATA NG TALAHANAYAN ---
+      const tableColumns = ["Supplies Profile", "Total QTY", "Good Cond.", "Damaged", "Item Remarks"];
+      const tableRows = selectedSlip.items?.map(it => [
+        `${it.supplyId?.Code || 'N/A'}\n${it.supplyId?.ItemDescription || '-'}`,
+        `${it.qty} ${it.supplyId?.UOM || ''}`,
+        `${it.goodConditionQty ?? 0} ${it.supplyId?.UOM || ''}`,
+        `${it.damagedQty ?? 0} ${it.supplyId?.UOM || ''}`,
+        it.remarks || "-"
+      ]) || [];
 
-    // --- AUTOTABLE GENERATION WITH THUMBNAIL LAYOUT ---
-    autoTable(doc, {
-      startY: 72, // May sapat na puwang para sa 4 rows ng metadata
-      head: [tableColumns],
-      body: tableRows,
-      theme: 'grid',
-      
-      // I-inject ang automated structural consistency rules para sa bawat pahina
-      didDrawPage: (data) => {
-        // 1. Unified Background Watermark Layer
-        doc.saveGraphicsState();
-        doc.setGState(new doc.GState({ opacity: 0.06 })); 
-        const logoWidth = 80;  
-        const logoHeight = 80; 
-        const logoX = centerX - (logoWidth / 2);
-        const logoY = centerY - (logoHeight / 2);
-        doc.addImage('/one.logo.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
-        doc.restoreGraphicsState();
+      // --- AUTOTABLE GENERATION WITH THUMBNAIL LAYOUT ---
+      autoTable(doc, {
+        startY: 72, // May sapat na puwang para sa 4 rows ng metadata
+        head: [tableColumns],
+        body: tableRows,
+        theme: 'grid',
 
-        // 2. Branding Header Top Bar Block
-        doc.setFillColor(24, 23, 78);
-        doc.rect(0, 0, pageWidth, 30, 'F');
+        // I-inject ang automated structural consistency rules para sa bawat pahina
+        didDrawPage: (data) => {
+          // 1. Unified Background Watermark Layer
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.06 }));
+          const logoWidth = 80;
+          const logoHeight = 80;
+          const logoX = centerX - (logoWidth / 2);
+          const logoY = centerY - (logoHeight / 2);
+          doc.addImage('/one.logo.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
+          doc.restoreGraphicsState();
 
-        // 3. Header Texts (Naka-center para sa pormal at balanseng UI)
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.text(`SUPPLIES TRANSACTION SLIP (${selectedSlip.transactionType.toUpperCase()})`, centerX, 13, { align: 'center' });
-        
-        doc.setFontSize(8.5);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(200, 200, 220); 
-        doc.text(`Office & Operations Supplies Control Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
+          // 2. Branding Header Top Bar Block
+          doc.setFillColor(24, 23, 78);
+          doc.rect(0, 0, pageWidth, 30, 'F');
 
-        // 4. System Standard Absolute Footer
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(120, 120, 120);
-        doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10); 
-        
-        const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
-        doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
-      },
+          // 3. Header Texts (Naka-center para sa pormal at balanseng UI)
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(14);
+          doc.text(`SUPPLIES TRANSACTION SLIP (${selectedSlip.transactionType.toUpperCase()})`, centerX, 13, { align: 'center' });
 
-      headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, valign: 'middle' },
-      bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
-      alternateRowStyles: { fillColor: [248, 249, 250] },
-      styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 },
-      columnStyles: { 
-        0: { cellWidth: 60 }, 
-        1: { cellWidth: 25, halign: 'center' }, 
-        2: { cellWidth: 25, halign: 'center' }, 
-        3: { cellWidth: 25, halign: 'center' }, 
-        4: { cellWidth: 50 } 
-      }
-    });
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(200, 200, 220);
+          doc.text(`Office & Operations Supplies Control Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
 
-    // --- SIGNATORIES SECTION ---
-    const finalY = doc.lastAutoTable.finalY + 20;
-    
+          // 4. System Standard Absolute Footer
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(120, 120, 120);
+          doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10);
 
-    doc.save(`SUPPLIES_SLIP_${selectedSlip.slipNo}.pdf`);
-    showSuccessToast("PDF Slip downloaded successfully.");
-  } catch (e) {
-    showErrorToast("Nagka-problema sa pag-download ng PDF.");
-  }
-};
+          const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
+          doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
+        },
 
-  const filteredSuggestions = dbSupplies.filter(item => 
+        headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, valign: 'middle' },
+        bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
+        alternateRowStyles: { fillColor: [248, 249, 250] },
+        styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 },
+        columnStyles: {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 25, halign: 'center' },
+          2: { cellWidth: 25, halign: 'center' },
+          3: { cellWidth: 25, halign: 'center' },
+          4: { cellWidth: 50 }
+        }
+      });
+
+      // --- SIGNATORIES SECTION ---
+      const finalY = doc.lastAutoTable.finalY + 20;
+
+
+      doc.save(`SUPPLIES_SLIP_${selectedSlip.slipNo}.pdf`);
+      showSuccessToast("PDF Slip downloaded successfully.");
+    } catch (e) {
+      showErrorToast("Nagka-problema sa pag-download ng PDF.");
+    }
+  };
+
+  const filteredSuggestions = dbSupplies.filter(item =>
     item.Code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.ItemDescription?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const activeBorrows = movementRecords.filter(r => 
+  const activeBorrows = movementRecords.filter(r =>
     r.transactionType === "Borrow" && r.isReturned === false
   );
 
-  const filteredHistoryLogs = movementRecords.filter(rec => 
+  const filteredHistoryLogs = movementRecords.filter(rec =>
     rec.slipNo?.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
     rec.partyName?.toLowerCase().includes(historySearchQuery.toLowerCase())
   );
-  
+
   const displayedHistoryLogs = historySearchQuery ? filteredHistoryLogs : filteredHistoryLogs.slice(0, 4);
 
   return (
     <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased text-slate-600">
-      
+
       {/* 🟢 I-set up ang Toaster Container sa Top-Right at i-override ang default wrapper nito */}
-      <Toaster 
-        position="top-right" 
+      <Toaster
+        position="top-right"
         containerClassName="mt-5 mr-5"
         toastOptions={{
           className: '',
           style: { background: 'transparent', boxShadow: 'none', border: 'none', padding: 0 }
-        }} 
+        }}
       />
 
       <div>
@@ -417,9 +417,9 @@ function SuppliesMovements() {
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
             {activeBorrows.map(b => (
-              <button 
-                key={b._id} 
-                type="button" 
+              <button
+                key={b._id}
+                type="button"
                 onClick={() => handleFastReturnCopy(b)}
                 className="bg-white border border-amber-200 hover:border-amber-500 text-amber-900 px-3 py-1.5 rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex items-center gap-1 shrink-0"
               >
@@ -451,12 +451,12 @@ function SuppliesMovements() {
                   <input type="text" value={referenceSlipNo ? `REF: ${referenceSlipNo}` : "[ AUTO-GENERATED ]"} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none" />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Transaction Type</label>
-                <select 
-                  value={transactionType} 
-                  onChange={e => setTransactionType(e.target.value)} 
+                <select
+                  value={transactionType}
+                  onChange={e => setTransactionType(e.target.value)}
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none text-[#18174e]"
                 >
                   <option value="Borrow">🟡 Borrow (Issue Stock)</option>
@@ -478,14 +478,14 @@ function SuppliesMovements() {
 
               <div>
                 <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">FULL NAME</label>
-                <input 
-                  type="text" 
-                  value={partyName} 
-                  onChange={e => setPartyName(e.target.value)} 
-                  placeholder={isDamagedDeductingType ? "Disposal Team, Supplier, or Junk shop" : "Enter full name of person"} 
+                <input
+                  type="text"
+                  value={partyName}
+                  onChange={e => setPartyName(e.target.value)}
+                  placeholder={isDamagedDeductingType ? "Disposal Team, Supplier, or Junk shop" : "Enter full name of person"}
                   list="party-suggestions"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" 
-                  required 
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                  required
                 />
                 <datalist id="party-suggestions">
                   {existingParties.map((name, idx) => (
@@ -496,13 +496,13 @@ function SuppliesMovements() {
 
               <div>
                 <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Location / Address</label>
-                <input 
-                  type="text" 
-                  value={originAddress} 
-                  onChange={e => setOriginAddress(e.target.value)} 
-                  placeholder="Enter origin address or department" 
+                <input
+                  type="text"
+                  value={originAddress}
+                  onChange={e => setOriginAddress(e.target.value)}
+                  placeholder="Enter origin address or department"
                   list="location-suggestions"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" 
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
                 />
                 <datalist id="location-suggestions">
                   {existingLocations.map((loc, idx) => (
@@ -510,7 +510,7 @@ function SuppliesMovements() {
                   ))}
                 </datalist>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Prepared Name</label>
                 <div className="relative"><User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
@@ -521,77 +521,78 @@ function SuppliesMovements() {
 
             {/* SEARCH BOX */}
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
-              <label className="block text-sm font-bold text-[#18174e] uppercase">Search Supplies Master Catalog</label>
+              <label className="block text-sm font-bold text-yellow-600 uppercase">Step 1: Type / Select Supplies (Optional)</label>
               <div className="relative"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                 <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search item code or details..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
               </div>
-            {searchQuery && (
-  <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
-    {filteredSuggestions.length > 0 ? (
-      filteredSuggestions.map(item => (
-        <div 
-          key={item._id} 
-          onClick={() => handleSelectSupply(item)} 
-          className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors"
-        >
-          {/* Unang Linya: Code, UOM, at Condition Breakdown Badges */}
-          <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">
-                {item.Code}
-              </span>
-              <span className="text-xs font-medium text-slate-400 lowercase italic">
-                {item.UOM || 'pcs'}
-              </span>
-            </div>
-            
-            {/* Split Stock Status Badges para sa Good at Repair */}
-            <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider">
-              <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
-                Good: {item.ConditionBreakdown?.Good ?? item.ActualCount ?? 0}
-              </span>
-              <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
-                Repair: {item.ConditionBreakdown?.Damaged ?? item.DamagedCount ?? 0}
-              </span>
-            </div>
-          </div>
+              {searchQuery && (
+                <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
+                  {filteredSuggestions.length > 0 ? (
+                    filteredSuggestions.map(item => (
+                      <div
+                        key={item._id}
+                        onClick={() => handleSelectSupply(item)}
+                        className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors"
+                      >
+                        {/* Unang Linya: Code, UOM, at Condition Breakdown Badges */}
+                        <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">
+                              {item.Code}
+                            </span>
+                            <span className="text-xs font-medium text-slate-400 lowercase italic">
+                              {item.UOM || 'pcs'}
+                            </span>
+                          </div>
 
-          {/* Pangalawang Linya: Description */}
-          <span className="text-slate-800 font-semibold text-sm truncate">
-            {item.ItemDescription}
-          </span>
+                          {/* Split Stock Status Badges para sa Good at Repair */}
+                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider">
+                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              Good: {item.ConditionBreakdown?.Good ?? item.ActualCount ?? 0}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
+                              Repair: {item.ConditionBreakdown?.Damaged ?? item.DamagedCount ?? 0}
+                            </span>
+                          </div>
+                        </div>
 
-          {/* Pangatlong Linya: Dynamic Badges para sa Cat, Seg, at Dim */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-            <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-              Cat: {item.Category || item.category || 'Supply'}
-            </span>
-            
-            {(item.Segment || item.segment) && (
-              <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-                Seg: {item.Segment || item.segment}
-              </span>
-            )}
-            
-            {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-              <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">
-                Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}
-              </span>
-            )}
-          </div>
-        </div>
-      ))
-    ) : (
-      <div className="p-3 text-xs italic text-slate-400 text-center">
-        No supplies found matching.
-      </div>
-    )}
-  </div>
-)}
+                        {/* Pangalawang Linya: Description */}
+                        <span className="text-slate-800 font-semibold text-sm truncate">
+                          {item.ItemDescription}
+                        </span>
+
+                        {/* Pangatlong Linya: Dynamic Badges para sa Cat, Seg, at Dim */}
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
+                          <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
+                            Cat: {item.Category || item.category || 'Supply'}
+                          </span>
+
+                          {(item.Segment || item.segment) && (
+                            <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
+                              Seg: {item.Segment || item.segment}
+                            </span>
+                          )}
+
+                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
+                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">
+                              Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-xs italic text-slate-400 text-center">
+                      No supplies found matching.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* MANIFEST GRID TABLE */}
             <div className="flex flex-col gap-2">
+              <span className="text-xs font-bold text-yellow-700 bg-yellow-100 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically (deducted / added)</span>
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto w-full">
                 <table className="min-w-[850px] w-full text-left border-collapse text-sm">
                   <thead>
@@ -615,14 +616,14 @@ function SuppliesMovements() {
                             {item.ItemDescription}
                           </td>
                           <td className="py-2 px-4 text-center">
-                            <input 
-                              type="number" 
-                              value={item.qty} 
-                              onChange={e => handleUpdateField(index, 'qty', e.target.value)} 
-                              className="w-14 border text-center rounded text-sm disabled:bg-slate-50 font-semibold" 
-                              min="0" 
-                              disabled={!isDeductingType} 
-                              required 
+                            <input
+                              type="number"
+                              value={item.qty}
+                              onChange={e => handleUpdateField(index, 'qty', e.target.value)}
+                              className="w-14 border text-center rounded text-sm disabled:bg-slate-50 font-semibold"
+                              min="0"
+                              disabled={!isDeductingType}
+                              required
                             />
                             <div className="text-[10px] text-slate-400">Max: {item.maxLimit}</div>
                           </td>
@@ -630,25 +631,25 @@ function SuppliesMovements() {
                             <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
                           </td>
                           <td className="py-2 px-4 text-center">
-                            <input 
-                              type="number" 
-                              value={item.goodConditionQty} 
-                              onChange={e => handleUpdateField(index, 'goodConditionQty', e.target.value)} 
-                              className="w-14 border text-center rounded text-sm font-bold text-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal" 
-                              min="0" 
-                              required 
-                              disabled={isDeductingType} 
+                            <input
+                              type="number"
+                              value={item.goodConditionQty}
+                              onChange={e => handleUpdateField(index, 'goodConditionQty', e.target.value)}
+                              className="w-14 border text-center rounded text-sm font-bold text-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal"
+                              min="0"
+                              required
+                              disabled={isDeductingType}
                             />
                           </td>
                           <td className="py-2 px-4 text-center">
-                            <input 
-                              type="number" 
-                              value={item.damagedQty} 
-                              onChange={e => handleUpdateField(index, 'damagedQty', e.target.value)} 
-                              className="w-14 border text-center rounded text-sm font-bold text-rose-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal" 
-                              min="0" 
-                              required 
-                              disabled={isDeductingType} 
+                            <input
+                              type="number"
+                              value={item.damagedQty}
+                              onChange={e => handleUpdateField(index, 'damagedQty', e.target.value)}
+                              className="w-14 border text-center rounded text-sm font-bold text-rose-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal"
+                              min="0"
+                              required
+                              disabled={isDeductingType}
                             />
                           </td>
                           <td className="py-2 px-4">
@@ -679,34 +680,33 @@ function SuppliesMovements() {
             </div>
             <div className="relative mt-1">
               <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={historySearchQuery}
                 onChange={e => setHistorySearchQuery(e.target.value)}
-                placeholder="Search slip or name..." 
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none" 
+                placeholder="Search slip or name..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none"
               />
             </div>
           </div>
-          
+
           {/* LOGS LIST */}
           <div className="flex flex-col gap-1.5 overflow-hidden">
             {displayedHistoryLogs.length > 0 ? (
               displayedHistoryLogs.map((rec) => (
-                <div 
-                  key={rec._id} 
-                  onClick={() => { setSelectedSlip(rec); setIsModalOpen(true); }} 
+                <div
+                  key={rec._id}
+                  onClick={() => { setSelectedSlip(rec); setIsModalOpen(true); }}
                   className="bg-white border border-slate-100 rounded-xl p-2.5 flex flex-col gap-0.5 hover:border-[#18174e]/50 transition-all cursor-pointer hover:shadow-md group"
                 >
                   <div className="flex justify-between items-center pb-0.5 border-b border-slate-50">
                     <span className="text-xs font-black text-[#18174e] group-hover:text-emerald-600">{rec.slipNo}</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${
-                      rec.transactionType === 'Borrow' ? 'bg-amber-50 text-amber-600' : 
-                      rec.transactionType === 'Return' ? 'bg-blue-50 text-blue-600' : 
-                      rec.transactionType === 'Reserved' ? 'bg-purple-50 text-purple-600' : 
-                      rec.transactionType === 'Out' ? 'bg-rose-50 text-rose-600' : 
-                      ['Scrap', 'Return to Vendor'].includes(rec.transactionType) ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
-                    }`}>
+                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${rec.transactionType === 'Borrow' ? 'bg-amber-50 text-amber-600' :
+                        rec.transactionType === 'Return' ? 'bg-blue-50 text-blue-600' :
+                          rec.transactionType === 'Reserved' ? 'bg-purple-50 text-purple-600' :
+                            rec.transactionType === 'Out' ? 'bg-rose-50 text-rose-600' :
+                              ['Scrap', 'Return to Vendor'].includes(rec.transactionType) ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+                      }`}>
                       {rec.transactionType}
                     </span>
                   </div>
@@ -752,9 +752,11 @@ function SuppliesMovements() {
               <div><span className="font-semibold text-slate-400">Dept Location:</span> <span className="font-bold text-slate-800">{selectedSlip.originAddress || 'N/A'}</span></div>
             </div>
 
-            <div className="overflow-x-auto border border-slate-100 rounded-xl">
-              <table className="w-full text-left text-xs min-w-[500px]">
-                <thead className="bg-[#18174e] text-white font-bold uppercase">
+            {/* BINAGO: Nilagyan ng max-h-64, overflow-y-auto, at relative para gumana ang scrollbar at sticky design */}
+            <div className="overflow-x-auto overflow-y-auto max-h-64 border border-slate-100 rounded-xl relative">
+              <table className="w-full text-left text-xs min-w-[500px] border-collapse">
+                {/* BINAGO: Ginawang sticky top-0 ang thead para manatili sa itaas habang nag-scroscroll */}
+                <thead className="bg-[#18174e] text-white font-bold uppercase sticky top-0 z-10 shadow-sm">
                   <tr>
                     <th className="p-3">Supplies Profile</th>
                     <th className="p-3 text-center">Total QTY</th>
@@ -763,11 +765,14 @@ function SuppliesMovements() {
                     <th className="p-3">Remarks / Reason</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 bg-white">
                   {selectedSlip.items?.map((it, idx) => (
                     <tr key={idx} className="hover:bg-slate-50">
-                      <td className="p-3 font-semibold">{it.supplyId?.Code || 'N/A'}<br/><span className="text-[10px] text-slate-400 font-normal">{it.supplyId?.ItemDescription || '-'}</span></td>
-                      <td className="p-3 text-center font-bold">{it.qty}</td>
+                      <td className="p-3 font-semibold">
+                        <div className="font-bold text-[#18174e]">{it.supplyId?.Code || 'N/A'}</div>
+                        <div className="text-slate-400 text-[10px] font-normal max-w-xs truncate" title={it.supplyId?.ItemDescription}>{it.supplyId?.ItemDescription || '-'}</div>
+                      </td>
+                      <td className="p-3 text-center font-bold text-slate-700">{it.qty}</td>
                       <td className="p-3 text-center font-bold text-emerald-600">{it.goodConditionQty ?? 0}</td>
                       <td className="p-3 text-center font-bold text-rose-600">{it.damagedQty ?? 0}</td>
                       <td className="p-3 text-slate-500 italic">{it.remarks || '-'}</td>

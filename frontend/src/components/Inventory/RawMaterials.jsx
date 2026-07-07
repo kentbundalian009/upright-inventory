@@ -4,19 +4,25 @@ import axios from 'axios';
 import PageHeader from '../Common/PageHeader';
 import ThresholdModal from '../Common/ThresholdModal';
 
+// Static palette ng 5 kulay na hiningi mo: 🟡, 🟢, 🔵, 🟣, 🔴
+const COLOR_PALETTE = [
+    { classes: "bg-amber-50 text-amber-700 border-amber-200", prefix: "" },   // Yellow
+    { classes: "bg-emerald-50 text-emerald-700 border-emerald-200", prefix: "" }, // Green
+    { classes: "bg-blue-50 text-blue-700 border-blue-200", prefix: "" },     // Blue
+    { classes: "bg-purple-50 text-purple-700 border-purple-200", prefix: "" }, // Purple
+    { classes: "bg-rose-50 text-rose-700 border-rose-200", prefix: "" }       // Red
+];
+
 function RawMaterials() {
     // 1. DATABASE AT LIFECYCLE STATES
     const [rawMaterialsList, setRawMaterialsList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
     // Toast Notification States
     const [successMessage, setSuccessMessage] = useState(null);
     const [errorMessage, setErrorMessage] = useState(null);
-
     // Toggle feature para sa Active vs Archived view
     const [showArchivedOnly, setShowArchivedOnly] = useState(false);
-
     // States para sa Filtering at Search
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All Categories');
@@ -28,7 +34,6 @@ function RawMaterials() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isThresholdModalOpen, setIsThresholdModalOpen] = useState(false);
     const [currentId, setCurrentId] = useState(null);
-
     // Custom Confirmation Modal States
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [confirmModalConfig, setConfirmModalConfig] = useState({
@@ -37,7 +42,6 @@ function RawMaterials() {
         actionType: '', // 'archive' o 'unarchive'
         selectedItem: null
     });
-
     // Form Fields para sa Edit
     const [materialCode, setMaterialCode] = useState('');
     const [materialCategory, setMaterialCategory] = useState('');
@@ -47,7 +51,6 @@ function RawMaterials() {
     const [materialUom, setMaterialUom] = useState('');
     const [accountTo, setAccountTo] = useState('');
     const [modalActualCount, setModalActualCount] = useState(0);
-
     // Live Database-driven Threshold System Configuration Parameters
     const [thresholds, setThresholds] = useState({
         critical: 5,
@@ -171,7 +174,7 @@ function RawMaterials() {
         const { actionType, selectedItem } = confirmModalConfig;
         if (!selectedItem) return;
 
-        setIsConfirmModalOpen(false); // isara agad ang modal
+        setIsConfirmModalOpen(false);
 
         try {
             if (actionType === 'archive') {
@@ -193,7 +196,7 @@ function RawMaterials() {
 
     // Unique arrays para sa Filters at Datalists ng Edit Modal
     const categoriesInDB = [...new Set(rawMaterialsList.map(item => item.Category).filter(Boolean))];
-    const segmentsInDB = [...new Set(rawMaterialsList.map(item => item.Segment).filter(Boolean))];
+    const segmentsInDB = [...new Set(rawMaterialsList.map(item => item.Segment).filter(Boolean))].sort();
     const descriptionsInDB = [...new Set(rawMaterialsList.map(item => item.ItemDescription).filter(Boolean))];
     const dimensionsInDB = [...new Set(rawMaterialsList.map(item => item.Dimension).filter(Boolean))];
     const uomsInDB = [...new Set(rawMaterialsList.map(item => item.UOM).filter(Boolean))];
@@ -202,6 +205,24 @@ function RawMaterials() {
     const filterCategories = ['All Categories', ...categoriesInDB];
     const filterSegments = ['All Segments', ...segmentsInDB];
     const filterDescriptions = ['All Item Descriptions', ...descriptionsInDB];
+
+    // 🌟 FIX AT FIXTURE LOGIC: Index-Based Absolute Palette Map Function
+    // Dito, ibinabase natin ang kulay sa permanenteng posisyon ng Segment sa array ng mga natatanging segment mula sa database.
+    // Tinitiyak nito na walang magiging magkapareho (hangga't kasya sa 5 kulay) at tuluy-tuloy na magbabago habang nagdadagdag ka ng bago nang hindi nagre-reset.
+    const getSegmentStyles = (segment) => {
+        if (!segment) return { classes: "bg-slate-50 text-slate-600 border-slate-200", prefix: "⚪" };
+        
+        const cleaned = segment.trim().toUpperCase();
+        
+        // Hanapin ang permanenteng index ng segment na ito sa lahat ng unique segments na nakuha sa database natin
+        const segmentIndex = segmentsInDB.findIndex(seg => seg.trim().toUpperCase() === cleaned);
+        
+        // Kung hindi mahanap (hal. pansamantalang loading), bigyan ng fallback index
+        const targetIndex = segmentIndex !== -1 ? segmentIndex : 0;
+        
+        // Gamitin ang modulo (%) operation para maging ligtas kung sakaling lumampas sa 5 ang kabuuang segments mo
+        return COLOR_PALETTE[targetIndex % COLOR_PALETTE.length];
+    };
 
     // CONSISTENT UI BADGE LOGIC BASED ON LIVE THRESHOLDS
     const getRawMaterialHealthBadge = (actualCount) => {
@@ -221,7 +242,6 @@ function RawMaterials() {
     const currentDisplayList = rawMaterialsList.filter(item => 
         showArchivedOnly ? item.isArchived === true : !item.isArchived
     );
-
     const filteredRawMaterials = currentDisplayList.filter(item => {
         const matchesCategory = selectedCategory === 'All Categories' || item.Category === selectedCategory;
         const matchesSegment = selectedSegment === 'All Segments' || item.Segment === selectedSegment;
@@ -316,8 +336,21 @@ function RawMaterials() {
                             {filterCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                         </select>
 
-                        <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
-                            {filterSegments.map(seg => <option key={seg} value={seg}>{seg}</option>)}
+                        {/* FIXED DYNAMIC DROPDOWN SELECTION */}
+                        <select 
+                            value={selectedSegment} 
+                            onChange={(e) => setSelectedSegment(e.target.value)} 
+                            className="bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full"
+                        >
+                            {filterSegments.map(seg => {
+                                if (seg === 'All Segments') return <option key={seg} value={seg}>{seg}</option>;
+                                const config = getSegmentStyles(seg);
+                                return (
+                                    <option key={seg} value={seg}>
+                                        {config.prefix} {seg}
+                                    </option>
+                                );
+                            })}
                         </select>
 
                         <select value={selectedDescription} onChange={(e) => setSelectedDescription(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
@@ -361,8 +394,10 @@ function RawMaterials() {
                             <tbody className="divide-y divide-slate-100">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="10" className="text-center py-8 text-slate-500 font-medium">
-                                            Kasalukuyang kinukuha ang mga records...
+                                        <td colSpan="7" className="text-center py-10 text-slate-400 font-medium italic">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <span>Fetching secure rackings data from database...</span>
+                                            </div>
                                         </td>
                                     </tr>
                                 ) : error ? (
@@ -374,10 +409,16 @@ function RawMaterials() {
                                 ) : filteredRawMaterials.map((rawMat) => (
                                     <tr key={rawMat._id || rawMat.Code} className="hover:bg-slate-50/80 transition-colors text-slate-600 font-medium whitespace-nowrap text-sm">
                                         <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{rawMat.Code}</td>
+                                        <td className="py-3 px-4 text-slate-700">{rawMat.Category || '—'}</td>
+                                        
+                                        {/* TABLE ROW BADGE: Aturdidong index computation para hindi mag-collaps sa puro iisang kulay */}
                                         <td className="py-3 px-4">
-                                            <span className="bg-slate-100 px-2 py-1 rounded text-xs text-slate-700">{rawMat.Category}</span>
+                                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded border flex items-center gap-1.5 w-fit ${getSegmentStyles(rawMat.Segment).classes}`}>
+                                                <span>{getSegmentStyles(rawMat.Segment).prefix}</span>
+                                                <span>{rawMat.Segment || '—'}</span>
+                                            </span>
                                         </td>
-                                        <td className="py-3 px-4 text-slate-700">{rawMat.Segment || '—'}</td>
+
                                         <td className="py-3 px-4 text-slate-800 font-semibold">{rawMat.ItemDescription}</td>
                                         <td className="py-3 px-4 text-slate-600 font-mono text-xs bg-slate-50/30">{rawMat.Dimension || '—'}</td>
                                         <td className="py-3 px-4 text-center font-bold text-slate-900 font-mono">{rawMat.ActualCount}</td>
@@ -511,47 +552,41 @@ function RawMaterials() {
                 }}
             />
 
-            {/* 🛡️ TOP-CENTER CUSTOM CONFIRMATION MODAL (Clean Classic Style) */}
-{isConfirmModalOpen && (
-    <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex justify-center items-start z-50 p-4 pt-5 animate-in fade-in duration-200">
-        <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm p-5 shadow-2xl relative animate-in slide-in-from-top-5 duration-300">
-            
-            {/* Title Block (No Icons) */}
-            <div className="border-b border-slate-100 pb-2">
-                <h3 className="font-bold text-slate-800 text-sm tracking-wide">
-                    {confirmModalConfig.title}
-                </h3>
-            </div>
-            
-            {/* Message Body */}
-            <p className="text-sm text-slate-600 leading-relaxed mt-3">
-                {confirmModalConfig.message}
-            </p>
-
-            {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-2 mt-5">
-                <button 
-                    type="button" 
-                    onClick={() => setIsConfirmModalOpen(false)} 
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
-                >
-                    Cancel
-                </button>
-                <button 
-                    type="button" 
-                    onClick={handleConfirmAction} 
-                    className={`text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer ${
-                        confirmModalConfig.actionType === 'archive' 
-                            ? 'bg-rose-600 hover:bg-rose-700' 
-                            : 'bg-emerald-600 hover:bg-emerald-700'
-                    }`}
-                >
-                    Confirm
-                </button>
-            </div>
-        </div>
-    </div>
-)}
+            {/* 🛡️ TOP-CENTER CUSTOM CONFIRMATION MODAL */}
+            {isConfirmModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex justify-center items-start z-50 p-4 pt-5 animate-in fade-in duration-200">
+                    <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm p-5 shadow-2xl relative animate-in slide-in-from-top-5 duration-300">
+                        <div className="border-b border-slate-100 pb-2">
+                            <h3 className="font-bold text-slate-800 text-sm tracking-wide">
+                                {confirmModalConfig.title}
+                            </h3>
+                        </div>
+                        <p className="text-sm text-slate-600 leading-relaxed mt-3">
+                            {confirmModalConfig.message}
+                        </p>
+                        <div className="flex items-center justify-end gap-2 mt-5">
+                            <button 
+                                type="button" 
+                                onClick={() => setIsConfirmModalOpen(false)} 
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                type="button" 
+                                onClick={handleConfirmAction} 
+                                className={`text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer ${
+                                    confirmModalConfig.actionType === 'archive' 
+                                        ? 'bg-rose-600 hover:bg-rose-700' 
+                                        : 'bg-emerald-600 hover:bg-emerald-700'
+                                }`}
+                            >
+                                Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

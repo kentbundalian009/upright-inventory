@@ -293,7 +293,7 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
             </div>
 
             <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 flex flex-col gap-6 shadow-xs">
-                <img src="/public/manual.png" alt="User Manual" />
+                <img src="/manual.png" alt="User Manual" />
             </div>
 
             {/* 🔒 CUSTOM PASSWORD MODAL */}

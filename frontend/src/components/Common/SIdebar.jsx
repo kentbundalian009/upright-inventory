@@ -34,9 +34,9 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
     { id: 'user-activity', name: 'User Activity', icon: Activity, roles: ['Admin'] },
     
     // INVENTORY ACCESSIBLE ONLY
-    { id: 'raw-materials', name: 'Raw Materials (Records)', icon: Layers, roles: ['Inventory'] },
+    { id: 'raw-materials', name: 'Rackings', icon: Layers, roles: ['Inventory'] },
     { id: 'inbound-raw-mat', name: 'Inbound Raw Materials', icon: ArrowDownCircle, roles: ['Inventory'] },
-    { id: 'products', name: 'Products (Records)', icon: ShoppingBag, roles: ['Inventory'] },
+    // 🌟 INALIS DITO: Products (Records)
     { id: 'work-in-progress', name: 'Work in Progress', icon: TrendingUp, roles: ['Inventory'] },
     { id: 'outbound-products', name: 'Outbound Products', icon: Truck, roles: ['Inventory'] },
     { id: 'supplies', name: 'Supplies (Records)', icon: Package, roles: ['Inventory'] },
@@ -123,37 +123,37 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
           </div>
 
           {/* NAVIGATION LINKS */}
-<nav className="overflow-y-auto py-3 space-y-1 px-3 custom-scrollbar flex-1">
-  {allowedMenuItems.map((item) => {
-    // 🌟 DAGDAG NA HARANG: Kung ang item ay 'reports' at ang role ay Admin, HUWAG I-RENDER (i-skip)
-    if (item.id === 'reports' && userRole === 'Admin') {
-      return null;
-    }
+          <nav className="overflow-y-auto py-3 space-y-1 px-3 custom-scrollbar flex-1">
+            {allowedMenuItems.map((item) => {
+              // 🌟 DAGDAG NA HARANG: Kung ang item ay 'reports' at ang role ay Admin, HUWAG I-RENDER (i-skip)
+              if (item.id === 'reports' && userRole === 'Admin') {
+                return null;
+              }
 
-    const IconComponent = item.icon;
-    const isActive = activeTab === item.id;
+              const IconComponent = item.icon;
+              const isActive = activeTab === item.id;
 
-    return (
-      <button
-        key={item.id}
-        onClick={() => {
-          setActiveTab(item.id);
-          setIsMobileOpen(false);
-        }}
-        title={isCollapsed ? item.name : ''}
-        className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all relative cursor-pointer ${isCollapsed ? 'md:justify-center' : ''} ${
-          isActive
-            ? 'bg-[#252375] text-white font-bold shadow-md'
-            : 'text-slate-300 hover:bg-[#252375]/50 hover:text-white'
-        }`}
-      >
-        <IconComponent size={18} className="flex-shrink-0" />
-        <span className={`truncate ${isCollapsed ? 'md:hidden block' : 'block'}`}>{item.name}</span>
-        {isActive && <div className={`absolute right-0 w-1 h-1/2 bg-white rounded-l-full ${isCollapsed ? 'md:hidden block' : 'block'}`} />}
-      </button>
-    );
-  })}
-</nav>
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setIsMobileOpen(false);
+                  }}
+                  title={isCollapsed ? item.name : ''}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all relative cursor-pointer ${isCollapsed ? 'md:justify-center' : ''} ${
+                    isActive
+                      ? 'bg-[#252375] text-white font-bold shadow-md'
+                      : 'text-slate-300 hover:bg-[#252375]/50 hover:text-white'
+                  }`}
+                >
+                  <IconComponent size={18} className="flex-shrink-0" />
+                  <span className={`truncate ${isCollapsed ? 'md:hidden block' : 'block'}`}>{item.name}</span>
+                  {isActive && <div className={`absolute right-0 w-1 h-1/2 bg-white rounded-l-full ${isCollapsed ? 'md:hidden block' : 'block'}`} />}
+                </button>
+              );
+            })}
+          </nav>
         </div>
       </aside>
     </>

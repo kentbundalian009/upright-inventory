@@ -21,7 +21,6 @@ function WorkInProgress() {
   const [rawMatSearchQuery, setRawMatSearchQuery] = useState('');
   const [outputSearchQuery, setOutputSearchQuery] = useState('');
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
-
   const [selectedConversion, setSelectedConversion] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -108,7 +107,7 @@ function WorkInProgress() {
     setInputMaterials(updated);
   };
 
-  // --- DYNAMIC OUTPUT HANDLERS (PRODUCTS & RAW MATERIALS) ---
+  // --- DYNAMIC OUTPUT HANDLERS (RAW MATERIALS ONLY) ---
   const handleSelectOutputItem = (item, type) => {
     if (outputItems.some(o => o.itemId === item._id && o.itemType === type)) {
       setOutputSearchQuery('');
@@ -142,7 +141,7 @@ function WorkInProgress() {
       return;
     }
     if (outputItems.length === 0) {
-      setErrorMessage("Mangyaring magdagdag ng kahit isang Output Product, Return, o Scrap line.");
+      setErrorMessage("Mangyaring magdagdag ng kahit isang Output Return o Scrap line.");
       return;
     }
 
@@ -192,159 +191,141 @@ function WorkInProgress() {
   };
 
   // --- PDF REPORT GENERATION ---
-const handleDownloadPDF = () => {
-  if (!selectedConversion) return;
-  try {
-    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  const handleDownloadPDF = () => {
+    if (!selectedConversion) return;
+    try {
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const centerX = pageWidth / 2;
+      const centerY = pageHeight / 2;
+      const formattedDate = new Date().toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
 
-    // Kunin ang mga sukat ng A4 (Portrait)
-    const pageWidth = 210;
-    const pageHeight = 297;
-    const centerX = pageWidth / 2;
-    const centerY = pageHeight / 2;
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
 
-    const formattedDate = new Date().toLocaleString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
+      // Row 1 Meta
+      doc.text("Conversion No:", 14, 42);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedConversion.conversionNo}`, 45, 42);
+      doc.setFont("helvetica", "bold");
+      doc.text("Date Processed:", 120, 42);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedConversion.dateProcessed ? new Date(selectedConversion.dateProcessed).toLocaleDateString() : '-'}`, 155, 42);
 
-    // --- MGA DETALYE SA ITAAS NG TALAHANAYAN (Metadata Section) ---
-    // Static items are kept here to prevent duplication artifacts on multi-page overflows
-    doc.setTextColor(40, 40, 40);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
+      // Row 2 Meta
+      doc.setFont("helvetica", "bold");
+      doc.text("Process Mode:", 14, 49);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(79, 70, 229);
+      doc.text(`${selectedConversion.productionType}`, 45, 49);
 
-    // Row 1 Meta
-    doc.text("Conversion No:", 14, 42);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${selectedConversion.conversionNo}`, 45, 42);
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("Prepared By:", 120, 49);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedConversion.preparedBy || preparedBy}`, 155, 49);
 
-    doc.setFont("helvetica", "bold");
-    doc.text("Date Processed:", 120, 42);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${selectedConversion.dateProcessed ? new Date(selectedConversion.dateProcessed).toLocaleDateString() : '-'}`, 155, 42);
+      // Row 3 Meta
+      doc.setFont("helvetica", "bold");
+      doc.text("Remarks/Notes:", 14, 56);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedConversion.remarks || "No supplementary remarks recorded."}`, 45, 56);
 
-    // Row 2 Meta
-    doc.setFont("helvetica", "bold");
-    doc.text("Process Mode:", 14, 49);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(79, 70, 229); // Modern Indigo Accent
-    doc.text(`${selectedConversion.productionType}`, 45, 49);
+      const tableColumns = ["Flow Direction", "Item Catalog Details", "Quantity Shift", "UOM"];
+      const tableRows = [];
 
-    doc.setTextColor(40, 40, 40);
-    doc.setFont("helvetica", "bold");
-    doc.text("Prepared By:", 120, 49);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${selectedConversion.preparedBy || preparedBy}`, 155, 49);
+      // Map Inputs
+      selectedConversion.inputs?.forEach(it => {
+        tableRows.push([
+          "INPUT (Deducted)",
+          `${it.materialId?.Code || 'N/A'}\n${it.materialId?.ItemDescription || '-'}`,
+          `-${it.qtyUsed}`,
+          `${it.materialId?.UOM || ''}`
+        ]);
+      });
 
-    // Row 3 Meta
-    doc.setFont("helvetica", "bold");
-    doc.text("Remarks/Notes:", 14, 56);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${selectedConversion.remarks || "No supplementary remarks recorded."}`, 45, 56);
+      // Map Outputs
+      selectedConversion.outputs?.forEach(it => {
+        const typeLabel = it.itemType === 'RawMaterial' ? ' [Raw Mat]' : ' [Product]';
+        tableRows.push([
+          `OUTPUT (${it.itemType})`,
+          `${it.itemId?.Code || 'N/A'}${typeLabel}\n${it.itemId?.ItemDescription || '-'}`,
+          `+${it.qtyProduced}`,
+          `${it.itemId?.UOM || ''}`
+        ]);
+      });
 
-    // --- PAGHAHANDA NG DATA NG TALAHANAYAN ---
-    const tableColumns = ["Flow Direction", "Item Catalog Details", "Quantity Shift", "UOM"];
-    const tableRows = [];
+      autoTable(doc, {
+        startY: 64,
+        head: [tableColumns],
+        body: tableRows,
+        theme: 'grid',
 
-    // Map Inputs
-    selectedConversion.inputs?.forEach(it => {
-      tableRows.push([
-        "INPUT (Deducted)",
-        `${it.materialId?.Code || 'N/A'}\n${it.materialId?.ItemDescription || '-'}`,
-        `-${it.qtyUsed}`,
-        `${it.materialId?.UOM || ''}`
-      ]);
-    });
+        didDrawPage: (data) => {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.06 }));
+          const logoWidth = 80;
+          const logoHeight = 80;
+          const logoX = centerX - (logoWidth / 2);
+          const logoY = centerY - (logoHeight / 2);
+          doc.addImage('/one.logo.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
+          doc.restoreGraphicsState();
 
-    // Map Outputs
-    selectedConversion.outputs?.forEach(it => {
-      const typeLabel = it.itemType === 'RawMaterial' ? ' [Raw Mat]' : ' [Product]';
-      tableRows.push([
-        `OUTPUT (${it.itemType})`,
-        `${it.itemId?.Code || 'N/A'}${typeLabel}\n${it.itemId?.ItemDescription || '-'}`,
-        `+${it.qtyProduced}`,
-        `${it.itemId?.UOM || ''}`
-      ]);
-    });
+          doc.setFillColor(24, 23, 78);
+          doc.rect(0, 0, pageWidth, 30, 'F');
 
-    // --- AUTOTABLE GENERATION WITH THUMBNAIL LAYOUT ---
-    autoTable(doc, {
-      startY: 64,
-      head: [tableColumns],
-      body: tableRows,
-      theme: 'grid',
-      
-      // Hook para sa pag-render ng background UI element layers sa bawat page
-      didDrawPage: (data) => {
-        // 1. Watermark Logo Layer
-        doc.saveGraphicsState();
-        doc.setGState(new doc.GState({ opacity: 0.06 })); 
-        const logoWidth = 80;  
-        const logoHeight = 80; 
-        const logoX = centerX - (logoWidth / 2);
-        const logoY = centerY - (logoHeight / 2);
-        doc.addImage('/one.logo.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
-        doc.restoreGraphicsState();
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(14);
+          doc.text("PRODUCTION WORK IN PROGRESS SHEET", centerX, 13, { align: 'center' });
 
-        // 2. Branding Header Banner Block
-        doc.setFillColor(24, 23, 78);
-        doc.rect(0, 0, pageWidth, 30, 'F');
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(200, 200, 220);
+          doc.text(`Material Conversion & Yield Control Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
 
-        // 3. Header Typography Layout (Centered for Design Symmetry)
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.text("PRODUCTION WORK IN PROGRESS SHEET", centerX, 13, { align: 'center' });
-        
-        doc.setFontSize(8.5);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(200, 200, 220); 
-        doc.text(`Material Conversion & Yield Control Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(120, 120, 120);
+          doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10);
 
-        // 4. System Standard Footer Layout
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(120, 120, 120);
-        doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10); 
-        
-        const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
-        doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
-      },
+          const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
+          doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
+        },
 
-      headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, valign: 'middle' },
-      bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
-      alternateRowStyles: { fillColor: [248, 249, 250] },
-      styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 },
-      columnStyles: {
-        0: { cellWidth: 35, fontStyle: 'bold' },
-        1: { cellWidth: 85 },
-        2: { cellWidth: 35, halign: 'center', fontStyle: 'bold' },
-        3: { cellWidth: 25, halign: 'center' }
-      },
-      
-      didParseCell: function (data) {
-        if (data.section === 'body' && data.column.index === 0) {
-          if (data.cell.raw.includes('INPUT')) {
-            data.cell.styles.textColor = [185, 28, 28]; // Matingkad na Pula para sa Inputs
-          } else {
-            data.cell.styles.textColor = [4, 120, 87];  // Matingkad na Berde para sa Outputs
+        headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, valign: 'middle' },
+        bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
+        alternateRowStyles: { fillColor: [248, 249, 250] },
+        styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 },
+        columnStyles: {
+          0: { cellWidth: 35, fontStyle: 'bold' },
+          1: { cellWidth: 85 },
+          2: { cellWidth: 35, halign: 'center', fontStyle: 'bold' },
+          3: { cellWidth: 25, halign: 'center' }
+        },
+
+        didParseCell: function (data) {
+          if (data.section === 'body' && data.column.index === 0) {
+            if (data.cell.raw.includes('INPUT')) {
+              data.cell.styles.textColor = [185, 28, 28];
+            } else {
+              data.cell.styles.textColor = [4, 120, 87];
+            }
           }
         }
-      }
-    });
+      });
 
-    // --- SIGNATORIES SECTION ---
-    const finalY = doc.lastAutoTable.finalY + 20;
-    
-
-    // Save PDF Document Object Instance
-    doc.save(`PRODUCTION_LOG_${selectedConversion.conversionNo}.pdf`);
-    setSuccessMessage("🎉 PDF Slip downloaded successfully.");
-  } catch (e) {
-    setErrorMessage("🚨 Nagka-problema sa pag-download ng PDF.");
-  }
-};
+      doc.save(`PRODUCTION_LOG_${selectedConversion.conversionNo}.pdf`);
+      setSuccessMessage("🎉 PDF Slip downloaded successfully.");
+    } catch (e) {
+      setErrorMessage("🚨 Nagka-problema sa pag-download ng PDF.");
+    }
+  };
 
   // --- FILTER SUGGESTIONS ---
   const filteredRawMatSuggestions = dbMaterials.filter(item =>
@@ -352,13 +333,12 @@ const handleDownloadPDF = () => {
     item.ItemDescription?.toLowerCase().includes(rawMatSearchQuery.toLowerCase())
   );
 
-  const combinedOutputSuggestions = [
-    ...dbProducts.map(p => ({ ...p, type: 'Product' })),
-    ...dbMaterials.map(m => ({ ...m, type: 'RawMaterial' }))
-  ].filter(item =>
-    item.Code?.toLowerCase().includes(outputSearchQuery.toLowerCase()) ||
-    item.ItemDescription?.toLowerCase().includes(outputSearchQuery.toLowerCase())
-  );
+  // Filters output matrix strictly to Raw Materials
+  const filteredOutputSuggestions = dbMaterials.map(m => ({ ...m, type: 'RawMaterial' }))
+    .filter(item =>
+      item.Code?.toLowerCase().includes(outputSearchQuery.toLowerCase()) ||
+      item.ItemDescription?.toLowerCase().includes(outputSearchQuery.toLowerCase())
+    );
 
   const filteredConversionRecords = conversionRecords.filter(rec =>
     rec.conversionNo?.toLowerCase().includes(sidebarSearchQuery.toLowerCase()) ||
@@ -424,8 +404,6 @@ const handleDownloadPDF = () => {
               <div>
                 <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Production Type</label>
                 <select value={productionType} onChange={e => setProductionType(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none text-[#18174e]">
-
-
                   <option value="Cutting">🟡 Cutting</option>
                   <option value="Assembly">🟢 Assembly</option>
                   <option value="Fabrication">🔵 Fabrication</option>
@@ -456,71 +434,44 @@ const handleDownloadPDF = () => {
 
             {/* --- STEP 1: ALLOCATE RAW MATERIAL (INPUT) --- */}
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
-              <label className="block text-sm font-bold text-[#18174e] uppercase">Step 1: Type / Select Supplies to Add (Raw Material Input)</label>
+              <label className="block text-sm font-bold text-red-800 uppercase">Step 1: Type / Select Materials for Stock Deduction  </label>
               <div className="relative"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                 <input type="text" value={rawMatSearchQuery} onChange={e => setRawMatSearchQuery(e.target.value)} placeholder="Search raw material code or description..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
               </div>
               {rawMatSearchQuery && (
-  <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
-    {filteredRawMatSuggestions.length > 0 ? (
-      filteredRawMatSuggestions.map(item => (
-        <div 
-          key={item._id} 
-          onClick={() => handleSelectRawMaterial(item)} 
-          className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors"
-        >
-          {/* Unang Linya: Code, UOM, at Available Stock Status Badge */}
-          <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">
-                {item.Code}
-              </span>
-              <span className="text-xs font-medium text-slate-400 lowercase italic">
-                {item.UOM || 'pcs'}
-              </span>
-            </div>
-            <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-              Avail: {item.ActualCount || 0}
-            </span>
-          </div>
-
-          {/* Pangalawang Linya: Description */}
-          <span className="text-slate-800 font-semibold text-sm truncate">
-            {item.ItemDescription}
-          </span>
-
-          {/* Pangatlong Linya: Consistent Dynamic Badges para sa Cat, Seg, at Dim */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-            <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-              Cat: {item.Category || item.category || 'Raw Material'}
-            </span>
-            
-            {(item.Segment || item.segment) && (
-              <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-                Seg: {item.Segment || item.segment}
-              </span>
-            )}
-            
-            {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-              <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">
-                Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}
-              </span>
-            )}
-          </div>
-        </div>
-      ))
-    ) : (
-      <div className="p-3 text-xs italic text-slate-400 text-center">
-        No raw material stock found matching.
-      </div>
-    )}
-  </div>
-)}
+                <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
+                  {filteredRawMatSuggestions.length > 0 ? (
+                    filteredRawMatSuggestions.map(item => (
+                      <div key={item._id} onClick={() => handleSelectRawMaterial(item)} className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors">
+                        <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
+                            <span className="text-xs font-medium text-slate-400 lowercase italic">{item.UOM || 'pcs'}</span>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            Avail: {item.ActualCount || 0}
+                          </span>
+                        </div>
+                        <span className="text-slate-800 font-semibold text-sm truncate">{item.ItemDescription}</span>
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
+                          <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Cat: {item.Category || item.category || 'Raw Material'}</span>
+                          {(item.Segment || item.segment) && <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Seg: {item.Segment || item.segment}</span>}
+                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
+                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-xs italic text-slate-400 text-center">No raw material stock found matching.</div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* INPUT TABLE */}
             <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Raw Material Input (Stock Deduction Grid)</span>
+              <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically deducted</span>
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
                 <table className="w-full text-left border-collapse text-sm">
                   <thead>
@@ -557,42 +508,32 @@ const handleDownloadPDF = () => {
               </div>
             </div>
 
-            {/* --- STEP 2: CONVERSION TARGET (DYNAMIC OUTPUT) --- */}
+            {/* --- STEP 2: CONVERSION TARGET (RAW MATERIALS ONLY) --- */}
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
-              <label className="block text-sm font-bold text-emerald-800 uppercase">Step 2: Map Conversion Output Target (Products or Raw Materials)</label>
+              <label className="block text-sm font-bold text-emerald-800 uppercase">Step 2: Type / Select Materials for Stock Addition</label>
               <div className="relative"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" value={outputSearchQuery} onChange={e => setOutputSearchQuery(e.target.value)} placeholder="Search profile code (returns both finished goods & raw materials)..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
+                <input type="text" value={outputSearchQuery} onChange={e => setOutputSearchQuery(e.target.value)} placeholder="Search profile code (returns raw materials details)..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
               </div>
               {outputSearchQuery && (
                 <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
-                  {combinedOutputSuggestions.length > 0 ? (
-                    combinedOutputSuggestions.map(item => (
+                  {filteredOutputSuggestions.length > 0 ? (
+                    filteredOutputSuggestions.map(item => (
                       <div key={`${item.type}-${item._id}`} onClick={() => handleSelectOutputItem(item, item.type)} className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors">
-                        {/* Unang Linya: Code, UOM, at Type Badge */}
                         <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
                           <div className="flex items-center gap-2">
                             <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
                             <span className="text-xs font-medium text-slate-400 lowercase italic">{item.UOM || 'pcs'}</span>
                           </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${item.type === 'RawMaterial'
-                              ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                              : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            }`}>
-                            {item.type === 'RawMaterial' ? 'Raw Mat Return' : 'Finished Goods'}
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                            Raw Mat Return
                           </span>
                         </div>
-
-                        {/* Pangalawang Linya: Description */}
                         <span className="text-slate-800 font-semibold text-sm truncate">{item.ItemDescription}</span>
-
-                        {/* Pangatlong Linya: Dynamic Badges para sa Category, Segment, at Dimensions */}
                         <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
                           <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Cat: {item.Category || item.category || item.type}</span>
                           {(item.Segment || item.segment) && <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Seg: {item.Segment || item.segment}</span>}
                           {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">
-                              Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}
-                            </span>
+                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
                           )}
                         </div>
                       </div>
@@ -606,7 +547,7 @@ const handleDownloadPDF = () => {
 
             {/* OUTPUT TABLE */}
             <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Yield Output Target (Stock Addition Matrix)</span>
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically added</span>
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
                 <table className="w-full text-left border-collapse text-sm">
                   <thead>
@@ -626,8 +567,8 @@ const handleDownloadPDF = () => {
                           <td className="py-2 px-4 font-bold text-emerald-700">{item.Code}</td>
                           <td className="py-2 px-4 text-xs truncate max-w-[220px]" title={item.ItemDescription}>{item.ItemDescription}</td>
                           <td className="py-2 px-4 text-center">
-                            <span className={`text-[10px] px-2 py-0.5 font-bold rounded uppercase ${item.itemType === 'RawMaterial' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700'}`}>
-                              {item.itemType === 'RawMaterial' ? 'Raw Mat' : 'Product'}
+                            <span className="text-[10px] px-2 py-0.5 font-bold rounded uppercase bg-amber-50 text-amber-700 border border-amber-200">
+                              Raw Mat
                             </span>
                           </td>
                           <td className="py-2 px-4">
@@ -705,36 +646,50 @@ const handleDownloadPDF = () => {
               <div className="col-span-2"><span className="font-semibold text-slate-400">Remarks:</span> <span className="font-bold text-slate-600 text-xs">{selectedConversion.remarks || 'N/A'}</span></div>
             </div>
 
-            {/* RELATIONAL MATRIX DISPLAY DESK */}
-            <div className="max-h-60 overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-100">
-              <div className="p-2.5 bg-slate-50/50 text-xs font-bold text-[#18174e]">ALLOCATED RAW MATERIAL INPUTS</div>
-              <table className="w-full text-left text-xs">
-                <tbody>
+            {/* RELATIONAL MATRIX DISPLAY DESK WITH STICKY HEADERS */}
+            <div className="max-h-64 overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-100 relative">
+
+              {/* Sticky Header para sa Inputs */}
+              <div className="p-2.5 bg-slate-100 text-xs font-bold text-[#18174e] sticky top-0 z-10 border-b border-slate-200">
+                ALLOCATED RAW MATERIAL INPUTS
+              </div>
+              <table className="w-full text-left text-xs border-collapse bg-white">
+                <tbody className="divide-y divide-slate-100">
                   {selectedConversion.inputs?.map((it, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50">
                       <td className="p-3 font-semibold text-slate-700 w-1/3">{it.materialId?.Code || 'N/A'}</td>
-                      <td className="p-3 text-slate-500 text-[11px] max-w-xs truncate">{it.materialId?.ItemDescription || '-'}</td>
-                      <td className="p-3 text-right font-bold text-red-600">-{it.qtyUsed} {it.materialId?.UOM}</td>
+                      <td className="p-3 text-slate-500 text-[11px] max-w-xs truncate" title={it.materialId?.ItemDescription}>{it.materialId?.ItemDescription || '-'}</td>
+                      <td className="p-3 text-right font-bold text-red-600 w-24">-{it.qtyUsed} {it.materialId?.UOM}</td>
                     </tr>
                   ))}
+                  {(!selectedConversion.inputs || selectedConversion.inputs.length === 0) && (
+                    <tr><td colSpan="3" className="p-3 text-center text-slate-400 italic">No inputs recorded.</td></tr>
+                  )}
                 </tbody>
               </table>
 
-              <div className="p-2.5 bg-slate-50/50 text-xs font-bold text-emerald-800">YIELD CONVERSION OUTPUTS</div>
-              <table className="w-full text-left text-xs">
-                <tbody>
+              {/* Sticky Header para sa Outputs (Mananatiling nakapako kapag na-scroll pababa) */}
+              <div className="p-2.5 bg-emerald-50 text-xs font-bold text-emerald-800 sticky top-[33px] z-10 border-t border-b border-emerald-100">
+                YIELD CONVERSION OUTPUTS
+              </div>
+              <table className="w-full text-left text-xs border-collapse bg-white">
+                <tbody className="divide-y divide-slate-100">
                   {selectedConversion.outputs?.map((it, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50">
                       <td className="p-3 font-semibold text-emerald-800 w-1/3">
                         {it.itemId?.Code || 'N/A'}
                         <span className="text-[9px] text-slate-400 block font-normal">({it.itemType === 'RawMaterial' ? 'Raw Mat' : 'Product'})</span>
                       </td>
-                      <td className="p-3 text-slate-500 text-[11px] max-w-xs truncate">{it.itemId?.ItemDescription || '-'}</td>
-                      <td className="p-3 text-right font-bold text-emerald-600">+{it.qtyProduced} {it.itemId?.UOM}</td>
+                      <td className="p-3 text-slate-500 text-[11px] max-w-xs truncate" title={it.itemId?.ItemDescription}>{it.itemId?.ItemDescription || '-'}</td>
+                      <td className="p-3 text-right font-bold text-emerald-600 w-24">+{it.qtyProduced} {it.itemId?.UOM}</td>
                     </tr>
                   ))}
+                  {(!selectedConversion.outputs || selectedConversion.outputs.length === 0) && (
+                    <tr><td colSpan="3" className="p-3 text-center text-slate-400 italic">No outputs recorded.</td></tr>
+                  )}
                 </tbody>
               </table>
+
             </div>
 
           </div>
