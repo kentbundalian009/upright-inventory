@@ -318,7 +318,7 @@ function InboundRawMat() {
           const logoHeight = 80;
           const logoX = centerX - (logoWidth / 2);
           const logoY = centerY - (logoHeight / 2);
-          doc.addImage('/one.logo.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
+          doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
           doc.restoreGraphicsState();
 
           // 2. Header Banner (Same color scheme: 24, 23, 78)
@@ -360,7 +360,6 @@ function InboundRawMat() {
 
       // --- SIGNATORY SECTION ---
       const finalY = doc.lastAutoTable.finalY + 20;
-      // Tinitiyak na hindi lalampas sa footer ang pirma, kundi ay lilipat sa susunod na pahina
 
       doc.save(`PO_REPORT_${selectedPo.poNo}.pdf`);
       showSuccessToast("PDF Slip downloaded successfully.");
@@ -421,7 +420,7 @@ function InboundRawMat() {
           // Watermark Logo
           doc.saveGraphicsState();
           doc.setGState(new doc.GState({ opacity: 0.04 }));
-          doc.addImage('/one.logo.png', 'PNG', centerX - 40, centerY - 40, 80, 80);
+          doc.addImage('/cropped_circle_image.png', 'PNG', centerX - 40, centerY - 40, 80, 80);
           doc.restoreGraphicsState();
 
           // Header Banner
@@ -540,7 +539,7 @@ function InboundRawMat() {
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
               <div className="flex justify-between items-center mb-0.5">
                 <label className="block text-sm font-bold text-emerald-800 uppercase">Step 1: Type / Select Materials for Stock Addition</label>
-                <button type="button" onClick={() => setIsMatModalOpen(true)} className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-md cursor-pointer transition-all">Add New Rackings Item</button>
+                <button type="button" onClick={() => setIsMatModalOpen(true)} className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-1/3 cursor-pointer transition-all">Add New Rackings Item</button>
               </div>
               <div className="relative"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                 <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search item code or description..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
@@ -614,8 +613,6 @@ function InboundRawMat() {
         <th className="py-3 px-4">Segment</th>
         <th className="py-3 px-4">Description</th>
         <th className="py-3 px-4">Dimension</th>
-        
-        {/* Tinakda sa w-28 at min-w para hindi gumuho ang lapad */}
         <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
         
         <th className="py-3 px-4 text-center">UOM</th>
@@ -701,7 +698,7 @@ function InboundRawMat() {
   </table>
 </div>
             </div>
-            <button type="submit" className="w-full bg-[#18174e] hover:bg-[#252375] text-white font-bold py-2 px-4 rounded-xl text-sm transition-colors cursor-pointer">Save Purchase Order</button>
+            <button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xs text-sm transition-colors cursor-pointer uppercase">Save PO (Purchase Order)</button>
           </form>
         </div>
 
@@ -713,16 +710,7 @@ function InboundRawMat() {
                 <ClipboardList className="w-4 h-4 text-[#18174e]" />
                 <span>History Logs</span>
               </div>
-              {filteredPoRecords.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleDownloadHistoryPDF}
-                  className="flex items-center gap-1 text-[11px] bg-green-600 hover:bg-green-700 text-white font-bold px-2 py-1 rounded-md transition-colors cursor-pointer"
-                  title="I-download ang lahat ng lumalabas sa history log bilang PDF"
-                >
-                  <Download className="w-3 h-3" /> Report
-                </button>
-              )}
+              
             </div>
             <div className="relative mt-1">
               <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
@@ -776,7 +764,6 @@ function InboundRawMat() {
       {/* BINAGO DITO: Idinagdag ang max-h-60 at overflow-y-auto para sa scrollbar */}
       <div className="overflow-x-auto overflow-y-auto max-h-60 border border-slate-100 rounded-xl relative">
         <table className="w-full text-left text-xs border-collapse">
-          {/* BINAGO DITO: Ginawang 'sticky' ang header para hindi sumasama sa scroll-up */}
           <thead className="bg-[#18174e] text-white font-bold uppercase sticky top-0 z-10 shadow-sm">
             <tr>
               <th className="p-3">Material Profile</th>
@@ -954,7 +941,7 @@ function InboundRawMat() {
                   type="submit"
                   className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
                 >
-                  Save Profile
+                  Save Details
                 </button>
               </div>
 

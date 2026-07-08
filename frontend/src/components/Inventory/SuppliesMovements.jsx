@@ -86,7 +86,7 @@ function SuppliesMovements() {
       }
     } catch (err) {
       console.error("Error loading registry data:", err);
-      showErrorToast("Hindi ma-load ang data mula sa server.");
+      showErrorToast("Failed to load data from the server.");
     }
   };
 
@@ -323,7 +323,7 @@ function SuppliesMovements() {
           const logoHeight = 80;
           const logoX = centerX - (logoWidth / 2);
           const logoY = centerY - (logoHeight / 2);
-          doc.addImage('/one.logo.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
+          doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
           doc.restoreGraphicsState();
 
           // 2. Branding Header Top Bar Block
@@ -667,7 +667,7 @@ function SuppliesMovements() {
                 </table>
               </div>
             </div>
-            <button type="submit" className="w-full bg-[#18174e] text-white font-bold py-2.5 px-4 rounded-xl text-sm shadow-sm cursor-pointer hover:bg-[#18174e]/90 transition-all">Save & Update Registry History</button>
+            <button type="submit" className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-xs text-sm transition-colors cursor-pointer uppercase">Save Supplies activity</button>
           </form>
         </div>
 

@@ -419,7 +419,7 @@ function Reports() {
                         doc.setGState(new doc.GState({ opacity: 0.05 }));
                         const logoWidth = 75;
                         const logoHeight = 75;
-                        doc.addImage('/one.logo.png', 'PNG', centerX - (logoWidth / 2), centerY - (logoHeight / 2), logoWidth, logoHeight);
+                        doc.addImage('/cropped_circle_image.png', 'PNG', centerX - (logoWidth / 2), centerY - (logoHeight / 2), logoWidth, logoHeight);
                         doc.restoreGraphicsState();
                     } catch (e) {
                         console.warn("Watermark asset omitted.", e);

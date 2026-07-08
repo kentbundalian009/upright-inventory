@@ -45,7 +45,7 @@ useEffect(() => {
             const userId = parsedUser.id || parsedUser._id || (parsedUser.user && (parsedUser.user.id || parsedUser.user._id));
 
             if (!userId) {
-                console.error("Hindi mahanap ang ID sa user object.");
+                console.error("Failed to retrieve user ID from localStorage data.");
             }
 
             // Ilagay muna ang base URL handler sa taas ng function o bago mag-fetch
@@ -69,8 +69,8 @@ const response = await fetch(`${API_BASE_URL}/api/users/profile/${userId}`, {
                 setEmployeeNo(freshUser.EmpNo || freshUser.empNo || 'EMP-0000-000');
                 setRole(freshUser.SystemRole || freshUser.systemRole || 'Inventory');
             } else {
-                console.warn("Hindi maabot ang profile endpoint, gagamit ng LocalStorage data.");
-                
+                console.warn("Failed to reach the profile endpoint, using LocalStorage data.");
+
                 // Fallback: Kunin ang data mula sa localStorage at asikasuhin ang Malaki/Maliit na titik
                 setUserData(parsedUser);
                 setName(parsedUser.Fullname || parsedUser.fullname || '');
@@ -129,7 +129,7 @@ const response = await fetch(`${API_BASE_URL}/api/users/profile/${userId}`, {
         const token = localStorage.getItem('token');
 
         if (!userId) {
-            alert('Hindi mahanap ang user session ID. Mangyaring mag-login muli.');
+            alert('Failed to retrieve user session ID. Please login again.');
             return;
         }
 
@@ -290,10 +290,6 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
                     </div>
 
                 </div>
-            </div>
-
-            <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 flex flex-col gap-6 shadow-xs">
-                <img src="/manual.png" alt="User Manual" />
             </div>
 
             {/* 🔒 CUSTOM PASSWORD MODAL */}

@@ -81,7 +81,7 @@ function Products() {
       setError(null);
     } catch (err) {
       console.error("Error fetching products:", err);
-      setError("Hindi makuha ang mga produkto mula sa server.");
+      setError("Failed to fetch products from the server.");
     } finally {
       setLoading(false);
     }
@@ -171,7 +171,7 @@ function Products() {
         showToast(`Na-archive na si "${product.ItemDescription}".`);
         fetchProducts();
       } catch (err) {
-        showToast(err.response?.data?.message || `Hindi mai-archive ang produkto.`);
+        showToast(err.response?.data?.message || "Failed to archive the product.");
       }
     });
     setIsConfirmModalOpen(true);
@@ -190,7 +190,7 @@ function Products() {
         showToast(`Na-restore mula sa archive si "${product.ItemDescription}"!`);
         fetchProducts();
       } catch (err) {
-        showToast(err.response?.data?.message || "Hindi mai-restore ang produkto mula sa archive.");
+        showToast(err.response?.data?.message || "Failed to restore the product from archive.");
       }
     });
     setIsConfirmModalOpen(true);

@@ -65,7 +65,7 @@ function WorkInProgress() {
       setConversionRecords(convsRes.data || []);
     } catch (err) {
       console.error("Error loading Conversion/WIP registry data:", err);
-      setErrorMessage("Hindi ma-load ang registry data mula sa server.");
+      setErrorMessage("Failed to load registry data from the server.");
     }
   };
 
@@ -137,18 +137,18 @@ function WorkInProgress() {
     setErrorMessage(null);
 
     if (inputMaterials.length === 0) {
-      setErrorMessage("Mangyaring magdagdag ng kahit isang Raw Material input.");
+      setErrorMessage("Please add at least one Raw Material input.");
       return;
     }
     if (outputItems.length === 0) {
-      setErrorMessage("Mangyaring magdagdag ng kahit isang Output Return o Scrap line.");
+      setErrorMessage("Please add at least one Output Return or Scrap line.");
       return;
     }
 
     const hasInvalidInputQty = inputMaterials.some(i => i.qtyUsed === '' || i.qtyUsed <= 0);
     const hasInvalidOutputQty = outputItems.some(o => o.qtyProduced === '' || o.qtyProduced <= 0);
     if (hasInvalidInputQty || hasInvalidOutputQty) {
-      setErrorMessage("Maglagay ng tamang bilangan ng quantity para sa lahat ng aytem.");
+      setErrorMessage("Please enter a valid quantity for all items.");
       return;
     }
 
@@ -273,7 +273,7 @@ function WorkInProgress() {
           const logoHeight = 80;
           const logoX = centerX - (logoWidth / 2);
           const logoY = centerY - (logoHeight / 2);
-          doc.addImage('/one.logo.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
+          doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
           doc.restoreGraphicsState();
 
           doc.setFillColor(24, 23, 78);
@@ -588,8 +588,8 @@ function WorkInProgress() {
               </div>
             </div>
 
-            <button type="submit" className="w-full bg-[#18174e] hover:bg-[#252375] text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer shadow-sm">
-              Commit Production Log & Shift Stock Balances
+            <button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xs text-sm transition-colors cursor-pointer uppercase">
+              Save WIP Conversion Activity
             </button>
           </form>
         </div>

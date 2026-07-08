@@ -341,7 +341,7 @@ function Assets() {
           const logoHeight = 75;
           const logoX = centerX - (logoWidth / 2);
           const logoY = centerY - (logoHeight / 2);
-          doc.addImage('/one.logo.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
+          doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
           doc.restoreGraphicsState();
 
           // 2. Branding Header Top Bar Block (Full Landscape width)
@@ -441,15 +441,59 @@ function Assets() {
 
           {/* ⚡ BINAGO: Ginawang 7 columns ang grid para magkasya ang bagong button */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2 items-center mt-2">
-            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer">
-              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
-            <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer">
-              {segments.map(seg => <option key={seg} value={seg}>{seg}</option>)}
-            </select>
-            <select value={selectedDescription} onChange={(e) => setSelectedDescription(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer">
-              {descriptions.map(desc => <option key={desc} value={desc}>{desc}</option>)}
-            </select>
+            {/* 1. CATEGORY SELECT */}
+<select 
+  value={selectedCategory} 
+  onChange={(e) => setSelectedCategory(e.target.value)} 
+  className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer"
+>
+  {[...categories]
+    .sort((a, b) => {
+      if (a.startsWith('All')) return -1; // Laging nasa taas ang 'All...'
+      if (b.startsWith('All')) return 1;
+      return a.localeCompare(b);
+    })
+    .map(cat => (
+      <option key={cat} value={cat}>{cat}</option>
+    ))
+  }
+</select>
+
+{/* 2. SEGMENT SELECT */}
+<select 
+  value={selectedSegment} 
+  onChange={(e) => setSelectedSegment(e.target.value)} 
+  className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer"
+>
+  {[...segments]
+    .sort((a, b) => {
+      if (a.startsWith('All')) return -1;
+      if (b.startsWith('All')) return 1;
+      return a.localeCompare(b);
+    })
+    .map(seg => (
+      <option key={seg} value={seg}>{seg}</option>
+    ))
+  }
+</select>
+
+{/* 3. DESCRIPTION SELECT */}
+<select 
+  value={selectedDescription} 
+  onChange={(e) => setSelectedDescription(e.target.value)} 
+  className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer"
+>
+  {[...descriptions]
+    .sort((a, b) => {
+      if (a.startsWith('All')) return -1;
+      if (b.startsWith('All')) return 1;
+      return a.localeCompare(b);
+    })
+    .map(desc => (
+      <option key={desc} value={desc}>{desc}</option>
+    ))
+  }
+</select>
             <select value={selectedConditionFilter} onChange={(e) => setSelectedConditionFilter(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none font-medium w-full cursor-pointer">
               <option value="All">All Stocks</option>
               <option value="Has Good">🟢 Contains Good Items</option>
@@ -736,7 +780,7 @@ function Assets() {
 
               <div className="flex items-center justify-end gap-2 mt-6 pt-2">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm cursor-pointer">Cancel</button>
-                <button type="submit" className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm cursor-pointer">Save Changes</button>
+                <button type="submit" className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm cursor-pointer">Save Details</button>
               </div>
             </form>
           </div>

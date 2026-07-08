@@ -49,7 +49,6 @@ function ThresholdModal({ isOpen, onClose, categoryType, onSaveSuccess }) {
             if (onSaveSuccess) onSaveSuccess(); 
             onClose(); 
         } catch (err) {
-            // Makikita sa Console (F12) kung ano ang eksaktong galit ng backend mo nang hindi humaharang sa screen
             console.error("Backend Error Details:", err.response?.data);
         } finally {
             setSaving(false);

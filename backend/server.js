@@ -22,7 +22,9 @@ import productRoutes from "./routes/productRoutes.js";
 import packingListRoutes from "./routes/packingListRoutes.js"; 
 import activityLogRoutes from "./routes/userActivityRoutes.js"; 
 import purchaseOrderRoutes from "./routes/purchaseOrderRoutes.js";
-import settingRoutes from "./routes/settingRoutes.js"; // 🔧 IDINAGDAG: Para sa threshold settings
+import settingRoutes from "./routes/settingRoutes.js";
+import paletteRoutes from "./routes/paletteRoutes.js"; 
+import paletteSupRoutes from "./routes/paletteSupRoutes.js"; 
 
 
 // 🌟 I-import ang protectRoute middleware para sa backend filtering
@@ -56,8 +58,9 @@ app.use("/api/packing-lists", protectRoute, packingListRoutes);
 app.use("/api/raw-materials", protectRoute, rawMaterialRoutes); 
 app.use("/api/activity-logs", protectRoute, activityLogRoutes);
 app.use("/api/purchase-orders", protectRoute, purchaseOrderRoutes);
-app.use("/api/settings/thresholds", protectRoute, settingRoutes); // 🔧 IDINAGDAG: Para sa threshold settings
-
+app.use("/api/settings/thresholds", protectRoute, settingRoutes);
+app.use("/api/settings", protectRoute, paletteRoutes); 
+app.use("/api/settings", protectRoute, paletteSupRoutes);
 
 const PORT = process.env.PORT || 5000;
 
@@ -89,4 +92,3 @@ mongoose.connection.once('open', async () => {
     console.log("Index Sync Note:", err.message);
   }
 });
-// Force deploy update for render 2026

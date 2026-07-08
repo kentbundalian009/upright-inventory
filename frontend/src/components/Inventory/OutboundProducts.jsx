@@ -264,7 +264,7 @@ function OutboundProducts() {
           const logoHeight = 80; 
           const logoX = centerX - (logoWidth / 2);
           const logoY = centerY - (logoHeight / 2);
-          doc.addImage('/one.logo.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
+          doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
           doc.restoreGraphicsState();
 
           doc.setFillColor(24, 23, 78);
@@ -577,7 +577,7 @@ function OutboundProducts() {
                 </table>
               </div>
             </div>
-            <button type="submit" className="w-full bg-[#18174e] text-white font-bold py-2.5 px-4 rounded-xl text-sm shadow-sm cursor-pointer hover:bg-[#18174e]/90 transition-all">Save & Update Logistics Registry</button>
+            <button type="submit" className="w-full bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-xs text-sm transition-colors cursor-pointer uppercase">Save Packaging List</button>
           </form>
         </div>
 

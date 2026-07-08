@@ -92,7 +92,7 @@ function UserManagement() {
             setError(null);
         } catch (err) {
             console.error("Error fetching users:", err);
-            setError("Hindi makuha ang mga user records mula sa server.");
+            setError("Failed to fetch user records from the server.");
             setUsers([]);
         } finally {
             setLoading(false);
@@ -123,7 +123,7 @@ function UserManagement() {
 
         // Dagdag na UI layer check para sigurado bago mag-submit
         if (passwordStrength.label === 'Weak' || !password) {
-            setErrorMessage('Hindi maaaring mag-save ng account na may Weak Password.');
+            setErrorMessage('Failed to add user: Password is too weak. Please use a stronger password.');
             return;
         }
 
@@ -144,7 +144,7 @@ function UserManagement() {
             fetchUsers();
         } catch (err) {
             // Dito lalabas kung may duplicate na EmpNo, Username, o Email mula sa ginawa nating backend code
-            setErrorMessage(err.response?.data?.message || "Hindi magawa ang bagong account.");
+            setErrorMessage(err.response?.data?.message || "Failed to add user: Unable to create new account.");
         }
     };
 
@@ -168,7 +168,7 @@ function UserManagement() {
             setIsEditModalOpen(false);
             fetchUsers();
         } catch (err) {
-            setErrorMessage(err.response?.data?.message || "Hindi ma-update ang account.");
+            setErrorMessage(err.response?.data?.message || "Failed to update user profile.");
         }
     };
 
@@ -275,8 +275,7 @@ function UserManagement() {
                             <button
                                 onClick={() => { setErrorMessage(null); setIsModalOpen(true); }}
                                 className="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border bg-[#18174e] text-white hover:bg-[#18174e]/90 transition-all cursor-pointer"
-                            >
-                                <UserPlus className="w-3.5 h-3.5" /> Add New User
+                            >Add User Account
                             </button>
 
                             <button

@@ -138,14 +138,14 @@ function Login() {
       <div className="flex flex-col items-center text-center mb-8">
         <div className="bg-white rounded-full p-2 flex items-center justify-center shadow-inner w-16 h-16">
           <img
-            src="/one.logo.png"
+            src="public/cropped_circle_image.png"
             alt="logo"
             className="w-full h-full object-contain"
             onError={(e) => { e.target.style.display = 'none'; }}
           />
         </div>
         <h1 className="font-black text-xl uppercase tracking-wider text-white mt-3">
-          ONE INVENTORY
+          USSP INVENTORY
         </h1>
         <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest opacity-80 mt-0.5">
           Upright Storage Solutions
@@ -215,7 +215,7 @@ function Login() {
             <button
               type="submit"
               disabled={loading || lockoutTimeLeft > 0} // I-disable ang button
-              className="group inline-flex items-center gap-2.5 rounded-xl bg-[#252375] py-3.5 px-8 text-sm font-bold text-white shadow-lg hover:bg-[#252375]/80 active:scale-[0.98] transition-all cursor-pointer w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group inline-flex items-center gap-2.5 rounded-xl bg-[#ff6600] py-3.5 px-8 text-sm font-bold text-white shadow-lg hover:bg-[#ff6600]/80 active:scale-[0.98] transition-all cursor-pointer w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {lockoutTimeLeft > 0 
                 ? `Locked (${formatTime(lockoutTimeLeft)})` 
@@ -223,9 +223,6 @@ function Login() {
                   ? "Verifying..." 
                   : "Sign In"
               }
-              {(!loading && lockoutTimeLeft === 0) && (
-                <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-              )}
             </button>
           </div>
 
@@ -236,6 +233,14 @@ function Login() {
       <p className="mt-6 text-[12px] font-medium text-slate-500 text-center">
         Authorized personnel only. Secure login protocols enforced.
       </p>
+
+
+      {/* SYSTEM COPYRIGHT FOOTER */}
+      <div className="absolute bottom-4 left-0 right-0 text-center px-4">
+        <p className="text-[10px] font-semibold text-slate-100 tracking-wide">
+          Copyright © 2026 Inventory System Upright Storage Solution PH. All Rights Reserved.
+        </p>
+      </div>
 
     </div>
   );
