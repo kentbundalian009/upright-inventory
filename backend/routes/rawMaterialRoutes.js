@@ -1,4 +1,7 @@
 import express from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import {
   getAllRawMaterials,
   getRawMaterialById,
@@ -7,24 +10,49 @@ import {
   deleteRawMaterial,
   unarchiveRawMaterial, 
 } from "../controllers/rawMaterialController.js";
-// 🌟 I-import ang security middlewares
 import { protectRoute, restrictTo } from "../middleware/authMiddleware.js";
 
+// Siguraduhing may uploads folder
+const uploadDir = "uploads/";
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith("image/")) {
+    cb(null, true);
+  } else {
+    cb(new Error("Not an image! Please upload an image file."), false);
+  }
+};
+
+const upload = multer({ storage: storage, fileFilter: fileFilter });
 const router = express.Router();
 
-// 🔒 Selyado para sa Inventory Role lamang
+// Tandaan: Gagamitin lang ang restrictTo kapag nakalagay na ang tamang roles sa protectRoute niyo
 router.use(protectRoute, restrictTo("Inventory"));
 
+// 🌟 DITO DAPAT MAUNANG TUMAKBO ANG upload.single("image")
 router.route("/")
-  .get(getAllRawMaterials)    // Kumuha ng lahat ng raw materials
-  .post(createRawMaterial);   // Mag-save ng bagong raw material
+  .get(getAllRawMaterials)
+  .post(upload.single("image"), createRawMaterial);
 
 router.route("/:id/unarchive")
-  .put(unarchiveRawMaterial); // I-restore ang isang naka-archive na raw material
+  .put(unarchiveRawMaterial);
 
 router.route("/:id")
-  .get(getRawMaterialById)    // Kumuha ng ispesipikong raw material gamit ang ID
-  .put(updateRawMaterial)     // I-modify ang raw material gamit ang ID
-  .delete(deleteRawMaterial); // I-archive o burahin ang raw material gamit ang ID
+  .get(getRawMaterialById)
+  .put(upload.single("image"), updateRawMaterial) // 👈 Dapat laging nandito ito bago ang updateRawMaterial
+  .delete(deleteRawMaterial);
 
 export default router;

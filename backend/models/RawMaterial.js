@@ -8,6 +8,11 @@ const rawMaterialSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    ImageUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     Category: {
       type: String,
       required: true,

@@ -10,8 +10,6 @@
     "start": "node backend/server.js",
     "dev": "nodemon backend/server.js"
   },
-
-  
   "keywords": [],
   "author": "",
   "type": "module",
@@ -26,6 +24,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.4.0",
     "mongoose": "^9.7.3",
+    "multer": "^2.2.0",
     "rate-limit-redis": "^5.0.0"
   },
   "devDependencies": {

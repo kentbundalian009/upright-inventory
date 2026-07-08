@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, AlertCircle, Filter, X, Edit2, Archive, EyeOff, Sliders, RotateCcw, CheckCircle2, Palette } from 'lucide-react';
+import { Search, AlertCircle, Filter, X, Edit2, Archive, EyeOff, Sliders, RotateCcw, CheckCircle2, Palette, Image as ImageIcon, Upload } from 'lucide-react';
 import axios from 'axios';
 import PageHeader from '../Common/PageHeader';
 import ThresholdModal from '../Common/ThresholdModal';
@@ -40,6 +40,9 @@ function RawMaterials() {
     const [isThresholdModalOpen, setIsThresholdModalOpen] = useState(false);
     const [isPaletteModalOpen, setIsPaletteModalOpen] = useState(false); 
     const [currentId, setCurrentId] = useState(null);
+    
+    // 🌟 IMAGE PREVIEW LIGHTBOX STATE
+    const [previewImage, setPreviewImage] = useState(null);
 
     // Confirmation Modal States
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -56,15 +59,17 @@ function RawMaterials() {
     const [materialUom, setMaterialUom] = useState('');
     const [accountTo, setAccountTo] = useState('');
     const [modalActualCount, setModalActualCount] = useState(0);
+    
+    // 🌟 FILE UPLOAD STATES
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [existingImgPreview, setExistingImgPreview] = useState('');
 
     // System Threshold parameters
     const [thresholds, setThresholds] = useState({ critical: 5, reorder: 15, overstock: 50 });
-
-    // 🌟 GLOBAL COLOR PALETTE STATES (Kukunin na galing sa Database sa halip na localStorage)
+    // GLOBAL COLOR PALETTE STATES
     const [categoryColors, setCategoryColors] = useState({});
     const [segmentColors, setSegmentColors] = useState({});
 
-    // Inline local triggers habang namimili ang user sa loob ng modal
     const handleCategoryColorChange = (catName, colorIndex) => {
         setCategoryColors(prev => ({ ...prev, [catName.trim().toUpperCase()]: parseInt(colorIndex) }));
     };
@@ -120,28 +125,24 @@ function RawMaterials() {
         } finally { setLoading(false); }
     };
 
-    // Pag-load ng lahat ng configurations pagka-open ng dashboard
     useEffect(() => {
         fetchThresholdSettings();
         fetchRawMaterials();
-        fetchPaletteSettings(); // 🌟 I-fetch ang kulay mula sa database
+        fetchPaletteSettings();
     }, []);
 
-    // 🌟 HAKBANG PARA I-SAVE ANG KULAY DUREKTA SA DATABASE PARA SA LAHAT NG DEVICE
     const handleSavePaletteToDatabase = async () => {
         try {
             const payload = { categoryColors, segmentColors };
             await axios.post('/api/settings/palette', payload);
-            
             setIsPaletteModalOpen(false);
             triggerSuccess("Successfully saved and synchronized global palette styles across all devices!");
-            fetchPaletteSettings(); // I-refresh ang state para sigurado
+            fetchPaletteSettings();
         } catch (err) {
             setErrorMessage("Failed to save palette configuration to backend database server.");
         }
     };
 
-    // Unique mappings para sa arrays at forms
     const categoriesInDB = [...new Set(rawMaterialsList.map(item => item.Category).filter(Boolean))].sort();
     const segmentsInDB = [...new Set(rawMaterialsList.map(item => item.Segment).filter(Boolean))].sort();
     const descriptionsInDB = [...new Set(rawMaterialsList.map(item => item.ItemDescription).filter(Boolean))];
@@ -153,7 +154,6 @@ function RawMaterials() {
     const filterSegments = ['All Segments', ...segmentsInDB];
     const filterDescriptions = ['All Item Descriptions', ...descriptionsInDB];
 
-    // COLOR STYLING RESOLVERS (Database match muna, kung wala, gagamit ng auto-index fallback)
     const getSegmentStyles = (segment) => {
         if (!segment) return { classes: "bg-slate-50 text-slate-600 border-slate-200", prefix: "⚪" };
         const cleaned = segment.trim().toUpperCase();
@@ -177,7 +177,6 @@ function RawMaterials() {
         return <span className="text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded font-medium">🟢 Healthy</span>;
     };
 
-    // EDIT & ARCHIVE OPERATIONS HANDLERS
     const openEditModal = (item) => {
         setCurrentId(item._id);
         setMaterialCode(item.Code || '');
@@ -188,20 +187,46 @@ function RawMaterials() {
         setMaterialUom(item.UOM || '');
         setAccountTo(item.AccountTo || '');
         setModalActualCount(item.ActualCount ?? 0);
+        
+        // 🌟 I-set ang image references sa modal opening
+        setExistingImgPreview(item.ImageUrl || '');
+        setSelectedFile(null);
         setIsEditModalOpen(true);
+    };
+
+    const handleFileChange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+            setSelectedFile(e.target.files[0]);
+        }
     };
 
     const handleEditFormSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.put(`/api/raw-materials/${currentId}`, {
-                Code: materialCode.trim(), Category: materialCategory.trim(), Segment: materialSegment.trim(),
-                ItemDescription: itemDescription.trim(), Dimension: materialDimension.trim(), UOM: materialUom.trim(), AccountTo: accountTo.trim(),
+            // 🌟 GAMITIN ANG FORMDATA PARA SA FILE UPLOAD COMPATIBILITY
+            const formData = new FormData();
+            formData.append("Code", materialCode.trim());
+            formData.append("Category", materialCategory.trim());
+            formData.append("Segment", materialSegment.trim());
+            formData.append("ItemDescription", itemDescription.trim());
+            formData.append("Dimension", materialDimension.trim());
+            formData.append("UOM", materialUom.trim());
+            formData.append("AccountTo", accountTo.trim());
+            
+            if (selectedFile) {
+                formData.append("image", selectedFile);
+            }
+
+            await axios.put(`/api/raw-materials/${currentId}`, formData, {
+                headers: { "Content-Type": "multipart/form-data" }
             });
+
             setIsEditModalOpen(false);
             triggerSuccess("Successfully updated raw material profile details.");
             fetchRawMaterials();
-        } catch (err) { setErrorMessage(err.response?.data?.message || "Error updating item."); }
+        } catch (err) { 
+            setErrorMessage(err.response?.data?.message || "Error updating item.");
+        }
     };
 
     const openArchiveConfirmation = (item) => {
@@ -230,7 +255,6 @@ function RawMaterials() {
         } catch (err) { setErrorMessage("Action execution failed."); }
     };
 
-    // Filter processing pipeline
     const currentDisplayList = rawMaterialsList.filter(item => showArchivedOnly ? item.isArchived === true : !item.isArchived);
     const filteredRawMaterials = currentDisplayList.filter(item => {
         const matchesCategory = selectedCategory === 'All Categories' || item.Category === selectedCategory;
@@ -279,7 +303,6 @@ function RawMaterials() {
                             <span>{showArchivedOnly ? 'Viewing Archived Vault' : 'Filter Raw Materials'}</span>
                         </div>
 
-                        {/* ANG UTILITY CONTROLS NG DASHBOARD (MAGKAKATABI NA SA TASKBAR) */}
                         <div className="flex items-center flex-wrap gap-2.5">
                             <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-all">
                                 <input type="checkbox" checked={hideZeroQty} onChange={(e) => setHideZeroQty(e.target.checked)} className="w-3.5 h-3.5 accent-[#18174e] rounded cursor-pointer" />
@@ -290,7 +313,6 @@ function RawMaterials() {
                                 <Sliders className="w-3.5 h-3.5 text-[#18174e]" /> Threshold Settings
                             </button>
 
-                            {/* PALETTE CONFIGURATION TRIGGER BUTTON */}
                             <button onClick={() => setIsPaletteModalOpen(true)} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border bg-[#18174e] text-white hover:bg-[#18174e]/90 transition-all cursor-pointer shadow-sm">
                                 <Palette className="w-3.5 h-3.5" /> Palette Settings
                             </button>
@@ -341,6 +363,7 @@ function RawMaterials() {
                         <table className="w-full text-left border-collapse text-sm">
                             <thead>
                                 <tr className="text-white font-bold bg-[#18174e] uppercase text-sm">
+                                    <th className="py-3 px-4 whitespace-nowrap text-center">Image</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Code</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Category</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Segment</th>
@@ -355,30 +378,42 @@ function RawMaterials() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {loading ? (
-                                    <tr><td colSpan="10" className="text-center py-10 text-slate-400 font-medium italic">Fetching secure rackings data...</td></tr>
+                                    <tr><td colSpan="11" className="text-center py-10 text-slate-400 font-medium italic">Fetching secure rackings data...</td></tr>
                                 ) : error ? (
-                                    <tr><td colSpan="10" className="text-center py-8 text-rose-600 font-semibold">{error}</td></tr>
+                                    <tr><td colSpan="11" className="text-center py-8 text-rose-600 font-semibold">{error}</td></tr>
                                 ) : filteredRawMaterials.map((rawMat) => {
                                     const currentCatConfig = getCategoryStyles(rawMat.Category);
                                     const currentSegConfig = getSegmentStyles(rawMat.Segment);
 
                                     return (
                                         <tr key={rawMat._id || rawMat.Code} className="hover:bg-slate-50/80 transition-colors text-slate-600 font-medium whitespace-nowrap text-sm">
-                                            <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{rawMat.Code}</td>
+                                            {/* 🌟 IMAGE RENDER CELLS (May Dynamic Localhost Fallback Port Check) */}
+<td className="py-2 px-4 text-center">
+    {rawMat.ImageUrl ? (
+        <img 
+            src={rawMat.ImageUrl.startsWith('http') ? rawMat.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${rawMat.ImageUrl}`} 
+            alt={rawMat.ItemDescription} 
+            onClick={() => setPreviewImage(rawMat.ImageUrl.startsWith('http') ? rawMat.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${rawMat.ImageUrl}`)}
+            className="w-10 h-10 object-cover rounded-lg border border-slate-200 cursor-pointer hover:scale-110 hover:border-[#18174e] transition-all mx-auto shadow-sm"
+        />
+    ) : (
+        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 mx-auto">
+            <ImageIcon className="w-4 h-4" />
+        </div>
+    )}
+</td>
                                             
+                                            <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{rawMat.Code}</td>
                                             <td className="py-3 px-4">
                                                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${currentCatConfig.classes}`}>
                                                     {rawMat.Category || '—'}
                                                 </span>
                                             </td>
-
                                             <td className="py-3 px-4">
                                                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded border flex items-center gap-1.5 w-fit ${currentSegConfig.classes}`}>
-                                                    <span>{currentSegConfig.prefix}</span>
-                                                    <span>{rawMat.Segment || '—'}</span>
+                                                    <span>{currentSegConfig.prefix}</span> <span>{rawMat.Segment || '—'}</span>
                                                 </span>
                                             </td>
-
                                             <td className="py-3 px-4 text-slate-800 font-semibold">{rawMat.ItemDescription}</td>
                                             <td className="py-3 px-4 text-slate-600 font-mono text-xs bg-slate-50/30">{rawMat.Dimension || '—'}</td>
                                             <td className="py-3 px-4 text-center font-bold text-slate-900 font-mono">{rawMat.ActualCount}</td>
@@ -401,7 +436,7 @@ function RawMaterials() {
                                     );
                                 })}
                                 {filteredRawMaterials.length === 0 && !loading && (
-                                    <tr><td colSpan="10" className="text-center py-10 text-slate-400 font-medium italic">No records match queries.</td></tr>
+                                    <tr><td colSpan="11" className="text-center py-10 text-slate-400 font-medium italic">No records match queries.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -409,7 +444,19 @@ function RawMaterials() {
                 </div>
             </div>
 
-            {/* 🌟 GLOBAL COLOR PALETTE SETTINGS MODAL */}
+            {/* 🌟 IMAGE PREVIEW BOX (LIGHTBOX CONTAINER) */}
+            {previewImage && (
+                <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[60] p-4" onClick={() => setPreviewImage(null)}>
+                    <div className="relative bg-white p-2 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => setPreviewImage(null)} className="absolute top-4 right-4 bg-slate-900/80 text-white hover:bg-slate-800 p-2 rounded-full transition-all cursor-pointer z-10 shadow">
+                            <X className="w-5 h-5" />
+                        </button>
+                        <img src={previewImage} alt="Large Display" className="w-full h-auto max-h-[80vh] object-contain rounded-xl" />
+                    </div>
+                </div>
+            )}
+
+            {/* GLOBAL COLOR PALETTE SETTINGS MODAL */}
             {isPaletteModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-6 shadow-xl flex flex-col max-h-[85vh]">
@@ -422,7 +469,6 @@ function RawMaterials() {
                         </div>
 
                         <div className="overflow-y-auto py-4 space-y-6 pr-1 flex-1">
-                            {/* CATEGORY CONFIG */}
                             <div>
                                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">Category Color Configuration</h4>
                                 <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
@@ -433,11 +479,7 @@ function RawMaterials() {
                                         return (
                                             <div key={cat} className="flex items-center justify-between gap-4 bg-white p-2 rounded-lg border border-slate-200/60 shadow-sm">
                                                 <span className={`text-xs font-bold px-2 py-0.5 rounded border ${config.classes}`}>{cat}</span>
-                                                <select 
-                                                    value={currentIdx !== -1 ? currentIdx : 5}
-                                                    onChange={(e) => handleCategoryColorChange(cat, e.target.value)}
-                                                    className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 cursor-pointer font-medium focus:outline-none focus:border-[#18174e]"
-                                                >
+                                                <select value={currentIdx !== -1 ? currentIdx : 5} onChange={(e) => handleCategoryColorChange(cat, e.target.value)} className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 cursor-pointer font-medium focus:outline-none focus:border-[#18174e]">
                                                     {COLOR_OPTIONS.map((opt, i) => <option key={i} value={i}>{opt.prefix} {opt.name}</option>)}
                                                 </select>
                                             </div>
@@ -446,7 +488,6 @@ function RawMaterials() {
                                 </div>
                             </div>
 
-                            {/* SEGMENT CONFIG */}
                             <div>
                                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">Segment Color Configuration</h4>
                                 <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
@@ -459,11 +500,7 @@ function RawMaterials() {
                                                 <span className={`text-xs font-bold px-2 py-0.5 rounded border flex items-center gap-1.5 ${config.classes}`}>
                                                     <span>{config.prefix}</span> <span>{seg}</span>
                                                 </span>
-                                                <select 
-                                                    value={currentIdx !== -1 ? currentIdx : 5}
-                                                    onChange={(e) => handleSegmentColorChange(seg, e.target.value)}
-                                                    className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 cursor-pointer font-medium focus:outline-none focus:border-[#18174e]"
-                                                >
+                                                <select value={currentIdx !== -1 ? currentIdx : 5} onChange={(e) => handleSegmentColorChange(seg, e.target.value)} className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 cursor-pointer font-medium focus:outline-none focus:border-[#18174e]">
                                                     {COLOR_OPTIONS.map((opt, i) => <option key={i} value={i}>{opt.prefix} {opt.name}</option>)}
                                                 </select>
                                             </div>
@@ -473,7 +510,6 @@ function RawMaterials() {
                             </div>
                         </div>
 
-                        {/* SUBMIT BUTTON CONNECTED TO BACKEND API DATABASE */}
                         <div className="flex items-center justify-end border-t border-slate-100 pt-3 shrink-0">
                             <button onClick={handleSavePaletteToDatabase} className="w-full bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 rounded-xl text-sm cursor-pointer shadow-md transition-colors">
                                 Apply Globally to All Devices
@@ -500,6 +536,24 @@ function RawMaterials() {
                                 <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Material Code</label>
                                 <input type="text" disabled className="w-full bg-slate-100 text-slate-500 border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-not-allowed font-mono" value={materialCode} />
                             </div>
+       
+                            {/* 🌟 IMAGE UPLOAD DROPZONE FIELD INSIDE MODAL */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Item Image Upload</label>
+                                <div className="mt-1 flex items-center gap-3">
+                                    {existingImgPreview && !selectedFile && (
+                                        <img src={existingImgPreview} alt="Current raw material" className="w-12 h-12 rounded-lg border object-cover shadow-sm" />
+                                    )}
+                                    <label className="flex-1 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-200 rounded-xl py-3 px-4 transition-all cursor-pointer">
+                                        <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                                            <Upload className="w-4 h-4 text-[#18174e]" />
+                                            <span>{selectedFile ? selectedFile.name : "Choose profile image..."}</span>
+                                        </div>
+                                        <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                                    </label>
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category *</label>

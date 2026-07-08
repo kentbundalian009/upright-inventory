@@ -31,12 +31,15 @@ export const createAssets = async (req, res) => {
       Category,
       Segment,
       ItemDescription,
+      Model,
       Brand,
+      SerialNo,
       UOM,
       ActualCount,
       ConditionBreakdown,
-      AcquisitionDate,
-      AccountTo
+      AccountTo,
+      Location,
+      AcquisitionDate
     } = req.body;
 
     if (!Code || !Category || !ItemDescription || !UOM) {
@@ -58,16 +61,19 @@ export const createAssets = async (req, res) => {
       Category: Category.trim(),
       Segment: Segment?.trim(),
       ItemDescription: ItemDescription.trim(),
+      Model: Model?.trim(),
       Brand: Brand?.trim(),
+      SerialNo: SerialNo?.trim(),
       ActualCount: finalCount,
       UOM: UOM.trim(),
       ConditionBreakdown: {
-        Good: Number(ConditionBreakdown?.Good || finalCount), // If walang breakdown, default sa actual count ang good qty
+        Good: Number(ConditionBreakdown?.Good || finalCount),
         Used: Number(ConditionBreakdown?.Used || 0),
         Damaged: Number(ConditionBreakdown?.Damaged || 0)
       },
-      AcquisitionDate,
       AccountTo: AccountTo?.trim(),
+      Location: Location?.trim(),
+      AcquisitionDate,
       isArchived: false,
     });
 
@@ -86,12 +92,15 @@ export const updateAssets = async (req, res) => {
       Category,
       Segment,
       ItemDescription,
+      Model,
       Brand,
+      SerialNo,
       UOM,
       ActualCount,
       ConditionBreakdown,
-      AcquisitionDate,
       AccountTo,
+      Location,
+      AcquisitionDate,
       isArchived,
     } = req.body;
 
@@ -110,11 +119,14 @@ export const updateAssets = async (req, res) => {
       Category: Category?.trim(),
       Segment: Segment?.trim(),
       ItemDescription: ItemDescription?.trim(),
+      Model: Model?.trim(),
       Brand: Brand?.trim(),
+      SerialNo: SerialNo?.trim(),
       UOM: UOM?.trim(),
       ActualCount: Number(ActualCount),
-      AcquisitionDate,
       AccountTo: AccountTo?.trim(),
+      Location: Location?.trim(),
+      AcquisitionDate,
       isArchived,
     };
 

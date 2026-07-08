@@ -43,6 +43,7 @@ connectDB();
 // Middleware
 app.use(cors()); 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // 🔓 PUBLIC API ROUTES
 app.use("/api/auth", authRoutes);
@@ -61,6 +62,9 @@ app.use("/api/purchase-orders", protectRoute, purchaseOrderRoutes);
 app.use("/api/settings/thresholds", protectRoute, settingRoutes);
 app.use("/api/settings", protectRoute, paletteRoutes); 
 app.use("/api/settings", protectRoute, paletteSupRoutes);
+
+
+app.use('/uploads', express.static('uploads'));
 
 const PORT = process.env.PORT || 5000;
 

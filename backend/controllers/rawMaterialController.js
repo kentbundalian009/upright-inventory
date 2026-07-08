@@ -39,8 +39,15 @@ export const createRawMaterial = async (req, res) => {
       return res.status(400).json({ message: "Material Code already exists" });
     }
 
+    // Kung may inupload na file mula sa device, kunin ang system path nito
+    let finalImagePath = "";
+    if (req.file) {
+      finalImagePath = `/${req.file.path.replace(/\\/g, "/")}`; // Palitan ang backslash ng forward slash para sa web URL path
+    }
+
     const newMaterial = await RawMaterial.create({
       Code: Code.trim().toUpperCase(),
+      ImageUrl: finalImagePath,
       Category: Category.trim(),
       Segment: Segment?.trim() || "N/A",
       ItemDescription: ItemDescription.trim(),
@@ -74,10 +81,22 @@ export const updateRawMaterial = async (req, res) => {
       }
     }
 
+    // Hanapin muna ang dating record para hindi mawala ang lumang picture kung walang bagong inupload
+    const existingMaterial = await RawMaterial.findById(id);
+    if (!existingMaterial) {
+      return res.status(404).json({ message: "Raw material not found" });
+    }
+
+    let finalImagePath = existingMaterial.ImageUrl;
+    if (req.file) {
+      finalImagePath = `/${req.file.path.replace(/\\/g, "/")}`;
+    }
+
     const updatedMaterial = await RawMaterial.findByIdAndUpdate(
       id,
       {
         Code: Code?.trim().toUpperCase(),
+        ImageUrl: finalImagePath,
         Category: Category?.trim(),
         Segment: Segment?.trim(),
         ItemDescription: ItemDescription?.trim(),
@@ -89,10 +108,6 @@ export const updateRawMaterial = async (req, res) => {
       },
       { new: true, runValidators: true }
     );
-
-    if (!updatedMaterial) {
-      return res.status(404).json({ message: "Raw material not found" });
-    }
 
     res.status(200).json(updatedMaterial);
   } catch (error) {

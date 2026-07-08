@@ -22,7 +22,15 @@ const assetsSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    Model: {
+      type: String,
+      trim: true,
+    },
     Brand: {
+      type: String,
+      trim: true,
+    },
+    SerialNo: {
       type: String,
       trim: true,
     },
@@ -41,12 +49,16 @@ const assetsSchema = new mongoose.Schema(
       Used: { type: Number, default: 0, min: 0 },
       Damaged: { type: Number, default: 0, min: 0 },
     },
-    AcquisitionDate: {
-      type: Date,
-    },
     AccountTo: {
       type: String,
       trim: true,
+    },
+    Location: {
+      type: String,
+      trim: true,
+    },
+    AcquisitionDate: {
+      type: Date,
     },
     isArchived: {
       type: Boolean,
