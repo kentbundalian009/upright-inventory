@@ -7,11 +7,13 @@ const suppliesSchema = new mongoose.Schema(
     Segment: { type: String, trim: true },
     ItemDescription: { type: String, required: true, trim: true },
     Dimension: { type: String, trim: true },
+    SerialNo: { type: String, trim: true, default: "—" },
+    ImageUrl: { type: String, trim: true, default: "" }, 
     
     // Condition Breakdown Counters (Synchronized to Movements)
-    ActualCount: { type: Number, required: true, default: 0 },   // Good Quality Count
-    UsedCount: { type: Number, required: true, default: 0 },     // Used Quality Count
-    DamagedCount: { type: Number, required: true, default: 0 },  // Repair/Damaged Quality Count
+    ActualCount: { type: Number, required: true, default: 0 },   
+    UsedCount: { type: Number, required: true, default: 0 },     
+    DamagedCount: { type: Number, required: true, default: 0 },  
     
     UOM: { type: String, required: true, trim: true },
     Condition: { type: String, default: "Good", trim: true },

@@ -23,7 +23,7 @@ export const getSuppliesById = async (req, res) => {
   }
 };
 
-// CREATE: Magdagdag ng bagong Supplies item (Palaging 0 sa simula para sa audit trail)
+// CREATE: Magdagdag ng bagong Supplies item
 export const createSupplies = async (req, res) => {
   try {
     const {
@@ -32,6 +32,7 @@ export const createSupplies = async (req, res) => {
       Segment,
       ItemDescription,
       Dimension,
+      SerialNo,
       UOM,
       Condition,
       Brand,
@@ -48,12 +49,20 @@ export const createSupplies = async (req, res) => {
       return res.status(400).json({ message: "Supplies Code already exists" });
     }
 
+    // Alamin kung may uploaded file galing sa multer middleware
+    let finalImageUrl = "";
+    if (req.file) {
+      finalImageUrl = `/uploads/${req.file.filename}`;
+    }
+
     const newSupplies = await Supplies.create({
       Code: Code.trim(),
       Category: Category.trim(),
       Segment: Segment?.trim(),
       ItemDescription: ItemDescription.trim(),
       Dimension: Dimension?.trim(),
+      SerialNo: SerialNo?.trim() || "—",
+      ImageUrl: finalImageUrl, 
       ActualCount: 0, 
       UsedCount: 0,
       DamagedCount: 0,
@@ -70,7 +79,7 @@ export const createSupplies = async (req, res) => {
   }
 };
 
-// UPDATE: Baguhin ang detalye ng Supplies item (Protektado ang mga counters)
+// UPDATE: Baguhin ang detalye ng Supplies item
 export const updateSupplies = async (req, res) => {
   try {
     const { id } = req.params;
@@ -80,6 +89,8 @@ export const updateSupplies = async (req, res) => {
       Segment,
       ItemDescription,
       Dimension,
+      SerialNo,
+      ImageUrl, // Gagamitin lang kung walang bagong uploaded file
       UOM,
       Condition,
       Brand,
@@ -97,6 +108,12 @@ export const updateSupplies = async (req, res) => {
       }
     }
 
+    // Alamin kung may bagong file na inupload, kung wala, gamitin ang luma
+    let finalImageUrl = ImageUrl;
+    if (req.file) {
+      finalImageUrl = `/uploads/${req.file.filename}`;
+    }
+
     const updatedSupplies = await Supplies.findByIdAndUpdate(
       id,
       {
@@ -105,6 +122,8 @@ export const updateSupplies = async (req, res) => {
         Segment: Segment?.trim(),
         ItemDescription: ItemDescription?.trim(),
         Dimension: Dimension?.trim(),
+        SerialNo: SerialNo?.trim(),
+        ImageUrl: finalImageUrl, 
         UOM: UOM?.trim(),
         Condition,
         Brand: Brand?.trim(),
