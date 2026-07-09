@@ -73,7 +73,7 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
       case 'supplies':
         return <div className="text-[10px] font-bold text-[#ff6600] uppercase tracking-wider px-4 pt-2.5 pb-1 border-t border-white/5 mt-1.5">Supplies Process</div>;
       case 'others':
-        return <div className="text-[10px] font-bold text-[#ff6600] uppercase tracking-wider px-4 pt-2.5 pb-1 border-t border-white/5 mt-1.5">Management</div>;
+        return <div className="text-[10px] font-bold text-[#ff6600] uppercase tracking-wider px-4 pt-2.5 pb-1 border-t border-white/5 mt-1.5">Assets Management</div>;
       default:
         return null;
     }

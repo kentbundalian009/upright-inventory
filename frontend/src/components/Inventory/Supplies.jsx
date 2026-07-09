@@ -10,26 +10,38 @@ function Supplies() {
   const [showArchivedOnly, setShowArchivedOnly] = useState(false);
   const [hideZeroQty, setHideZeroQty] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
-  
+
   // State para sa Image Preview Lightbox/Modal
   const [previewImage, setPreviewImage] = useState(null);
-
+  
   // Custom Confirmation Modal states
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState({
     title: '', message: '', actionType: 'archive', onConfirm: () => { }
   });
-
-  // Dynamic Palette Config state
+  
+  // Dynamic Palette Config state (Naka-map sa COLOR_OPTIONS index value gaya ng Raw Materials)
   const [palette, setPalette] = useState({ categoryColors: {}, segmentColors: {} });
   const [isPaletteModalOpen, setIsPaletteModalOpen] = useState(false);
   const [isSavingPalette, setIsSavingPalette] = useState(false);
+
+  // static Tailwind color alternatives para sa seamless alignment sa database indices
+  const COLOR_OPTIONS = [
+    { name: 'Emerald / Green', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200/60', prefix: '🟢' },
+    { name: 'Blue / Indigo', classes: 'bg-blue-50 text-blue-700 border-blue-200/60', prefix: '🔵' },
+    { name: 'Amber / Orange', classes: 'bg-amber-50 text-amber-700 border-amber-200/60', prefix: '🟡' },
+    { name: 'Rose / Red', classes: 'bg-rose-50 text-rose-700 border-rose-200/60', prefix: '🔴' },
+    { name: 'Orange', classes: 'bg-orange-50 text-orange-700 border-orange-200/60', prefix: '🟠' },
+    { name: 'Purple / Violet', classes: 'bg-purple-50 text-purple-700 border-purple-200/60', prefix: '🟣' },
+    { name: 'Slate / Muted Gray', classes: 'bg-slate-50 text-slate-700 border-slate-200/60', prefix: '⚪' },
+    { name: 'Cyan / Teal', classes: 'bg-cyan-50 text-cyan-700 border-cyan-200/60', prefix: '🌐' }
+  ];
 
   // Filter Dropdown Options
   const categories = ['All Categories', ...new Set(suppliesList.map(item => item.Category).filter(Boolean))];
   const segments = ['All Segments', ...new Set(suppliesList.map(item => item.Segment).filter(Boolean))];
   const descriptions = ['All Item Descriptions', ...new Set(suppliesList.map(item => item.ItemDescription).filter(Boolean))];
-
+  
   // Unique values para sa datalist inputs sa loob ng modal
   const uniqueCategoriesInDB = [...new Set(suppliesList.map(item => item.Category).filter(Boolean))].sort();
   const uniqueSegmentsInDB = [...new Set(suppliesList.map(item => item.Segment).filter(Boolean))].sort();
@@ -49,7 +61,7 @@ function Supplies() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState(null);
-  
+
   const [supplyCode, setSupplyCode] = useState('');
   const [supplyCategory, setSupplyCategory] = useState('');
   const [supplySegment, setSupplySegment] = useState('');
@@ -103,26 +115,34 @@ function Supplies() {
     fetchSuppliesAndPalette();
   }, []);
 
-  const getCategoryBadgeStyle = (categoryName) => {
-    const customColor = palette.categoryColors[categoryName];
-    if (customColor) {
-      return { backgroundColor: `${customColor}15`, color: customColor, borderColor: `${customColor}30` };
+  // UI Match: Ginagamit ang static array base classes para sa instant display alignment sa Raw Materials
+  const getCategoryStyles = (categoryName) => {
+    const assignedIdx = palette.categoryColors[categoryName];
+    if (assignedIdx !== undefined && COLOR_OPTIONS[assignedIdx]) {
+      return COLOR_OPTIONS[assignedIdx];
     }
-    return { backgroundColor: '#f1f5f9', color: '#334155', borderColor: '#e2e8f0' };
+    return COLOR_OPTIONS[5]; // Default slate fallback
   };
 
-  const getSegmentBadgeStyle = (segmentName) => {
-    const customColor = palette.segmentColors[segmentName];
-    if (customColor) {
-      return { backgroundColor: `${customColor}15`, color: customColor, borderColor: `${customColor}30` };
+  const getSegmentStyles = (segmentName) => {
+    const assignedIdx = palette.segmentColors[segmentName];
+    if (assignedIdx !== undefined && COLOR_OPTIONS[assignedIdx]) {
+      return COLOR_OPTIONS[assignedIdx];
     }
-    return { backgroundColor: '#f8fafc', color: '#475569', borderColor: '#cbd5e1' };
+    return COLOR_OPTIONS[5]; // Default slate fallback
   };
 
-  const handlePaletteColorChange = (type, key, hexColor) => {
+  const handleCategoryColorChange = (catName, indexValue) => {
     setPalette(prev => ({
       ...prev,
-      [type]: { ...prev[type], [key]: hexColor }
+      categoryColors: { ...prev.categoryColors, [catName]: parseInt(indexValue, 10) }
+    }));
+  };
+
+  const handleSegmentColorChange = (segName, indexValue) => {
+    setPalette(prev => ({
+      ...prev,
+      segmentColors: { ...prev.segmentColors, [segName]: parseInt(indexValue, 10) }
     }));
   };
 
@@ -131,31 +151,42 @@ function Supplies() {
     try {
       setIsSavingPalette(true);
       await axios.post('/api/settings/palette-sup', palette);
-      showToast("🎨 Supplies dynamic palette colors saved successfully!");
+      showToast("Palette configurations applied successfully!");
       setIsPaletteModalOpen(false);
     } catch (err) {
       console.error(err);
-      alert("Failed to save palette configuration.");
+      alert("Failed to load data from the server.");
     } finally {
       setIsSavingPalette(false);
     }
   };
 
   const openAddModal = () => {
-    setIsEditing(false); setCurrentId(null); setSupplyCode(''); setSupplyCategory(''); setSupplySegment('');
-    setItemDescription(''); setSupplyBrand(''); setSupplyDimension(''); setSupplyUom(''); setAccountTo('');
-    setSerialNo(''); setImageFile(null); setExistingImageUrl(''); setIsModalOpen(true);
+    setIsEditing(false);
+    setCurrentId(null);
+    setSupplyCode('SPL-USSP-[Auto]');
+    setSupplyCategory('');
+    setSupplySegment('');
+    setItemDescription('');
+    setSupplyBrand('');
+    setSupplyDimension('');
+    setSupplyUom('');
+    setAccountTo('');
+    setSerialNo('');
+    setImageFile(null);
+    setExistingImageUrl('');
+    setIsModalOpen(true);
   };
 
   const openEditModal = (supply) => {
-    setIsEditing(true); 
-    setCurrentId(supply._id); 
+    setIsEditing(true);
+    setCurrentId(supply._id);
     setSupplyCode(supply.Code || '');
     setSupplyCategory(supply.Category || '');
-    setSupplySegment(supply.Segment || ''); 
-    setItemDescription(supply.ItemDescription || ''); 
+    setSupplySegment(supply.Segment || '');
+    setItemDescription(supply.ItemDescription || '');
     setSupplyBrand(supply.Brand || '');
-    setSupplyDimension(supply.Dimension || ''); 
+    setSupplyDimension(supply.Dimension || '');
     setSupplyUom(supply.UOM || '');
     setAccountTo(supply.AccountTo || '');
     setSerialNo(supply.SerialNo || '');
@@ -183,7 +214,6 @@ function Supplies() {
     formData.append('UOM', supplyUom.trim());
     formData.append('AccountTo', accountTo.trim());
     formData.append('SerialNo', serialNo.trim());
-    
     if (imageFile) {
       formData.append('image', imageFile);
     } else {
@@ -192,7 +222,6 @@ function Supplies() {
 
     try {
       const config = { headers: { 'Content-Type': 'multipart/form-data' } };
-      
       if (isEditing) {
         await axios.put(`/api/supplies/${currentId}`, formData, config);
         showToast(`Success: Updated product "${itemDescription.trim()}"!`);
@@ -202,8 +231,8 @@ function Supplies() {
       }
       setIsModalOpen(false);
       fetchSuppliesAndPalette();
-    } catch (err) { 
-      alert(err.response?.data?.message || "Nagka-error sa pag-save ng item."); 
+    } catch (err) {
+      alert(err.response?.data?.message || "Nagka-error sa pag-save ng item.");
     }
   };
 
@@ -268,7 +297,7 @@ function Supplies() {
       )}
 
       <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col gap-6">
-        
+
         {/* FILTERS MANAGEMENT BAR */}
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -287,8 +316,12 @@ function Supplies() {
                 <Palette className="w-3.5 h-3.5" /> Palette Settings
               </button>
 
-              <button onClick={() => setShowArchivedOnly(!showArchivedOnly)} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}>
-                {showArchivedOnly ? (<><EyeOff className="w-3.5 h-3.5" /> Show Active Supplies ({activeCount})</>) : (<><Archive className="w-3.5 h-3.5" /> View Archive Vault ({archivedCount})</>)}
+              <button onClick={() => setShowArchivedOnly(!showArchivedOnly)} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100">
+                {showArchivedOnly ? (
+                  <><EyeOff className="w-3.5 h-3.5" /> Show Active Supplies ({activeCount})</>
+                ) : (
+                  <><Archive className="w-3.5 h-3.5" /> View Archive Vault ({archivedCount})</>
+                )}
               </button>
             </div>
           </div>
@@ -345,59 +378,62 @@ function Supplies() {
                 ) : filteredSupplies.length === 0 ? (
                   <tr><td colSpan="14" className="py-10 text-center text-slate-400 font-medium">No records found.</td></tr>
                 ) : (
-                  filteredSupplies.map((supply) => (
-                    <tr key={supply._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      
-                      {/* 🌟 IMAGE RENDER CELLS (May Dynamic Localhost Fallback Port Check) */}
-                      <td className="py-2 px-4 text-center">
-                        {supply.ImageUrl ? (
-                          <img
-                            src={supply.ImageUrl.startsWith('http') ? supply.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${supply.ImageUrl}`}
-                            alt={supply.ItemDescription}
-                            onClick={() => setPreviewImage(supply.ImageUrl.startsWith('http') ? supply.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${supply.ImageUrl}`)}
-                            className="w-10 h-10 object-cover rounded-lg border border-slate-200 cursor-pointer hover:scale-110 hover:border-[#18174e] transition-all mx-auto shadow-sm"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 mx-auto">
-                            <ImageIcon className="w-4 h-4" />
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="py-3.5 px-4 font-mono text-xs font-bold text-slate-700">{supply.Code || '—'}</td>
-                      <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-1 rounded-md text-xs font-semibold border" style={getCategoryBadgeStyle(supply.Category)}>
-                          {supply.Category || 'Uncategorized'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-1 rounded-md text-xs font-semibold border" style={getSegmentBadgeStyle(supply.Segment)}>
-                          {supply.Segment || 'No Segment'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-800">{supply.ItemDescription}</td>
-                      <td className="py-3.5 px-4 text-slate-600">{supply.Brand || '—'}</td>
-                      <td className="py-3.5 px-4 text-slate-600 text-xs font-mono">{supply.Dimension || '—'}</td>
-                      <td className="py-3.5 px-4 text-slate-600 text-xs font-mono">{supply.SerialNo || '—'}</td>
-                      <td className="py-3.5 px-4 text-center font-bold text-slate-700 bg-slate-50/40">{supply.ActualCount}</td>
-                      <td className="py-3.5 px-4 text-center font-semibold text-emerald-600">{supply.ActualCount - (supply.DamagedCount || 0)}</td>
-                      <td className="py-3.5 px-4 text-center font-semibold text-rose-500">{supply.DamagedCount || 0}</td>
-                      <td className="py-3.5 px-4 text-slate-500 font-medium text-xs">{supply.UOM || 'pcs'}</td>
-                      <td className="py-3.5 px-4 text-slate-600 text-xs font-medium">{supply.AccountTo || 'General'}</td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {!supply.isArchived ? (
-                            <>
-                              <button onClick={() => openEditModal(supply)} className="p-1.5 text-slate-400 hover:text-[#18174e] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"><Edit2 className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => handleArchiveSupply(supply)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"><Archive className="w-3.5 h-3.5" /></button>
-                            </>
+                  filteredSupplies.map((supply) => {
+                    const catStyle = getCategoryStyles(supply.Category);
+                    const segStyle = getSegmentStyles(supply.Segment);
+                    return (
+                      <tr key={supply._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                        <td className="py-2 px-4 text-center">
+                          {supply.ImageUrl ? (
+                            <img
+                              src={supply.ImageUrl.startsWith('http') ? supply.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${supply.ImageUrl}`}
+                              alt={supply.ItemDescription}
+                              onClick={() => setPreviewImage(supply.ImageUrl.startsWith('http') ? supply.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${supply.ImageUrl}`)}
+                              className="w-10 h-10 object-cover rounded-lg border border-slate-200 cursor-pointer hover:scale-110 hover:border-[#18174e] transition-all mx-auto shadow-sm"
+                            />
                           ) : (
-                            <button onClick={() => handleUnarchiveSupply(supply)} className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 transition-colors cursor-pointer"><RotateCcw className="w-3 h-3" /> Restore</button>
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 mx-auto">
+                              <ImageIcon className="w-4 h-4" />
+                            </div>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+
+                        <td className="py-3.5 px-4 font-mono text-xs font-bold text-slate-700">{supply.Code || '—'}</td>
+                        <td className="py-3.5 px-4">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded border text-nowrap ${catStyle.classes}`}>
+                            {supply.Category || 'Uncategorized'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded border text-nowrap flex items-center gap-1 w-fit ${segStyle.classes}`}>
+                            
+                            <span>{supply.Segment || 'No Segment'}</span>
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold text-slate-800">{supply.ItemDescription}</td>
+                        <td className="py-3.5 px-4 text-slate-600">{supply.Brand || '—'}</td>
+                        <td className="py-3.5 px-4 text-slate-600 text-xs font-mono">{supply.Dimension || '—'}</td>
+                        <td className="py-3.5 px-4 text-slate-600 text-xs font-mono">{supply.SerialNo || '—'}</td>
+                        <td className="py-3.5 px-4 text-center font-bold text-slate-700 bg-slate-50/40">{supply.ActualCount}</td>
+                        <td className="py-3.5 px-4 text-center font-semibold text-emerald-600">{supply.ActualCount - (supply.DamagedCount || 0)}</td>
+                        <td className="py-3.5 px-4 text-center font-semibold text-rose-500">{supply.DamagedCount || 0}</td>
+                        <td className="py-3.5 px-4 text-slate-500 font-medium text-xs">{supply.UOM || 'pcs'}</td>
+                        <td className="py-3.5 px-4 text-slate-600 text-xs font-medium">{supply.AccountTo || 'General'}</td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {!supply.isArchived ? (
+                              <>
+                                <button onClick={() => openEditModal(supply)} className="p-1.5 text-slate-400 hover:text-[#18174e] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"><Edit2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => handleArchiveSupply(supply)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"><Archive className="w-3.5 h-3.5" /></button>
+                              </>
+                            ) : (
+                              <button onClick={() => handleUnarchiveSupply(supply)} className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 transition-colors cursor-pointer"><RotateCcw className="w-3 h-3" /> Restore</button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -418,7 +454,14 @@ function Supplies() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-slate-600">Product/Supply Code</label>
-                  <input type="text" required value={supplyCode} onChange={(e) => setSupplyCode(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none" />
+                  <input
+                    type="text"
+                    required={isEditing}
+                    disabled={!isEditing}
+                    value={isEditing ? supplyCode : 'SPL-USSP-XXXXX'}
+                    onChange={(e) => setSupplyCode(e.target.value)}
+                    className="bg-slate-100 disabled:opacity-75 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none font-mono"
+                  />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-slate-600">Category Classification</label>
@@ -488,71 +531,174 @@ function Supplies() {
         </div>
       )}
 
-      {/* 🎨 CONSISTENT PALETTE SETTINGS MODAL */}
-      {isPaletteModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex justify-center items-start z-50 p-4 pt-10 overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-md p-6 shadow-2xl relative my-8">
-            <button type="button" onClick={() => setIsPaletteModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg cursor-pointer"><X className="w-4 h-4" /></button>
-            <div className="border-b border-slate-100 pb-2 flex items-center gap-2">
-              <Palette className="w-5 h-5 text-[#18174e]" />
-              <h3 className="font-bold text-slate-800 text-sm tracking-wide">🎨 Custom Palette Manager</h3>
-            </div>
+      {/* 🎨 100% UI CONSISTENT PALETTE SETTINGS MODAL (RAW MATERIALS THEMING) */}
+{isPaletteModalOpen && (
+  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+    {/* Binago ang lapad papuntang max-w-xl at max-h-[90vh] para maging consistent ang sukat ng mga modal */}
+    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto flex flex-col animate-in zoom-in-95 duration-200">
+      
+      {/* Modal Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+        <div className="flex items-center gap-2">
+          <Palette className="w-5 h-5 text-[#18174e]" />
+          <h3 className="font-bold text-slate-800 text-base">Supplies Dynamic Color Schemes</h3>
+        </div>
+        <button 
+          onClick={() => setIsPaletteModalOpen(false)} 
+          className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-            <form onSubmit={handleSavePaletteConfig} className="mt-4 flex flex-col gap-4">
-              <div>
-                <h4 className="text-xs font-bold text-[#18174e] border-b border-slate-50 pb-1 mb-2">Category Identifiers</h4>
-                <div className="max-h-32 overflow-y-auto pr-1 flex flex-col gap-2">
-                  {uniqueCategoriesInDB.length === 0 ? (
-                    <span className="text-xs text-slate-400 italic">No categories found.</span>
-                  ) : (
-                    uniqueCategoriesInDB.map(cat => (
-                      <div key={cat} className="flex items-center justify-between gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                        <span className="text-xs font-semibold text-slate-700 truncate">{cat}</span>
-                        <input type="color" value={palette.categoryColors[cat] || '#334155'} onChange={(e) => handlePaletteColorChange('categoryColors', cat, e.target.value)} className="w-8 h-6 rounded cursor-pointer border border-slate-200 p-0.5 bg-white" />
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+      {/* System Inventory Protocol Notification Card (Tugma sa kulay at font size ng Edit Modal) */}
+      <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
+        <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+          * System Palette Protocol *
+        </span>
+        <p className="text-[11px] text-amber-700 leading-relaxed">
+          Assign personalized Tailwind color configurations to categories and segments. Changes applied here will update all component badges globally across the system environment.
+        </p>
+      </div>
 
-              <div>
-                <h4 className="text-xs font-bold text-[#18174e] border-b border-slate-50 pb-1 mb-2">Segment Identifiers</h4>
-                <div className="max-h-32 overflow-y-auto pr-1 flex flex-col gap-2">
-                  {uniqueSegmentsInDB.length === 0 ? (
-                    <span className="text-xs text-slate-400 italic">No segments found.</span>
-                  ) : (
-                    uniqueSegmentsInDB.map(seg => (
-                      <div key={seg} className="flex items-center justify-between gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                        <span className="text-xs font-semibold text-slate-700 truncate">{seg}</span>
-                        <input type="color" value={palette.segmentColors[seg] || '#475569'} onChange={(e) => handlePaletteColorChange('segmentColors', seg, e.target.value)} className="w-8 h-6 rounded cursor-pointer border border-slate-200 p-0.5 bg-white" />
-                      </div>
-                    ))
-                  )}
-                </div>
+      {/* Modal Form Content Area */}
+      <div className="space-y-4 mt-4 flex-1 overflow-y-auto pr-1">
+        
+        {/* Category Node Map */}
+        <div>
+          <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category Color Configuration</label>
+          <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+            {uniqueCategoriesInDB.length === 0 ? (
+              <p className="text-xs italic text-slate-400 pl-1">No categories logged in current context...</p>
+            ) : (
+              <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                {uniqueCategoriesInDB.map(cat => {
+                  const config = getCategoryStyles(cat);
+                  const currentIdx = palette.categoryColors[cat] !== undefined ? palette.categoryColors[cat] : 5;
+                  return (
+                    <div key={cat} className="flex items-center justify-between gap-4 bg-white p-2 rounded-lg border border-slate-200/60 shadow-sm">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded border truncate max-w-[220px] ${config.classes}`}>{cat}</span>
+                      <select 
+                        value={currentIdx} 
+                        onChange={(e) => handleCategoryColorChange(cat, e.target.value)} 
+                        className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 cursor-pointer font-medium focus:outline-none focus:border-[#18174e]"
+                      >
+                        {COLOR_OPTIONS.map((opt, i) => <option key={i} value={i}>{opt.prefix} {opt.name}</option>)}
+                      </select>
+                    </div>
+                  );
+                })}
               </div>
-
-              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3 mt-2">
-                <button type="button" onClick={() => setIsPaletteModalOpen(false)} className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-1.5 px-4 rounded-lg text-xs cursor-pointer">Cancel</button>
-                <button type="submit" disabled={isSavingPalette} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 px-4 rounded-lg text-xs cursor-pointer">{isSavingPalette ? 'Saving...' : 'Sync Configuration'}</button>
-              </div>
-            </form>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Segment Node Map */}
+        <div>
+          <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Segment Color Configuration</label>
+          <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+            {uniqueSegmentsInDB.length === 0 ? (
+              <p className="text-xs italic text-slate-400 pl-1">No segments logged in current context...</p>
+            ) : (
+              <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                {uniqueSegmentsInDB.map(seg => {
+                  const config = getSegmentStyles(seg);
+                  const currentIdx = palette.segmentColors[seg] !== undefined ? palette.segmentColors[seg] : 5;
+                  return (
+                    <div key={seg} className="flex items-center justify-between gap-4 bg-white p-2 rounded-lg border border-slate-200/60 shadow-sm">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded border flex items-center gap-1.5 truncate max-w-[220px] ${config.classes}`}>
+                        {config.prefix && <span>{config.prefix}</span>} <span>{seg}</span>
+                      </span>
+                      <select 
+                        value={currentIdx} 
+                        onChange={(e) => handleSegmentColorChange(seg, e.target.value)} 
+                        className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 cursor-pointer font-medium focus:outline-none focus:border-[#18174e]"
+                      >
+                        {COLOR_OPTIONS.map((opt, i) => <option key={i} value={i}>{opt.prefix} {opt.name}</option>)}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Modal Bottom Actions (Tugmang-tugma ang rounded size, text padding, at text-sm sa Edit Form) */}
+      <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100 shrink-0">
+        <button 
+          type="button" 
+          onClick={() => setIsPaletteModalOpen(false)} 
+          className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button 
+          onClick={handleSavePaletteConfig}
+          disabled={isSavingPalette}
+          className="bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white font-semibold py-2 px-4 rounded-lg text-sm cursor-pointer shadow-md transition-colors text-center"
+        >
+          {isSavingPalette ? "Saving Palette..." : "Save Palette Configuration"}
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
 
       {/* CONFIRMATION MODAL */}
-      {isConfirmModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex justify-center items-start z-50 p-4 pt-5">
-          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm p-5 shadow-2xl relative">
-            <div className="border-b border-slate-100 pb-2"><h3 className="font-bold text-slate-800 text-sm tracking-wide">{confirmModalConfig.title}</h3></div>
-            <p className="text-sm text-slate-600 leading-relaxed mt-3">{confirmModalConfig.message}</p>
-            <div className="flex items-center justify-end gap-2 mt-5">
-              <button type="button" onClick={() => setIsConfirmModalOpen(false)} className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-1.5 px-4 rounded-lg text-xs cursor-pointer">Cancel</button>
-              <button type="button" onClick={confirmModalConfig.onConfirm} className={`text-white font-semibold py-1.5 px-4 rounded-lg text-xs cursor-pointer ${confirmModalConfig.actionType === 'archive' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>Confirm</button>
-            </div>
-          </div>
-        </div>
-      )}
+{isConfirmModalOpen && (
+  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+    {/* Swak sa max-w-md para sa compact alert layout, rounded-2xl, at padding ng system mo */}
+    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-xl relative flex flex-col animate-in zoom-in-95 duration-200">
+      
+      {/* Modal Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+        <h3 className="font-bold text-slate-800 text-base">
+          {confirmModalConfig.title}
+        </h3>
+      </div>
+
+      {/* System Inventory Protocol Notification Card (Eksaktong kulay at anyo ng system mo) */}
+      <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
+        <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+          * System Action Protocol *
+        </span>
+        <p className="text-[11px] text-amber-700 leading-relaxed">
+          Please review the operation context. Confirming this step commits changes directly to the live system registry.
+        </p>
+      </div>
+
+      {/* Modal Body Message */}
+      <div className="mt-4 flex-1">
+        <p className="text-sm text-slate-600 leading-relaxed font-medium">
+          {confirmModalConfig.message}
+        </p>
+      </div>
+
+      {/* Modal Bottom Actions (Pure #18174e and Slate-100 layout) */}
+      <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100 shrink-0">
+        <button 
+          type="button" 
+          onClick={() => setIsConfirmModalOpen(false)} 
+          className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button 
+          type="button" 
+          onClick={confirmModalConfig.onConfirm} 
+          className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
+        >
+          Confirm
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
 
       {/* 🌟 IMAGE PREVIEW LIGHTBOX MODAL */}
       {previewImage && (

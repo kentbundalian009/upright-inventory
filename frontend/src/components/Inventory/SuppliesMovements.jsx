@@ -582,8 +582,8 @@ function SuppliesMovements() {
                       </div>
                     ))
                   ) : (
-                    <div className="p-3 text-xs italic text-slate-400 text-center">
-                      No supplies found matching.
+                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+                      No records found matching.
                     </div>
                   )}
                 </div>
@@ -593,8 +593,8 @@ function SuppliesMovements() {
             {/* MANIFEST GRID TABLE */}
             <div className="flex flex-col gap-2">
               <span className="text-xs font-bold text-yellow-700 bg-yellow-100 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically (deducted / added)</span>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto w-full">
-                <table className="min-w-[850px] w-full text-left border-collapse text-sm">
+              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
                   <thead>
                     <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
                       <th className="py-3 px-4 w-28">Supply Code</th>
@@ -661,7 +661,11 @@ function SuppliesMovements() {
                         </tr>
                       ))
                     ) : (
-                      <tr><td colSpan="8" className="text-center py-6 text-slate-400 italic text-xs">No entries added. Use search input or select from Quick-Return Assistant.</td></tr>
+                      <tr>
+                        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
+                          No items added. Search above to add rows.
+                        </td>
+                      </tr>
                     )}
                   </tbody>
                 </table>
@@ -715,7 +719,7 @@ function SuppliesMovements() {
                 </div>
               ))
             ) : (
-              <span className="text-center text-xs italic text-slate-400 pt-4">No matching slips found.</span>
+              <span className="text-center pt-4 text-red-600 italic font-bold text-xs">No matching records found.</span>
             )}
           </div>
 
@@ -728,62 +732,104 @@ function SuppliesMovements() {
       </div>
 
       {/* DETAIL MODAL */}
-      {isModalOpen && selectedSlip && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-800 text-lg">Slip View: {selectedSlip.slipNo}</h3>
-              <div className="flex items-center gap-2">
-                <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer">
-                  <Download className="w-3.5 h-3.5" /> Download PDF
-                </button>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div><span className="font-semibold text-slate-400">Slip ID No:</span> <span className="font-bold text-slate-800">{selectedSlip.slipNo}</span></div>
-              <div><span className="font-semibold text-slate-400">Date Logged:</span> <span className="font-bold text-slate-800">{selectedSlip.transactionDate ? new Date(selectedSlip.transactionDate).toLocaleDateString() : '-'}</span></div>
-              <div><span className="font-semibold text-slate-400">Movement:</span> <span className="font-bold text-indigo-700 uppercase">{selectedSlip.transactionType}</span></div>
-              <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedSlip.preparedBy || preparedBy}</span></div>
-              <div><span className="font-semibold text-slate-400">Full Name:</span> <span className="font-bold text-slate-800">{selectedSlip.partyName || 'N/A'}</span></div>
-              <div><span className="font-semibold text-slate-400">Dept Location:</span> <span className="font-bold text-slate-800">{selectedSlip.originAddress || 'N/A'}</span></div>
-            </div>
-
-            {/* BINAGO: Nilagyan ng max-h-64, overflow-y-auto, at relative para gumana ang scrollbar at sticky design */}
-            <div className="overflow-x-auto overflow-y-auto max-h-64 border border-slate-100 rounded-xl relative">
-              <table className="w-full text-left text-xs min-w-[500px] border-collapse">
-                {/* BINAGO: Ginawang sticky top-0 ang thead para manatili sa itaas habang nag-scroscroll */}
-                <thead className="bg-[#18174e] text-white font-bold uppercase sticky top-0 z-10 shadow-sm">
-                  <tr>
-                    <th className="p-3">Supplies Profile</th>
-                    <th className="p-3 text-center">Total QTY</th>
-                    <th className="p-3 text-center text-emerald-400">Good Cond.</th>
-                    <th className="p-3 text-center text-rose-400">Damaged</th>
-                    <th className="p-3">Remarks / Reason</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {selectedSlip.items?.map((it, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50">
-                      <td className="p-3 font-semibold">
-                        <div className="font-bold text-[#18174e]">{it.supplyId?.Code || 'N/A'}</div>
-                        <div className="text-slate-400 text-[10px] font-normal max-w-xs truncate" title={it.supplyId?.ItemDescription}>{it.supplyId?.ItemDescription || '-'}</div>
-                      </td>
-                      <td className="p-3 text-center font-bold text-slate-700">{it.qty}</td>
-                      <td className="p-3 text-center font-bold text-emerald-600">{it.goodConditionQty ?? 0}</td>
-                      <td className="p-3 text-center font-bold text-rose-600">{it.damagedQty ?? 0}</td>
-                      <td className="p-3 text-slate-500 italic">{it.remarks || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+{isModalOpen && selectedSlip && (
+  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
+      
+      {/* Modal Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 className="font-bold text-slate-800 text-lg">
+          Slip View: {selectedSlip.slipNo}
+        </h3>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleDownloadPDF} 
+            className="flex items-center gap-1.5 bg-[#18174e] hover:bg-[#18174e]/90 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" /> 
+            Download PDF
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(false)} 
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-      )}
+      </div>
+
+      {/* Slip Details Grid Metadata Block */}
+      <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+        <div><span className="font-semibold text-slate-400">Slip ID No:</span> <span className="font-bold text-slate-800">{selectedSlip.slipNo}</span></div>
+        <div><span className="font-semibold text-slate-400">Date Logged:</span> <span className="font-bold text-slate-800">{selectedSlip.transactionDate ? new Date(selectedSlip.transactionDate).toLocaleDateString() : '-'}</span></div>
+        <div><span className="font-semibold text-slate-400">Movement:</span> <span className="font-bold text-indigo-700 uppercase">{selectedSlip.transactionType}</span></div>
+        <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedSlip.preparedBy || preparedBy}</span></div>
+        <div><span className="font-semibold text-slate-400">Full Name:</span> <span className="font-bold text-slate-800">{selectedSlip.partyName || 'N/A'}</span></div>
+        <div><span className="font-semibold text-slate-400">Dept Location:</span> <span className="font-bold text-slate-800">{selectedSlip.originAddress || 'N/A'}</span></div>
+      </div>
+
+      {/* Itemization Table Layer with Scrollbar */}
+      <div className="max-h-64 overflow-y-auto border border-slate-200/60 rounded-xl relative shadow-sm">
+        <table className="w-full text-left text-xs border-collapse bg-white">
+          
+          {/* STICKY THEAD */}
+          <thead className="sticky top-0 z-10 bg-[#18174e] text-white text-[11px] font-bold uppercase tracking-wide">
+            <tr>
+              <th className="p-3 w-1/4">Supplies Profile</th>
+              <th className="p-3 text-center w-24">Total QTY</th>
+              <th className="p-3 text-center w-28 text-emerald-400">Good Cond.</th>
+              <th className="p-3 text-center w-24 text-rose-400">Damaged</th>
+              <th className="p-3 text-left pl-6">Remarks / Reason</th>
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-slate-100">
+            {selectedSlip.items?.map((it, idx) => (
+              <tr key={it._id || idx} className="hover:bg-slate-50/50 transition-colors">
+                {/* Supplies Profile & Description */}
+                <td className="p-3 w-1/4 align-middle">
+                  <div className="font-bold text-[#18174e]">{it.supplyId?.Code || 'N/A'}</div>
+                  <div className="text-slate-400 text-[11px] max-w-xs truncate font-medium" title={it.supplyId?.ItemDescription}>
+                    {it.supplyId?.ItemDescription || '-'}
+                  </div>
+                </td>
+                
+                {/* Total QTY */}
+                <td className="p-3 text-center text-slate-700 w-24 align-middle font-bold">
+                  {it.qty}
+                </td>
+                
+                {/* Good Condition QTY */}
+                <td className="p-3 text-center text-emerald-600 w-28 align-middle font-bold">
+                  {it.goodConditionQty ?? 0}
+                </td>
+                
+                {/* Damaged QTY */}
+                <td className="p-3 text-center text-rose-600 w-24 align-middle font-bold">
+                  {it.damagedQty ?? 0}
+                </td>
+                
+                {/* Remarks / Reason */}
+                <td className="p-3 italic text-slate-500 font-medium text-[11px] max-w-[140px] truncate align-middle pl-6" title={it.remarks}>
+                  {it.remarks || '-'}
+                </td>
+              </tr>
+            ))}
+
+            {(!selectedSlip.items || selectedSlip.items.length === 0) && (
+              <tr>
+                <td colSpan="5" className="p-4 text-center text-slate-400 italic">
+                  No materials recorded.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+)}
     </div>
   );
 }

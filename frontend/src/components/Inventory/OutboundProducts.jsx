@@ -91,7 +91,7 @@ function OutboundProducts() {
       }
     } catch (err) { 
       console.error("Error loading registry data:", err);
-      showErrorToast("Failed to load registry data from server.");
+      showErrorToast("Failed to load data from the server.");
     }
   };
 
@@ -534,7 +534,9 @@ function OutboundProducts() {
                       </div>
                     ))
                   ) : (
-                    <div className="p-3 text-xs italic text-slate-400 text-center">No raw material stock found matching.</div>
+                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+                      No records found matching.
+                    </div>
                   )}
                 </div>
               )}
@@ -542,8 +544,8 @@ function OutboundProducts() {
 
             <div className="flex flex-col gap-2">
               <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically deducted</span>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse text-sm">
+              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
                   <thead>
                     <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
                       <th className="py-3 px-4">Material Code</th>
@@ -571,7 +573,11 @@ function OutboundProducts() {
                         </tr>
                       ))
                     ) : (
-                      <tr><td colSpan="7" className="text-center py-6 text-slate-400 italic text-xs">No entries added. Use search input or select from Quick-Outbound Assistant.</td></tr>
+                      <tr>
+                        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
+                          No items added. Search above to add rows.
+                        </td>
+                      </tr>
                     )}
                   </tbody>
                 </table>
@@ -618,7 +624,7 @@ function OutboundProducts() {
                 </div>
               ))
             ) : (
-              <span className="text-center text-xs italic text-slate-400 pt-4">No matching logs found.</span>
+              <span className="text-center pt-4 text-red-600 italic font-bold text-xs">No matching records found.</span>
             )}
           </div>
 
@@ -705,80 +711,119 @@ function OutboundProducts() {
       )}
 
       {/* VIEW DETAILS LOG MODAL */}
-      {isModalOpen && selectedSlip && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
-            
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-800 text-lg">Log View: {selectedSlip.plNo}</h3>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => handleOpenVoidModal(selectedSlip)} 
-                  className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> Void Transaction
-                </button>
+{isModalOpen && selectedSlip && (
+  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
+      
+      {/* Modal Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 className="font-bold text-slate-800 text-lg">
+          Log View: {selectedSlip.plNo}
+        </h3>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => handleOpenVoidModal(selectedSlip)} 
+            className="flex items-center gap-1 bg-red-800 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Void Transaction
+          </button>
+          <button 
+            onClick={handleDownloadPDF} 
+            className="flex items-center gap-1.5 bg-[#18174e] hover:bg-[#18174e]/90 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" /> Download PDF
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(false)} 
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
 
-                <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer">
-                  <Download className="w-3.5 h-3.5" /> Download PDF
-                </button>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {selectedSlip.transactionType?.toLowerCase() === 'outbound' && (
-              <div className="bg-red-200 text-red-800 border border-red-500 rounded-lg px-3 py-2 flex items-center gap-2 text-xs font-semibold">
-                <ShieldAlert className="w-4 h-4 text-red-700 shrink-0" />
-                <span>Notice: Cancelling active Outbound entries strictly demands high-level managerial approval passkey.</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div><span className="font-semibold text-slate-400">Tracking No:</span> <span className="font-bold text-slate-800">{selectedSlip.plNo}</span></div>
-              <div><span className="font-semibold text-slate-400">Shipment Date:</span> <span className="font-bold text-slate-800">{selectedSlip.shipmentDate ? new Date(selectedSlip.shipmentDate).toLocaleDateString() : '-'}</span></div>
-              <div><span className="font-semibold text-slate-400">Log Type:</span> <span className="font-bold text-indigo-700 uppercase">{selectedSlip.transactionType}</span></div>
-              <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedSlip.preparedBy || preparedBy}</span></div>
-              <div><span className="font-semibold text-slate-400">Customer:</span> <span className="font-bold text-slate-800">{selectedSlip.customer || 'N/A'}</span></div>
-              <div><span className="font-semibold text-slate-400">Destination:</span> <span className="font-bold text-slate-800">{selectedSlip.destinationAddress || 'N/A'}</span></div>
-              {selectedSlip.referencePlNo && (
-                <div className="col-span-2 text-xs text-amber-700 font-bold bg-amber-50 px-2 py-1 rounded border border-amber-200">Linked Reference: {selectedSlip.referencePlNo}</div>
-              )}
-            </div>
-
-            <div className="overflow-x-auto overflow-y-auto max-h-64 border border-slate-100 rounded-xl relative">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-[#18174e] text-white font-bold uppercase sticky top-0 z-10 shadow-sm">
-                  <tr>
-                    <th className="p-3">Material Profile</th>
-                    <th className="p-3 text-center">QTY Ordered</th>
-                    <th className="p-3 text-center">Verified Shipped</th>
-                    <th className="p-3">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {selectedSlip.items?.map((it, idx) => {
-                    const targetMaterial = it.materialId || it.productId;
-                    return (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="p-3">
-                          <div className="font-bold text-[#18174e]">{targetMaterial?.Code || "N/A"}</div>
-                          <div className="text-slate-400 text-[11px] max-w-xs truncate" title={targetMaterial?.ItemDescription}>{targetMaterial?.ItemDescription || "-"}</div>
-                        </td>
-                        <td className="p-3 text-center font-semibold text-slate-700">{it.qtyRequested} {targetMaterial?.UOM}</td>
-                        <td className="p-3 text-center font-bold text-emerald-600">{it.actualCountShipped} {targetMaterial?.UOM}</td>
-                        <td className="p-3 italic text-slate-500">{it.remarks || "-"}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-          </div>
+      {/* Outbound Notice Alert */}
+      {selectedSlip.transactionType?.toLowerCase() === 'outbound' && (
+        <div className="bg-red-200 text-red-800 border border-red-500 rounded-lg px-3 py-2 flex items-center gap-2 text-xs font-semibold">
+          <ShieldAlert className="w-4 h-4 text-red-700 shrink-0" />
+          <span>Notice: Cancelling active Outbound entries strictly demands high-level managerial approval passkey.</span>
         </div>
       )}
+
+      {/* Log Details Grid Metadata Block */}
+      <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+        <div><span className="font-semibold text-slate-400">Tracking No:</span> <span className="font-bold text-slate-800">{selectedSlip.plNo}</span></div>
+        <div><span className="font-semibold text-slate-400">Shipment Date:</span> <span className="font-bold text-slate-800">{selectedSlip.shipmentDate ? new Date(selectedSlip.shipmentDate).toLocaleDateString() : '-'}</span></div>
+        <div><span className="font-semibold text-slate-400">Log Type:</span> <span className="font-bold text-indigo-700 uppercase">{selectedSlip.transactionType}</span></div>
+        <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedSlip.preparedBy || preparedBy}</span></div>
+        <div><span className="font-semibold text-slate-400">Customer:</span> <span className="font-bold text-slate-800">{selectedSlip.customer || 'N/A'}</span></div>
+        <div><span className="font-semibold text-slate-400">Destination:</span> <span className="font-bold text-slate-800">{selectedSlip.destinationAddress || 'N/A'}</span></div>
+        {selectedSlip.referencePlNo && (
+          <div className="col-span-2 text-xs text-amber-700 font-bold bg-amber-50 px-2 py-1 rounded border border-amber-200">
+            Linked Reference: {selectedSlip.referencePlNo}
+          </div>
+        )}
+      </div>
+
+      {/* Itemization Table Layer with Scrollbar */}
+      <div className="max-h-64 overflow-y-auto border border-slate-200/60 rounded-xl relative shadow-sm">
+        <table className="w-full text-left text-xs border-collapse bg-white">
+          
+          {/* STICKY THEAD */}
+          <thead className="sticky top-0 z-10 bg-[#18174e] text-white text-[11px] font-bold uppercase tracking-wide">
+            <tr>
+              <th className="p-3 w-1/3">Material Profile</th>
+              <th className="p-3 text-center w-28">QTY Ordered</th>
+              <th className="p-3 text-right w-32">Verified Shipped</th>
+              <th className="p-3 text-left pl-6">Remarks</th>
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-slate-100">
+            {selectedSlip.items?.map((it, idx) => {
+              const targetMaterial = it.materialId || it.productId;
+              return (
+                <tr key={it._id || idx} className="hover:bg-slate-50/50 transition-colors">
+                  {/* Material Profile & Description */}
+                  <td className="p-3 w-1/3 align-middle">
+                    <div className="font-bold text-[#18174e]">{targetMaterial?.Code || "N/A"}</div>
+                    <div className="text-slate-400 text-[11px] max-w-xs truncate font-medium" title={targetMaterial?.ItemDescription}>
+                      {targetMaterial?.ItemDescription || "-"}
+                    </div>
+                  </td>
+                  
+                  {/* QTY Ordered */}
+                  <td className="p-3 text-center text-slate-600 w-28 align-middle font-semibold">
+                    {it.qtyRequested} {targetMaterial?.UOM}
+                  </td>
+                  
+                  {/* Verified Shipped */}
+                  <td className="p-3 text-right font-bold text-emerald-600 w-32 align-middle">
+                    {it.actualCountShipped} {targetMaterial?.UOM}
+                  </td>
+                  
+                  {/* Remarks */}
+                  <td className="p-3 italic text-slate-500 font-medium text-[11px] max-w-[120px] truncate align-middle pl-6" title={it.remarks}>
+                    {it.remarks || "-"}
+                  </td>
+                </tr>
+              );
+            })}
+
+            {(!selectedSlip.items || selectedSlip.items.length === 0) && (
+              <tr>
+                <td colSpan="4" className="p-4 text-center text-slate-400 italic">
+                  No materials recorded.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+)}
     </div>
   );
 }

@@ -64,8 +64,8 @@ function WorkInProgress() {
       setDbProducts(prodsRes.data?.filter(p => !p.isArchived) || prodsRes.data || []);
       setConversionRecords(convsRes.data || []);
     } catch (err) {
-      console.error("Error loading Conversion/WIP registry data:", err);
-      setErrorMessage("Failed to load registry data from the server.");
+      console.error("Error loading registry data:", err);
+      setErrorMessage("Failed to load data from the server.");
     }
   };
 
@@ -463,7 +463,9 @@ function WorkInProgress() {
                       </div>
                     ))
                   ) : (
-                    <div className="p-3 text-xs italic text-slate-400 text-center">No raw material stock found matching.</div>
+                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+                      No records found matching.
+                    </div>
                   )}
                 </div>
               )}
@@ -472,8 +474,8 @@ function WorkInProgress() {
             {/* INPUT TABLE */}
             <div className="flex flex-col gap-2">
               <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically deducted</span>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse text-sm">
+              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
                   <thead>
                     <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
                       <th className="py-3 px-4">Material Code</th>
@@ -501,7 +503,11 @@ function WorkInProgress() {
                         </tr>
                       ))
                     ) : (
-                      <tr><td colSpan="6" className="text-center py-5 text-slate-400 italic text-xs">No raw material inputs added yet.</td></tr>
+                      <tr>
+                        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
+                          No items added. Search above to add rows.
+                        </td>
+                      </tr>
                     )}
                   </tbody>
                 </table>
@@ -539,7 +545,9 @@ function WorkInProgress() {
                       </div>
                     ))
                   ) : (
-                    <div className="p-3 text-xs italic text-slate-400 text-center">No catalog profiles matched.</div>
+                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+                      No records found matching.
+                    </div>
                   )}
                 </div>
               )}
@@ -548,8 +556,8 @@ function WorkInProgress() {
             {/* OUTPUT TABLE */}
             <div className="flex flex-col gap-2">
               <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically added</span>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse text-sm">
+              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
                   <thead>
                     <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
                       <th className="py-3 px-4">Output Code</th>
@@ -581,7 +589,11 @@ function WorkInProgress() {
                         </tr>
                       ))
                     ) : (
-                      <tr><td colSpan="6" className="text-center py-5 text-slate-400 italic text-xs">No output lines mapped yet.</td></tr>
+                      <tr>
+                        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
+                          No items added. Search above to add rows.
+                        </td>
+                      </tr>
                     )}
                   </tbody>
                 </table>
@@ -620,81 +632,114 @@ function WorkInProgress() {
                 </div>
               ))
             ) : (
-              <span className="text-center text-xs italic text-slate-400 pt-4">No records matched.</span>
+              <span className="text-center pt-4 text-red-600 italic font-bold text-xs">No matching records found.</span>
             )}
           </div>
         </div>
       </div>
 
       {/* DRILL-DOWN REVIEW MODAL POPUP */}
-      {isModalOpen && selectedConversion && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-800 text-lg">Production Record Sheet: {selectedConversion.conversionNo}</h3>
-              <div className="flex items-center gap-2">
-                <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-green-700 transition-colors"><Download className="w-3.5 h-3.5" /> Download PDF</button>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer"><X className="w-5 h-5" /></button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div><span className="font-semibold text-slate-400">Control tracking No:</span> <span className="font-bold text-slate-800">{selectedConversion.conversionNo}</span></div>
-              <div><span className="font-semibold text-slate-400">Execution Date:</span> <span className="font-bold text-slate-800">{selectedConversion.dateProcessed ? new Date(selectedConversion.dateProcessed).toLocaleDateString() : '-'}</span></div>
-              <div><span className="font-semibold text-slate-400">Production Type:</span> <span className="font-bold text-indigo-600 uppercase">{selectedConversion.productionType}</span></div>
-              <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedConversion.preparedBy}</span></div>
-              <div className="col-span-2"><span className="font-semibold text-slate-400">Remarks:</span> <span className="font-bold text-slate-600 text-xs">{selectedConversion.remarks || 'N/A'}</span></div>
-            </div>
-
-            {/* RELATIONAL MATRIX DISPLAY DESK WITH STICKY HEADERS */}
-            <div className="max-h-64 overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-100 relative">
-
-              {/* Sticky Header para sa Inputs */}
-              <div className="p-2.5 bg-slate-100 text-xs font-bold text-[#18174e] sticky top-0 z-10 border-b border-slate-200">
-                ALLOCATED RAW MATERIAL INPUTS
-              </div>
-              <table className="w-full text-left text-xs border-collapse bg-white">
-                <tbody className="divide-y divide-slate-100">
-                  {selectedConversion.inputs?.map((it, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="p-3 font-semibold text-slate-700 w-1/3">{it.materialId?.Code || 'N/A'}</td>
-                      <td className="p-3 text-slate-500 text-[11px] max-w-xs truncate" title={it.materialId?.ItemDescription}>{it.materialId?.ItemDescription || '-'}</td>
-                      <td className="p-3 text-right font-bold text-red-600 w-24">-{it.qtyUsed} {it.materialId?.UOM}</td>
-                    </tr>
-                  ))}
-                  {(!selectedConversion.inputs || selectedConversion.inputs.length === 0) && (
-                    <tr><td colSpan="3" className="p-3 text-center text-slate-400 italic">No inputs recorded.</td></tr>
-                  )}
-                </tbody>
-              </table>
-
-              {/* Sticky Header para sa Outputs (Mananatiling nakapako kapag na-scroll pababa) */}
-              <div className="p-2.5 bg-emerald-50 text-xs font-bold text-emerald-800 sticky top-[33px] z-10 border-t border-b border-emerald-100">
-                YIELD CONVERSION OUTPUTS
-              </div>
-              <table className="w-full text-left text-xs border-collapse bg-white">
-                <tbody className="divide-y divide-slate-100">
-                  {selectedConversion.outputs?.map((it, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="p-3 font-semibold text-emerald-800 w-1/3">
-                        {it.itemId?.Code || 'N/A'}
-                        <span className="text-[9px] text-slate-400 block font-normal">({it.itemType === 'RawMaterial' ? 'Raw Mat' : 'Product'})</span>
-                      </td>
-                      <td className="p-3 text-slate-500 text-[11px] max-w-xs truncate" title={it.itemId?.ItemDescription}>{it.itemId?.ItemDescription || '-'}</td>
-                      <td className="p-3 text-right font-bold text-emerald-600 w-24">+{it.qtyProduced} {it.itemId?.UOM}</td>
-                    </tr>
-                  ))}
-                  {(!selectedConversion.outputs || selectedConversion.outputs.length === 0) && (
-                    <tr><td colSpan="3" className="p-3 text-center text-slate-400 italic">No outputs recorded.</td></tr>
-                  )}
-                </tbody>
-              </table>
-
-            </div>
-
-          </div>
+{isModalOpen && selectedConversion && (
+  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
+      
+      {/* Modal Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 className="font-bold text-slate-800 text-lg">
+          Production Record Sheet: {selectedConversion.conversionNo}
+        </h3>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleDownloadPDF} 
+            className="flex items-center gap-1.5 bg-[#18174e] hover:bg-[#18174e]/90 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" /> 
+            Download PDF
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(false)} 
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-      )}
+      </div>
+
+      {/* Metadata Grid Block */}
+      <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+        <div><span className="font-semibold text-slate-400">Control Tracking No:</span> <span className="font-bold text-slate-800">{selectedConversion.conversionNo}</span></div>
+        <div><span className="font-semibold text-slate-400">Execution Date:</span> <span className="font-bold text-slate-800">{selectedConversion.dateProcessed ? new Date(selectedConversion.dateProcessed).toLocaleDateString() : '-'}</span></div>
+        <div><span className="font-semibold text-slate-400">Production Type:</span> <span className="font-bold text-indigo-600 uppercase text-xs bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 inline-block">{selectedConversion.productionType}</span></div>
+        <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedConversion.preparedBy || 'N/A'}</span></div>
+        <div className="col-span-2"><span className="font-semibold text-slate-400">Remarks:</span> <span className="font-bold text-slate-600">{selectedConversion.remarks || 'N/A'}</span></div>
+      </div>
+
+      {/* Relational Matrix Layer with Scrollbar */}
+      <div className="max-h-72 overflow-y-auto border border-slate-200/60 rounded-xl relative shadow-sm flex flex-col">
+
+        {/* --- SECTION 1: INPUTS --- */}
+        <div className="p-2.5 bg-red-700 text-[11px] font-bold text-[#ffffff] sticky top-0 z-10 border-b border-slate-200 uppercase tracking-wide">
+          Allocated Raw Material Inputs
+        </div>
+        <table className="w-full text-left text-xs border-collapse bg-white">
+          <tbody className="divide-y divide-slate-100">
+            {selectedConversion.inputs?.map((it, idx) => (
+              <tr key={`in-${idx}`} className="hover:bg-slate-50/50 transition-colors">
+                <td className="p-3 font-bold text-[#18174e] w-1/3 align-middle">
+                  {it.materialId?.Code || 'N/A'}
+                </td>
+                <td className="p-3 text-slate-400 text-[11px] max-w-xs truncate font-medium align-middle" title={it.materialId?.ItemDescription}>
+                  {it.materialId?.ItemDescription || '-'}
+                </td>
+                <td className="p-3 text-right font-bold text-red-600 w-32 align-middle">
+                  -{it.qtyUsed} {it.materialId?.UOM}
+                </td>
+              </tr>
+            ))}
+            {(!selectedConversion.inputs || selectedConversion.inputs.length === 0) && (
+              <tr>
+                <td colSpan="3" className="p-4 text-center text-slate-400 italic">No inputs recorded.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        {/* --- SECTION 2: OUTPUTS --- */}
+        {/* Ang top-[37px] na ito ay kalkulado para sumakto sa ilalim ng unang sticky header */}
+        <div className="p-2.5 bg-emerald-700 text-[11px] font-bold text-[#ffffff] sticky top-[37px] z-10 border-t border-b border-emerald-100 uppercase tracking-wide">
+          Yield Conversion Outputs
+        </div>
+        <table className="w-full text-left text-xs border-collapse bg-white">
+          <tbody className="divide-y divide-slate-100">
+            {selectedConversion.outputs?.map((it, idx) => (
+              <tr key={`out-${idx}`} className="hover:bg-slate-50/50 transition-colors">
+                <td className="p-3 font-bold text-emerald-800 w-1/3 align-middle">
+                  {it.itemId?.Code || 'N/A'}
+                  <span className="text-[9px] text-slate-400 block font-normal mt-0.5">
+                    ({it.itemType === 'RawMaterial' ? 'Raw Mat' : 'Product'})
+                  </span>
+                </td>
+                <td className="p-3 text-slate-400 text-[11px] max-w-xs truncate font-medium align-middle" title={it.itemId?.ItemDescription}>
+                  {it.itemId?.ItemDescription || '-'}
+                </td>
+                <td className="p-3 text-right font-bold text-emerald-600 w-32 align-middle">
+                  +{it.qtyProduced} {it.itemId?.UOM}
+                </td>
+              </tr>
+            ))}
+            {(!selectedConversion.outputs || selectedConversion.outputs.length === 0) && (
+              <tr>
+                <td colSpan="3" className="p-4 text-center text-slate-400 italic">No outputs recorded.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+      </div>
+
+    </div>
+  </div>
+)}
     </div>
   );
 }

@@ -123,7 +123,7 @@ function InboundRawMat() {
       setUniqueAccounts(accounts);
 
     } catch (err) {
-      console.error("Error loading database logs:", err);
+      console.error("Failed to load data from the server.", err);
     }
   };
 
@@ -628,8 +628,8 @@ function InboundRawMat() {
                       </div>
                     ))
                   ) : (
-                    <div className="p-3 text-xs italic text-slate-400 text-center">
-                      No materials found matching.
+                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+                      No records found matching.
                     </div>
                   )}
                 </div>
@@ -722,7 +722,7 @@ function InboundRawMat() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="11" className="text-center py-6 text-slate-400 italic text-xs">
+                        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
                           No items added. Search above to add rows.
                         </td>
                       </tr>
@@ -764,7 +764,7 @@ function InboundRawMat() {
                 </div>
               ))
             ) : (
-              <span className="text-center text-xs italic text-slate-400 pt-4">No matching records found.</span>
+              <span className="text-center pt-4 text-red-600 italic font-bold text-xs">No matching records found.</span>
             )}
           </div>
 
@@ -774,65 +774,109 @@ function InboundRawMat() {
         </div>
       </div>
 
-      {/* MODAL 1: PO DETAILS */}
-      {isModalOpen && selectedPo && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-800 text-lg">PO Details: {selectedPo.poNo}</h3>
-              <div className="flex items-center gap-2">
-                <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"><Download className="w-3.5 h-3.5" /> Download PDF</button>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50"><X className="w-5 h-5" /></button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div><span className="font-semibold text-slate-400">Purchase Order No.:</span> <span className="font-bold text-slate-800">{selectedPo.poNo}</span></div>
-              <div><span className="font-semibold text-slate-400">Date Received:</span> <span className="font-bold text-slate-800">{selectedPo.deliveryDate ? new Date(selectedPo.deliveryDate).toLocaleDateString() : '-'}</span></div>
-              <div><span className="font-semibold text-slate-400">Supplier:</span> <span className="font-bold text-slate-800">{selectedPo.supplier || 'N/A'}</span></div>
-              <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedPo.preparedBy || preparedBy}</span></div>
-              <div className="col-span-2"><span className="font-semibold text-slate-400">Origin Address:</span> <span className="font-bold text-slate-800">{selectedPo.originAddress || 'N/A'}</span></div>
-            </div>
-
-            {/* BINAGO DITO: Idinagdag ang max-h-60 at overflow-y-auto para sa scrollbar */}
-            <div className="overflow-x-auto overflow-y-auto max-h-60 border border-slate-100 rounded-xl relative">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-[#18174e] text-white font-bold uppercase sticky top-0 z-10 shadow-sm">
-                  <tr>
-                    <th className="p-3">Material Profile</th>
-                    <th className="p-3 text-center">QTY Ordered</th>
-                    <th className="p-3 text-center">Actual Count Received</th>
-                    <th className="p-3">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {selectedPo.items?.map((it, idx) => (
-                    <tr key={it._id || idx} className="hover:bg-slate-50/50">
-                      <td className="p-3">
-                        <div className="font-bold text-[#18174e]">{it.materialId?.Code || "N/A"}</div>
-                        <div className="text-slate-400 text-[11px] max-w-xs truncate" title={it.materialId?.ItemDescription}>{it.materialId?.ItemDescription || "-"}</div>
-                      </td>
-                      <td className="p-3 text-center font-semibold text-slate-700">{it.qty} {it.materialId?.UOM}</td>
-                      <td className="p-3 text-center font-bold text-emerald-600">{it.actualCountReceived} {it.materialId?.UOM}</td>
-                      <td className="p-3 italic text-slate-500">{it.remarks || "-"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+{/* MODAL 1: PO DETAILS */}
+{isModalOpen && selectedPo && (
+  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
+      
+      {/* Modal Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 className="font-bold text-slate-800 text-lg">
+          Purchase Order Registry: {selectedPo.poNo}
+        </h3>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleDownloadPDF} 
+            className="flex items-center gap-1.5 bg-[#18174e] hover:bg-[#18174e]/90 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" /> 
+            Download PDF
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(false)} 
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-      )}
+      </div>
+
+      {/* PO Details Grid Metadata Block */}
+      <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+        <div><span className="font-semibold text-slate-400">Purchase Order No:</span> <span className="font-bold text-slate-800">{selectedPo.poNo}</span></div>
+        <div><span className="font-semibold text-slate-400">Date Received:</span> <span className="font-bold text-slate-800">{selectedPo.deliveryDate ? new Date(selectedPo.deliveryDate).toLocaleDateString() : '-'}</span></div>
+        <div><span className="font-semibold text-slate-400">Supplier Profile:</span> <span className="font-bold text-slate-800">{selectedPo.supplier || 'N/A'}</span></div>
+        <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedPo.preparedBy || preparedBy}</span></div>
+        <div className="col-span-2"><span className="font-semibold text-slate-400">Origin Logistical Address:</span> <span className="font-bold text-slate-600">{selectedPo.originAddress || 'N/A'}</span></div>
+      </div>
+
+      {/* Itemization Table Layer with Scrollbar */}
+      <div className="max-h-64 overflow-y-auto border border-slate-200/60 rounded-xl relative shadow-sm">
+        <table className="w-full text-left text-xs border-collapse bg-white">
+          
+          {/* STICKY THEAD - Dito nakahanay ang mga hiniling mong kolum */}
+          <thead className="sticky top-0 z-10 bg-[#18174e] text-white text-[11px] font-bold uppercase tracking-wide">
+            <tr>
+              <th className="p-3 w-1/3">Material Profile</th>
+              <th className="p-3 text-center w-28">QTY Ordered</th>
+              <th className="p-3 text-right w-32">Actual Received</th>
+              <th className="p-3 text-left pl-6">Remarks</th>
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-slate-100">
+            {selectedPo.items?.map((it, idx) => (
+              <tr key={it._id || idx} className="hover:bg-slate-50/50 transition-colors">
+                {/* Material Profile & Description */}
+                <td className="p-3 w-1/3 align-middle">
+                  <div className="font-bold text-[#18174e]">{it.materialId?.Code || "N/A"}</div>
+                  <div className="text-slate-400 text-[11px] max-w-xs truncate font-medium" title={it.materialId?.ItemDescription}>
+                    {it.materialId?.ItemDescription || "-"}
+                  </div>
+                </td>
+                
+                {/* QTY Ordered */}
+                <td className="p-3 text-center text-slate-600 w-28 align-middle font-semibold">
+                  {it.qty} {it.materialId?.UOM}
+                </td>
+                
+                {/* Actual Received */}
+                <td className="p-3 text-right font-bold text-[#18174e] w-32 align-middle">
+                  {it.actualCountReceived} {it.materialId?.UOM}
+                </td>
+                
+                {/* Remarks */}
+                <td className="p-3 italic text-slate-500 font-medium text-[11px] max-w-[120px] truncate align-middle pl-6" title={it.remarks}>
+                  {it.remarks || "-"}
+                </td>
+              </tr>
+            ))}
+            
+            {(!selectedPo.items || selectedPo.items.length === 0) && (
+              <tr>
+                <td colSpan="4" className="p-4 text-center text-slate-400 italic">
+                  No materials recorded.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+)}
 
       {/* MODAL 2: NEW MATERIAL PROFILE WITH DROPDOWNS */}
       {isMatModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+          {/* Binago ang lapad papuntang max-w-xl para sakto lang ang landscape view */}
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
 
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-slate-800 text-base">Add Raw Material Information</h3>
+                <h3 className="font-bold text-slate-800 text-base">Add Materials Information</h3>
               </div>
               <button
                 onClick={() => setIsMatModalOpen(false)}
@@ -842,25 +886,37 @@ function InboundRawMat() {
               </button>
             </div>
 
+            {/* Audit Protocol Notification Card */}
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
+              <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                * System Inventory Protocol *
+              </span>
+              <p className="text-[11px] text-amber-700 leading-relaxed">
+                Manual quantity inputs are disabled to comply with audit protocols. Racking images and related media must be uploaded through the <strong>Rackings Components.</strong>
+              </p>
+            </div>
+
             {/* Modal Form */}
-            <form onSubmit={handleCreateMaterialProfile} className="space-y-3 mt-3">
+            <form onSubmit={handleCreateMaterialProfile} className="space-y-4 mt-4">
 
-              {/* Material Code */}
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Material Code *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Generating code..."
-                  value={newMatCode}
-                  onChange={e => setNewMatCode(e.target.value)}
-                  readOnly // <-- Idagdag ito para hindi pwedeng i-type-an pero mapapasa pa rin sa form
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-500 font-mono rounded-lg px-3 py-2 text-sm cursor-not-allowed focus:outline-none"
-                />
-              </div>
+              {/* Responsive Balanced Grid Layout */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              {/* Category & Segment Dropdown Grid */}
-              <div className="grid grid-cols-2 gap-2">
+                {/* Material Code (Full-width span para sa top design hierarchy) */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Material Code *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Generating code..."
+                    value={newMatCode}
+                    onChange={e => setNewMatCode(e.target.value)}
+                    readOnly
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-500 font-mono rounded-lg px-3 py-2 text-sm cursor-not-allowed focus:outline-none"
+                  />
+                </div>
+
+                {/* Category Dropdown */}
                 <div>
                   <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category *</label>
                   <input
@@ -877,6 +933,7 @@ function InboundRawMat() {
                   </datalist>
                 </div>
 
+                {/* Segment Dropdown */}
                 <div>
                   <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Segment *</label>
                   <input
@@ -892,78 +949,79 @@ function InboundRawMat() {
                     {uniqueSegments.map((seg, i) => <option key={i} value={seg} />)}
                   </datalist>
                 </div>
+
+                {/* Item Description */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Description *</label>
+                  <input
+                    type="text"
+                    required
+                    list="modal-desc-list"
+                    placeholder="Enter item description"
+                    value={newMatDesc}
+                    onChange={e => setNewMatDesc(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                  />
+                  <datalist id="modal-desc-list">
+                    {uniqueDescriptions.map((desc, i) => <option key={i} value={desc} />)}
+                  </datalist>
+                </div>
+
+                {/* Dimension */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Dimension *</label>
+                  <input
+                    type="text"
+                    required
+                    list="modal-dimension-list"
+                    placeholder="Enter product dimension"
+                    value={newMatDimension}
+                    onChange={e => setNewMatDimension(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                  />
+                  <datalist id="modal-dimension-list">
+                    {uniqueDimensions.map((dim, i) => <option key={i} value={dim} />)}
+                  </datalist>
+                </div>
+
+                {/* UOM */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">UOM *</label>
+                  <input
+                    type="text"
+                    required
+                    list="modal-uom-list"
+                    placeholder="Enter unit of measure"
+                    value={newMatUOM}
+                    onChange={e => setNewMatUOM(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                  />
+                  <datalist id="modal-uom-list">
+                    {uniqueUOMs.map((uom, i) => <option key={i} value={uom} />)}
+                  </datalist>
+                </div>
+
+                {/* Account To */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Account To *</label>
+                  <input
+                    type="text"
+                    required
+                    list="modal-account-list"
+                    placeholder="Enter account to"
+                    value={newMatAccountTo}
+                    onChange={e => setNewMatAccountTo(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                  />
+                  <datalist id="modal-account-list">
+                    {uniqueAccounts.map((acc, i) => <option key={i} value={acc} />)}
+                  </datalist>
+                </div>
+
               </div>
 
-              {/* Item Description (Dropdown / Type) */}
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Description *</label>
-                <input
-                  type="text"
-                  required
-                  list="modal-desc-list"
-                  placeholder="Enter item description"
-                  value={newMatDesc}
-                  onChange={e => setNewMatDesc(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
-                />
-                <datalist id="modal-desc-list">
-                  {uniqueDescriptions.map((desc, i) => <option key={i} value={desc} />)}
-                </datalist>
-              </div>
-
-              {/* Dimension (Dropdown / Type) */}
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Dimension *</label>
-                <input
-                  type="text"
-                  required
-                  list="modal-dimension-list"
-                  placeholder="Enter product dimension"
-                  value={newMatDimension}
-                  onChange={e => setNewMatDimension(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
-                />
-                <datalist id="modal-dimension-list">
-                  {uniqueDimensions.map((dim, i) => <option key={i} value={dim} />)}
-                </datalist>
-              </div>
-
-              {/* UOM (Dropdown / Type) */}
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">UOM *</label>
-                <input
-                  type="text"
-                  required
-                  list="modal-uom-list"
-                  placeholder="Enter unit of measure"
-                  value={newMatUOM}
-                  onChange={e => setNewMatUOM(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
-                />
-                <datalist id="modal-uom-list">
-                  {uniqueUOMs.map((uom, i) => <option key={i} value={uom} />)}
-                </datalist>
-              </div>
-
-              {/* Account To (Dropdown / Type) */}
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Account To *</label>
-                <input
-                  type="text"
-                  required
-                  list="modal-account-list"
-                  placeholder="Enter account to"
-                  value={newMatAccountTo}
-                  onChange={e => setNewMatAccountTo(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
-                />
-                <datalist id="modal-account-list">
-                  {uniqueAccounts.map((acc, i) => <option key={i} value={acc} />)}
-                </datalist>
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex items-center justify-end gap-2 mt-6 pt-2">
+              {/* Modal Bottom Actions */}
+              <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsMatModalOpen(false)}

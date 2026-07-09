@@ -23,11 +23,10 @@ export const getSuppliesById = async (req, res) => {
   }
 };
 
-// CREATE: Magdagdag ng bagong Supplies item
+// CREATE: Magdagdag ng bagong Supplies item na may sequential Auto-Generated Code
 export const createSupplies = async (req, res) => {
   try {
     const {
-      Code,
       Category,
       Segment,
       ItemDescription,
@@ -40,14 +39,29 @@ export const createSupplies = async (req, res) => {
       AccountTo,
     } = req.body;
 
-    if (!Code || !Category || !ItemDescription || !UOM) {
-      return res.status(400).json({ message: "Please fill in all required fields (Code, Category, Description, UOM)" });
+    // Inalis ang 'Code' sa check dahil auto-generated na ito
+    if (!Category || !ItemDescription || !UOM) {
+      return res.status(400).json({ message: "Please fill in all required fields (Category, Description, UOM)" });
     }
 
-    const codeExists = await Supplies.findOne({ Code: Code.trim() });
-    if (codeExists) {
-      return res.status(400).json({ message: "Supplies Code already exists" });
+    // ── 🚀 AUTO-GENERATION LOGIC NG CODE START ──
+    // 1. Hanapin ang pinakahuling supply record na sumusunod sa pattern na SPL-USSP-XXXXX
+    const lastSupply = await Supplies.findOne({ 
+      Code: /^SPL-USSP-\d{5}$/ 
+    }).sort({ Code: -1 }); // Naka-sort pabaligtad para makuha ang pinakamataas/pinakahuli
+
+    let nextNumber = 1;
+
+    if (lastSupply && lastSupply.Code) {
+      // Hiwalayin ang string para makuha ang dulong numero (hal. "SPL-USSP-00001" -> "00001")
+      const parts = lastSupply.Code.split('-');
+      const lastNumberStr = parts[parts.length - 1]; 
+      nextNumber = parseInt(lastNumberStr, 10) + 1; // Dagdagan ng isa para sa susunod
     }
+
+    // 2. I-format ang numero para maging 5 digits na may leading zeros (e.g., 00001, 00012, 00123)
+    const generatedCode = `SPL-USSP-${String(nextNumber).padStart(5, '0')}`;
+    // ── 🚀 AUTO-GENERATION LOGIC NG CODE END ──
 
     // Alamin kung may uploaded file galing sa multer middleware
     let finalImageUrl = "";
@@ -56,7 +70,7 @@ export const createSupplies = async (req, res) => {
     }
 
     const newSupplies = await Supplies.create({
-      Code: Code.trim(),
+      Code: generatedCode, // Dito gagamitin ang naitabong auto-generated code
       Category: Category.trim(),
       Segment: Segment?.trim(),
       ItemDescription: ItemDescription.trim(),
