@@ -391,8 +391,13 @@ function RawMaterials() {
                                             <td className="py-2 px-4 text-center">
                                                 {rawMat.ImageUrl ? (
                                                     <img
-                                                        src={rawMat.ImageUrl.startsWith('http') ? rawMat.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${rawMat.ImageUrl}`}
-                                                        alt={rawMat.ItemDescription}
+                                                        src={
+                                                            rawMat.ImageUrl.startsWith('http')
+                                                                ? rawMat.ImageUrl
+                                                                : process.env.NODE_ENV === 'production'
+                                                                    ? rawMat.ImageUrl // Sa production, iisang domain/port na lang sila kaya pwedeng relative path
+                                                                    : `${window.location.protocol}//${window.location.hostname}:5000${rawMat.ImageUrl}` // Sa dev mode, laging ituturo sa port 5000 ng kung anong IP ang gamit mo
+                                                        } alt={rawMat.ItemDescription}
                                                         onClick={() => setPreviewImage(rawMat.ImageUrl.startsWith('http') ? rawMat.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${rawMat.ImageUrl}`)}
                                                         className="w-10 h-10 object-cover rounded-lg border border-slate-200 cursor-pointer hover:scale-110 hover:border-[#18174e] transition-all mx-auto shadow-sm"
                                                     />
@@ -539,15 +544,15 @@ function RawMaterials() {
 
                             {/* 🌟 IMAGE UPLOAD DROPZONE FIELD INSIDE MODAL */}
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Item Image Upload</label>
+                                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Image Upload</label>
                                 <div className="mt-1 flex items-center gap-3">
                                     {existingImgPreview && !selectedFile && (
                                         <img src={existingImgPreview} alt="Current raw material" className="w-12 h-12 rounded-lg border object-cover shadow-sm" />
                                     )}
                                     <label className="flex-1 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-200 rounded-xl py-3 px-4 transition-all cursor-pointer">
-                                        <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
                                             <Upload className="w-4 h-4 text-[#18174e]" />
-                                            <span>{selectedFile ? selectedFile.name : "Choose profile image..."}</span>
+                                            <span>{selectedFile ? selectedFile.name : "Choose profile image"}</span>
                                         </div>
                                         <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                                     </label>

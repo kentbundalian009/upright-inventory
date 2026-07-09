@@ -460,6 +460,39 @@ function InboundRawMat() {
     }
   };
 
+
+  // Auto-generate ng Material Code kapag binuksan ang modal
+  useEffect(() => {
+    if (isMatModalOpen) {
+      // 1. Filter lang ang mga code na sumusunod sa format na RCK-USSP-
+      const rackingCodes = dbMaterials
+        .map(m => m.Code)
+        .filter(code => code && code.startsWith("RCK-USSP-"));
+
+      if (rackingCodes.length === 0) {
+        // Kung wala pang laman o walang kaparehong format, magsimula sa 00001
+        setNewMatCode("RCK-USSP-00001");
+      } else {
+        // 2. Kunin ang mga numerong bahagi (hal. "00001" -> 1)
+        const numbers = rackingCodes.map(code => {
+          const parts = code.split("-");
+          const lastPart = parts[parts.length - 1]; // "00001"
+          return parseInt(lastPart, 10) || 0;
+        });
+
+        // 3. Hanapin ang pinakamataas na numero at dagdagan ng isa (+1)
+        const maxNumber = Math.max(...numbers);
+        const nextNumber = maxNumber + 1;
+
+        // 4. I-pad ng zeros para mapanatili ang 5 digits (hal. 2 -> "00002")
+        const formattedNumber = String(nextNumber).padStart(5, '0');
+
+        // 5. I-set ang bagong auto-generated code
+        setNewMatCode(`RCK-USSP-${formattedNumber}`);
+      }
+    }
+  }, [isMatModalOpen, dbMaterials]);
+
   return (
     <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased text-slate-600">
 
@@ -605,98 +638,98 @@ function InboundRawMat() {
             <div className="flex flex-col gap-2">
               <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically added</span>
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
-  <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-    <thead>
-      <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
-        <th className="py-3 px-4">Item Code</th>
-        <th className="py-3 px-4">Category</th>
-        <th className="py-3 px-4">Segment</th>
-        <th className="py-3 px-4">Description</th>
-        <th className="py-3 px-4">Dimension</th>
-        <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
-        
-        <th className="py-3 px-4 text-center">UOM</th>
-        
-        {/* Kaparehong w-28 at min-w para terno sila ng QTY */}
-        <th className="py-3 px-4 text-center w-28 min-w-[112px]">Actual</th>
-        
-        <th className="py-3 px-4">Account To</th>
-        <th className="py-3 px-4">Remarks</th>
-        <th className="py-3 px-4 text-center">Action</th>
-      </tr>
-    </thead>
+                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
+                  <thead>
+                    <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
+                      <th className="py-3 px-4">Item Code</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4">Segment</th>
+                      <th className="py-3 px-4">Description</th>
+                      <th className="py-3 px-4">Dimension</th>
+                      <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
 
-    <tbody className="divide-y divide-slate-100">
-      {manifestItems.length > 0 ? (
-        manifestItems.map((item, index) => (
-          <tr key={item.materialId || index} className="hover:bg-slate-50/80 text-xs">
-            <td className="py-2 px-4 font-bold text-sm text-[#18174e]">{item.Code}</td>
-            <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
-            <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
-            <td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription}>
-              {item.ItemDescription}
-            </td>
-            <td className="py-2 px-4 text-slate-500">{item.Dimension}</td>
+                      <th className="py-3 px-4 text-center">UOM</th>
 
-            {/* QTY TD Cell na may nakatali ring width restriction */}
-            <td className="py-2 px-4 w-28 min-w-[112px]">
-              <input 
-                type="number" 
-                min="1" 
-                value={item.qty} 
-                onChange={e => handleUpdateField(index, 'qty', e.target.value)} 
-                className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-[#18174e]" 
-              />
-            </td>
+                      {/* Kaparehong w-28 at min-w para terno sila ng QTY */}
+                      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Actual</th>
 
-            <td className="py-2 px-4 text-center">
-              <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
-            </td>
+                      <th className="py-3 px-4">Account To</th>
+                      <th className="py-3 px-4">Remarks</th>
+                      <th className="py-3 px-4 text-center">Action</th>
+                    </tr>
+                  </thead>
 
-            {/* Actual TD Cell na kaparehong sukat para kuwadrado at pantay */}
-            <td className="py-2 px-4 w-28 min-w-[112px]">
-              <input 
-                type="number" 
-                min="0" 
-                value={item.actualCount} 
-                onChange={e => handleUpdateField(index, 'actualCount', e.target.value)} 
-                className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600" 
-              />
-            </td>
+                  <tbody className="divide-y divide-slate-100">
+                    {manifestItems.length > 0 ? (
+                      manifestItems.map((item, index) => (
+                        <tr key={item.materialId || index} className="hover:bg-slate-50/80 text-xs">
+                          <td className="py-2 px-4 font-bold text-sm text-[#18174e]">{item.Code}</td>
+                          <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
+                          <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
+                          <td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription}>
+                            {item.ItemDescription}
+                          </td>
+                          <td className="py-2 px-4 text-slate-500">{item.Dimension}</td>
 
-            <td className="py-2 px-4 text-slate-500">{item.AccountTo}</td>
-            
-            <td className="py-2 px-4">
-              <input 
-                type="text" 
-                value={item.remarks} 
-                onChange={e => handleUpdateField(index, 'remarks', e.target.value)} 
-                placeholder="Remarks" 
-                className="w-full border rounded px-2 py-1 text-xs focus:outline-none" 
-              />
-            </td>
+                          {/* QTY TD Cell na may nakatali ring width restriction */}
+                          <td className="py-2 px-4 w-28 min-w-[112px]">
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.qty}
+                              onChange={e => handleUpdateField(index, 'qty', e.target.value)}
+                              className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-[#18174e]"
+                            />
+                          </td>
 
-            <td className="py-2 px-4 text-center">
-              <button 
-                type="button" 
-                onClick={() => setManifestItems(manifestItems.filter((_, i) => i !== index))} 
-                className="text-red-500 hover:text-red-700 cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4 inline" />
-              </button>
-            </td>
-          </tr>
-        ))
-      ) : (
-        <tr>
-          <td colSpan="11" className="text-center py-6 text-slate-400 italic text-xs">
-            No items added. Search above to add rows.
-          </td>
-        </tr>
-      )}
-    </tbody>
-  </table>
-</div>
+                          <td className="py-2 px-4 text-center">
+                            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
+                          </td>
+
+                          {/* Actual TD Cell na kaparehong sukat para kuwadrado at pantay */}
+                          <td className="py-2 px-4 w-28 min-w-[112px]">
+                            <input
+                              type="number"
+                              min="0"
+                              value={item.actualCount}
+                              onChange={e => handleUpdateField(index, 'actualCount', e.target.value)}
+                              className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600"
+                            />
+                          </td>
+
+                          <td className="py-2 px-4 text-slate-500">{item.AccountTo}</td>
+
+                          <td className="py-2 px-4">
+                            <input
+                              type="text"
+                              value={item.remarks}
+                              onChange={e => handleUpdateField(index, 'remarks', e.target.value)}
+                              placeholder="Remarks"
+                              className="w-full border rounded px-2 py-1 text-xs focus:outline-none"
+                            />
+                          </td>
+
+                          <td className="py-2 px-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => setManifestItems(manifestItems.filter((_, i) => i !== index))}
+                              className="text-red-500 hover:text-red-700 cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4 inline" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="11" className="text-center py-6 text-slate-400 italic text-xs">
+                          No items added. Search above to add rows.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
             <button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xs text-sm transition-colors cursor-pointer uppercase">Save PO (Purchase Order)</button>
           </form>
@@ -710,7 +743,7 @@ function InboundRawMat() {
                 <ClipboardList className="w-4 h-4 text-[#18174e]" />
                 <span>History Logs</span>
               </div>
-              
+
             </div>
             <div className="relative mt-1">
               <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
@@ -741,55 +774,55 @@ function InboundRawMat() {
         </div>
       </div>
 
-     {/* MODAL 1: PO DETAILS */}
-{isModalOpen && selectedPo && (
-  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <h3 className="font-bold text-slate-800 text-lg">PO Details: {selectedPo.poNo}</h3>
-        <div className="flex items-center gap-2">
-          <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"><Download className="w-3.5 h-3.5" /> Download PDF</button>
-          <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50"><X className="w-5 h-5" /></button>
+      {/* MODAL 1: PO DETAILS */}
+      {isModalOpen && selectedPo && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-slate-800 text-lg">PO Details: {selectedPo.poNo}</h3>
+              <div className="flex items-center gap-2">
+                <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"><Download className="w-3.5 h-3.5" /> Download PDF</button>
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50"><X className="w-5 h-5" /></button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+              <div><span className="font-semibold text-slate-400">Purchase Order No.:</span> <span className="font-bold text-slate-800">{selectedPo.poNo}</span></div>
+              <div><span className="font-semibold text-slate-400">Date Received:</span> <span className="font-bold text-slate-800">{selectedPo.deliveryDate ? new Date(selectedPo.deliveryDate).toLocaleDateString() : '-'}</span></div>
+              <div><span className="font-semibold text-slate-400">Supplier:</span> <span className="font-bold text-slate-800">{selectedPo.supplier || 'N/A'}</span></div>
+              <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedPo.preparedBy || preparedBy}</span></div>
+              <div className="col-span-2"><span className="font-semibold text-slate-400">Origin Address:</span> <span className="font-bold text-slate-800">{selectedPo.originAddress || 'N/A'}</span></div>
+            </div>
+
+            {/* BINAGO DITO: Idinagdag ang max-h-60 at overflow-y-auto para sa scrollbar */}
+            <div className="overflow-x-auto overflow-y-auto max-h-60 border border-slate-100 rounded-xl relative">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-[#18174e] text-white font-bold uppercase sticky top-0 z-10 shadow-sm">
+                  <tr>
+                    <th className="p-3">Material Profile</th>
+                    <th className="p-3 text-center">QTY Ordered</th>
+                    <th className="p-3 text-center">Actual Count Received</th>
+                    <th className="p-3">Remarks</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {selectedPo.items?.map((it, idx) => (
+                    <tr key={it._id || idx} className="hover:bg-slate-50/50">
+                      <td className="p-3">
+                        <div className="font-bold text-[#18174e]">{it.materialId?.Code || "N/A"}</div>
+                        <div className="text-slate-400 text-[11px] max-w-xs truncate" title={it.materialId?.ItemDescription}>{it.materialId?.ItemDescription || "-"}</div>
+                      </td>
+                      <td className="p-3 text-center font-semibold text-slate-700">{it.qty} {it.materialId?.UOM}</td>
+                      <td className="p-3 text-center font-bold text-emerald-600">{it.actualCountReceived} {it.materialId?.UOM}</td>
+                      <td className="p-3 italic text-slate-500">{it.remarks || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
-        <div><span className="font-semibold text-slate-400">Purchase Order No.:</span> <span className="font-bold text-slate-800">{selectedPo.poNo}</span></div>
-        <div><span className="font-semibold text-slate-400">Date Received:</span> <span className="font-bold text-slate-800">{selectedPo.deliveryDate ? new Date(selectedPo.deliveryDate).toLocaleDateString() : '-'}</span></div>
-        <div><span className="font-semibold text-slate-400">Supplier:</span> <span className="font-bold text-slate-800">{selectedPo.supplier || 'N/A'}</span></div>
-        <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedPo.preparedBy || preparedBy}</span></div>
-        <div className="col-span-2"><span className="font-semibold text-slate-400">Origin Address:</span> <span className="font-bold text-slate-800">{selectedPo.originAddress || 'N/A'}</span></div>
-      </div>
-
-      {/* BINAGO DITO: Idinagdag ang max-h-60 at overflow-y-auto para sa scrollbar */}
-      <div className="overflow-x-auto overflow-y-auto max-h-60 border border-slate-100 rounded-xl relative">
-        <table className="w-full text-left text-xs border-collapse">
-          <thead className="bg-[#18174e] text-white font-bold uppercase sticky top-0 z-10 shadow-sm">
-            <tr>
-              <th className="p-3">Material Profile</th>
-              <th className="p-3 text-center">QTY Ordered</th>
-              <th className="p-3 text-center">Actual Count Received</th>
-              <th className="p-3">Remarks</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 bg-white">
-            {selectedPo.items?.map((it, idx) => (
-              <tr key={it._id || idx} className="hover:bg-slate-50/50">
-                <td className="p-3">
-                  <div className="font-bold text-[#18174e]">{it.materialId?.Code || "N/A"}</div>
-                  <div className="text-slate-400 text-[11px] max-w-xs truncate" title={it.materialId?.ItemDescription}>{it.materialId?.ItemDescription || "-"}</div>
-                </td>
-                <td className="p-3 text-center font-semibold text-slate-700">{it.qty} {it.materialId?.UOM}</td>
-                <td className="p-3 text-center font-bold text-emerald-600">{it.actualCountReceived} {it.materialId?.UOM}</td>
-                <td className="p-3 italic text-slate-500">{it.remarks || "-"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       {/* MODAL 2: NEW MATERIAL PROFILE WITH DROPDOWNS */}
       {isMatModalOpen && (
@@ -818,10 +851,11 @@ function InboundRawMat() {
                 <input
                   type="text"
                   required
-                  placeholder="Enter material code"
+                  placeholder="Generating code..."
                   value={newMatCode}
                   onChange={e => setNewMatCode(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                  readOnly // <-- Idagdag ito para hindi pwedeng i-type-an pero mapapasa pa rin sa form
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-500 font-mono rounded-lg px-3 py-2 text-sm cursor-not-allowed focus:outline-none"
                 />
               </div>
 
