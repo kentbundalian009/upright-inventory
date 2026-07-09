@@ -6,12 +6,12 @@ import ThresholdModal from '../Common/ThresholdModal';
 
 // Lahat ng pagpipiliang kulay na gagamitin sa system globally
 const COLOR_OPTIONS = [
-    { name: "Yellow", classes: "bg-amber-50 text-amber-700 border-amber-200", prefix: "🟡" },
-    { name: "Green", classes: "bg-emerald-50 text-emerald-700 border-emerald-200", prefix: "🟢" },
-    { name: "Blue", classes: "bg-blue-50 text-blue-700 border-blue-200", prefix: "🔵" },
-    { name: "Purple", classes: "bg-purple-50 text-purple-700 border-purple-200", prefix: "🟣" },
-    { name: "Red", classes: "bg-rose-50 text-rose-700 border-rose-200", prefix: "🔴" },
-    { name: "Gray", classes: "bg-slate-50 text-slate-600 border-slate-200", prefix: "⚪" }
+    { name: "Yellow", classes: "bg-amber-50 text-amber-700 border-amber-200", prefix: "" },
+    { name: "Green", classes: "bg-emerald-50 text-emerald-700 border-emerald-200", prefix: "" },
+    { name: "Blue", classes: "bg-blue-50 text-blue-700 border-blue-200", prefix: "" },
+    { name: "Purple", classes: "bg-purple-50 text-purple-700 border-purple-200", prefix: "" },
+    { name: "Red", classes: "bg-rose-50 text-rose-700 border-rose-200", prefix: "" },
+    { name: "Gray", classes: "bg-slate-50 text-slate-600 border-slate-200", prefix: "" }
 ];
 
 function RawMaterials() {
@@ -38,9 +38,9 @@ function RawMaterials() {
     // Modals visibility states
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isThresholdModalOpen, setIsThresholdModalOpen] = useState(false);
-    const [isPaletteModalOpen, setIsPaletteModalOpen] = useState(false); 
+    const [isPaletteModalOpen, setIsPaletteModalOpen] = useState(false);
     const [currentId, setCurrentId] = useState(null);
-    
+
     // 🌟 IMAGE PREVIEW LIGHTBOX STATE
     const [previewImage, setPreviewImage] = useState(null);
 
@@ -59,7 +59,7 @@ function RawMaterials() {
     const [materialUom, setMaterialUom] = useState('');
     const [accountTo, setAccountTo] = useState('');
     const [modalActualCount, setModalActualCount] = useState(0);
-    
+
     // 🌟 FILE UPLOAD STATES
     const [selectedFile, setSelectedFile] = useState(null);
     const [existingImgPreview, setExistingImgPreview] = useState('');
@@ -187,7 +187,7 @@ function RawMaterials() {
         setMaterialUom(item.UOM || '');
         setAccountTo(item.AccountTo || '');
         setModalActualCount(item.ActualCount ?? 0);
-        
+
         // 🌟 I-set ang image references sa modal opening
         setExistingImgPreview(item.ImageUrl || '');
         setSelectedFile(null);
@@ -212,7 +212,7 @@ function RawMaterials() {
             formData.append("Dimension", materialDimension.trim());
             formData.append("UOM", materialUom.trim());
             formData.append("AccountTo", accountTo.trim());
-            
+
             if (selectedFile) {
                 formData.append("image", selectedFile);
             }
@@ -224,7 +224,7 @@ function RawMaterials() {
             setIsEditModalOpen(false);
             triggerSuccess("Successfully updated raw material profile details.");
             fetchRawMaterials();
-        } catch (err) { 
+        } catch (err) {
             setErrorMessage(err.response?.data?.message || "Error updating item.");
         }
     };
@@ -294,7 +294,7 @@ function RawMaterials() {
             )}
 
             <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col gap-6">
-                
+
                 {/* FILTER CONTROLS MASTER ROW */}
                 <div className="flex flex-col gap-1.5">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -388,21 +388,21 @@ function RawMaterials() {
                                     return (
                                         <tr key={rawMat._id || rawMat.Code} className="hover:bg-slate-50/80 transition-colors text-slate-600 font-medium whitespace-nowrap text-sm">
                                             {/* 🌟 IMAGE RENDER CELLS (May Dynamic Localhost Fallback Port Check) */}
-<td className="py-2 px-4 text-center">
-    {rawMat.ImageUrl ? (
-        <img 
-            src={rawMat.ImageUrl.startsWith('http') ? rawMat.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${rawMat.ImageUrl}`} 
-            alt={rawMat.ItemDescription} 
-            onClick={() => setPreviewImage(rawMat.ImageUrl.startsWith('http') ? rawMat.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${rawMat.ImageUrl}`)}
-            className="w-10 h-10 object-cover rounded-lg border border-slate-200 cursor-pointer hover:scale-110 hover:border-[#18174e] transition-all mx-auto shadow-sm"
-        />
-    ) : (
-        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 mx-auto">
-            <ImageIcon className="w-4 h-4" />
-        </div>
-    )}
-</td>
-                                            
+                                            <td className="py-2 px-4 text-center">
+                                                {rawMat.ImageUrl ? (
+                                                    <img
+                                                        src={rawMat.ImageUrl.startsWith('http') ? rawMat.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${rawMat.ImageUrl}`}
+                                                        alt={rawMat.ItemDescription}
+                                                        onClick={() => setPreviewImage(rawMat.ImageUrl.startsWith('http') ? rawMat.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${rawMat.ImageUrl}`)}
+                                                        className="w-10 h-10 object-cover rounded-lg border border-slate-200 cursor-pointer hover:scale-110 hover:border-[#18174e] transition-all mx-auto shadow-sm"
+                                                    />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 mx-auto">
+                                                        <ImageIcon className="w-4 h-4" />
+                                                    </div>
+                                                )}
+                                            </td>
+
                                             <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{rawMat.Code}</td>
                                             <td className="py-3 px-4">
                                                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${currentCatConfig.classes}`}>
@@ -536,7 +536,7 @@ function RawMaterials() {
                                 <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Material Code</label>
                                 <input type="text" disabled className="w-full bg-slate-100 text-slate-500 border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-not-allowed font-mono" value={materialCode} />
                             </div>
-       
+
                             {/* 🌟 IMAGE UPLOAD DROPZONE FIELD INSIDE MODAL */}
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Item Image Upload</label>
