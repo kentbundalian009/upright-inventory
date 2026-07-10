@@ -20,7 +20,6 @@ export const createUser = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // 🌟 INAYOS: Ginawang lowercase at trimmed ang username para consistent sa login
     const normalizedUsername = Username.trim().toLowerCase();
     const normalizedEmail = Email.toLowerCase().trim();
     const normalizedEmpNo = EmpNo.trim();
@@ -30,7 +29,6 @@ export const createUser = async (req, res) => {
     });
     
     if (userExists) {
-      // Mas specific na error validation response
       if (userExists.EmpNo === normalizedEmpNo) return res.status(400).json({ message: "Employee No already exists" });
       if (userExists.Username === normalizedUsername) return res.status(400).json({ message: "Username is already taken" });
       if (userExists.Email === normalizedEmail) return res.status(400).json({ message: "Email already exists" });
@@ -46,7 +44,7 @@ export const createUser = async (req, res) => {
       Email: normalizedEmail,
       Password: hashedPassword,
       SystemRole: SystemRole || 'Inventory',
-      isArchived: false // Default na aktibo
+      isArchived: false
     });
 
     const userResponse = newUser.toObject();
@@ -64,7 +62,6 @@ export const updateUser = async (req, res) => {
     const { id } = req.params;
     const { EmpNo, Username, Fullname, Email, SystemRole } = req.body;
 
-    // 🌟 INAYOS: I-normalize muna ang mga papasok na updates para sa duplicate validation
     const normalizedEmpNo = EmpNo?.trim();
     const normalizedUsername = Username?.trim().toLowerCase();
     const normalizedEmail = Email?.toLowerCase().trim();
@@ -108,7 +105,7 @@ export const updateUser = async (req, res) => {
   }
 };
 
-// 🌟 ARCHIVE USER (Soft Delete)
+// ARCHIVE USER (Soft Delete)
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -128,7 +125,7 @@ export const deleteUser = async (req, res) => {
   }
 };
 
-// 🌟 RESTORE USER FUNCTION
+// RESTORE USER FUNCTION
 export const restoreUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -180,7 +177,7 @@ export const changePassword = async (req, res) => {
 export const getUserProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id).select("-Password"); // Huwag isama ang password sa response
+    const user = await User.findById(id).select("-Password");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });

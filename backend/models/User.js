@@ -37,7 +37,6 @@ const userSchema = new mongoose.Schema(
       required: [true, "Password is required"],
       minlength: [6, "Password must be at least 6 characters"],
     },
-    // 🌟 BAGONG DAGDAG: Flag para sa Archive system
     isArchived: {
       type: Boolean,
       default: false,

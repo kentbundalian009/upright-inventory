@@ -9,22 +9,22 @@ import {
     Eye,
     EyeOff,
     RefreshCw,
-    UserPlus,
     CheckCircle2
 } from 'lucide-react';
 import axios from 'axios';
 import PageHeader from '../Common/PageHeader';
 
 function UserManagement() {
+    // Dynamic Environment URL Strategy
+    const API_BASE_URL = import.meta.env.MODE === 'production'
+        ? 'https://one-inventory.onrender.com'
+        : 'http://localhost:5000';
+
     // 1. DATABASE AT LIFECYCLE STATES
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
-    // Toggle feature para sa Active vs Archived view
     const [showArchivedOnly, setShowArchivedOnly] = useState(false);
-
-    // States para sa Filtering at Search
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRole, setSelectedRole] = useState('All Roles');
 
@@ -74,12 +74,6 @@ function UserManagement() {
     const fetchUsers = async () => {
         try {
             setLoading(true);
-
-            // ✅ MATALINONG URL: Awtomatikong magpapalit depende kung saan ka naka-open
-            const API_BASE_URL = import.meta.env.MODE === 'production'
-                ? 'https://one-inventory.onrender.com'
-                : 'http://localhost:5000';
-
             const response = await axios.get(`${API_BASE_URL}/api/users`);
 
             if (Array.isArray(response.data)) {
@@ -121,14 +115,13 @@ function UserManagement() {
             return;
         }
 
-        // Dagdag na UI layer check para sigurado bago mag-submit
         if (passwordStrength.label === 'Weak' || !password) {
             setErrorMessage('Failed to add user: Password is too weak. Please use a stronger password.');
             return;
         }
 
         try {
-            await axios.post('http://localhost:5000/api/users', {
+            await axios.post(`${API_BASE_URL}/api/users`, {
                 EmpNo: employeeNo.trim(),
                 Username: username.trim().toLowerCase(),
                 Fullname: name.trim(),
@@ -136,14 +129,12 @@ function UserManagement() {
                 Password: password,
                 SystemRole: role
             });
-
             setSuccessMessage(`New user added: ${username.trim().toLowerCase()}`);
             setErrorMessage(null);
             setEmployeeNo(''); setUsername(''); setName(''); setEmail(''); setPassword(''); setRole('Inventory');
             setIsModalOpen(false);
             fetchUsers();
         } catch (err) {
-            // Dito lalabas kung may duplicate na EmpNo, Username, o Email mula sa ginawa nating backend code
             setErrorMessage(err.response?.data?.message || "Failed to add user: Unable to create new account.");
         }
     };
@@ -155,14 +146,13 @@ function UserManagement() {
             return;
         }
         try {
-            await axios.put(`http://localhost:5000/api/users/${editingUserId}`, {
+            await axios.put(`${API_BASE_URL}/api/users/${editingUserId}`, {
                 EmpNo: editEmployeeNo.trim(),
                 Username: editUsername.trim().toLowerCase(),
                 Fullname: editName.trim(),
                 Email: editEmail.toLowerCase().trim(),
                 SystemRole: editRole
             });
-
             setSuccessMessage(`Profile of ${editUsername.trim().toLowerCase()} has been updated successfully.`);
             setErrorMessage(null);
             setIsEditModalOpen(false);
@@ -198,10 +188,10 @@ function UserManagement() {
 
         try {
             if (actionType === 'archive') {
-                await axios.delete(`http://localhost:5000/api/users/${targetUser._id}`);
+                await axios.delete(`${API_BASE_URL}/api/users/${targetUser._id}`);
                 setSuccessMessage(`Successfully archived the account of ${targetUser.Fullname}.`);
             } else if (actionType === 'restore') {
-                await axios.put(`http://localhost:5000/api/users/restore/${targetUser._id}`);
+                await axios.put(`${API_BASE_URL}/api/users/restore/${targetUser._id}`);
                 setSuccessMessage(`Successfully restored the account of ${targetUser.Fullname} to active status.`);
             }
             setIsConfirmModalOpen(false);
@@ -229,7 +219,6 @@ function UserManagement() {
     const currentDisplayList = users.filter(item =>
         showArchivedOnly ? item.isArchived === true : !item.isArchived
     );
-
     const filteredUsers = currentDisplayList.filter(item => {
         const matchesRole = selectedRole === 'All Roles' || item.SystemRole === selectedRole;
 
@@ -275,13 +264,13 @@ function UserManagement() {
                             <button
                                 onClick={() => { setErrorMessage(null); setIsModalOpen(true); }}
                                 className="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border bg-[#18174e] text-white hover:bg-[#18174e]/90 transition-all cursor-pointer"
-                            >Add User Account
+                            >
+                                Add User Account
                             </button>
 
                             <button
                                 onClick={() => setShowArchivedOnly(!showArchivedOnly)}
-                                className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                                    }`}
+                                className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
                             >
                                 {showArchivedOnly ? (
                                     <>
@@ -338,7 +327,7 @@ function UserManagement() {
                             <tbody className="divide-y divide-slate-100">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="7" className="text-center py-10 text-green-700 font-medium italic">
+                                        <td colSpan="6" className="text-center py-10 text-green-700 font-medium italic">
                                             <div className="flex items-center justify-center gap-2">
                                                 <span>Fetching secure users data from database...</span>
                                             </div>
@@ -353,8 +342,7 @@ function UserManagement() {
                                 ) : filteredUsers.map((user) => (
                                     <tr
                                         key={user._id || user.EmpNo}
-                                        className={`hover:bg-slate-50/80 transition-colors text-slate-600 font-medium whitespace-nowrap text-sm ${user.isArchived ? 'bg-rose-50/20' : ''
-                                            }`}
+                                        className={`hover:bg-slate-50/80 transition-colors text-slate-600 font-medium whitespace-nowrap text-sm ${user.isArchived ? 'bg-rose-50/20' : ''}`}
                                     >
                                         <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{user.EmpNo}</td>
                                         <td className="py-3 px-4">
@@ -397,7 +385,7 @@ function UserManagement() {
 
                                 {filteredUsers.length === 0 && !loading && (
                                     <tr>
-                                        <td colSpan="13" className="text-center py-10 text-red-600 font-medium italic">
+                                        <td colSpan="6" className="text-center py-10 text-red-600 font-medium italic">
                                             No records match the selected filters or search queries.
                                         </td>
                                     </tr>
@@ -408,349 +396,306 @@ function UserManagement() {
                 </div>
             </div>
 
-            {/* 🚀 MODAL 1: ADD USER ACCOUNT WITH SECURITY PROTOCOLS */}
-{isModalOpen && (
-  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    {/* Binago ang lapad papuntang max-w-xl para sakto lang ang landscape view */}
-    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+            {/* MODAL 1: ADD USER ACCOUNT WITH SECURITY PROTOCOLS */}
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-slate-800 text-base">Add New User Account</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
 
-      {/* Modal Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
-          <h3 className="font-bold text-slate-800 text-base">Add New User Account</h3>
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsModalOpen(false)}
-          className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
+                            <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                                * System Security Protocol *
+                            </span>
+                            <p className="text-[11px] text-amber-700 leading-relaxed">
+                                Account creation requires a verified employee identifier. Submission is automatically halted if the security metrics evaluate the credential standard as <strong>Weak or Empty.</strong>
+                            </p>
+                        </div>
 
-      {/* System Protocol Notification Card */}
-      <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
-        <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
-          * System Security Protocol *
-        </span>
-        <p className="text-[11px] text-amber-700 leading-relaxed">
-          Account creation requires a verified employee identifier. Submission is automatically halted if the security metrics evaluate the credential standard as <strong>Weak or Empty.</strong>
-        </p>
-      </div>
+                        <form onSubmit={handleAddUser} className="space-y-4 mt-4">
+                            {errorMessage && (
+                                <div className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 p-2.5 rounded-lg flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4 shrink-0" /> {errorMessage}
+                                </div>
+                            )}
 
-      {/* Modal Form */}
-      <form onSubmit={handleAddUser} className="space-y-4 mt-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Employee No. *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="EMP-2026-001"
+                                        value={employeeNo}
+                                        onChange={(e) => setEmployeeNo(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 placeholder-slate-400"
+                                    />
+                                </div>
 
-        {/* System Error Notification Field */}
-        {errorMessage && (
-          <div className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 p-2.5 rounded-lg flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" /> {errorMessage}
-          </div>
-        )}
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Username *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="Unique username"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 placeholder-slate-400"
+                                    />
+                                </div>
 
-        {/* Responsive Balanced Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Full Name *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="Firstname, Lastname"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 placeholder-slate-400"
+                                    />
+                                </div>
 
-          {/* Employee No. (Full-width span para sa top design hierarchy tulad ng Material Code) */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Employee No. *</label>
-            <input
-              type="text"
-              required
-              placeholder="EMP-2026-001"
-              value={employeeNo}
-              onChange={(e) => setEmployeeNo(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 placeholder-slate-400"
-            />
-          </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Email Address *</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        placeholder="example@email.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 placeholder-slate-400"
+                                    />
+                                </div>
 
-          {/* Username */}
-          <div>
-            <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Username *</label>
-            <input
-              type="text"
-              required
-              placeholder="Unique username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value.toLowerCase())}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 placeholder-slate-400"
-            />
-          </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">System Role *</label>
+                                    <select
+                                        value={role}
+                                        onChange={(e) => setRole(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 cursor-pointer"
+                                    >
+                                        <option value="Inventory">Inventory</option>
+                                        <option value="Admin">Admin</option>
+                                    </select>
+                                </div>
 
-          {/* Full Name */}
-          <div>
-            <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Full Name *</label>
-            <input
-              type="text"
-              required
-              placeholder="Firstname, Lastname"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 placeholder-slate-400"
-            />
-          </div>
+                                <div className="md:col-span-2">
+                                    <div className="flex justify-between items-center mb-1.5">
+                                        <label className="block text-sm font-bold text-slate-600 uppercase">Password *</label>
+                                        {password && (
+                                            <span className={`text-xs font-bold ${passwordStrength.color} transition-all`}>
+                                                {passwordStrength.label} Password
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="relative">
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="••••••••"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="w-full bg-white border border-slate-200 rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 placeholder-slate-400"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer flex items-center"
+                                        >
+                                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
 
-          {/* Email Address */}
-          <div>
-            <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Email Address *</label>
-            <input
-              type="email"
-              required
-              placeholder="example@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 placeholder-slate-400"
-            />
-          </div>
+                            <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
 
-          {/* System Role */}
-          <div>
-            <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">System Role *</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 cursor-pointer"
-            >
-              <option value="Inventory">Inventory</option>
-              <option value="Admin">Admin</option>
-            </select>
-          </div>
+                                {passwordStrength.label !== 'Weak' && passwordStrength.label !== 'Empty' && (
+                                    <button
+                                        type="submit"
+                                        className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer animate-in fade-in duration-200"
+                                    >
+                                        Create User
+                                    </button>
+                                )}
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
-          {/* Password (Full-width span para sa secure at mahabang field entry) */}
-          <div className="md:col-span-2">
-            <div className="flex justify-between items-center mb-1.5">
-              <label className="block text-sm font-bold text-slate-600 uppercase">Password *</label>
-              {password && (
-                <span className={`text-xs font-bold ${passwordStrength.color} transition-all`}>
-                  {passwordStrength.label} Password
-                </span>
-              )}
-            </div>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 placeholder-slate-400"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer flex items-center"
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
+            {/* MODAL 2: EDIT USER PROFILE WITH AUDIT PROTOCOLS */}
+            {isEditModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-slate-800 text-base">Edit User Information</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsEditModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
 
-        </div>
+                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
+                            <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                                * System Administration Protocol *
+                            </span>
+                            <p className="text-[11px] text-amber-700 leading-relaxed">
+                                Modifying system account classifications or directory credentials directly impacts access logs. All profile adjustments are permanently logged to comply with data <strong>Audit Protocols.</strong>
+                            </p>
+                        </div>
 
-        {/* Modal Bottom Actions */}
-        <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(false)}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
+                        <form onSubmit={handleUpdateUser} className="space-y-4 mt-4">
+                            {errorMessage && (
+                                <div className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 p-2.5 rounded-lg flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4 shrink-0" /> {errorMessage}
+                                </div>
+                            )}
 
-          {/* 🔒 CONDITIONAL RENDERING: Naka-hide ang button kapag Empty o kaya naman ay Weak ang Password */}
-          {passwordStrength.label !== 'Weak' && passwordStrength.label !== 'Empty' && (
-            <button
-              type="submit"
-              className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer animate-in fade-in duration-200"
-            >
-              Create User
-            </button>
-          )}
-        </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Employee No. *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editEmployeeNo}
+                                        onChange={(e) => setEditEmployeeNo(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700"
+                                    />
+                                </div>
 
-      </form>
-    </div>
-  </div>
-)}
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Username *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editUsername}
+                                        onChange={(e) => setEditUsername(e.target.value.toLowerCase())}
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700"
+                                    />
+                                </div>
 
-            {/* 🚀 MODAL 2: EDIT USER PROFILE WITH AUDIT PROTOCOLS */}
-{isEditModalOpen && (
-  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    {/* Binago ang lapad papuntang max-w-xl para sakto lang ang landscape view */}
-    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Full Name *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editName}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700"
+                                    />
+                                </div>
 
-      {/* Modal Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
-          <h3 className="font-bold text-slate-800 text-base">Edit User Information</h3>
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsEditModalOpen(false)}
-          className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Email Address *</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={editEmail}
+                                        onChange={(e) => setEditEmail(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700"
+                                    />
+                                </div>
 
-      {/* Audit Protocol Notification Card */}
-      <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
-        <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
-          * System Administration Protocol *
-        </span>
-        <p className="text-[11px] text-amber-700 leading-relaxed">
-          Modifying system account classifications or directory credentials directly impacts access logs. All profile adjustments are permanently logged to comply with data <strong>Audit Protocols.</strong>
-        </p>
-      </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">System Role *</label>
+                                    <select
+                                        value={editRole}
+                                        onChange={(e) => setEditRole(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 cursor-pointer"
+                                    >
+                                        <option value="Inventory">Inventory</option>
+                                        <option value="Admin">Admin</option>
+                                    </select>
+                                </div>
+                            </div>
 
-      {/* Modal Form */}
-      <form onSubmit={handleUpdateUser} className="space-y-4 mt-4">
+                            <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditModalOpen(false)}
+                                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
-        {/* System Error Notification Field */}
-        {errorMessage && (
-          <div className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 p-2.5 rounded-lg flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" /> {errorMessage}
-          </div>
-        )}
+            {/* CUSTOM CONFIRMATION MODAL (Archive & Restore Only) */}
+            {isConfirmModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-xl relative flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+                            <h3 className="font-bold text-slate-800 text-base">
+                                {confirmModalConfig.title}
+                            </h3>
+                        </div>
 
-        {/* Responsive Balanced Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
+                            <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                                * System Action Protocol *
+                            </span>
+                            <p className="text-[11px] text-amber-700 leading-relaxed">
+                                Please review the operation context. Confirming this step commits data status updates directly to the live system registry.
+                            </p>
+                        </div>
 
-          {/* Employee No. (Full-width span para sa top design hierarchy tulad ng Material Code) */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Employee No. *</label>
-            <input
-              type="text"
-              required
-              value={editEmployeeNo}
-              onChange={(e) => setEditEmployeeNo(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700"
-            />
-          </div>
+                        <div className="mt-4 flex-1">
+                            <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                                {confirmModalConfig.message}
+                            </p>
+                        </div>
 
-          {/* Username */}
-          <div>
-            <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Username *</label>
-            <input
-              type="text"
-              required
-              value={editUsername}
-              onChange={(e) => setEditUsername(e.target.value.toLowerCase())}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700"
-            />
-          </div>
-
-          {/* Full Name */}
-          <div>
-            <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Full Name *</label>
-            <input
-              type="text"
-              required
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700"
-            />
-          </div>
-
-          {/* Email Address */}
-          <div>
-            <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Email Address *</label>
-            <input
-              type="email"
-              required
-              value={editEmail}
-              onChange={(e) => setEditEmail(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700"
-            />
-          </div>
-
-          {/* System Role */}
-          <div>
-            <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">System Role *</label>
-            <select
-              value={editRole}
-              onChange={(e) => setEditRole(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 cursor-pointer"
-            >
-              <option value="Inventory">Inventory</option>
-              <option value="Admin">Admin</option>
-            </select>
-          </div>
-
-        </div>
-
-        {/* Modal Bottom Actions */}
-        <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={() => setIsEditModalOpen(false)}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
-          >
-            Save Changes
-          </button>
-        </div>
-
-      </form>
-    </div>
-  </div>
-)}
-
-{/* CUSTOM CONFIRMATION MODAL (Archive & Restore Only) */}
-{isConfirmModalOpen && (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-        {/* Swabeng max-w-md, rounded-2xl, at shadow base sa system standard mo */}
-        <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-xl relative flex flex-col animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
-                <h3 className="font-bold text-slate-800 text-base">
-                    {confirmModalConfig.title}
-                </h3>
-            </div>
-
-            {/* System Inventory Protocol Notification Card (Eksaktong kulay at style ng system mo) */}
-            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
-                <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
-                    * System Action Protocol *
-                </span>
-                <p className="text-[11px] text-amber-700 leading-relaxed">
-                    Please review the operation context. Confirming this step commits data status updates directly to the live system registry.
-                </p>
-            </div>
-
-            {/* Modal Body Message */}
-            <div className="mt-4 flex-1">
-                <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                    {confirmModalConfig.message}
-                </p>
-            </div>
-
-            {/* Modal Bottom Actions (Pure #18174e and Slate-100 theme - No Rose/Green Colors) */}
-            <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100 shrink-0">
-                <button 
-                    type="button" 
-                    onClick={() => setIsConfirmModalOpen(false)} 
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
-                >
-                    Cancel
-                </button>
-                <button 
-                    type="button" 
-                    onClick={handleConfirmAction} 
-                    className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
-                >
-                    Confirm
-                </button>
-            </div>
-
-        </div>
-    </div>
-)}
+                        <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100 shrink-0">
+                            <button 
+                                type="button" 
+                                onClick={() => setIsConfirmModalOpen(false)} 
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                type="button" 
+                                onClick={handleConfirmAction} 
+                                className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
+                            >
+                                Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
