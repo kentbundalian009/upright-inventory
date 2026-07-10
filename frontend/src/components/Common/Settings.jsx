@@ -205,8 +205,7 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
 
                 {/* SETTINGS HEADER */}
                 <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center gap-2 text-sm font-bold text-slate-600 border-b border-slate-100 pb-3">
-                        <SettingsIcon className="w-4 h-4 text-[#18174e]" />
+                    <div className="flex items-center gap-2 text-sm font-bold text-slate-600 border-b border-slate-100 pb-3">                      
                         <span>Profile Settings</span>
                     </div>
                 </div>
@@ -274,9 +273,15 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
                         <h3 className="text-sm font-bold text-slate-600 uppercase mb-1.5">
                             Account Security
                         </h3>
-                        <p className="block text-xs font-semibold text-slate-500 mb-1">
-                            To ensure your account's integrity, regularly update your master password. Keeping a strong password shields corporate system assets from security risks.
-                        </p>
+                        {/* System Inventory Protocol Notification Card (Eksaktong match sa kulay at weights) */}
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
+                <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                    * System Action Protocol *
+                </span>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                    Please review the operation context. Confirming this step commits changes directly to the live system registry.
+                </p>
+            </div>
                         
                         <div className="pt-2">
                             <button
@@ -293,144 +298,155 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
             </div>
 
             {/* 🔒 CUSTOM PASSWORD MODAL */}
-            {isPasswordModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex justify-center items-start z-50 p-4 pt-10 animate-in fade-in duration-200">
-                    <div className="bg-white border border-slate-200 rounded-xl w-full max-w-md p-6 shadow-2xl relative animate-in slide-in-from-top-5 duration-300">
-                        
-                        {/* Title Block */}
-                        <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
-                            <h3 className="font-bold text-slate-800 text-sm tracking-wide flex items-center gap-2">
-                             Security & Password
-                            </h3>
-                            <button 
-                                onClick={closePasswordModal} 
-                                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer flex items-center"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                        
-                        {/* Message Body / Inputs Content */}
-                        <div className="mt-4 space-y-4">
-                            
-                            {/* FIELD 1: CURRENT PASSWORD */}
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1">Current Password</label>
-                                <div className="relative">
-                                    <input
-                                        type={showCurrentPass ? "text" : "password"}
-                                        placeholder="Enter current password to verify identity"
-                                        value={currentPassword}
-                                        onChange={(e) => setCurrentPassword(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] focus:ring-1 focus:ring-[#18174e]/20 text-slate-700 placeholder-slate-400"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowCurrentPass(!showCurrentPass)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer flex items-center"
-                                    >
-                                        {showCurrentPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    </button>
-                                </div>
-                            </div>
+{isPasswordModalOpen && (
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+        {/* Eksaktong katulad ng standard container (max-w-md, rounded-2xl, p-6, at zoom animation) */}
+        <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-xl relative flex flex-col animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+                <h3 className="font-bold text-slate-800 text-base">
+                    Security & Password
+                </h3>
+                <button 
+                    onClick={closePasswordModal} 
+                    className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer flex items-center transition-colors"
+                >
+                    <X className="w-4 h-4" />
+                </button>
+            </div>
 
-                            {/* FIELD 2: NEW PASSWORD */}
-                            <div>
-                                <div className="flex justify-between items-center mb-1">
-                                    <label className="block text-xs font-semibold text-slate-500">New Password</label>
-                                    {newPassword && (
-                                        <span className={`text-xs font-bold ${passwordStrength.color}`}>
-                                            {passwordStrength.label} Password
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="relative">
-                                    <input
-                                        type={showNewPass ? "text" : "password"}
-                                        placeholder="Enter new strong password"
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] focus:ring-1 focus:ring-[#18174e]/20 text-slate-700 placeholder-slate-400"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowNewPass(!showNewPass)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer flex items-center"
-                                    >
-                                        {showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    </button>
-                                </div>
-
-                                {/* PASSWORD STRENGTH INDICATOR BAR */}
-                                {newPassword && (
-                                    <div className="w-full bg-slate-100 h-1 rounded-full mt-1.5 overflow-hidden">
-                                        <div className={`h-full transition-all duration-300 ${passwordStrength.bg} ${
-                                            passwordStrength.label === 'Weak' ? 'w-1/3' : passwordStrength.label === 'Medium' ? 'w-2/3' : 'w-full'
-                                        }`} />
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* FIELD 3: CONFIRM NEW PASSWORD */}
-                            <div>
-                                <div className="flex justify-between items-center mb-1">
-                                    <label className="block text-xs font-semibold text-slate-500">Confirm New Password</label>
-                                    {confirmPassword && (
-                                        <span className={`text-xs font-bold ${newPassword === confirmPassword ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                            {newPassword === confirmPassword ? 'Passwords Match' : 'Passwords Mismatch'}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="relative">
-                                    <input
-                                        type={showConfirmPass ? "text" : "password"}
-                                        placeholder="Re-type new password"
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] focus:ring-1 focus:ring-[#18174e]/20 text-slate-700 placeholder-slate-400"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowConfirmPass(!showConfirmPass)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer flex items-center"
-                                    >
-                                        {showConfirmPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
-                            <button 
-                                type="button" 
-                                onClick={closePasswordModal} 
-                                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
-                            >
-                                Cancel
-                            </button>
-
-                            {isPasswordValid ? (
-                                <button 
-                                    type="button" 
-                                    onClick={handleSaveChanges}
-                                    className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
-                                >
-                                    Save Changes
-                                </button>
-                            ) : (
-                                <button 
-                                    type="button"
-                                    disabled
-                                    className="bg-slate-100 text-slate-400 font-semibold py-1.5 px-4 rounded-lg text-xs cursor-not-allowed opacity-65"
-                                >
-                                    Save
-                                </button>
-                            )}
-                        </div>
+            {/* System Inventory Protocol Notification Card (Eksaktong match sa kulay at weights) */}
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
+                <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                    * System Action Protocol *
+                </span>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                    Please review the operation context. Confirming this step commits changes directly to the live system registry.
+                </p>
+            </div>
+            
+            {/* Message Body / Inputs Content */}
+            <div className="mt-4 flex-1 space-y-4">
+                
+                {/* FIELD 1: CURRENT PASSWORD */}
+                <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Current Password</label>
+                    <div className="relative">
+                        <input
+                            type={showCurrentPass ? "text" : "password"}
+                            placeholder="Enter current password to verify identity"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] focus:ring-1 focus:ring-[#18174e]/20 text-slate-700 placeholder-slate-400 transition-all"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowCurrentPass(!showCurrentPass)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer flex items-center"
+                        >
+                            {showCurrentPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
                     </div>
-                </div> 
-            )}
+                </div>
+
+                {/* FIELD 2: NEW PASSWORD */}
+                <div>
+                    <div className="flex justify-between items-center mb-1">
+                        <label className="block text-xs font-semibold text-slate-500">New Password</label>
+                        {newPassword && (
+                            <span className={`text-xs font-bold ${passwordStrength.color}`}>
+                                {passwordStrength.label} Password
+                            </span>
+                        )}
+                    </div>
+                    <div className="relative">
+                        <input
+                            type={showNewPass ? "text" : "password"}
+                            placeholder="Enter new strong password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] focus:ring-1 focus:ring-[#18174e]/20 text-slate-700 placeholder-slate-400 transition-all"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowNewPass(!showNewPass)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer flex items-center"
+                        >
+                            {showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                    </div>
+
+                    {/* PASSWORD STRENGTH INDICATOR BAR */}
+                    {newPassword && (
+                        <div className="w-full bg-slate-100 h-1 rounded-full mt-1.5 overflow-hidden">
+                            <div className={`h-full transition-all duration-300 ${passwordStrength.bg} ${
+                                passwordStrength.label === 'Weak' ? 'w-1/3' : passwordStrength.label === 'Medium' ? 'w-2/3' : 'w-full'
+                            }`} />
+                        </div>
+                    )}
+                </div>
+
+                {/* FIELD 3: CONFIRM NEW PASSWORD */}
+                <div>
+                    <div className="flex justify-between items-center mb-1">
+                        <label className="block text-xs font-semibold text-slate-500">Confirm New Password</label>
+                        {confirmPassword && (
+                            <span className={`text-xs font-bold ${newPassword === confirmPassword ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {newPassword === confirmPassword ? 'Passwords Match' : 'Passwords Mismatch'}
+                            </span>
+                        )}
+                    </div>
+                    <div className="relative">
+                        <input
+                            type={showConfirmPass ? "text" : "password"}
+                            placeholder="Re-type new password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] focus:ring-1 focus:ring-[#18174e]/20 text-slate-700 placeholder-slate-400 transition-all"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowConfirmPass(!showConfirmPass)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer flex items-center"
+                        >
+                            {showConfirmPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Modal Bottom Actions (Pure #18174e at Slate-100 gamit ang standard buttons mo) */}
+            <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100 shrink-0">
+                <button 
+                    type="button" 
+                    onClick={closePasswordModal} 
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                >
+                    Cancel
+                </button>
+
+                {isPasswordValid ? (
+                    <button 
+                        type="button" 
+                        onClick={handleSaveChanges}
+                        className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
+                    >
+                        Confirm Changes
+                    </button>
+                ) : (
+                    <button 
+                        type="button"
+                        disabled
+                        className="bg-slate-100 text-slate-400 font-semibold py-2 px-4 rounded-lg text-sm cursor-not-allowed opacity-65"
+                    >
+                        Confirm Changes
+                    </button>
+                )}
+            </div>
+        </div>
+    </div> 
+)}
         </div>
     );
 }

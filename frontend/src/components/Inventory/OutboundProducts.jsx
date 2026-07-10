@@ -43,6 +43,8 @@ function OutboundProducts() {
   const [existingCarriers, setExistingCarriers] = useState([]);
   const [existingDestinations, setExistingDestinations] = useState([]);
 
+  const [quickReserveSearch, setQuickReserveSearch] = useState('');
+
   // CUSTOM TOAST TEMPLATE LAYOUTS FOR UI CONSISTENCY
   const showSuccessToast = (message) => {
     toast.custom((t) => (
@@ -372,220 +374,275 @@ function OutboundProducts() {
         <PageHeader activeTab="packing-list" />
       </div>
 
-      {activeReserves.length > 0 && (
-        <div className="bg-amber-50/60 border border-amber-200/70 rounded-xl p-4 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-xs font-bold text-amber-800 uppercase tracking-wider">
-            <Eye className="w-3.5 h-3.5 text-amber-600" />
-            <span>Quick-Outbound Assistant: Select a pending reserved stock log below to fulfill transaction</span>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
-            {activeReserves.map(b => (
-              <div key={b._id} className="flex items-center bg-white border border-amber-200 rounded-lg shadow-2xs group shrink-0 overflow-hidden">
-                <button 
-                  type="button" 
-                  onClick={() => handleFastReturnCopy(b)}
-                  className="hover:bg-amber-50/70 text-amber-900 px-3 py-1.5 font-medium cursor-pointer transition-all flex items-center gap-1 border-r border-amber-100"
-                >
-                  Fulfill <span className="font-bold text-[#18174e]">{b.plNo}</span> ({b.customer})
-                </button>
+{activeReserves.length > 0 && (
+  <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 flex flex-col gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="flex items-center gap-2 text-xs font-bold text-[#18174e] uppercase tracking-wider">
+        <Eye className="w-3.5 h-3.5 text-[#18174e]" />
+        <span>Quick-Outbound Assistant: Select a pending reserved stock log below to fulfill transaction</span>
+      </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleOpenVoidModal(b)}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
-                  title="Void and Cancel This Reservation Entry"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+      {/* 🔍 Search Box Filter */}
+      <div className="relative w-full sm:w-64">
+        <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-[#18174e]/60" />
+        <input
+          type="text"
+          placeholder="Type PL No or Customer to filter..."
+          value={quickReserveSearch}
+          onChange={(e) => setQuickReserveSearch(e.target.value)}
+          className="w-full bg-white border border-indigo-200/80 rounded-lg pl-8 pr-2 py-1 text-xs text-[#18174e] focus:outline-none focus:border-[#18174e] placeholder-indigo-300"
+        />
+      </div>
+    </div>
+
+    {/* Listahan ng mga filtered active reserves */}
+    <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
+      {activeReserves
+        .filter(b => 
+          b.plNo?.toLowerCase().includes(quickReserveSearch.toLowerCase()) ||
+          b.customer?.toLowerCase().includes(quickReserveSearch.toLowerCase())
+        )
+        .map(b => (
+          <div key={b._id} className="flex items-center bg-white border border-indigo-100 hover:border-[#18174e] rounded-lg shadow-2xs group shrink-0 overflow-hidden transition-all">
+            <button 
+              type="button" 
+              onClick={() => {
+                handleFastReturnCopy(b);
+                setQuickReserveSearch(''); 
+              }}
+              className="hover:bg-indigo-50/30 text-[#18174e] px-3 py-1.5 font-medium cursor-pointer transition-all flex items-center gap-1 border-r border-indigo-50"
+            >
+              Fulfill <span className="font-bold text-[#18174e]">{b.plNo}</span> ({b.customer})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenVoidModal(b)}
+              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
+              title="Void and Cancel This Reservation Entry"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
-        </div>
+        ))}
+      
+      {/* Fallback kapag walang nag-match sa type ng user */}
+      {activeReserves.filter(b => 
+        b.plNo?.toLowerCase().includes(quickReserveSearch.toLowerCase()) ||
+        b.customer?.toLowerCase().includes(quickReserveSearch.toLowerCase())
+      ).length === 0 && (
+        <span className="text-indigo-400 italic text-xs py-1">No matching reservation logs found.</span>
       )}
+    </div>
+  </div>
+)}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-        <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 flex flex-col gap-6 shadow-sm">
-          <div className="border-b border-slate-100 pb-3 flex items-center justify-between text-sm font-bold text-slate-600">
-            <div className="flex items-center gap-2">
-              <ArrowLeftRight className="w-4 h-4 text-[#18174e]" />
-              <span>Materials Outbound & Logistics Slip</span>
-            </div>
-            {manifestItems.length > 0 && (
-              <button type="button" onClick={() => { setManifestItems([]); setReferencePlNo(''); setTransactionType('Outbound'); showSuccessToast("Form grid cleared."); }} className="text-xs font-bold text-rose-500 hover:underline cursor-pointer">Clear Form Grid</button>
-            )}
-          </div>
+        {/* RIGHT CONTAINER (MATERIALS OUTBOUND & LOGISTICS SLIP) */}
+<div className="lg:col-span-3 bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 flex flex-col gap-6 shadow-sm">
+  <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-2 text-sm font-bold text-slate-600">
+    <div className="flex items-center gap-2 min-w-0">
+      <ArrowLeftRight className="w-4 h-4 text-[#18174e] flex-shrink-0" />
+      <span className="truncate">Materials Outbound & Logistics Slip</span>
+    </div>
+    {manifestItems.length > 0 && (
+      <button 
+        type="button" 
+        onClick={() => { setManifestItems([]); setReferencePlNo(''); setTransactionType('Outbound'); showSuccessToast("Form grid cleared."); }} 
+        className="text-xs font-bold text-rose-500 hover:underline cursor-pointer flex-shrink-0"
+      >
+        Clear Form Grid
+      </button>
+    )}
+  </div>
 
-          <form onSubmit={handleSubmitPL} className="flex flex-col gap-5">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Slip Number</label>
-                <div className="relative"><FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={referencePlNo ? `REF: ${referencePlNo}` : "[ AUTO-GENERATED ]"} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none" />
+  <form onSubmit={handleSubmitPL} className="flex flex-col gap-5">
+    {/* DETAILS GRID: Responsive columns from 1 -> 3 */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Slip Number</label>
+        <div className="relative">
+          <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <input type="text" value={referencePlNo ? `REF: ${referencePlNo}` : "[ AUTO-GENERATED ]"} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none" />
+        </div>
+      </div>
+      
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Transaction Type</label>
+        <select 
+          value={transactionType} 
+          onChange={e => setTransactionType(e.target.value)} 
+          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none text-[#18174e] cursor-pointer"
+        >
+          <option value="Outbound">🔴 Outbound (Deduct & Dispatch)</option>
+          <option value="Reserve">🟡 Reserve (Hold Stock)</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Date Processed</label>
+        <div className="relative">
+          <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <input type="date" value={shipmentDate} onChange={e => setShipmentDate(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" required />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Customer Name</label>
+        <input 
+          type="text" 
+          list="customers-list"
+          value={customer} 
+          onChange={e => setCustomer(e.target.value)} 
+          placeholder="Enter customer name" 
+          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" 
+          required 
+        />
+        <datalist id="customers-list">
+          {existingCustomers.map((cust, i) => (
+            <option key={i} value={cust} />
+          ))}
+        </datalist>
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Logistics</label>
+        <input 
+          type="text" 
+          list="carriers-list"
+          value={carrier} 
+          onChange={e => setCarrier(e.target.value)} 
+          placeholder="Enter logistics name" 
+          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" 
+        />
+        <datalist id="carriers-list">
+          {existingCarriers.map((car, i) => (
+            <option key={i} value={car} />
+          ))}
+        </datalist>
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Destination Address</label>
+        <input 
+          type="text" 
+          list="destinations-list"
+          value={destinationAddress} 
+          onChange={e => setDestinationAddress(e.target.value)} 
+          placeholder="Enter destination address" 
+          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" 
+        />
+        <datalist id="destinations-list">
+          {existingDestinations.map((dest, i) => (
+            <option key={i} value={dest} />
+          ))}
+        </datalist>
+      </div>
+      
+      <div className="col-span-1 sm:col-span-2 md:col-span-3">
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Prepared Name</label>
+        <div className="relative">
+          <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <input type="text" value={preparedBy} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none" />
+        </div>
+      </div>
+    </div>
+
+    {/* --- STEP 1: ALLOCATE MATERIAL --- */}
+    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
+      <label className="block text-xs sm:text-sm font-bold text-red-800 uppercase leading-snug">Step 1: Type / Select Materials for Stock Deduction</label>
+      <div className="relative">
+        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+        <input type="text" value={rawMatSearchQuery} onChange={e => setRawMatSearchQuery(e.target.value)} placeholder="Search raw material code or description..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
+      </div>
+      {rawMatSearchQuery && (
+        <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
+          {filteredRawMatSuggestions.length > 0 ? (
+            filteredRawMatSuggestions.map(item => (
+              <div key={item._id} onClick={() => handleSelectRawMaterial(item)} className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors">
+                <div className="flex justify-between items-center font-bold text-slate-800 text-sm gap-2">
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
+                    <span className="text-xs font-medium text-slate-400 lowercase italic truncate">{item.UOM || 'pcs'}</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200 flex-shrink-0">
+                    Avail: {item.ActualCount || 0}
+                  </span>
                 </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Transaction Type</label>
-                <select 
-                  value={transactionType} 
-                  onChange={e => setTransactionType(e.target.value)} 
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none text-[#18174e]"
-                >
-                  <option value="Outbound">🔴 Outbound (Deduct & Dispatch)</option>
-                  <option value="Reserve">🟡 Reserve (Hold Stock)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Date Processed</label>
-                <div className="relative"><Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="date" value={shipmentDate} onChange={e => setShipmentDate(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" required />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Customer Name</label>
-                <input 
-                  type="text" 
-                  list="customers-list"
-                  value={customer} 
-                  onChange={e => setCustomer(e.target.value)} 
-                  placeholder="Enter customer name" 
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" 
-                  required 
-                />
-                <datalist id="customers-list">
-                  {existingCustomers.map((cust, i) => (
-                    <option key={i} value={cust} />
-                  ))}
-                </datalist>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Logistics</label>
-                <input 
-                  type="text" 
-                  list="carriers-list"
-                  value={carrier} 
-                  onChange={e => setCarrier(e.target.value)} 
-                  placeholder="Enter logistics name" 
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" 
-                />
-                <datalist id="carriers-list">
-                  {existingCarriers.map((car, i) => (
-                    <option key={i} value={car} />
-                  ))}
-                </datalist>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Destination Address</label>
-                <input 
-                  type="text" 
-                  list="destinations-list"
-                  value={destinationAddress} 
-                  onChange={e => setDestinationAddress(e.target.value)} 
-                  placeholder="Enter destination address" 
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" 
-                />
-                <datalist id="destinations-list">
-                  {existingDestinations.map((dest, i) => (
-                    <option key={i} value={dest} />
-                  ))}
-                </datalist>
-              </div>
-              
-              <div className="sm:col-span-3">
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Prepared Name</label>
-                <div className="relative"><User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={preparedBy} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none" />
-                </div>
-              </div>
-            </div>
-
-            {/* --- STEP 1: ALLOCATE RAW MATERIAL (INPUT) --- */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
-              <label className="block text-sm font-bold text-red-800 uppercase">Step 1: Type / Select Materials for Stock Deduction  </label>
-              <div className="relative"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" value={rawMatSearchQuery} onChange={e => setRawMatSearchQuery(e.target.value)} placeholder="Search raw material code or description..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
-              </div>
-              {rawMatSearchQuery && (
-                <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
-                  {filteredRawMatSuggestions.length > 0 ? (
-                    filteredRawMatSuggestions.map(item => (
-                      <div key={item._id} onClick={() => handleSelectRawMaterial(item)} className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors">
-                        <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
-                            <span className="text-xs font-medium text-slate-400 lowercase italic">{item.UOM || 'pcs'}</span>
-                          </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            Avail: {item.ActualCount || 0}
-                          </span>
-                        </div>
-                        <span className="text-slate-800 font-semibold text-sm truncate">{item.ItemDescription}</span>
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-                          <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Cat: {item.Category || item.category || 'Raw Material'}</span>
-                          {(item.Segment || item.segment) && <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Seg: {item.Segment || item.segment}</span>}
-                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
-                      No records found matching.
-                    </div>
+                <span className="text-slate-800 font-semibold text-sm truncate">{item.ItemDescription}</span>
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
+                  <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Cat: {item.Category || item.category || 'Raw Material'}</span>
+                  {(item.Segment || item.segment) && <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Seg: {item.Segment || item.segment}</span>}
+                  {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
+                    <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
                   )}
                 </div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically deducted</span>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-                  <thead>
-                    <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
-                      <th className="py-3 px-4">Material Code</th>
-                      <th className="py-3 px-4">Description</th>
-                      <th className="py-3 px-4 text-center w-16">QTY</th>
-                      <th className="py-3 px-4 text-center">UOM</th>
-                      <th className="py-3 px-4 text-center w-20">Verified Shipped</th>
-                      <th className="py-3 px-4">Remarks / Notes</th>
-                      <th className="py-3 px-4 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {manifestItems.length > 0 ? (
-                      manifestItems.map((item, index) => (
-                        <tr key={index} className="hover:bg-slate-50/80">
-                          <td className="py-2 px-4 font-bold">{item.Code}</td>
-                          <td className="py-2 px-4 text-xs truncate max-w-[165px]">{item.ItemDescription}</td>
-                          <td className="py-2 px-4"><input type="number" value={item.qtyRequested} onChange={e => handleUpdateField(index, 'qtyRequested', Number(e.target.value))} className="w-12 border text-center rounded text-sm" min="1" required /></td>
-                          <td className="py-2 px-4 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span></td>
-                          <td className="py-2 px-4"><input type="number" value={item.actualCountShipped} onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))} className="w-14 border text-center rounded text-sm font-bold text-emerald-600" min="1" required /></td>
-                          <td className="py-2 px-4"><input type="text" value={item.remarks} onChange={e => handleUpdateField(index, 'remarks', e.target.value)} placeholder="Provide context details" className="w-full border rounded px-1 text-xs" /></td>
-                          <td className="py-2 px-4 text-center">
-                            <button type="button" onClick={() => { setManifestItems(manifestItems.filter((_, i) => i !== index)); showSuccessToast("Item removed from outbound manifest lines."); }} className="text-red-500 cursor-pointer"><Trash2 className="w-4 h-4" /></button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
-                          No items added. Search above to add rows.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
               </div>
+            ))
+          ) : (
+            <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+              No records found matching.
             </div>
-            <button type="submit" className="w-full bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-xs text-sm transition-colors cursor-pointer uppercase">Save Packaging List</button>
-          </form>
+          )}
         </div>
+      )}
+    </div>
+
+    {/* TABLE SECTION */}
+    <div className="flex flex-col gap-2">
+      <span className="text-[10px] sm:text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically deducted</span>
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+        <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
+          <thead>
+            <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
+              <th className="py-3 px-4">Material Code</th>
+              <th className="py-3 px-4">Description</th>
+              <th className="py-3 px-4 text-center w-24">QTY</th>
+              <th className="py-3 px-4 text-center">UOM</th>
+              <th className="py-3 px-4 text-center w-28">Verified Shipped</th>
+              <th className="py-3 px-4">Remarks / Notes</th>
+              <th className="py-3 px-4 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {manifestItems.length > 0 ? (
+              manifestItems.map((item, index) => (
+                <tr key={index} className="hover:bg-slate-50/80 text-xs">
+                  <td className="py-2 px-4 font-bold text-[#18174e]">{item.Code}</td>
+                  <td className="py-2 px-4 truncate max-w-[165px]" title={item.ItemDescription}>{item.ItemDescription}</td>
+                  <td className="py-2 px-4">
+                    <input type="number" value={item.qtyRequested} onChange={e => handleUpdateField(index, 'qtyRequested', Number(e.target.value))} className="w-full border text-center rounded py-1 font-semibold text-slate-700 focus:outline-none focus:border-slate-400" min="1" required />
+                  </td>
+                  <td className="py-2 px-4 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span></td>
+                  <td className="py-2 px-4">
+                    <input type="number" value={item.actualCountShipped} onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))} className="w-full border text-center rounded py-1 font-bold text-emerald-600 focus:outline-none focus:border-emerald-500" min="1" required />
+                  </td>
+                  <td className="py-2 px-4">
+                    <input type="text" value={item.remarks} onChange={e => handleUpdateField(index, 'remarks', e.target.value)} placeholder="Provide context details..." className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-slate-400" />
+                  </td>
+                  <td className="py-2 px-4 text-center">
+                    <button type="button" onClick={() => { setManifestItems(manifestItems.filter((_, i) => i !== index)); showSuccessToast("Item removed from outbound manifest lines."); }} className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block"><Trash2 className="w-4 h-4" /></button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="7" className="text-center py-6 text-red-600 italic font-bold text-xs">
+                  No items added. Search above to add rows.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {/* SUBMIT BUTTON */}
+    <button type="submit" className="w-full bg-red-800 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase tracking-wider shadow-sm">
+      Save Packaging List
+    </button>
+  </form>
+</div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col gap-3 shadow-sm h-auto min-h-[400px]">
           <div className="flex flex-col gap-1 border-b border-slate-100 pb-2">

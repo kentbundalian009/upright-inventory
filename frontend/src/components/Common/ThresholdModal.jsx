@@ -61,8 +61,7 @@ function ThresholdModal({ isOpen, onClose, categoryType, onSaveSuccess }) {
                 {/* Modal Header */}
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
                     <div className="flex items-center gap-2">
-                        <Sliders className="w-5 h-5 text-[#18174e]" />
-                        <h3 className="font-bold text-slate-800 text-base">{formatTitle()} Threshold Rules</h3>
+                        <h3 className="font-bold text-slate-800 text-base"> Rackings Materials Threshold Rules</h3>
                     </div>
                     <button 
                         type="button" 
@@ -146,7 +145,7 @@ function ThresholdModal({ isOpen, onClose, categoryType, onSaveSuccess }) {
                             disabled={saving} 
                             className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer disabled:opacity-50 shadow-md"
                         >
-                            {saving ? 'Saving...' : 'Save Rules'}
+                            {saving ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
 

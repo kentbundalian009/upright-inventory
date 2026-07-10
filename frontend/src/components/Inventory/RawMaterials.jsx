@@ -95,7 +95,7 @@ function RawMaterials() {
                 setSegmentColors(response.data.segmentColors || {});
             }
         } catch (err) {
-            console.error("Failed to fetch global color settings from the database:", err);
+            console.error("Failed to load data from the server.", err);
         }
     };
 
@@ -122,7 +122,7 @@ function RawMaterials() {
             else setRawMaterialsList([]);
             setError(null);
         } catch (err) {
-            setError("");
+            setError("Failed to load data from the server.");
             setRawMaterialsList([]);
         } finally { setLoading(false); }
     };
@@ -146,11 +146,13 @@ function RawMaterials() {
     };
 
     const categoriesInDB = [...new Set(rawMaterialsList.map(item => item.Category).filter(Boolean))].sort();
-    const segmentsInDB = [...new Set(rawMaterialsList.map(item => item.Segment).filter(Boolean))].sort();
-    const descriptionsInDB = [...new Set(rawMaterialsList.map(item => item.ItemDescription).filter(Boolean))];
-    const dimensionsInDB = [...new Set(rawMaterialsList.map(item => item.Dimension).filter(Boolean))];
-    const uomsInDB = [...new Set(rawMaterialsList.map(item => item.UOM).filter(Boolean))];
-    const accountsInDB = [...new Set(rawMaterialsList.map(item => item.AccountTo).filter(Boolean))];
+const segmentsInDB = [...new Set(rawMaterialsList.map(item => item.Segment).filter(Boolean))].sort();
+
+// 🔥 DINAGDAGAN NGHALONG `.sort()` SA MGA SUMUSUNOD PARA MAGING A-Z LAHAT:
+const descriptionsInDB = [...new Set(rawMaterialsList.map(item => item.ItemDescription).filter(Boolean))].sort();
+const dimensionsInDB = [...new Set(rawMaterialsList.map(item => item.Dimension).filter(Boolean))].sort();
+const uomsInDB = [...new Set(rawMaterialsList.map(item => item.UOM).filter(Boolean))].sort();
+const accountsInDB = [...new Set(rawMaterialsList.map(item => item.AccountTo).filter(Boolean))].sort();
 
     const filterCategories = ['All Categories', ...categoriesInDB];
     const filterSegments = ['All Segments', ...segmentsInDB];
@@ -254,7 +256,7 @@ function RawMaterials() {
                 triggerSuccess(`Successfully restored item.`);
             }
             fetchRawMaterials();
-        } catch (err) { setErrorMessage("Action execution failed."); }
+        } catch (err) { setErrorMessage("Failed to load data from the server."); }
     };
 
     const currentDisplayList = rawMaterialsList.filter(item => showArchivedOnly ? item.isArchived === true : !item.isArchived);
@@ -298,66 +300,117 @@ function RawMaterials() {
             <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col gap-6">
 
                 {/* FILTER CONTROLS MASTER ROW */}
-                <div className="flex flex-col gap-1.5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
-                            <Filter className="w-4 h-4 text-[#18174e]" />
-                            <span>{showArchivedOnly ? 'Viewing Archived Vault' : 'Filter Raw Materials'}</span>
-                        </div>
+<div className="flex flex-col gap-1.5">
+    
+    {/* TOP BAR: Title at ang responsive Buttons */}
+    <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 flex-shrink-0">
+            <Filter className="w-4 h-4 text-[#18174e]" />
+            <span>{showArchivedOnly ? 'Archive' : 'Filter'}</span>
+        </div>
 
-                        <div className="flex items-center flex-wrap gap-2.5">
-                            <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-all">
-                                <input type="checkbox" checked={hideZeroQty} onChange={(e) => setHideZeroQty(e.target.checked)} className="w-3.5 h-3.5 accent-[#18174e] rounded cursor-pointer" />
-                                <span>Hide 0 Qty</span>
-                            </label>
+        {/* CONTROLS BAR: Nagiging compact sa mobile gamit ang Icon-only style */}
+        <div className="flex items-center gap-2.5 ml-auto">
+            
+            {/* Hide 0 Qty Checkbox (Nananatiling maliit at compact) */}
+            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-all flex-shrink-0">
+                <input type="checkbox" checked={hideZeroQty} onChange={(e) => setHideZeroQty(e.target.checked)} className="w-3.5 h-3.5 accent-[#18174e] rounded cursor-pointer" />
+                <span className="hidden sm:inline">Hide 0 Qty</span>
+                <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
+            </label>
 
-                            <button onClick={() => setIsThresholdModalOpen(true)} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition-all cursor-pointer">
-                                <Sliders className="w-3.5 h-3.5 text-[#18174e]" /> Threshold Settings
-                            </button>
+            {/* Threshold Settings Button */}
+            <button 
+                onClick={() => setIsThresholdModalOpen(true)} 
+                title="Threshold Settings"
+                className="flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition-all cursor-pointer flex-shrink-0"
+            >
+                <Sliders className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-[#18174e]" /> 
+                <span className="hidden md:inline">Threshold Settings</span>
+            </button>
 
-                            <button onClick={() => setIsPaletteModalOpen(true)} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border bg-[#18174e] text-white hover:bg-[#18174e]/90 transition-all cursor-pointer shadow-sm">
-                                <Palette className="w-3.5 h-3.5" /> Palette Settings
-                            </button>
+            {/* Palette Settings Button */}
+            <button 
+                onClick={() => setIsPaletteModalOpen(true)} 
+                title="Palette Settings"
+                className="flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90 transition-all cursor-pointer shadow-sm flex-shrink-0"
+            >
+                <Palette className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> 
+                <span className="hidden md:inline">Palette Settings</span>
+            </button>
 
-                            <button onClick={() => setShowArchivedOnly(!showArchivedOnly)} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}>
-                                {showArchivedOnly ? <><EyeOff className="w-3.5 h-3.5" /> Show Active Materials ({activeCount})</> : <><Archive className="w-3.5 h-3.5" /> View Archive Vault ({archivedCount})</>}
-                            </button>
-                        </div>
-                    </div>
+            {/* Archive / Active Toggle Button */}
+            <button 
+                onClick={() => setShowArchivedOnly(!showArchivedOnly)} 
+                title={showArchivedOnly ? "Show Active Materials" : "View Archive Vault"}
+                className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${
+                    showArchivedOnly 
+                        ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' 
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+            >
+                {showArchivedOnly ? (
+                    <>
+                        <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> 
+                        <span className="hidden md:inline">Show Active Materials</span> 
+                        <span className="text-[11px] font-bold">({activeCount})</span>
+                    </>
+                ) : (
+                    <>
+                        <Archive className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> 
+                        <span className="hidden md:inline">View Archive Vault</span> 
+                        <span className="text-[11px] font-bold">({archivedCount})</span>
+                    </>
+                )}
+            </button>
+        </div>
+    </div>
 
-                    {/* SELECT DROPDOWNS GRID */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 items-center mt-2">
-                        <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
-                            {filterCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                        </select>
+    <div className="flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid md:grid-cols-5 md:pb-0">
+        
+        <div className="min-w-[150px] w-full md:min-w-0">
+            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
+                {filterCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+        </div>
 
-                        <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className="bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
-                            {filterSegments.map(seg => {
-                                if (seg === 'All Segments') return <option key={seg} value={seg}>{seg}</option>;
-                                const config = getSegmentStyles(seg);
-                                return <option key={seg} value={seg}>{config.prefix} {seg}</option>;
-                            })}
-                        </select>
+        <div className="min-w-[150px] w-full md:min-w-0">
+            <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className="bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
+                {filterSegments.map(seg => {
+                    if (seg === 'All Segments') return <option key={seg} value={seg}>{seg}</option>;
+                    const config = getSegmentStyles(seg);
+                    return <option key={seg} value={seg}>{config.prefix} {seg}</option>;
+                })}
+            </select>
+        </div>
 
-                        <select value={selectedDescription} onChange={(e) => setSelectedDescription(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
-                            {filterDescriptions.map(desc => <option key={desc} value={desc}>{desc}</option>)}
-                        </select>
+        <div className="min-w-[170px] w-full md:min-w-0">
+            <select value={selectedDescription} onChange={(e) => setSelectedDescription(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
+                {filterDescriptions.map(desc => <option key={desc} value={desc}>{desc}</option>)}
+            </select>
+        </div>
 
-                        <select value={selectedHealth} onChange={(e) => setSelectedHealth(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none font-medium w-full cursor-pointer">
-                            <option value="All Health Status">All Conditions</option>
-                            <option value="Healthy">🟢 Healthy Stock</option>
-                            <option value="Re-Stock">🟡 Restock Warning</option>
-                            <option value="Critical">🔴 Critical Stock</option>
-                            <option value="Overstock">🔵 Overstocked</option>
-                        </select>
+        <div className="min-w-[150px] w-full md:min-w-0">
+            <select value={selectedHealth} onChange={(e) => setSelectedHealth(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none font-medium w-full cursor-pointer">
+                <option value="All Health Status">All Conditions</option>
+                <option value="Healthy">🟢 Healthy Stock</option>
+                <option value="Re-Stock">🟡 Restock Warning</option>
+                <option value="Critical">🔴 Critical Stock</option>
+                <option value="Overstock">🔵 Overstocked</option>
+            </select>
+        </div>
 
-                        <div className="relative w-full">
-                            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                            <input type="text" placeholder="Search Code, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none text-slate-700" />
-                        </div>
-                    </div>
-                    <div className="h-px bg-slate-100 w-full mt-3"></div>
-                </div>
+        <div className="min-w-[180px] w-full md:min-w-0">
+            <div className="relative w-full">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <input type="text" placeholder="Search Code, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none text-slate-700" />
+            </div>
+        </div>
+        
+    </div>
+    
+    <div className="h-px bg-slate-100 w-full mt-3"></div>
+</div>
 
                 {/* MAIN CLEAN TABLE MASTERLIST */}
                 <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
@@ -380,7 +433,7 @@ function RawMaterials() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {loading ? (
-                                    <tr><td colSpan="13" className="text-center py-10 text-red-600 font-medium italic">
+                                    <tr><td colSpan="13" className="text-center py-10 text-green-700 font-medium italic">
                                         Fetching secure rackings data from database...
                                     </td></tr>
                                 ) : error ? (
@@ -403,7 +456,7 @@ function RawMaterials() {
                                                                     : `${window.location.protocol}//${window.location.hostname}:5000${rawMat.ImageUrl}` // Sa dev mode, laging ituturo sa port 5000 ng kung anong IP ang gamit mo
                                                         } alt={rawMat.ItemDescription}
                                                         onClick={() => setPreviewImage(rawMat.ImageUrl.startsWith('http') ? rawMat.ImageUrl : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${rawMat.ImageUrl}`)}
-                                                        className="w-10 h-10 object-cover rounded-lg border border-slate-200 cursor-pointer hover:scale-110 hover:border-[#18174e] transition-all mx-auto shadow-sm"
+                                                        className="w-10 h-10 object-cover rounded-lg cursor-pointer hover:scale-110 hover:border-[#18174e] transition-all mx-auto shadow-sm"
                                                     />
                                                 ) : (
                                                     <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 mx-auto">
@@ -445,9 +498,11 @@ function RawMaterials() {
                                     );
                                 })}
                                 {filteredRawMaterials.length === 0 && !loading && (
-                                    <tr><td colSpan="13" className="text-center py-10 text-red-600 font-medium italic">
-                                        No records match the selected filters or search queries.
-                                    </td></tr>
+                                    <tr>
+                                        <td colSpan="13" className="text-center py-10 text-red-600 font-medium italic">
+                                            No records match the selected filters or search queries.
+                                        </td>
+                                    </tr>
                                 )}
                             </tbody>
                         </table>
@@ -476,8 +531,7 @@ function RawMaterials() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                    <Palette className="w-5 h-5 text-[#18174e]" />
-                    <h3 className="font-bold text-slate-800 text-base">Global Color Palette Mapping</h3>
+                    <h3 className="font-bold text-slate-800 text-base">Color Palette Mapping</h3>
                 </div>
                 <button 
                     onClick={() => setIsPaletteModalOpen(false)} 
@@ -573,7 +627,7 @@ function RawMaterials() {
                     onClick={handleSavePaletteToDatabase}
                     className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
                 >
-                    Apply Globally to All Devices
+                    Save Changes
                 </button>
             </div>
 
@@ -612,134 +666,140 @@ function RawMaterials() {
                         <form onSubmit={handleEditFormSubmit} className="space-y-4 mt-4">
 
                             {/* 2-Column Grid para sa malinis at nakalatag na mga input fields */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                                {/* Material Code (Full-width) */}
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Material Code</label>
-                                    <input
-                                        type="text"
-                                        disabled
-                                        className="w-full bg-slate-100 text-slate-500 border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-not-allowed font-mono focus:outline-none"
-                                        value={materialCode}
-                                    />
-                                </div>
+    {/* Material Code (Full-width) */}
+    <div className="md:col-span-2">
+        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Material Code</label>
+        <input
+            type="text"
+            disabled
+            className="w-full bg-slate-100 text-slate-500 border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-not-allowed font-mono focus:outline-none"
+            value={materialCode}
+        />
+    </div>
 
-                                {/* 🌟 IMAGE UPLOAD FIELD (Full-width para maganda ang bagsak ng dropzone) */}
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Image Upload</label>
-                                    <div className="mt-1 flex items-center gap-3">
-                                        {existingImgPreview && !selectedFile && (
-                                            <img
-                                                src={existingImgPreview}
-                                                alt="Current raw material"
-                                                className="w-12 h-12 rounded-lg border border-slate-200 object-cover shadow-sm flex-shrink-0"
-                                            />
-                                        )}
-                                        <label className="flex-1 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-200 rounded-xl py-3 px-4 transition-all cursor-pointer">
-                                            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
-                                                <Upload className="w-4 h-4 text-[#18174e]" />
-                                                <span>{selectedFile ? selectedFile.name : "Choose profile image"}</span>
-                                            </div>
-                                            <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                                        </label>
-                                    </div>
-                                </div>
+    {/* IMAGE UPLOAD FIELD (Full-width para maganda ang bagsak ng dropzone) */}
+    <div className="md:col-span-2">
+        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Image Upload</label>
+        <div className="mt-1 flex items-center gap-3">
+            {existingImgPreview && !selectedFile && (
+                <img
+                    src={existingImgPreview}
+                    alt="Current raw material"
+                    className="w-12 h-12 rounded-lg border border-slate-200 object-cover shadow-sm flex-shrink-0"
+                />
+            )}
+            <label className="flex-1 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-200 rounded-xl py-3 px-4 transition-all cursor-pointer">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
+                    <Upload className="w-4 h-4 text-[#18174e]" />
+                    <span>{selectedFile ? selectedFile.name : "Choose profile image"}</span>
+                </div>
+                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+            </label>
+        </div>
+    </div>
 
-                                {/* Category Dropdown */}
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        list="m-categories"
-                                        value={materialCategory}
-                                        onChange={(e) => setMaterialCategory(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
-                                    />
-                                    <datalist id="m-categories">
-                                        {categoriesInDB.map((cat, i) => <option key={i} value={cat} />)}
-                                    </datalist>
-                                </div>
+    {/* Category Dropdown */}
+    <div>
+        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category *</label>
+        <select
+            required
+            value={materialCategory}
+            onChange={(e) => setMaterialCategory(e.target.value)}
+            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
+        >
+            <option value="">-- Select Category --</option>
+            {[...categoriesInDB]
+                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                .map((cat) => <option key={cat} value={cat}>{cat}</option>)
+            }
+        </select>
+    </div>
 
-                                {/* Segment Dropdown */}
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Segment</label>
-                                    <input
-                                        type="text"
-                                        list="m-segments"
-                                        value={materialSegment}
-                                        onChange={(e) => setMaterialSegment(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
-                                    />
-                                    <datalist id="m-segments">
-                                        {segmentsInDB.map((seg, i) => <option key={i} value={seg} />)}
-                                    </datalist>
-                                </div>
+    {/* Segment Dropdown */}
+    <div>
+        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Segment</label>
+        <select
+            value={materialSegment}
+            onChange={(e) => setMaterialSegment(e.target.value)}
+            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
+        >
+            <option value="">-- Select Segment --</option>
+            {[...segmentsInDB]
+                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                .map((seg) => <option key={seg} value={seg}>{seg}</option>)
+            }
+        </select>
+    </div>
 
-                                {/* Item Description (Full-width para sa mahabang text strings) */}
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Description *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        list="m-descriptions"
-                                        value={itemDescription}
-                                        onChange={(e) => setItemDescription(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
-                                    />
-                                    <datalist id="m-descriptions">
-                                        {descriptionsInDB.map((desc, i) => <option key={i} value={desc} />)}
-                                    </datalist>
-                                </div>
+    {/* Item Description (Full-width para sa mahabang text strings) */}
+    <div className="md:col-span-2">
+        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Description *</label>
+        <select
+            required
+            value={itemDescription}
+            onChange={(e) => setItemDescription(e.target.value)}
+            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
+        >
+            <option value="">-- Select Description --</option>
+            {[...descriptionsInDB]
+                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                .map((desc) => <option key={desc} value={desc}>{desc}</option>)
+            }
+        </select>
+    </div>
 
-                                {/* Dimension */}
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Dimension</label>
-                                    <input
-                                        type="text"
-                                        list="m-dimensions"
-                                        value={materialDimension}
-                                        onChange={(e) => setMaterialDimension(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
-                                    />
-                                    <datalist id="m-dimensions">
-                                        {dimensionsInDB.map((dim, i) => <option key={i} value={dim} />)}
-                                    </datalist>
-                                </div>
+    {/* Dimension */}
+    <div>
+        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Dimension</label>
+        <select
+            value={materialDimension}
+            onChange={(e) => setMaterialDimension(e.target.value)}
+            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
+        >
+            <option value="">-- Select Dimension --</option>
+            {[...dimensionsInDB]
+                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                .map((dim) => <option key={dim} value={dim}>{dim}</option>)
+            }
+        </select>
+    </div>
 
-                                {/* UOM */}
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">UOM *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        list="m-uoms"
-                                        value={materialUom}
-                                        onChange={(e) => setMaterialUom(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
-                                    />
-                                    <datalist id="m-uoms">
-                                        {uomsInDB.map((uom, i) => <option key={i} value={uom} />)}
-                                    </datalist>
-                                </div>
+    {/* UOM */}
+    <div>
+        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">UOM *</label>
+        <select
+            required
+            value={materialUom}
+            onChange={(e) => setMaterialUom(e.target.value)}
+            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
+        >
+            <option value="">-- Select UOM --</option>
+            {[...uomsInDB]
+                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                .map((uom) => <option key={uom} value={uom}>{uom}</option>)
+            }
+        </select>
+    </div>
 
-                                {/* Account To (Full-width sa dulo) */}
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Account To</label>
-                                    <input
-                                        type="text"
-                                        list="m-accounts"
-                                        value={accountTo}
-                                        onChange={(e) => setAccountTo(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
-                                    />
-                                    <datalist id="m-accounts">
-                                        {accountsInDB.map((acc, i) => <option key={i} value={acc} />)}
-                                    </datalist>
-                                </div>
+    {/* Account To (Full-width sa dulo) */}
+    <div className="md:col-span-2">
+        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Account To</label>
+        <select
+            value={accountTo}
+            onChange={(e) => setAccountTo(e.target.value)}
+            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
+        >
+            <option value="">-- Select Account To --</option>
+            {[...accountsInDB]
+                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                .map((acc) => <option key={acc} value={acc}>{acc}</option>)
+            }
+        </select>
+    </div>
 
-                            </div>
+</div>
 
                             {/* Modal Bottom Actions */}
                             <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">

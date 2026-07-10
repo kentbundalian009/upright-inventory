@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 
 function Sidebar({ activeTab, setActiveTab, userRole }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // BINAGO: Ginawang `true` para default closed/collapsed sa desktop
+  const [isCollapsed, setIsCollapsed] = useState(true); 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const menuItems = [
@@ -64,7 +65,6 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
     const previousSection = index > 0 ? allowedMenuItems[index - 1].section : null;
     if (currentSection === previousSection) return null;
 
-    // MEDIUM TIMPLA: Tamang spacing para sa labels
     switch (currentSection) {
       case 'admin':
         return <div className="text-[10px] font-bold text-[#ff6600] uppercase tracking-wider px-4 pt-2.5 pb-1">User Controls</div>;
@@ -121,7 +121,7 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
 
         {/* INNER CONTAINER */}
         <div className="flex flex-col overflow-hidden mt-14 md:mt-0 h-full">
-          {/* LOGO SECTION - Balanseng Sukat */}
+          {/* LOGO SECTION */}
           <div className="py-3 px-4 flex flex-col items-center border-b border-white/10">
             <div className={`transition-all duration-300 bg-white rounded-full p-2 flex items-center justify-center shadow-inner ${isCollapsed ? "md:w-9 md:h-9 w-14 h-14" : "w-14 h-14"}`}>
               <img
@@ -141,7 +141,7 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
             </div>
           </div>
 
-          {/* NAVIGATION LINKS - Medium Padding & Text size */}
+          {/* NAVIGATION LINKS */}
           <nav className="overflow-y-auto py-2.5 space-y-1 px-3 custom-scrollbar flex-1">
             {allowedMenuItems.map((item, index) => {
               const IconComponent = item.icon;

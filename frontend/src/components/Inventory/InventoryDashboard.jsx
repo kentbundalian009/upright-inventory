@@ -128,8 +128,8 @@ function InventoryDashboard() {
     if (loading) {
         return (
             <div className="flex flex-col justify-center items-center min-h-[80vh] text-slate-400 gap-3">
-                <Loader2 className="w-10 h-10 animate-spin text-[#18174e]" />
-                <span className="text-sm font-semibold tracking-wide">Syncing Real-Time Cluster0 Analytics Engine...</span>
+                <Loader2 className="w-10 h-10 animate-spin text-green-700" />
+                <span className="text-center text-green-700 font-medium italic">Fetching secure rackings data from database...</span>
             </div>
         );
     }

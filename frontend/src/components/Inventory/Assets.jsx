@@ -21,10 +21,21 @@ function Assets() {
     targetAsset: null
   });
 
-  // Dropdown Filtering Options (Filter Bar)
-  const categories = ['All Categories', ...new Set(assetsList.map(item => item.Category).filter(Boolean))];
-  const segments = ['All Segments', ...new Set(assetsList.map(item => item.Segment).filter(Boolean))];
-  const descriptions = ['All Item Descriptions', ...new Set(assetsList.map(item => item.ItemDescription).filter(Boolean))];
+  // Dropdown Filtering Options (Filter Bar) - NAKA-A-Z NA!
+  const categories = [
+    'All Categories',
+    ...[...new Set(assetsList.map(item => item.Category).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+  ];
+
+  const segments = [
+    'All Segments',
+    ...[...new Set(assetsList.map(item => item.Segment).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+  ];
+
+  const descriptions = [
+    'All Item Descriptions',
+    ...[...new Set(assetsList.map(item => item.ItemDescription).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+  ];
 
   // DATALIST OPTIONS FOR MODAL (Unique values from DB)
   const uniqueCategoriesInDB = [...new Set(assetsList.map(item => item.Category).filter(Boolean))];
@@ -415,67 +426,103 @@ function Assets() {
 
       <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col gap-6">
         {/* FILTERS BAR */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
-              <Filter className="w-4 h-4 text-[#18174e]" />
-              <span>{showArchivedOnly ? 'Viewing Archive Assets Vault' : 'Filter Assets'}</span>
-            </div>
-            <button
-              onClick={() => setShowArchivedOnly(!showArchivedOnly)}
-              className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-700 border-slate-200'}`}
-            >
-              {showArchivedOnly ? <><EyeOff className="w-3.5 h-3.5" /> Show Active Assets ({activeCount})</> : <><Archive className="w-3.5 h-3.5" /> View Archive Vault ({archivedCount})</>}
-            </button>
-          </div>
+<div className="flex flex-col gap-1.5">
+  <div className="flex items-center justify-between gap-3">
+    <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 flex-shrink-0">
+      <Filter className="w-4 h-4 text-[#18174e]" />
+      <span>{showArchivedOnly ? 'Archive' : 'Filter'}</span>
+    </div>
+    
+    {/* Archive Toggle Button: Nagiging Icon-only sa mobile para tipid sa space */}
+    <button
+      onClick={() => setShowArchivedOnly(!showArchivedOnly)}
+      title={showArchivedOnly ? "Show Active Assets" : "View Archive Vault"}
+      className={`flex items-center gap-2 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${
+        showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+      }`}
+    >
+      {showArchivedOnly ? (
+        <>
+          <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> 
+          <span className="hidden md:inline">Show Active Assets</span> 
+          <span className="text-[11px] font-bold">({activeCount})</span>
+        </>
+      ) : (
+        <>
+          <Archive className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> 
+          <span className="hidden md:inline">View Archive Vault</span> 
+          <span className="text-[11px] font-bold">({archivedCount})</span>
+        </>
+      )}
+    </button>
+  </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2 items-center mt-2">
-            {/* CATEGORY SELECT */}
-            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer">
-              {[...categories].sort((a, b) => a.startsWith('All') ? -1 : b.startsWith('All') ? 1 : a.localeCompare(b)).map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+  {/* SELECT DROPDOWNS & ACTIONS ROW */}
+  {/* Naka-horizontal scroll sa mobile (`flex overflow-x-auto`), at babalik sa malinis na 7-columns grid sa malalaking desktop screen (`lg:grid lg:grid-cols-7`) */}
+  <div className="flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-7 lg:pb-0">
+    
+    {/* CATEGORY SELECT */}
+    <div className="min-w-[150px] w-full lg:min-w-0">
+      <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer">
+        {categories.map(cat => (
+          <option key={cat} value={cat}>{cat}</option>
+        ))}
+      </select>
+    </div>
 
-            {/* SEGMENT SELECT */}
-            <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer">
-              {[...segments].sort((a, b) => a.startsWith('All') ? -1 : b.startsWith('All') ? 1 : a.localeCompare(b)).map(seg => (
-                <option key={seg} value={seg}>{seg}</option>
-              ))}
-            </select>
+    {/* SEGMENT SELECT */}
+    <div className="min-w-[150px] w-full lg:min-w-0">
+      <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer">
+        {segments.map(seg => (
+          <option key={seg} value={seg}>{seg}</option>
+        ))}
+      </select>
+    </div>
 
-            {/* DESCRIPTION SELECT */}
-            <select value={selectedDescription} onChange={(e) => setSelectedDescription(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer">
-              {[...descriptions].sort((a, b) => a.startsWith('All') ? -1 : b.startsWith('All') ? 1 : a.localeCompare(b)).map(desc => (
-                <option key={desc} value={desc}>{desc}</option>
-              ))}
-            </select>
+    {/* DESCRIPTION SELECT */}
+    <div className="min-w-[170px] w-full lg:min-w-0">
+      <select value={selectedDescription} onChange={(e) => setSelectedDescription(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer">
+        {descriptions.map(desc => (
+          <option key={desc} value={desc}>{desc}</option>
+        ))}
+      </select>
+    </div>
 
-            {/* CONDITION FILTER */}
-            <select value={selectedConditionFilter} onChange={(e) => setSelectedConditionFilter(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none font-medium w-full cursor-pointer">
-              <option value="All">All Stocks</option>
-              <option value="Has Good">🟢 Contains Good Items</option>
-              <option value="Has Used">🟡 Contains Used Items</option>
-              <option value="Has Damaged">🔴 Contains Damaged Items</option>
-            </select>
+    {/* CONDITION FILTER */}
+    <div className="min-w-[160px] w-full lg:min-w-0">
+      <select value={selectedConditionFilter} onChange={(e) => setSelectedConditionFilter(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none font-medium w-full cursor-pointer">
+        <option value="All">All Stocks</option>
+        <option value="Has Good">🟢 Contains Good Items</option>
+        <option value="Has Used">🟡 Contains Used Items</option>
+        <option value="Has Damaged">🔴 Contains Damaged Items</option>
+      </select>
+    </div>
 
-            {/* SEARCH INPUT */}
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-              <input type="text" placeholder="Search Code, Brand, Model, Serial, Location..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none text-slate-700" />
-            </div>
+    {/* SEARCH INPUT */}
+    <div className="min-w-[200px] w-full lg:min-w-0">
+      <div className="relative w-full">
+        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+        <input type="text" placeholder="Search Code, Brand, Model, Serial, Location..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none text-slate-700" />
+      </div>
+    </div>
 
-            {/* ACTION BUTTONS */}
-            <button onClick={downloadPDFReport} className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all">
-              Download PDF
-            </button>
+    {/* DOWNLOAD PDF REPORT BUTTON */}
+    <div className="min-w-[130px] w-full lg:min-w-0">
+      <button onClick={downloadPDFReport} className="flex items-center justify-center bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px] whitespace-nowrap">
+        Download PDF
+      </button>
+    </div>
 
-            <button onClick={openAddModal} disabled={showArchivedOnly} className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all">
-              Add Asset
-            </button>
-          </div>
-          <div className="h-px bg-slate-100 w-full mt-3"></div>
-        </div>
+    {/* ADD ASSET BUTTON */}
+    <div className="min-w-[120px] w-full lg:min-w-0">
+      <button onClick={openAddModal} disabled={showArchivedOnly} className="flex items-center justify-center bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px] whitespace-nowrap">
+        Add Asset
+      </button>
+    </div>
+    
+  </div>
+  <div className="h-px bg-slate-100 w-full mt-3"></div>
+</div>
 
         {/* TABLE DATA CONTAINER */}
         <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
@@ -501,7 +548,7 @@ function Assets() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan="13" className="text-center py-10 text-red-600 font-medium italic">
+                    <td colSpan="13" className="text-center py-10 text-green-700 font-medium italic">
                       Fetching secure asset data from database...
                     </td>
                   </tr>
@@ -583,14 +630,14 @@ function Assets() {
             </div>
 
             {/* Asset Records Information Card */}
-<div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
-  <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
-    * System Inventory Protocol *
-  </span>
-  <p className="text-[11px] text-amber-700 leading-relaxed">
-    Asset quantity represents the number of physical assets owned by the organization and is maintained for record-keeping purposes only through the <strong>Assets Components.</strong>
-  </p>
-</div>
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
+              <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                * System Inventory Protocol *
+              </span>
+              <p className="text-[11px] text-amber-700 leading-relaxed">
+                Asset quantity represents the number of physical assets owned by the organization and is maintained for record-keeping purposes only through the <strong>Assets Components.</strong>
+              </p>
+            </div>
 
             {/* Modal Form */}
             <form onSubmit={handleFormSubmit} className="space-y-4 mt-4">

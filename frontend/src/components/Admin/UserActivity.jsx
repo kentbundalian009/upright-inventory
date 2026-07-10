@@ -117,9 +117,9 @@ function UserActivity() {
                             <tbody className="divide-y divide-slate-100">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="7" className="text-center py-10 text-slate-400 font-medium italic">
+                                        <td colSpan="7" className="text-center py-10 text-green-700 font-medium italic">
                                             <div className="flex items-center justify-center gap-2">
-                                                <span>Fetching secure audit logs from database...</span>
+                                                <span>Fetching secure users data from database...</span>
                                             </div>
                                         </td>
                                     </tr>
@@ -174,12 +174,9 @@ function UserActivity() {
                                 })}
 
                                 {!loading && activities.length === 0 && (
-                                    <tr>
-                                        <td colSpan="7" className="text-center py-12 text-slate-400">
-                                            <div className="flex flex-col items-center justify-center gap-1">
-                                                <AlertCircle className="w-6 h-6 text-[#18174e]/30" />
-                                                <p className="italic text-sm text-slate-500">No activity logs found matching the filter criteria.</p>
-                                            </div>
+                                     <tr>
+                                        <td colSpan="13" className="text-center py-10 text-red-600 font-medium italic">
+                                            No records match the selected filters or search queries.
                                         </td>
                                     </tr>
                                 )}

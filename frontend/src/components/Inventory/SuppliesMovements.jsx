@@ -35,6 +35,8 @@ function SuppliesMovements() {
   const [existingParties, setExistingParties] = useState([]);
   const [existingLocations, setExistingLocations] = useState([]);
 
+  const [quickReturnSearch, setQuickReturnSearch] = useState('');
+
   // 🔥 HELPER FUNCTIONS PARA SA CUSTOM TOAST LAYOUT MO
   const showSuccessToast = (message) => {
     toast.custom((t) => (
@@ -408,272 +410,300 @@ function SuppliesMovements() {
         <PageHeader activeTab="supplies-movements" />
       </div>
 
-      {/* QUICK-RETURN ASSISTANT */}
-      {activeBorrows.length > 0 && (
-        <div className="bg-amber-50/60 border border-amber-200/70 rounded-xl p-4 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-xs font-bold text-amber-800 uppercase tracking-wider">
-            <Eye className="w-3.5 h-3.5 text-amber-600" />
-            <span>Quick-Return Assistant: Select a pending borrow record below to auto-populate form fields</span>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
-            {activeBorrows.map(b => (
-              <button
-                key={b._id}
-                type="button"
-                onClick={() => handleFastReturnCopy(b)}
-                className="bg-white border border-amber-200 hover:border-amber-500 text-amber-900 px-3 py-1.5 rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex items-center gap-1 shrink-0"
-              >
-                Return <span className="font-bold text-[#18174e]">{b.slipNo}</span> ({b.partyName})
-              </button>
-            ))}
-          </div>
-        </div>
+
+{/* QUICK-RETURN ASSISTANT */}
+{activeBorrows.length > 0 && (
+  <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 flex flex-col gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="flex items-center gap-2 text-xs font-bold text-[#18174e] uppercase tracking-wider">
+        <Eye className="w-3.5 h-3.5 text-[#18174e]" />
+        <span>Quick-Return Assistant: Select a pending borrow record below to auto-populate form fields</span>
+      </div>
+      
+      {/* 🔍 Search Box Filter */}
+      <div className="relative w-full sm:w-64">
+        <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-[#18174e]/60" />
+        <input
+          type="text"
+          placeholder="Type Slip No or Name to filter..."
+          value={quickReturnSearch}
+          onChange={(e) => setQuickReturnSearch(e.target.value)}
+          className="w-full bg-white border border-indigo-200/80 rounded-lg pl-8 pr-2 py-1 text-xs text-[#18174e] focus:outline-none focus:border-[#18174e] placeholder-indigo-300"
+        />
+      </div>
+    </div>
+
+    {/* LISTAHAN NG MGA FILTERED BORROWS */}
+    <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
+      {activeBorrows
+        .filter(b => 
+          b.slipNo?.toLowerCase().includes(quickReturnSearch.toLowerCase()) ||
+          b.partyName?.toLowerCase().includes(quickReturnSearch.toLowerCase())
+        )
+        .map(b => (
+          <button
+            key={b._id}
+            type="button"
+            onClick={() => {
+              handleFastReturnCopy(b);
+              setQuickReturnSearch(''); // Linisin ang search box pagkatapos mapili
+            }}
+            className="bg-white border border-indigo-100 hover:border-[#18174e] text-[#18174e] px-3 py-1.5 rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex items-center gap-1 shrink-0"
+          >
+            Return <span className="font-bold text-[#18174e]">{b.slipNo}</span> ({b.partyName})
+          </button>
+        ))}
+      
+      {/* Fallback kapag walang nag-match sa filter */}
+      {activeBorrows.filter(b => 
+        b.slipNo?.toLowerCase().includes(quickReturnSearch.toLowerCase()) ||
+        b.partyName?.toLowerCase().includes(quickReturnSearch.toLowerCase())
+      ).length === 0 && (
+        <span className="text-indigo-400 italic text-xs py-1">No matching borrow records found.</span>
       )}
+    </div>
+  </div>
+)}
+
+
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         {/* LEFT CONTAINER (FORM SHEET) */}
-        <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 flex flex-col gap-6 shadow-sm">
-          <div className="border-b border-slate-100 pb-3 flex items-center justify-between text-sm font-bold text-slate-600">
-            <div className="flex items-center gap-2">
-              <ArrowLeftRight className="w-4 h-4 text-[#18174e]" />
-              <span>Supplies Movement & Transaction Slip</span>
-            </div>
-            {manifestItems.length > 0 && (
-              <button type="button" onClick={() => { setManifestItems([]); setReferenceSlipNo(''); setTransactionType('Borrow'); showSuccessToast("Form grid cleared."); }} className="text-xs font-bold text-rose-500 hover:underline">Clear Form Grid</button>
-            )}
-          </div>
+<div className="lg:col-span-3 bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 flex flex-col gap-6 shadow-sm">
+  <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-2 text-sm font-bold text-slate-600">
+    <div className="flex items-center gap-2 min-w-0">
+      <ArrowLeftRight className="w-4 h-4 text-[#18174e] flex-shrink-0" />
+      <span className="truncate">Supplies Movement & Transaction Slip</span>
+    </div>
+    {manifestItems.length > 0 && (
+      <button 
+        type="button" 
+        onClick={() => { setManifestItems([]); setReferenceSlipNo(''); setTransactionType('Borrow'); showSuccessToast("Form grid cleared."); }} 
+        className="text-xs font-bold text-rose-500 hover:underline cursor-pointer flex-shrink-0"
+      >
+        Clear Form Grid
+      </button>
+    )}
+  </div>
 
-          <form onSubmit={handleSubmitSlip} className="flex flex-col gap-5">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Slip Number</label>
-                <div className="relative"><FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={referenceSlipNo ? `REF: ${referenceSlipNo}` : "[ AUTO-GENERATED ]"} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none" />
+  <form onSubmit={handleSubmitSlip} className="flex flex-col gap-5">
+    {/* DETAILS GRID: Responsive columns from 1 to 3 */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Slip Number</label>
+        <div className="relative">
+          <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <input type="text" value={referenceSlipNo ? `REF: ${referenceSlipNo}` : "[ AUTO-GENERATED ]"} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none" />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Transaction Type</label>
+        <select
+          value={transactionType}
+          onChange={e => setTransactionType(e.target.value)}
+          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none text-[#18174e] cursor-pointer"
+        >
+          <option value="Borrow">🟡 Borrow (Issue Stock)</option>
+          <option value="Return">🟢 Return (Receive Back)</option>
+          <option value="Restock">🔵 Restock (Add Existing Stock)</option>
+          <option value="Reserved">🟣 Reserved (Deployment only)</option>
+          <option value="Out">🔴 Out (Personal Use)</option>
+          <option value="Scrap">🟠 Scrap / Disposal (Deduct Repair)</option>
+          <option value="Return to Vendor">🟤 Return to Vendor (Deduct Repair)</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Date Processed</label>
+        <div className="relative">
+          <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <input type="date" value={transactionDate} onChange={e => setTransactionDate(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" required />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Full Name</label>
+        <input
+          type="text"
+          value={partyName}
+          onChange={e => setPartyName(e.target.value)}
+          placeholder={isDamagedDeductingType ? "Disposal Team, Supplier, or Junk shop" : "Enter full name of person"}
+          list="party-suggestions"
+          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+          required
+        />
+        <datalist id="party-suggestions">
+          {existingParties.map((name, idx) => (
+            <option key={idx} value={name} />
+          ))}
+        </datalist>
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Location / Address</label>
+        <input
+          type="text"
+          value={originAddress}
+          onChange={e => setOriginAddress(e.target.value)}
+          placeholder="Enter origin address or department"
+          list="location-suggestions"
+          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+        />
+        <datalist id="location-suggestions">
+          {existingLocations.map((loc, idx) => (
+            <option key={idx} value={loc} />
+          ))}
+        </datalist>
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Prepared Name</label>
+        <div className="relative">
+          <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <input type="text" value={preparedBy} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none" />
+        </div>
+      </div>
+    </div>
+
+    {/* SEARCH BOX */}
+    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
+      <label className="block text-xs sm:text-sm font-bold text-amber-600 uppercase leading-snug">Step 1: Type / Select Supplies (Optional)</label>
+      <div className="relative">
+        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+        <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search item code or details..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
+      </div>
+      {searchQuery && (
+        <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
+          {filteredSuggestions.length > 0 ? (
+            filteredSuggestions.map(item => (
+              <div
+                key={item._id}
+                onClick={() => handleSelectSupply(item)}
+                className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors"
+              >
+                <div className="flex justify-between items-center font-bold text-slate-800 text-sm gap-2">
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
+                    <span className="text-xs font-medium text-slate-400 lowercase italic truncate">{item.UOM || 'pcs'}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider flex-shrink-0">
+                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      Good: {item.ConditionBreakdown?.Good ?? item.ActualCount ?? 0}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
+                      Repair: {item.ConditionBreakdown?.Damaged ?? item.DamagedCount ?? 0}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Transaction Type</label>
-                <select
-                  value={transactionType}
-                  onChange={e => setTransactionType(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none text-[#18174e]"
-                >
-                  <option value="Borrow">🟡 Borrow (Issue Stock)</option>
-                  <option value="Return">🟢 Return (Receive Back)</option>
-                  <option value="Restock">🔵 Restock (Add Existing Stock)</option>
-                  <option value="Reserved">🟣 Reserved (Deployment only)</option>
-                  <option value="Out">🔴 Out (Personal Use)</option>
-                  <option value="Scrap">🟠 Scrap / Disposal (Deduct Repair)</option>
-                  <option value="Return to Vendor">🟤 Return to Vendor (Deduct Repair)</option>
-                </select>
-              </div>
+                <span className="text-slate-800 font-semibold text-sm truncate">{item.ItemDescription}</span>
 
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Date Processed</label>
-                <div className="relative"><Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="date" value={transactionDate} onChange={e => setTransactionDate(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" required />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">FULL NAME</label>
-                <input
-                  type="text"
-                  value={partyName}
-                  onChange={e => setPartyName(e.target.value)}
-                  placeholder={isDamagedDeductingType ? "Disposal Team, Supplier, or Junk shop" : "Enter full name of person"}
-                  list="party-suggestions"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
-                  required
-                />
-                <datalist id="party-suggestions">
-                  {existingParties.map((name, idx) => (
-                    <option key={idx} value={name} />
-                  ))}
-                </datalist>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Location / Address</label>
-                <input
-                  type="text"
-                  value={originAddress}
-                  onChange={e => setOriginAddress(e.target.value)}
-                  placeholder="Enter origin address or department"
-                  list="location-suggestions"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
-                />
-                <datalist id="location-suggestions">
-                  {existingLocations.map((loc, idx) => (
-                    <option key={idx} value={loc} />
-                  ))}
-                </datalist>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Prepared Name</label>
-                <div className="relative"><User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={preparedBy} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none" />
-                </div>
-              </div>
-            </div>
-
-            {/* SEARCH BOX */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
-              <label className="block text-sm font-bold text-yellow-600 uppercase">Step 1: Type / Select Supplies (Optional)</label>
-              <div className="relative"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search item code or details..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
-              </div>
-              {searchQuery && (
-                <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
-                  {filteredSuggestions.length > 0 ? (
-                    filteredSuggestions.map(item => (
-                      <div
-                        key={item._id}
-                        onClick={() => handleSelectSupply(item)}
-                        className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors"
-                      >
-                        {/* Unang Linya: Code, UOM, at Condition Breakdown Badges */}
-                        <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">
-                              {item.Code}
-                            </span>
-                            <span className="text-xs font-medium text-slate-400 lowercase italic">
-                              {item.UOM || 'pcs'}
-                            </span>
-                          </div>
-
-                          {/* Split Stock Status Badges para sa Good at Repair */}
-                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider">
-                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              Good: {item.ConditionBreakdown?.Good ?? item.ActualCount ?? 0}
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
-                              Repair: {item.ConditionBreakdown?.Damaged ?? item.DamagedCount ?? 0}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Pangalawang Linya: Description */}
-                        <span className="text-slate-800 font-semibold text-sm truncate">
-                          {item.ItemDescription}
-                        </span>
-
-                        {/* Pangatlong Linya: Dynamic Badges para sa Cat, Seg, at Dim */}
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-                          <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-                            Cat: {item.Category || item.category || 'Supply'}
-                          </span>
-
-                          {(item.Segment || item.segment) && (
-                            <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-                              Seg: {item.Segment || item.segment}
-                            </span>
-                          )}
-
-                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">
-                              Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
-                      No records found matching.
-                    </div>
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
+                  <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Cat: {item.Category || item.category || 'Supply'}</span>
+                  {(item.Segment || item.segment) && <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Seg: {item.Segment || item.segment}</span>}
+                  {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
+                    <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
                   )}
                 </div>
-              )}
-            </div>
-
-            {/* MANIFEST GRID TABLE */}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold text-yellow-700 bg-yellow-100 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically (deducted / added)</span>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-                  <thead>
-                    <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
-                      <th className="py-3 px-4 w-28">Supply Code</th>
-                      <th className="py-3 px-4 w-44">Item Description</th>
-                      <th className="py-3 px-4 text-center w-16">Total QTY</th>
-                      <th className="py-3 px-4 text-center w-14">UOM</th>
-                      <th className="py-3 px-4 text-center w-20 text-emerald-400">Good Cond.</th>
-                      <th className="py-3 px-4 text-center w-20 text-rose-400">Damaged</th>
-                      <th className="py-3 px-4 min-w-[180px]">Remarks / Notes</th>
-                      <th className="py-3 px-4 text-center w-14">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {manifestItems.length > 0 ? (
-                      manifestItems.map((item, index) => (
-                        <tr key={index} className="hover:bg-slate-50/80">
-                          <td className="py-2 px-4 font-bold">{item.Code}</td>
-                          <td className="py-2 px-4 text-xs truncate max-w-[170px]" title={item.ItemDescription}>
-                            {item.ItemDescription}
-                          </td>
-                          <td className="py-2 px-4 text-center">
-                            <input
-                              type="number"
-                              value={item.qty}
-                              onChange={e => handleUpdateField(index, 'qty', e.target.value)}
-                              className="w-14 border text-center rounded text-sm disabled:bg-slate-50 font-semibold"
-                              min="0"
-                              disabled={!isDeductingType}
-                              required
-                            />
-                            <div className="text-[10px] text-slate-400">Max: {item.maxLimit}</div>
-                          </td>
-                          <td className="py-2 px-4 text-center">
-                            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
-                          </td>
-                          <td className="py-2 px-4 text-center">
-                            <input
-                              type="number"
-                              value={item.goodConditionQty}
-                              onChange={e => handleUpdateField(index, 'goodConditionQty', e.target.value)}
-                              className="w-14 border text-center rounded text-sm font-bold text-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal"
-                              min="0"
-                              required
-                              disabled={isDeductingType}
-                            />
-                          </td>
-                          <td className="py-2 px-4 text-center">
-                            <input
-                              type="number"
-                              value={item.damagedQty}
-                              onChange={e => handleUpdateField(index, 'damagedQty', e.target.value)}
-                              className="w-14 border text-center rounded text-sm font-bold text-rose-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal"
-                              min="0"
-                              required
-                              disabled={isDeductingType}
-                            />
-                          </td>
-                          <td className="py-2 px-4">
-                            <input type="text" value={item.remarks} onChange={e => handleUpdateField(index, 'remarks', e.target.value)} placeholder={isDamagedDeductingType ? "Reason for scrapping/returning" : "Provide context details"} className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-[#18174e]" />
-                          </td>
-                          <td className="py-2 px-4 text-center">
-                            <button type="button" onClick={() => { setManifestItems(manifestItems.filter((_, i) => i !== index)); showSuccessToast("Item removed from template manifest."); }} className="text-red-500 cursor-pointer hover:text-red-700 transition-all"><Trash2 className="w-4 h-4 mx-auto" /></button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
-                          No items added. Search above to add rows.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
               </div>
+            ))
+          ) : (
+            <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+              No records found matching.
             </div>
-            <button type="submit" className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-xs text-sm transition-colors cursor-pointer uppercase">Save Supplies activity</button>
-          </form>
+          )}
         </div>
+      )}
+    </div>
+
+    {/* MANIFEST GRID TABLE */}
+    <div className="flex flex-col gap-2">
+      <span className="text-[10px] sm:text-xs font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically (deducted / added)</span>
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+        <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
+          <thead>
+            <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
+              <th className="py-3 px-4 w-28">Supply Code</th>
+              <th className="py-3 px-4 w-44">Item Description</th>
+              <th className="py-3 px-4 text-center w-24">Total QTY</th>
+              <th className="py-3 px-4 text-center w-16">UOM</th>
+              <th className="py-3 px-4 text-center w-28 text-emerald-400">Good Cond.</th>
+              <th className="py-3 px-4 text-center w-28 text-rose-400">Damaged</th>
+              <th className="py-3 px-4 min-w-[180px]">Remarks / Notes</th>
+              <th className="py-3 px-4 text-center w-14">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {manifestItems.length > 0 ? (
+              manifestItems.map((item, index) => (
+                <tr key={index} className="hover:bg-slate-50/80 text-xs">
+                  <td className="py-2 px-4 font-bold text-[#18174e]">{item.Code}</td>
+                  <td className="py-2 px-4 truncate max-w-[170px]" title={item.ItemDescription}>{item.ItemDescription}</td>
+                  <td className="py-2 px-4 text-center">
+                    <input
+                      type="number"
+                      value={item.qty}
+                      onChange={e => handleUpdateField(index, 'qty', e.target.value)}
+                      className="w-full border text-center rounded py-1 text-sm disabled:bg-slate-50 font-semibold text-slate-700 focus:outline-none focus:border-slate-400"
+                      min="0"
+                      disabled={!isDeductingType}
+                      required
+                    />
+                    <div className="text-[10px] text-slate-400 mt-0.5">Max: {item.maxLimit}</div>
+                  </td>
+                  <td className="py-2 px-4 text-center">
+                    <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
+                  </td>
+                  <td className="py-2 px-4 text-center">
+                    <input
+                      type="number"
+                      value={item.goodConditionQty}
+                      onChange={e => handleUpdateField(index, 'goodConditionQty', e.target.value)}
+                      className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:outline-none focus:border-emerald-500"
+                      min="0"
+                      required
+                      disabled={isDeductingType}
+                    />
+                  </td>
+                  <td className="py-2 px-4 text-center">
+                    <input
+                      type="number"
+                      value={item.damagedQty}
+                      onChange={e => handleUpdateField(index, 'damagedQty', e.target.value)}
+                      className="w-full border text-center rounded py-1 text-sm font-bold text-rose-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:outline-none focus:border-rose-500"
+                      min="0"
+                      required
+                      disabled={isDeductingType}
+                    />
+                  </td>
+                  <td className="py-2 px-4">
+                    <input type="text" value={item.remarks} onChange={e => handleUpdateField(index, 'remarks', e.target.value)} placeholder={isDamagedDeductingType ? "Reason for scrapping/returning" : "Provide context details..."} className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-[#18174e]" />
+                  </td>
+                  <td className="py-2 px-4 text-center">
+                    <button type="button" onClick={() => { setManifestItems(manifestItems.filter((_, i) => i !== index)); showSuccessToast("Item removed from template manifest."); }} className="text-red-500 cursor-pointer hover:text-red-700 transition-all p-1 inline-block"><Trash2 className="w-4 h-4 mx-auto" /></button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="8" className="text-center py-6 text-red-600 italic font-bold text-xs">
+                  No items added. Search above to add rows.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    {/* SUBMIT BUTTON */}
+    <button type="submit" className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase tracking-wider shadow-sm">
+      Save Supplies Activity
+    </button>
+  </form>
+</div>
 
         {/* SIDEBAR CONTAINER */}
         <div className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col gap-3 shadow-sm h-auto min-h-[400px]">

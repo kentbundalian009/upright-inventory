@@ -374,237 +374,244 @@ function WorkInProgress() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         {/* LEFT CONTAINER (WIP/CONVERSION DATA SHEET FORM) */}
-        <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 flex flex-col gap-6 shadow-sm">
-          <div className="border-b border-slate-100 pb-3 flex items-center justify-between text-sm font-bold text-slate-600">
-            <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-[#18174e]" />
-              <span>Work In Progress (WIP) Conversion Matrix</span>
-            </div>
-            {(inputMaterials.length > 0 || outputItems.length > 0) && (
-              <button
-                type="button"
-                onClick={() => { setInputMaterials([]); setOutputItems([]); setRemarks(''); setSuccessMessage("Form grid cleared."); }}
-                className="text-xs font-bold text-rose-500 hover:underline cursor-pointer"
-              >
-                Clear Form Grid
-              </button>
-            )}
-          </div>
+<div className="lg:col-span-3 bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 flex flex-col gap-6 shadow-sm">
+  <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-2 text-sm font-bold text-slate-600">
+    <div className="flex items-center gap-2 min-w-0">
+      <Layers className="w-4 h-4 text-[#18174e] flex-shrink-0" />
+      <span className="truncate">Work In Progress (WIP) Conversion Matrix</span>
+    </div>
+    {(inputMaterials.length > 0 || outputItems.length > 0) && (
+      <button
+        type="button"
+        onClick={() => { setInputMaterials([]); setOutputItems([]); setRemarks(''); setSuccessMessage("Form grid cleared."); }}
+        className="text-xs font-bold text-rose-500 hover:underline cursor-pointer flex-shrink-0"
+      >
+        Clear Form Grid
+      </button>
+    )}
+  </div>
 
-          <form onSubmit={handleSubmitConversion} className="flex flex-col gap-5">
-            {/* META DETAILS SUMMARY GRID */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Control Number</label>
-                <div className="relative"><FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value="[ AUTO-GENERATED ]" disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Production Type</label>
-                <select value={productionType} onChange={e => setProductionType(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none text-[#18174e]">
-                  <option value="Cutting">🟡 Cutting</option>
-                  <option value="Assembly">🟢 Assembly</option>
-                  <option value="Fabrication">🔵 Fabrication</option>
-                  <option value="Customization">🟣 Customization</option>
-                  <option value="Repair">🔴 Repair / Rework</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Date Processed</label>
-                <div className="relative"><Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="date" value={dateProcessed} onChange={e => setDateProcessed(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" required />
-                </div>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Process Remarks</label>
-                <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Enter any supplementary remarks or notes..." className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Prepared Name</label>
-                <div className="relative"><User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={preparedBy} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none" />
-                </div>
-              </div>
-            </div>
-
-            {/* --- STEP 1: ALLOCATE RAW MATERIAL (INPUT) --- */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
-              <label className="block text-sm font-bold text-red-800 uppercase">Step 1: Type / Select Materials for Stock Deduction  </label>
-              <div className="relative"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" value={rawMatSearchQuery} onChange={e => setRawMatSearchQuery(e.target.value)} placeholder="Search raw material code or description..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
-              </div>
-              {rawMatSearchQuery && (
-                <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
-                  {filteredRawMatSuggestions.length > 0 ? (
-                    filteredRawMatSuggestions.map(item => (
-                      <div key={item._id} onClick={() => handleSelectRawMaterial(item)} className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors">
-                        <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
-                            <span className="text-xs font-medium text-slate-400 lowercase italic">{item.UOM || 'pcs'}</span>
-                          </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            Avail: {item.ActualCount || 0}
-                          </span>
-                        </div>
-                        <span className="text-slate-800 font-semibold text-sm truncate">{item.ItemDescription}</span>
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-                          <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Cat: {item.Category || item.category || 'Raw Material'}</span>
-                          {(item.Segment || item.segment) && <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Seg: {item.Segment || item.segment}</span>}
-                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
-                      No records found matching.
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* INPUT TABLE */}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically deducted</span>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-                  <thead>
-                    <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
-                      <th className="py-3 px-4">Material Code</th>
-                      <th className="py-3 px-4">Description</th>
-                      <th className="py-3 px-4 text-center w-28">Qty Used</th>
-                      <th className="py-3 px-4 text-center">UOM</th>
-                      <th className="py-3 px-4 text-center">Stock Balance</th>
-                      <th className="py-3 px-4 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {inputMaterials.length > 0 ? (
-                      inputMaterials.map((item, index) => (
-                        <tr key={index} className="hover:bg-slate-50/80">
-                          <td className="py-2 px-4 font-bold">{item.Code}</td>
-                          <td className="py-2 px-4 text-xs truncate max-w-[200px]" title={item.ItemDescription}>{item.ItemDescription}</td>
-                          <td className="py-2 px-4">
-                            <input type="number" min="1" value={item.qtyUsed} onChange={e => handleUpdateInputQty(index, e.target.value)} className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none" required />
-                          </td>
-                          <td className="py-2 px-4 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span></td>
-                          <td className="py-2 px-4 text-center font-medium text-slate-500">{item.Available}</td>
-                          <td className="py-2 px-4 text-center">
-                            <button type="button" onClick={() => { setInputMaterials(inputMaterials.filter((_, i) => i !== index)); setSuccessMessage("Material removed from allocation matrix."); }} className="text-red-500 hover:text-red-700 cursor-pointer"><Trash2 className="w-4 h-4 inline" /></button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
-                          No items added. Search above to add rows.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* --- STEP 2: CONVERSION TARGET (RAW MATERIALS ONLY) --- */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
-              <label className="block text-sm font-bold text-emerald-800 uppercase">Step 2: Type / Select Materials for Stock Addition</label>
-              <div className="relative"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" value={outputSearchQuery} onChange={e => setOutputSearchQuery(e.target.value)} placeholder="Search profile code (returns raw materials details)..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
-              </div>
-              {outputSearchQuery && (
-                <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
-                  {filteredOutputSuggestions.length > 0 ? (
-                    filteredOutputSuggestions.map(item => (
-                      <div key={`${item.type}-${item._id}`} onClick={() => handleSelectOutputItem(item, item.type)} className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors">
-                        <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
-                            <span className="text-xs font-medium text-slate-400 lowercase italic">{item.UOM || 'pcs'}</span>
-                          </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
-                            Raw Mat Return
-                          </span>
-                        </div>
-                        <span className="text-slate-800 font-semibold text-sm truncate">{item.ItemDescription}</span>
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-                          <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Cat: {item.Category || item.category || item.type}</span>
-                          {(item.Segment || item.segment) && <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Seg: {item.Segment || item.segment}</span>}
-                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
-                      No records found matching.
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* OUTPUT TABLE */}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically added</span>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-                  <thead>
-                    <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
-                      <th className="py-3 px-4">Output Code</th>
-                      <th className="py-3 px-4">Yield Description Target</th>
-                      <th className="py-3 px-4 text-center">Target Type</th>
-                      <th className="py-3 px-4 text-center w-28">Qty Produced</th>
-                      <th className="py-3 px-4 text-center">UOM</th>
-                      <th className="py-3 px-4 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {outputItems.length > 0 ? (
-                      outputItems.map((item, index) => (
-                        <tr key={index} className="hover:bg-slate-50/80">
-                          <td className="py-2 px-4 font-bold text-emerald-700">{item.Code}</td>
-                          <td className="py-2 px-4 text-xs truncate max-w-[220px]" title={item.ItemDescription}>{item.ItemDescription}</td>
-                          <td className="py-2 px-4 text-center">
-                            <span className="text-[10px] px-2 py-0.5 font-bold rounded uppercase bg-amber-50 text-amber-700 border border-amber-200">
-                              Raw Mat
-                            </span>
-                          </td>
-                          <td className="py-2 px-4">
-                            <input type="number" min="1" value={item.qtyProduced} onChange={e => handleUpdateOutputQty(index, e.target.value)} className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none" required />
-                          </td>
-                          <td className="py-2 px-4 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span></td>
-                          <td className="py-2 px-4 text-center">
-                            <button type="button" onClick={() => { setOutputItems(outputItems.filter((_, i) => i !== index)); setSuccessMessage("Yield output target line removed."); }} className="text-red-500 hover:text-red-700 cursor-pointer"><Trash2 className="w-4 h-4 inline" /></button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
-                          No items added. Search above to add rows.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xs text-sm transition-colors cursor-pointer uppercase">
-              Save WIP Conversion Activity
-            </button>
-          </form>
+  <form onSubmit={handleSubmitConversion} className="flex flex-col gap-5">
+    {/* 🔥 META DETAILS SUMMARY GRID: Fully Responsive (1 col -> 2 cols -> 3 cols) */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Control Number</label>
+        <div className="relative">
+          <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <input type="text" value="[ AUTO-GENERATED ]" disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none" />
         </div>
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Production Type</label>
+        <select value={productionType} onChange={e => setProductionType(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none text-[#18174e] cursor-pointer">
+          <option value="Cutting">🟡 Cutting</option>
+          <option value="Assembly">🟢 Assembly</option>
+          <option value="Fabrication">🔵 Fabrication</option>
+          <option value="Customization">🟣 Customization</option>
+          <option value="Repair">🔴 Repair / Rework</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Date Processed</label>
+        <div className="relative">
+          <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <input type="date" value={dateProcessed} onChange={e => setDateProcessed(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" required />
+        </div>
+      </div>
+
+      {/* Remarks field na umaakop ng buong row sa mobile ngunit lumalawak sa wide layouts */}
+      <div className="col-span-1 sm:col-span-2">
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Process Remarks</label>
+        <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Enter any supplementary remarks or notes..." className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none" />
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Prepared Name</label>
+        <div className="relative">
+          <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <input type="text" value={preparedBy} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none" />
+        </div>
+      </div>
+    </div>
+
+    {/* --- STEP 1: ALLOCATE RAW MATERIAL (INPUT) --- */}
+    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
+      <label className="block text-xs sm:text-sm font-bold text-red-800 uppercase leading-snug">Step 1: Type / Select Materials for Stock Deduction</label>
+      <div className="relative">
+        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+        <input type="text" value={rawMatSearchQuery} onChange={e => setRawMatSearchQuery(e.target.value)} placeholder="Search raw material code or description..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
+      </div>
+      {rawMatSearchQuery && (
+        <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
+          {filteredRawMatSuggestions.length > 0 ? (
+            filteredRawMatSuggestions.map(item => (
+              <div key={item._id} onClick={() => handleSelectRawMaterial(item)} className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors">
+                <div className="flex justify-between items-center font-bold text-slate-800 text-sm gap-2">
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
+                    <span className="text-xs font-medium text-slate-400 lowercase italic truncate">{item.UOM || 'pcs'}</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200 flex-shrink-0">
+                    Avail: {item.ActualCount || 0}
+                  </span>
+                </div>
+                <span className="text-slate-800 font-semibold text-sm truncate">{item.ItemDescription}</span>
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
+                  <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Cat: {item.Category || item.category || 'Raw Material'}</span>
+                  {(item.Segment || item.segment) && <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Seg: {item.Segment || item.segment}</span>}
+                  {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
+                    <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+              No records found matching.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+
+    {/* INPUT TABLE */}
+    <div className="flex flex-col gap-2">
+      <span className="text-[10px] sm:text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically deducted</span>
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+        <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
+          <thead>
+            <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
+              <th className="py-3 px-4">Material Code</th>
+              <th className="py-3 px-4">Description</th>
+              <th className="py-3 px-4 text-center w-28">Qty Used</th>
+              <th className="py-3 px-4 text-center">UOM</th>
+              <th className="py-3 px-4 text-center">Stock Balance</th>
+              <th className="py-3 px-4 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {inputMaterials.length > 0 ? (
+              inputMaterials.map((item, index) => (
+                <tr key={index} className="hover:bg-slate-50/80 text-xs">
+                  <td className="py-2 px-4 font-bold text-[#18174e]">{item.Code}</td>
+                  <td className="py-2 px-4 truncate max-w-[200px]" title={item.ItemDescription}>{item.ItemDescription}</td>
+                  <td className="py-2 px-4">
+                    <input type="number" min="1" value={item.qtyUsed} onChange={e => handleUpdateInputQty(index, e.target.value)} className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-500" required />
+                  </td>
+                  <td className="py-2 px-4 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span></td>
+                  <td className="py-2 px-4 text-center font-medium text-slate-500">{item.Available}</td>
+                  <td className="py-2 px-4 text-center">
+                    <button type="button" onClick={() => { setInputMaterials(inputMaterials.filter((_, i) => i !== index)); setSuccessMessage("Material removed from allocation matrix."); }} className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block"><Trash2 className="w-4 h-4 inline" /></button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="6" className="text-center py-6 text-red-600 italic font-bold text-xs">
+                  No items added. Search above to add rows.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {/* --- STEP 2: CONVERSION TARGET (RAW MATERIALS ONLY) --- */}
+    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
+      <label className="block text-xs sm:text-sm font-bold text-emerald-800 uppercase leading-snug">Step 2: Type / Select Materials for Stock Addition</label>
+      <div className="relative">
+        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+        <input type="text" value={outputSearchQuery} onChange={e => setOutputSearchQuery(e.target.value)} placeholder="Search profile code (returns raw materials details)..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
+      </div>
+      {outputSearchQuery && (
+        <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
+          {filteredOutputSuggestions.length > 0 ? (
+            filteredOutputSuggestions.map(item => (
+              <div key={`${item.type}-${item._id}`} onClick={() => handleSelectOutputItem(item, item.type)} className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors">
+                <div className="flex justify-between items-center font-bold text-slate-800 text-sm gap-2">
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
+                    <span className="text-xs font-medium text-slate-400 lowercase italic truncate">{item.UOM || 'pcs'}</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200 flex-shrink-0">
+                    Raw Mat Return
+                  </span>
+                </div>
+                <span className="text-slate-800 font-semibold text-sm truncate">{item.ItemDescription}</span>
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
+                  <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Cat: {item.Category || item.category || item.type}</span>
+                  {(item.Segment || item.segment) && <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Seg: {item.Segment || item.segment}</span>}
+                  {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
+                    <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+              No records found matching.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+
+    {/* OUTPUT TABLE */}
+    <div className="flex flex-col gap-2">
+      <span className="text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically added</span>
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+        <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
+          <thead>
+            <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
+              <th className="py-3 px-4">Output Code</th>
+              <th className="py-3 px-4">Yield Description Target</th>
+              <th className="py-3 px-4 text-center">Target Type</th>
+              <th className="py-3 px-4 text-center w-28">Qty Produced</th>
+              <th className="py-3 px-4 text-center">UOM</th>
+              <th className="py-3 px-4 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {outputItems.length > 0 ? (
+              outputItems.map((item, index) => (
+                <tr key={index} className="hover:bg-slate-50/80 text-xs">
+                  <td className="py-2 px-4 font-bold text-emerald-700">{item.Code}</td>
+                  <td className="py-2 px-4 truncate max-w-[220px]" title={item.ItemDescription}>{item.ItemDescription}</td>
+                  <td className="py-2 px-4 text-center">
+                    <span className="text-[10px] px-2 py-0.5 font-bold rounded uppercase bg-amber-50 text-amber-700 border border-amber-200">
+                      Raw Mat
+                    </span>
+                  </td>
+                  <td className="py-2 px-4">
+                    <input type="number" min="1" value={item.qtyProduced} onChange={e => handleUpdateOutputQty(index, e.target.value)} className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-500" required />
+                  </td>
+                  <td className="py-2 px-4 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span></td>
+                  <td className="py-2 px-4 text-center">
+                    <button type="button" onClick={() => { setOutputItems(outputItems.filter((_, i) => i !== index)); setSuccessMessage("Yield output target line removed."); }} className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block"><Trash2 className="w-4 h-4 inline" /></button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="6" className="text-center py-6 text-red-600 italic font-bold text-xs">
+                  No items added. Search above to add rows.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {/* SUBMIT BUTTON */}
+    <button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase tracking-wider">
+      Save WIP Conversion Activity
+    </button>
+  </form>
+</div>
 
         {/* RIGHT CONTAINER (SIDEBAR HISTORY RECENT LOGS) */}
         <div className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col gap-3 shadow-sm h-auto min-h-[400px]">

@@ -510,230 +510,251 @@ function InboundRawMat() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         {/* LEFT CONTAINER (FORM SHEETS) */}
-        <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 flex flex-col gap-6 shadow-sm">
-          <div className="border-b border-slate-100 pb-3 flex items-center gap-2 text-sm font-bold text-slate-600">
-            <ListPlus className="w-4 h-4 text-[#18174e]" />
-            <span>Purchase Order Logging Sheet</span>
-          </div>
+<div className="lg:col-span-3 bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 flex flex-col gap-6 shadow-sm">
+  <div className="border-b border-slate-100 pb-3 flex items-center gap-2 text-sm font-bold text-slate-600">
+    <ListPlus className="w-4 h-4 text-[#18174e]" />
+    <span>Purchase Order Logging Sheet</span>
+  </div>
 
-          <form onSubmit={handleSubmitPO} className="flex flex-col gap-5">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Purchase Order No.</label>
-                <div className="relative">
-                  <input type="text" value={poNo} onChange={e => setPoNo(e.target.value)} placeholder="Enter PO Number" className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" />
+  <form onSubmit={handleSubmitPO} className="flex flex-col gap-5">
+    {/* 🔥 TOP INPUTS GRID: Ginawang 1 column sa mobile, 2 sa small tablets, at 3 sa desktop */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Purchase Order No.</label>
+        <div className="relative">
+          <input type="text" value={poNo} onChange={e => setPoNo(e.target.value)} placeholder="Enter PO Number" className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" />
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Supplier Origin *</label>
+        <div className="relative">
+          <input
+            type="text"
+            value={supplier}
+            onChange={e => setSupplier(e.target.value)}
+            list="po-suppliers-list"
+            placeholder="Enter supplier name"
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+            required
+          />
+          <datalist id="po-suppliers-list">
+            {uniqueSuppliers.map((sup, idx) => <option key={idx} value={sup} />)}
+          </datalist>
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Date Received</label>
+        <div className="relative">
+          <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <input type="date" value={dateReceived} onChange={e => setDateReceived(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" required />
+        </div>
+      </div>
+      {/* 🔥 Address Box: Sumasakop sa buong row sa mobile (`col-span-1`), nagiging wide lang sa tablet/desktop */}
+      <div className="col-span-1 sm:col-span-2">
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Origin Location Address</label>
+        <input
+          type="text"
+          value={originAddress}
+          onChange={e => setOriginAddress(e.target.value)}
+          list="po-addresses-list"
+          placeholder="Enter origin address"
+          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+        />
+        <datalist id="po-addresses-list">
+          {uniqueAddresses.map((addr, idx) => <option key={idx} value={addr} />)}
+        </datalist>
+      </div>
+      <div>
+        <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Prepared Name</label>
+        <div className="relative">
+          <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <input type="text" value={preparedBy} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none" />
+        </div>
+      </div>
+    </div>
+
+    {/* STEP 1 CONTAINER */}
+    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-3 relative">
+      {/* 🔥 STEP HEADER: Ginawang flex-col kapag mobile para maganda ang salo ng input label at button */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-1">
+        <label className="block text-xs sm:text-sm font-bold text-emerald-800 uppercase leading-snug">
+          Step 1: Type / Select Materials for Stock Addition
+        </label>
+        {/* Tinanggal ang `w-1/3` na pumipisat sa button sa mobile. Pinalitan ng responsive padding */}
+        <button 
+          type="button" 
+          onClick={() => setIsMatModalOpen(true)} 
+          className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 text-white px-3 py-2 sm:px-4 rounded-lg text-xs font-bold shadow-sm w-full sm:w-auto cursor-pointer transition-all"
+        >
+          Add New Rackings Item
+        </button>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+        <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search item code or description..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
+      </div>
+
+      {searchQuery && (
+        <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
+          {filteredSuggestions.length > 0 ? (
+            filteredSuggestions.map(item => (
+              <div
+                key={item._id}
+                onClick={() => handleSelectMaterial(item)}
+                className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors"
+              >
+                <div className="flex justify-between items-center font-bold text-slate-800 text-sm gap-2">
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">
+                      {item.Code}
+                    </span>
+                    <span className="text-xs font-medium text-slate-400 lowercase italic truncate">
+                      {item.UOM || 'pcs'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200 flex-shrink-0">
+                    Avail: {item.ActualCount || item.actualCount || item.AvailableStock || 0}
+                  </span>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Supplier Origin *</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={supplier}
-                    onChange={e => setSupplier(e.target.value)}
-                    list="po-suppliers-list"
-                    placeholder="Enter supplier name"
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
-                    required
-                  />
-                  <datalist id="po-suppliers-list">
-                    {uniqueSuppliers.map((sup, idx) => <option key={idx} value={sup} />)}
-                  </datalist>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Date Received</label>
-                <div className="relative"><Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="date" value={dateReceived} onChange={e => setDateReceived(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" required />
-                </div>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Origin Location Address</label>
-                <input
-                  type="text"
-                  value={originAddress}
-                  onChange={e => setOriginAddress(e.target.value)}
-                  list="po-addresses-list"
-                  placeholder="Enter origin address"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
-                />
-                <datalist id="po-addresses-list">
-                  {uniqueAddresses.map((addr, idx) => <option key={idx} value={addr} />)}
-                </datalist>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Prepared Name</label>
-                <div className="relative"><User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={preparedBy} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none" />
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
-              <div className="flex justify-between items-center mb-0.5">
-                <label className="block text-sm font-bold text-emerald-800 uppercase">Step 1: Type / Select Materials for Stock Addition</label>
-                <button type="button" onClick={() => setIsMatModalOpen(true)} className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-1/3 cursor-pointer transition-all">Add New Rackings Item</button>
-              </div>
-              <div className="relative"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search item code or description..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
-              </div>
-              {searchQuery && (
-                <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
-                  {filteredSuggestions.length > 0 ? (
-                    filteredSuggestions.map(item => (
-                      <div
-                        key={item._id}
-                        onClick={() => handleSelectMaterial(item)}
-                        className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors"
-                      >
-                        {/* Unang Linya: Code, UOM, at Available Stock Status Badge */}
-                        <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">
-                              {item.Code}
-                            </span>
-                            <span className="text-xs font-medium text-slate-400 lowercase italic">
-                              {item.UOM || 'pcs'}
-                            </span>
-                          </div>
-                          {/* Idinagdag na Avail Badge para sa natitirang stock */}
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            Avail: {item.ActualCount || item.actualCount || item.AvailableStock || 0}
-                          </span>
-                        </div>
+                <span className="text-slate-800 font-semibold text-sm truncate">
+                  {item.ItemDescription}
+                </span>
 
-                        {/* Pangalawang Linya: Item Description */}
-                        <span className="text-slate-800 font-semibold text-sm truncate">
-                          {item.ItemDescription}
-                        </span>
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
+                  <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
+                    Cat: {item.Category || item.category || 'Material'}
+                  </span>
 
-                        {/* Pangatlong Linya: Swabeng Dynamic Badges para sa Cat, Seg, at Dim */}
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-                          <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-                            Cat: {item.Category || item.category || 'Material'}
-                          </span>
+                  {(item.Segment || item.segment) && (
+                    <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
+                      Seg: {item.Segment || item.segment}
+                    </span>
+                  )}
 
-                          {(item.Segment || item.segment) && (
-                            <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-                              Seg: {item.Segment || item.segment}
-                            </span>
-                          )}
-
-                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">
-                              Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
-                      No records found matching.
-                    </div>
+                  {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
+                    <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">
+                      Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}
+                    </span>
                   )}
                 </div>
-              )}
-            </div>
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically added</span>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-                  <thead>
-                    <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
-                      <th className="py-3 px-4">Item Code</th>
-                      <th className="py-3 px-4">Category</th>
-                      <th className="py-3 px-4">Segment</th>
-                      <th className="py-3 px-4">Description</th>
-                      <th className="py-3 px-4">Dimension</th>
-                      <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
-
-                      <th className="py-3 px-4 text-center">UOM</th>
-
-                      {/* Kaparehong w-28 at min-w para terno sila ng QTY */}
-                      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Actual</th>
-
-                      <th className="py-3 px-4">Account To</th>
-                      <th className="py-3 px-4">Remarks</th>
-                      <th className="py-3 px-4 text-center">Action</th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-slate-100">
-                    {manifestItems.length > 0 ? (
-                      manifestItems.map((item, index) => (
-                        <tr key={item.materialId || index} className="hover:bg-slate-50/80 text-xs">
-                          <td className="py-2 px-4 font-bold text-sm text-[#18174e]">{item.Code}</td>
-                          <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
-                          <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
-                          <td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription}>
-                            {item.ItemDescription}
-                          </td>
-                          <td className="py-2 px-4 text-slate-500">{item.Dimension}</td>
-
-                          {/* QTY TD Cell na may nakatali ring width restriction */}
-                          <td className="py-2 px-4 w-28 min-w-[112px]">
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.qty}
-                              onChange={e => handleUpdateField(index, 'qty', e.target.value)}
-                              className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-[#18174e]"
-                            />
-                          </td>
-
-                          <td className="py-2 px-4 text-center">
-                            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
-                          </td>
-
-                          {/* Actual TD Cell na kaparehong sukat para kuwadrado at pantay */}
-                          <td className="py-2 px-4 w-28 min-w-[112px]">
-                            <input
-                              type="number"
-                              min="0"
-                              value={item.actualCount}
-                              onChange={e => handleUpdateField(index, 'actualCount', e.target.value)}
-                              className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600"
-                            />
-                          </td>
-
-                          <td className="py-2 px-4 text-slate-500">{item.AccountTo}</td>
-
-                          <td className="py-2 px-4">
-                            <input
-                              type="text"
-                              value={item.remarks}
-                              onChange={e => handleUpdateField(index, 'remarks', e.target.value)}
-                              placeholder="Remarks"
-                              className="w-full border rounded px-2 py-1 text-xs focus:outline-none"
-                            />
-                          </td>
-
-                          <td className="py-2 px-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => setManifestItems(manifestItems.filter((_, i) => i !== index))}
-                              className="text-red-500 hover:text-red-700 cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4 inline" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
-                          No items added. Search above to add rows.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
               </div>
+            ))
+          ) : (
+            <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+              No records found matching.
             </div>
-            <button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xs text-sm transition-colors cursor-pointer uppercase">Save PO (Purchase Order)</button>
-          </form>
+          )}
         </div>
+      )}
+    </div>
+
+    {/* STEP 2: QUANTITIES MANIFEST TABLE */}
+    <div className="flex flex-col gap-2">
+      <span className="text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">
+        Quantities will be automatically added
+      </span>
+      
+      {/* Table responsive wrapper */}
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+        <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
+          <thead>
+            <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
+              <th className="py-3 px-4">Item Code</th>
+              <th className="py-3 px-4">Category</th>
+              <th className="py-3 px-4">Segment</th>
+              <th className="py-3 px-4">Description</th>
+              <th className="py-3 px-4">Dimension</th>
+              <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
+              <th className="py-3 px-4 text-center">UOM</th>
+              <th className="py-3 px-4 text-center w-28 min-w-[112px]">Actual</th>
+              <th className="py-3 px-4">Account To</th>
+              <th className="py-3 px-4">Remarks</th>
+              <th className="py-3 px-4 text-center">Action</th>
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-slate-100">
+            {manifestItems.length > 0 ? (
+              manifestItems.map((item, index) => (
+                <tr key={item.materialId || index} className="hover:bg-slate-50/80 text-xs">
+                  <td className="py-2 px-4 font-bold text-sm text-[#18174e]">{item.Code}</td>
+                  <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
+                  <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
+                  <td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription}>
+                    {item.ItemDescription}
+                  </td>
+                  <td className="py-2 px-4 text-slate-500">{item.Dimension}</td>
+
+                  <td className="py-2 px-4 w-28 min-w-[112px]">
+                    <input
+                      type="number"
+                      min="1"
+                      value={item.qty}
+                      onChange={e => handleUpdateField(index, 'qty', e.target.value)}
+                      className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-[#18174e]"
+                    />
+                  </td>
+
+                  <td className="py-2 px-4 text-center">
+                    <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
+                  </td>
+
+                  <td className="py-2 px-4 w-28 min-w-[112px]">
+                    <input
+                      type="number"
+                      min="0"
+                      value={item.actualCount}
+                      onChange={e => handleUpdateField(index, 'actualCount', e.target.value)}
+                      className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600"
+                    />
+                  </td>
+
+                  <td className="py-2 px-4 text-slate-500">{item.AccountTo}</td>
+
+                  <td className="py-2 px-4">
+                    <input
+                      type="text"
+                      value={item.remarks}
+                      onChange={e => handleUpdateField(index, 'remarks', e.target.value)}
+                      placeholder="Remarks"
+                      className="w-full border rounded px-2 py-1 text-xs focus:outline-none"
+                    />
+                  </td>
+
+                  <td className="py-2 px-4 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setManifestItems(manifestItems.filter((_, i) => i !== index))}
+                      className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block"
+                    >
+                      <Trash2 className="w-4 h-4 inline" />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
+                  No items added. Search above to add rows.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    {/* SUBMIT BUTTON */}
+    <button 
+      type="submit" 
+      className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase tracking-wider"
+    >
+      Save PO (Purchase Order)
+    </button>
+  </form>
+</div>
 
         {/* RIGHT CONTAINER (SIDEBAR) */}
         <div className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col gap-3 shadow-sm h-auto min-h-[400px]">

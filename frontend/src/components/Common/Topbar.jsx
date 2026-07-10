@@ -121,7 +121,7 @@ const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
         {/* LOGOUT BUTTON SECTION */}
         <button
           onClick={handleLogoutClick}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer border border-rose-100"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold text-red-600 hover:bg-red-100 transition-colors cursor-pointer border border-red-100"
         >
           <LogOut size={16} className="flex-shrink-0" />
           <span className="hidden sm:inline">Logout</span>
@@ -139,47 +139,57 @@ const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
         </div>
       )}
 
-      {/* 🛑 CUSTOM CONFIRMATION MODAL */}
-      {isConfirmModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex justify-center items-start z-50 p-4 pt-5 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm p-5 shadow-2xl relative animate-in slide-in-from-top-5 duration-300">
-              
-              {/* Title Block (No Icons) */}
-              <div className="border-b border-slate-100 pb-2">
-                  <h3 className="font-bold text-slate-800 text-sm tracking-wide">
-                      {confirmModalConfig.title}
-                  </h3>
-              </div>
-              
-              {/* Message Body */}
-              <p className="text-sm text-slate-600 leading-relaxed mt-3">
-                  {confirmModalConfig.message}
-              </p>
+{/* 🛑 CUSTOM CONFIRMATION MODAL */}
+{isConfirmModalOpen && (
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+        {/* Eksaktong katulad ng standard container (max-w-md, rounded-2xl, p-6, at zoom animation) */}
+        <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-xl relative flex flex-col animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+                <h3 className="font-bold text-slate-800 text-base">
+                    {confirmModalConfig.title}
+                </h3>
+            </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-2 mt-5">
-                  <button 
-                      type="button" 
-                      onClick={() => setIsConfirmModalOpen(false)} 
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
-                  >
-                      Cancel
-                  </button>
-                  <button 
-                      type="button" 
-                      onClick={handleConfirmAction} 
-                      className={`text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer ${
-                          confirmModalConfig.actionType === 'archive' 
-                              ? 'bg-rose-600 hover:bg-rose-700' 
-                              : 'bg-emerald-600 hover:bg-emerald-700'
-                      }`}
-                  >
-                      Confirm
-                  </button>
-              </div>
-          </div>
+            {/* System Inventory Protocol Notification Card (Binalik para sa consistency ng height at visual weights) */}
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
+                <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                    * System Action Protocol *
+                </span>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                    Please review the operation context. Confirming this step commits changes directly to the live system registry.
+                </p>
+            </div>
+
+            {/* Modal Body Message */}
+            <div className="mt-4 flex-1">
+                <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                    {confirmModalConfig.message}
+                </p>
+            </div>
+
+            {/* Modal Bottom Actions (Pure #18174e at Slate-100 gamit ang standard buttons mo) */}
+            <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100 shrink-0">
+                <button 
+                    type="button" 
+                    onClick={() => setIsConfirmModalOpen(false)} 
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                >
+                    Cancel
+                </button>
+                <button 
+                    type="button" 
+                    onClick={handleConfirmAction} 
+                    className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
+                >
+                    Confirm
+                </button>
+            </div>
+
         </div>
-      )}
+    </div>
+)}
     </>
   );
 }
