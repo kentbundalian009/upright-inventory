@@ -152,10 +152,12 @@ function WorkInProgress() {
       return;
     }
 
-    const stockViolation = inputMaterials.find(i => i.qtyUsed > i.Available);
-    if (stockViolation) {
-      setErrorMessage(`Kulang ang stock para sa ${stockViolation.Code}. Mayroon na lamang na: ${stockViolation.Available}`);
-      return;
+    // 🔥 STRICT TOAST VALIDATION: Walang alert popup, diretsong block at toast error agad!
+    for (const item of inputMaterials) {
+      if (item.qtyUsed > item.Available) {
+        setErrorMessage(`Insufficient stock for ${item.Code} (${item.ItemDescription || 'No Description'}). Available: ${item.Available}, Attempted Deduction: ${item.qtyUsed}.`);
+        return; // Puputulin ang system sequence dito para hindi mag-negative sa database
+      }
     }
 
     const payload = {

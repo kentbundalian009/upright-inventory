@@ -134,7 +134,8 @@ function Reports() {
                             it.Code === item.Code
                         );
                         if (matchedPoItem) {
-                            const qty = matchedPoItem.qtyReceived || matchedPoItem.qtyOrdered || matchedPoItem.actualCountReceived || matchedPoItem.qty || matchedPoItem.quantity || 0;
+                            const qty = matchedPoItem.qtyReceived ||
+                                matchedPoItem.qtyOrdered || matchedPoItem.actualCountReceived || matchedPoItem.qty || matchedPoItem.quantity || 0;
                             if (qty > 0) {
                                 inflows.push({
                                     type: 'IN',
@@ -392,20 +393,22 @@ function Reports() {
             doc.text("Restricted Internal Ledger", 220, 49);
 
             const columns = ["Code", "Item Description", "Category/Seg", "Dimension", "Count", "UOM", "Inflow History Summary", "Outflow History Summary"];
-            const rows = consolidatedData.map(item => [
-                item.Code || '—',
-                item.ItemDescription || '—',
-                `${item.Category || '—'} \n(${item.Segment || 'N/A'})`,
-                item.Dimension || '—',
-                item.ActualCount ? String(item.ActualCount) : '0',
-                item.UOM || '—',
-                item.inflows && item.inflows.length > 0
-                    ? item.inflows.slice(0, 8).map(inf => `${inf.type || ''} | Qty: ${inf.qty || 0} | ${inf.label || ''} | ${inf.date || ''}`).join('\n') + (item.inflows.length > 8 ? '\n...and more logs' : '')
-                    : 'No logs recorded',
-                item.outflows && item.outflows.length > 0
-                    ? item.outflows.slice(0, 8).map(out => `${out.type || ''} | Qty: ${out.qty || 0} | ${out.label || ''} | ${out.date || ''}`).join('\n') + (item.outflows.length > 8 ? '\n...and more logs' : '')
-                    : 'No logs recorded'
-            ]);
+const rows = consolidatedData.map(item => [
+    item.Code || '—',
+    item.ItemDescription || '—',
+    `${item.Category || '—'} \n(${item.Segment || 'N/A'})`,
+    item.Dimension || '—',
+    item.ActualCount ? String(item.ActualCount) : '0',
+    item.UOM || '—',
+    // Inflows - Tinanggal ang .slice(0, 8) at ang "...and more logs" condition
+    item.inflows && item.inflows.length > 0
+        ? item.inflows.map(inf => `${inf.type || ''} | Qty: ${inf.qty || 0} | ${inf.label || ''} | ${inf.date || ''}`).join('\n')
+        : 'No logs recorded',
+    // Outflows - Tinanggal ang .slice(0, 8) at ang "...and more logs" condition
+    item.outflows && item.outflows.length > 0
+        ? item.outflows.map(out => `${out.type || ''} | Qty: ${out.qty || 0} | ${out.label || ''} | ${out.date || ''}`).join('\n')
+        : 'No logs recorded'
+]);
 
             autoTable(doc, {
                 startY: 58,
@@ -502,195 +505,224 @@ function Reports() {
         }
     };
 
+
     return (
-        <div className="mx-6 md:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased text-slate-600">
+        <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased relative">
             <PageHeader activeTab="reports" />
 
-            <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 flex flex-col gap-6 shadow-xs">
+            {/* MAIN CARD CONTAINER CONTAINER */}
+            <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col gap-6">
+                
+                {/* FILTER CONTROLS MASTER ROW */}
+                <div className="flex flex-col gap-1.5">
+                    
+                    {/* TOP BAR: Title at Module Selector */}
+                    <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 flex-shrink-0">
+                            <Filter className="w-4 h-4 text-[#18174e]" />
+                            <span>Filter Reports Ledger</span>
+                        </div>
 
-                {/* FILTERS TOP BAR */}
-                <div className="flex flex-col md:flex-row gap-4 items-center w-full border-b border-slate-100 pb-4">
-                    <div className="flex-1 w-full relative">
-                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by Code, Description, Category, or Segment..."
-                            value={globalSearch}
-                            onChange={(e) => setGlobalSearch(e.target.value)}
-                            className="w-full bg-slate-50 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none border border-transparent focus:border-[#18174e]"
-                        />
+                        {/* CONTROLS BAR: Module Switcher Tab Buttons */}
+                        <div className="flex items-center gap-2 ml-auto">
+                            {reportModules.map(mod => {
+                                const IconComp = mod.icon;
+                                const isActive = activeModule === mod.id;
+                                return (
+                                    <button
+                                        key={mod.id}
+                                        onClick={() => setActiveModule(mod.id)}
+                                        className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm ${
+                                            isActive
+                                                ? 'bg-[#18174e] text-white border-[#18174e] hover:bg-[#18174e]/90'
+                                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                        }`}
+                                    >
+                                        <IconComp className="w-3.5 h-3.5" />
+                                        <span>{mod.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
 
-                    <div className="flex flex-wrap md:flex-nowrap gap-3 items-center w-full md:w-auto">
-                        {/* 1. View Grouping Select */}
-                        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
-                            <Filter className="w-3.5 h-3.5 text-slate-400" />
+                    {/* INTERACTIVE FILTERS GRID ROW */}
+                    <div className="flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid md:grid-cols-5 md:pb-0">
+                        {/* Month Filter */}
+                        <div className="min-w-[140px] w-full md:min-w-0">
                             <select
-                                value={viewMode}
-                                onChange={(e) => setViewMode(e.target.value)}
-                                className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer text-slate-700"
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                                className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full"
                             >
-                                <option value="detailed">Detailed (Per Item)</option>
-                                <option value="category">Summary per Category</option>
-                                <option value="segment">Summary per Segment</option>
+                                {monthsList.map(m => (
+                                    <option key={m.value} value={m.value}>{m.label}</option>
+                                ))}
                             </select>
                         </div>
 
-                        {/* 2. Hide Zero Quantity Checkbox */}
-                        <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-700 cursor-pointer hover:bg-slate-100">
+                        {/* Year Filter */}
+                        <div className="min-w-[110px] w-full md:min-w-0">
+                            <select
+                                value={selectedYear}
+                                onChange={(e) => setSelectedYear(e.target.value)}
+                                className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full"
+                            >
+                                {Array.from({ length: 5 }, (_, i) => currentYear - 2 + i).map(yr => (
+                                    <option key={yr} value={yr}>{yr}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* View aggregation Mode */}
+                        <div className="min-w-[150px] w-full md:min-w-0">
+                            <select
+                                value={viewMode}
+                                onChange={(e) => setViewMode(e.target.value)}
+                                className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full font-medium"
+                            >
+                                <option value="detailed">🔵 Detailed Inventory</option>
+                                <option value="category">🟠 Group By Category</option>
+                                <option value="segment">🟣 Group By Segment</option>
+                            </select>
+                        </div>
+
+                        {/* Search Input Box */}
+                        <div className="min-w-[180px] w-full md:min-w-0 md:col-span-2">
+                            <div className="relative w-full">
+                                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search specific record details..."
+                                    value={globalSearch}
+                                    onChange={(e) => setGlobalSearch(e.target.value)}
+                                    className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none w-full"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* EXTRA OPTION ROW: Hide Zero Checkbox & PDF Action Export */}
+                    <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-1 gap-2 flex-wrap">
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-all flex-shrink-0">
                             <input
                                 type="checkbox"
                                 checked={hideZeroQty}
                                 onChange={(e) => setHideZeroQty(e.target.checked)}
-                                className="accent-[#18174e] cursor-pointer rounded"
+                                className="w-3.5 h-3.5 accent-[#18174e] rounded cursor-pointer"
                             />
-                            Hide 0 Qty
+                            <span>Hide 0 Quantity Items</span>
                         </label>
 
-                        <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm focus:outline-none text-slate-700">
-                            {monthsList.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                        </select>
-                        <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm focus:outline-none text-slate-700">
-                            <option value="2026">2026</option>
-                            <option value="2025">2025</option>
-                        </select>
-                        <button onClick={handleDownloadPDF} className="bg-green-600 hover:bg-green-700 text-white text-xs px-4 py-2 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap">
-                          Download PDF
+                        <button
+                            onClick={handleDownloadPDF}
+                            disabled={loading}
+                            className="flex items-center gap-1.5 text-xs font-bold bg-[#18174e] text-white hover:bg-[#18174e]/90 transition-all cursor-pointer shadow-md rounded-lg px-4 py-2 disabled:opacity-50 ml-auto"
+                        >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Export Audit Ledger (PDF)</span>
                         </button>
                     </div>
+
                 </div>
 
-                {/* CONTENT HOUSING */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    {/* LEFT SIDEBAR NAVIGATION */}
-                    <div className="flex flex-col gap-1 w-full px-2">
-                        {reportModules.map((m) => {
-                            const Icon = m.icon;
-                            const isActive = activeModule === m.id;
+                {/* LOG DATA DISPATCH CONTAINER TABLE */}
+                <div className="w-full">
+                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+                        {loading ? (
+                            <div className="flex flex-col justify-center items-center min-h-[80vh] text-slate-400 gap-3">
+                                <Loader2 className="w-10 h-10 animate-spin text-green-700" />
+                                <span className="text-center text-green-700 font-medium italic">Compiling system transaction schemas...</span>
+                            </div>
+                        ) : consolidatedData.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse text-sm">
+                                    <thead>
+                                        <tr className="text-white font-bold bg-[#18174e] uppercase text-sm">
+                                            <th className="py-3 px-4 whitespace-nowrap">Code</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">Item Profile</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">Category / Seg</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">Dimension</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">Qty</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">Inflows (This Month)</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">Outflows (This Month)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-slate-100 text-slate-700">
+                                        {consolidatedData.map((row) => (
+                                            <tr key={row._id} className="hover:bg-slate-50/80 transition-colors">
+                                                {/* Code column */}
+                                                <td className="px-4 py-3.5 whitespace-nowrap text-xs font-bold text-slate-900 font-mono truncate">
+                                                    {row.Code}
+                                                </td>
 
-                            return (
-                                <button
-                                    key={m.id}
-                                    onClick={() => {
-                                        setActiveModule(m.id);
-                                        setGlobalSearch('');
-                                    }}
-                                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all relative cursor-pointer ${isActive
-                                        ? 'bg-[#18174e] text-white font-bold shadow-md'
-                                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-                                    }`}
-                                >
-                                    <Icon size={16} className="flex-shrink-0" />
-                                    <span className="truncate">{m.label}</span>
-                                    {isActive && (
-                                        <div className="absolute right-2 w-1 h-1/2 bg-white rounded-full" />
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
+                                                {/* Description column */}
+                                                <td className="px-4 py-3.5 text-xs text-slate-600 font-medium">
+                                                    <div className="line-clamp-2 leading-relaxed">{row.ItemDescription}</div>
+                                                </td>
 
-                    {/* MAIN CONSOLIDATED SHEET GRID */}
-                    <div className="lg:col-span-3 flex flex-col gap-3">
-                        <div className="bg-white rounded-xl border border-slate-100 overflow-hidden min-h-[350px]">
-                            {loading ? (
-                                <div className="flex justify-center items-center min-h-[350px]"><Loader2 className="animate-spin text-[#18174e]" /></div>
-                            ) : consolidatedData.length > 0 ? (
-                                <div className="overflow-x-auto w-full">
-                                    <table className="w-full text-left text-sm border-collapse">
-                                        <thead>
-                                            <tr className="bg-[#18174e] text-white font-bold uppercase whitespace-nowrap">
-                                                <th className="p-3">Item Profile (Code)</th>
-                                                <th className="p-3">Category/Segment</th>
-                                                <th className="p-3">Dimension</th>
-                                                <th className="p-3 text-center">Actual Count</th>
-                                                <th className="p-3">Inflow Trace Route (From)</th>
-                                                <th className="p-3">Outflow Trace Route (To)</th>
+                                                {/* Category/Segment column */}
+                                                <td className="px-4 py-3.5 text-xs text-slate-500">
+                                                    <div className="font-semibold text-slate-700 truncate">{row.Category}</div>
+                                                    <div className="text-[10px] text-slate-400 font-mono truncate">Seg: {row.Segment}</div>
+                                                </td>
+
+                                                {/* Dimension column */}
+                                                <td className="px-4 py-3.5 whitespace-nowrap text-xs text-slate-500 truncate">
+                                                    {row.Dimension}
+                                                </td>
+
+                                                {/* Quantity column */}
+                                                <td className="px-4 py-3.5 whitespace-nowrap text-center text-xs font-bold">
+                                                    <span className="text-slate-900 font-mono">{row.ActualCount}</span>
+                                                    <span className="text-[10px] text-slate-400 font-normal ml-1">{row.UOM}</span>
+                                                </td>
+
+                                                {/* Inflows column */}
+                                                <td className="px-4 py-3.5 text-xs">
+                                                    <div className="max-h-[100px] overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
+                                                        {row.inflows && row.inflows.length > 0 ? (
+                                                            row.inflows.map((inf, idx) => (
+                                                                <div key={idx} className="flex items-center gap-1.5 bg-emerald-50/60 border border-emerald-100/70 text-emerald-800 px-2 py-1 rounded text-[10px] font-medium leading-tight">
+                                                                    <span className="font-bold text-emerald-700 font-mono">+{inf.qty}</span>
+                                                                    <span className="text-slate-400">|</span>
+                                                                    <span className="text-slate-600 truncate flex-1 max-w-[100px]">{inf.label}</span>
+                                                                    <span className="text-slate-400">|</span>
+                                                                    <span className="text-slate-500 font-mono">{inf.date}</span>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-[10px] text-slate-400 italic px-1">No inflows</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+
+                                                {/* Outflows column */}
+                                                <td className="px-4 py-3.5 text-xs">
+                                                    <div className="max-h-[100px] overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
+                                                        {row.outflows && row.outflows.length > 0 ? (
+                                                            row.outflows.map((out, idx) => (
+                                                                <div key={idx} className="flex items-center gap-1.5 bg-rose-50/60 border border-rose-100/70 text-rose-800 px-2 py-1 rounded text-[10px] font-medium leading-tight">
+                                                                    <span className="font-bold text-rose-700 font-mono">-{out.qty}</span>
+                                                                    <span className="text-slate-400">|</span>
+                                                                    <span className="text-slate-600 truncate flex-1 max-w-[100px]">{out.label}</span>
+                                                                    <span className="text-slate-400">|</span>
+                                                                    <span className="text-slate-500 font-mono">{out.date}</span>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-[10px] text-slate-400 italic px-1">No outflows</span>
+                                                        )}
+                                                    </div>
+                                                </td>
                                             </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 text-slate-600">
-                                            {consolidatedData.map((item) => (
-                                                <tr key={item._id} className="hover:bg-slate-50/60 transition-colors">
-                                                    <td className="p-3 whitespace-nowrap">
-                                                        <span className="font-bold text-[#18174e] block">{item.Code}</span>
-                                                        <span className="text-[10px] text-slate-400 block max-w-[180px] truncate">{item.ItemDescription}</span>
-                                                    </td>
-                                                    <td className="p-3 whitespace-nowrap">
-                                                        <span className="font-semibold block">{item.Category}</span>
-                                                        <span className="text-[10px] text-slate-400 block">{item.Segment}</span>
-                                                    </td>
-                                                    <td className="p-3 whitespace-nowrap align-middle">
-                                                        <span className="font-medium text-slate-700">{item.Dimension || '—'}</span>
-                                                    </td>
-                                                    <td className="p-3 text-center font-bold font-mono bg-slate-50/50 whitespace-nowrap">
-                                                        {item.ActualCount} <span className="text-[10px] font-normal text-slate-400">{item.UOM}</span>
-                                                    </td>
-
-                                                    {/* INFLOW HISTORY VIEW */}
-                                                    <td className="p-3">
-                                                        <div className="flex flex-col gap-1 min-w-[220px]">
-                                                            {item.inflows.length > 0 ? (
-                                                                item.inflows.map((inf, idx) => (
-                                                                    <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium border ${
-                                                                        inf.type === 'IN' || inf.type === 'WIP_RET' 
-                                                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-100' 
-                                                                            : 'bg-amber-50 text-amber-800 border-amber-100'
-                                                                    }`}>
-                                                                        <span className="font-black text-emerald-600">{inf.type}</span>
-                                                                        <span className="text-slate-400">|</span>
-                                                                        <span className="font-bold">+{inf.qty}</span>
-                                                                        <span className="text-slate-400">|</span>
-                                                                        <span className="text-slate-600 font-semibold truncate max-w-[100px]">{inf.label}</span>
-                                                                        <span className="text-slate-400">|</span>
-                                                                        <span className="text-slate-500 font-mono">{inf.date}</span>
-                                                                    </div>
-                                                                ))
-                                                            ) : (
-                                                                <span className="text-[10px] text-slate-400 italic px-1">No inflows</span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-
-                                                    {/* OUTFLOW HISTORY VIEW */}
-                                                    <td className="p-3">
-                                                        <div className="flex flex-col gap-1 min-w-[220px]">
-                                                            {item.outflows.length > 0 ? (
-                                                                item.outflows.map((out, idx) => {
-                                                                    // Determine colors based on requirements
-                                                                    let badgeStyles = "bg-rose-50 text-rose-800 border-rose-100";
-                                                                    let textStyle = "text-rose-600";
-                                                                    
-                                                                    if (out.type === 'WIP' || out.type === 'RESERVE') {
-                                                                        badgeStyles = "bg-amber-50 text-amber-800 border-amber-100";
-                                                                        textStyle = "text-amber-600";
-                                                                    }
-                                                                    
-                                                                    return (
-                                                                        <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium border ${badgeStyles}`}>
-                                                                            <span className={`font-black ${textStyle}`}>{out.type}</span>
-                                                                            <span className="text-slate-400">|</span>
-                                                                            <span className="font-bold">-{out.qty}</span>
-                                                                            <span className="text-slate-400">|</span>
-                                                                            <span className="text-slate-600 font-semibold truncate max-w-[100px]">{out.label}</span>
-                                                                            <span className="text-slate-400">|</span>
-                                                                            <span className="text-slate-500 font-mono">{out.date}</span>
-                                                                        </div>
-                                                                    );
-                                                                })
-                                                            ) : (
-                                                                <span className="text-[10px] text-slate-400 italic px-1">No outflows</span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <div className="text-center p-12 text-slate-400 italic">No records match the selected filters.</div>
-                            )}
-                        </div>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="text-center p-12 text-slate-400 font-medium italic">No records match the selected filters.</div>
+                        )}
                     </div>
                 </div>
 

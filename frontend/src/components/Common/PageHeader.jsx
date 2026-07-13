@@ -93,7 +93,7 @@ function PageHeader({ activeTab }) {
   // Fallback kapag walang nahanap na tab id
   const currentHeader = headerConfig[activeTab] || {
     title: 'Dashboard',
-    description: 'Welcome to OneInventory Management System.',
+    description: 'Welcome to USSP Inventory Management System.',
     icon: LayoutDashboard
   };
 

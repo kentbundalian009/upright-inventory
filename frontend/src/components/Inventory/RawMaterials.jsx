@@ -146,13 +146,13 @@ function RawMaterials() {
     };
 
     const categoriesInDB = [...new Set(rawMaterialsList.map(item => item.Category).filter(Boolean))].sort();
-const segmentsInDB = [...new Set(rawMaterialsList.map(item => item.Segment).filter(Boolean))].sort();
+    const segmentsInDB = [...new Set(rawMaterialsList.map(item => item.Segment).filter(Boolean))].sort();
 
-// 🔥 DINAGDAGAN NGHALONG `.sort()` SA MGA SUMUSUNOD PARA MAGING A-Z LAHAT:
-const descriptionsInDB = [...new Set(rawMaterialsList.map(item => item.ItemDescription).filter(Boolean))].sort();
-const dimensionsInDB = [...new Set(rawMaterialsList.map(item => item.Dimension).filter(Boolean))].sort();
-const uomsInDB = [...new Set(rawMaterialsList.map(item => item.UOM).filter(Boolean))].sort();
-const accountsInDB = [...new Set(rawMaterialsList.map(item => item.AccountTo).filter(Boolean))].sort();
+    // 🔥 DINAGDAGAN NGHALONG `.sort()` SA MGA SUMUSUNOD PARA MAGING A-Z LAHAT:
+    const descriptionsInDB = [...new Set(rawMaterialsList.map(item => item.ItemDescription).filter(Boolean))].sort();
+    const dimensionsInDB = [...new Set(rawMaterialsList.map(item => item.Dimension).filter(Boolean))].sort();
+    const uomsInDB = [...new Set(rawMaterialsList.map(item => item.UOM).filter(Boolean))].sort();
+    const accountsInDB = [...new Set(rawMaterialsList.map(item => item.AccountTo).filter(Boolean))].sort();
 
     const filterCategories = ['All Categories', ...categoriesInDB];
     const filterSegments = ['All Segments', ...segmentsInDB];
@@ -300,117 +300,116 @@ const accountsInDB = [...new Set(rawMaterialsList.map(item => item.AccountTo).fi
             <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col gap-6">
 
                 {/* FILTER CONTROLS MASTER ROW */}
-<div className="flex flex-col gap-1.5">
-    
-    {/* TOP BAR: Title at ang responsive Buttons */}
-    <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 flex-shrink-0">
-            <Filter className="w-4 h-4 text-[#18174e]" />
-            <span>{showArchivedOnly ? 'Archive' : 'Filter'}</span>
-        </div>
+                <div className="flex flex-col gap-1.5">
 
-        {/* CONTROLS BAR: Nagiging compact sa mobile gamit ang Icon-only style */}
-        <div className="flex items-center gap-2.5 ml-auto">
-            
-            {/* Hide 0 Qty Checkbox (Nananatiling maliit at compact) */}
-            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-all flex-shrink-0">
-                <input type="checkbox" checked={hideZeroQty} onChange={(e) => setHideZeroQty(e.target.checked)} className="w-3.5 h-3.5 accent-[#18174e] rounded cursor-pointer" />
-                <span className="hidden sm:inline">Hide 0 Qty</span>
-                <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
-            </label>
+                    {/* TOP BAR: Title at ang responsive Buttons */}
+                    <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 flex-shrink-0">
+                            <Filter className="w-4 h-4 text-[#18174e]" />
+                            <span>{showArchivedOnly ? 'Archive' : 'Filter'}</span>
+                        </div>
 
-            {/* Threshold Settings Button */}
-            <button 
-                onClick={() => setIsThresholdModalOpen(true)} 
-                title="Threshold Settings"
-                className="flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition-all cursor-pointer flex-shrink-0"
-            >
-                <Sliders className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-[#18174e]" /> 
-                <span className="hidden md:inline">Threshold Settings</span>
-            </button>
+                        {/* CONTROLS BAR: Nagiging compact sa mobile gamit ang Icon-only style */}
+                        <div className="flex items-center gap-2.5 ml-auto">
 
-            {/* Palette Settings Button */}
-            <button 
-                onClick={() => setIsPaletteModalOpen(true)} 
-                title="Palette Settings"
-                className="flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90 transition-all cursor-pointer shadow-sm flex-shrink-0"
-            >
-                <Palette className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> 
-                <span className="hidden md:inline">Palette Settings</span>
-            </button>
+                            {/* Hide 0 Qty Checkbox (Nananatiling maliit at compact) */}
+                            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-all flex-shrink-0">
+                                <input type="checkbox" checked={hideZeroQty} onChange={(e) => setHideZeroQty(e.target.checked)} className="w-3.5 h-3.5 accent-[#18174e] rounded cursor-pointer" />
+                                <span className="hidden sm:inline">Hide 0 Qty</span>
+                                <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
+                            </label>
 
-            {/* Archive / Active Toggle Button */}
-            <button 
-                onClick={() => setShowArchivedOnly(!showArchivedOnly)} 
-                title={showArchivedOnly ? "Show Active Materials" : "View Archive Vault"}
-                className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${
-                    showArchivedOnly 
-                        ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' 
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                }`}
-            >
-                {showArchivedOnly ? (
-                    <>
-                        <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> 
-                        <span className="hidden md:inline">Show Active Materials</span> 
-                        <span className="text-[11px] font-bold">({activeCount})</span>
-                    </>
-                ) : (
-                    <>
-                        <Archive className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> 
-                        <span className="hidden md:inline">View Archive Vault</span> 
-                        <span className="text-[11px] font-bold">({archivedCount})</span>
-                    </>
-                )}
-            </button>
-        </div>
-    </div>
+                            {/* Threshold Settings Button */}
+                            <button
+                                onClick={() => setIsThresholdModalOpen(true)}
+                                title="Threshold Settings"
+                                className="flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition-all cursor-pointer flex-shrink-0"
+                            >
+                                <Sliders className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-[#18174e]" />
+                                <span className="hidden md:inline">Threshold Settings</span>
+                            </button>
 
-    <div className="flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid md:grid-cols-5 md:pb-0">
-        
-        <div className="min-w-[150px] w-full md:min-w-0">
-            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
-                {filterCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
-        </div>
+                            {/* Palette Settings Button */}
+                            <button
+                                onClick={() => setIsPaletteModalOpen(true)}
+                                title="Palette Settings"
+                                className="flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90 transition-all cursor-pointer shadow-sm flex-shrink-0"
+                            >
+                                <Palette className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                                <span className="hidden md:inline">Palette Settings</span>
+                            </button>
 
-        <div className="min-w-[150px] w-full md:min-w-0">
-            <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className="bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
-                {filterSegments.map(seg => {
-                    if (seg === 'All Segments') return <option key={seg} value={seg}>{seg}</option>;
-                    const config = getSegmentStyles(seg);
-                    return <option key={seg} value={seg}>{config.prefix} {seg}</option>;
-                })}
-            </select>
-        </div>
+                            {/* Archive / Active Toggle Button */}
+                            <button
+                                onClick={() => setShowArchivedOnly(!showArchivedOnly)}
+                                title={showArchivedOnly ? "Show Active Materials" : "View Archive Vault"}
+                                className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${showArchivedOnly
+                                        ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                    }`}
+                            >
+                                {showArchivedOnly ? (
+                                    <>
+                                        <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                                        <span className="hidden md:inline">Show Active Materials</span>
+                                        <span className="text-[11px] font-bold">({activeCount})</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Archive className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                                        <span className="hidden md:inline">View Archive Vault</span>
+                                        <span className="text-[11px] font-bold">({archivedCount})</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
 
-        <div className="min-w-[170px] w-full md:min-w-0">
-            <select value={selectedDescription} onChange={(e) => setSelectedDescription(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
-                {filterDescriptions.map(desc => <option key={desc} value={desc}>{desc}</option>)}
-            </select>
-        </div>
+                    <div className="flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid md:grid-cols-5 md:pb-0">
 
-        <div className="min-w-[150px] w-full md:min-w-0">
-            <select value={selectedHealth} onChange={(e) => setSelectedHealth(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none font-medium w-full cursor-pointer">
-                <option value="All Health Status">All Conditions</option>
-                <option value="Healthy">🟢 Healthy Stock</option>
-                <option value="Re-Stock">🟡 Restock Warning</option>
-                <option value="Critical">🔴 Critical Stock</option>
-                <option value="Overstock">🔵 Overstocked</option>
-            </select>
-        </div>
+                        <div className="min-w-[150px] w-full md:min-w-0">
+                            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
+                                {filterCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                            </select>
+                        </div>
 
-        <div className="min-w-[180px] w-full md:min-w-0">
-            <div className="relative w-full">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" placeholder="Search Code, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none text-slate-700" />
-            </div>
-        </div>
-        
-    </div>
-    
-    <div className="h-px bg-slate-100 w-full mt-3"></div>
-</div>
+                        <div className="min-w-[150px] w-full md:min-w-0">
+                            <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className="bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
+                                {filterSegments.map(seg => {
+                                    if (seg === 'All Segments') return <option key={seg} value={seg}>{seg}</option>;
+                                    const config = getSegmentStyles(seg);
+                                    return <option key={seg} value={seg}>{config.prefix} {seg}</option>;
+                                })}
+                            </select>
+                        </div>
+
+                        <div className="min-w-[170px] w-full md:min-w-0">
+                            <select value={selectedDescription} onChange={(e) => setSelectedDescription(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
+                                {filterDescriptions.map(desc => <option key={desc} value={desc}>{desc}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="min-w-[150px] w-full md:min-w-0">
+                            <select value={selectedHealth} onChange={(e) => setSelectedHealth(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none font-medium w-full cursor-pointer">
+                                <option value="All Health Status">All Conditions</option>
+                                <option value="Healthy">🟢 Healthy Stock</option>
+                                <option value="Re-Stock">🟡 Restock Warning</option>
+                                <option value="Critical">🔴 Critical Stock</option>
+                                <option value="Overstock">🔵 Overstocked</option>
+                            </select>
+                        </div>
+
+                        <div className="min-w-[180px] w-full md:min-w-0">
+                            <div className="relative w-full">
+                                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <input type="text" placeholder="Search Code, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none text-slate-700" />
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div className="h-px bg-slate-100 w-full mt-3"></div>
+                </div>
 
                 {/* MAIN CLEAN TABLE MASTERLIST */}
                 <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
@@ -473,7 +472,7 @@ const accountsInDB = [...new Set(rawMaterialsList.map(item => item.AccountTo).fi
                                             </td>
                                             <td className="py-3 px-4">
                                                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded border flex items-center gap-1.5 w-fit ${currentSegConfig.classes}`}>
-                                                 <span>{rawMat.Segment || '—'}</span>
+                                                    <span>{rawMat.Segment || '—'}</span>
                                                 </span>
                                             </td>
                                             <td className="py-3 px-4 text-slate-800 font-semibold">{rawMat.ItemDescription}</td>
@@ -523,117 +522,117 @@ const accountsInDB = [...new Set(rawMaterialsList.map(item => item.AccountTo).fi
             )}
 
             {/* GLOBAL COLOR PALETTE SETTINGS MODAL */}
-{isPaletteModalOpen && (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        {/* Consistent ang lapad (max-w-xl), rounding (rounded-2xl), padding (p-6) at max height (max-h-[90vh]) */}
-        <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto flex flex-col">
+            {isPaletteModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    {/* Consistent ang lapad (max-w-xl), rounding (rounded-2xl), padding (p-6) at max height (max-h-[90vh]) */}
+                    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto flex flex-col">
 
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-slate-800 text-base">Color Palette Mapping</h3>
-                </div>
-                <button 
-                    onClick={() => setIsPaletteModalOpen(false)} 
-                    className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-                >
-                    <X className="w-5 h-5" />
-                </button>
-            </div>
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-slate-800 text-base">Color Palette Mapping</h3>
+                            </div>
+                            <button
+                                onClick={() => setIsPaletteModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
 
-            {/* System Inventory Protocol Notification Card (Para sa consistency ng UI warning card) */}
-            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
-                <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
-                    * System Palette Protocol *
-                </span>
-                <p className="text-[11px] text-amber-700 leading-relaxed">
-                    Color configurations modified here will synchronize instantly across the workspace. Ensure selections align with active hardware color coding tags.
-                </p>
-            </div>
+                        {/* System Inventory Protocol Notification Card (Para sa consistency ng UI warning card) */}
+                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
+                            <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                                * System Palette Protocol *
+                            </span>
+                            <p className="text-[11px] text-amber-700 leading-relaxed">
+                                Color configurations modified here will synchronize instantly across the workspace. Ensure selections align with active hardware color coding tags.
+                            </p>
+                        </div>
 
-            {/* Modal Scrollable Content Section */}
-            <div className="space-y-4 mt-4 flex-1 overflow-y-auto pr-1">
+                        {/* Modal Scrollable Content Section */}
+                        <div className="space-y-4 mt-4 flex-1 overflow-y-auto pr-1">
 
-                {/* Category Color Configuration */}
-                <div>
-                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category Color Configuration</label>
-                    <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                        {categoriesInDB.length === 0 && (
-                            <p className="text-xs italic text-slate-400">No categories found in system.</p>
-                        )}
-                        {categoriesInDB.map(cat => {
-                            const config = getCategoryStyles(cat);
-                            const currentIdx = COLOR_OPTIONS.findIndex(c => c.classes === config.classes);
-                            return (
-                                <div key={cat} className="flex items-center justify-between gap-4 bg-white p-2 rounded-lg border border-slate-200/60 shadow-sm">
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded border ${config.classes}`}>{cat}</span>
-                                    <select 
-                                        value={currentIdx !== -1 ? currentIdx : 5} 
-                                        onChange={(e) => handleCategoryColorChange(cat, e.target.value)} 
-                                        className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 cursor-pointer font-medium focus:outline-none focus:border-[#18174e]"
-                                    >
-                                        {COLOR_OPTIONS.map((opt, i) => (
-                                            <option key={i} value={i}>{opt.prefix} {opt.name}</option>
-                                        ))}
-                                    </select>
+                            {/* Category Color Configuration */}
+                            <div>
+                                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category Color Configuration</label>
+                                <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                                    {categoriesInDB.length === 0 && (
+                                        <p className="text-xs italic text-slate-400">No categories found in system.</p>
+                                    )}
+                                    {categoriesInDB.map(cat => {
+                                        const config = getCategoryStyles(cat);
+                                        const currentIdx = COLOR_OPTIONS.findIndex(c => c.classes === config.classes);
+                                        return (
+                                            <div key={cat} className="flex items-center justify-between gap-4 bg-white p-2 rounded-lg border border-slate-200/60 shadow-sm">
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded border ${config.classes}`}>{cat}</span>
+                                                <select
+                                                    value={currentIdx !== -1 ? currentIdx : 5}
+                                                    onChange={(e) => handleCategoryColorChange(cat, e.target.value)}
+                                                    className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 cursor-pointer font-medium focus:outline-none focus:border-[#18174e]"
+                                                >
+                                                    {COLOR_OPTIONS.map((opt, i) => (
+                                                        <option key={i} value={i}>{opt.prefix} {opt.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            );
-                        })}
+                            </div>
+
+                            {/* Segment Color Configuration */}
+                            <div>
+                                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Segment Color Configuration</label>
+                                <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                                    {segmentsInDB.length === 0 && (
+                                        <p className="text-xs italic text-slate-400">No segments found in system.</p>
+                                    )}
+                                    {segmentsInDB.map(seg => {
+                                        const config = getSegmentStyles(seg);
+                                        const currentIdx = COLOR_OPTIONS.findIndex(c => c.classes === config.classes);
+                                        return (
+                                            <div key={seg} className="flex items-center justify-between gap-4 bg-white p-2 rounded-lg border border-slate-200/60 shadow-sm">
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded border flex items-center gap-1.5 ${config.classes}`}>
+                                                    <span>{config.prefix}</span> <span>{seg}</span>
+                                                </span>
+                                                <select
+                                                    value={currentIdx !== -1 ? currentIdx : 5}
+                                                    onChange={(e) => handleSegmentColorChange(seg, e.target.value)}
+                                                    className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 cursor-pointer font-medium focus:outline-none focus:border-[#18174e]"
+                                                >
+                                                    {COLOR_OPTIONS.map((opt, i) => (
+                                                        <option key={i} value={i}>{opt.prefix} {opt.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {/* Modal Bottom Actions */}
+                        <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={() => setIsPaletteModalOpen(false)}
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSavePaletteToDatabase}
+                                className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
+                            >
+                                Save Changes
+                            </button>
+                        </div>
+
                     </div>
                 </div>
-
-                {/* Segment Color Configuration */}
-                <div>
-                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Segment Color Configuration</label>
-                    <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                        {segmentsInDB.length === 0 && (
-                            <p className="text-xs italic text-slate-400">No segments found in system.</p>
-                        )}
-                        {segmentsInDB.map(seg => {
-                            const config = getSegmentStyles(seg);
-                            const currentIdx = COLOR_OPTIONS.findIndex(c => c.classes === config.classes);
-                            return (
-                                <div key={seg} className="flex items-center justify-between gap-4 bg-white p-2 rounded-lg border border-slate-200/60 shadow-sm">
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded border flex items-center gap-1.5 ${config.classes}`}>
-                                        <span>{config.prefix}</span> <span>{seg}</span>
-                                    </span>
-                                    <select 
-                                        value={currentIdx !== -1 ? currentIdx : 5} 
-                                        onChange={(e) => handleSegmentColorChange(seg, e.target.value)} 
-                                        className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 cursor-pointer font-medium focus:outline-none focus:border-[#18174e]"
-                                    >
-                                        {COLOR_OPTIONS.map((opt, i) => (
-                                            <option key={i} value={i}>{opt.prefix} {opt.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-            </div>
-
-            {/* Modal Bottom Actions */}
-            <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
-                <button
-                    type="button"
-                    onClick={() => setIsPaletteModalOpen(false)}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
-                >
-                    Cancel
-                </button>
-                <button
-                    onClick={handleSavePaletteToDatabase}
-                    className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
-                >
-                    Save Changes
-                </button>
-            </div>
-
-        </div>
-    </div>
-)}
+            )}
 
             {/* EDIT MATERIAL FORM MODAL */}
             {isEditModalOpen && (
@@ -652,154 +651,154 @@ const accountsInDB = [...new Set(rawMaterialsList.map(item => item.AccountTo).fi
                             </button>
                         </div>
 
-                       {/* Audit Protocol Notification Card */}
-            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
-              <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
-                * System Inventory Protocol *
-              </span>
-              <p className="text-[11px] text-amber-700 leading-relaxed">
-                Manual quantity inputs are disabled to comply with audit protocols. Racking images and related media must be uploaded through the <strong>Rackings Components.</strong>
-              </p>
-            </div>
+                        {/* Audit Protocol Notification Card */}
+                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
+                            <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                                * System Inventory Protocol *
+                            </span>
+                            <p className="text-[11px] text-amber-700 leading-relaxed">
+                                Manual quantity inputs are disabled to comply with audit protocols. Racking images and related media must be uploaded through the <strong>Rackings Components.</strong>
+                            </p>
+                        </div>
 
                         {/* Modal Form */}
                         <form onSubmit={handleEditFormSubmit} className="space-y-4 mt-4">
 
                             {/* 2-Column Grid para sa malinis at nakalatag na mga input fields */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-    {/* Material Code (Full-width) */}
-    <div className="md:col-span-2">
-        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Material Code</label>
-        <input
-            type="text"
-            disabled
-            className="w-full bg-slate-100 text-slate-500 border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-not-allowed font-mono focus:outline-none"
-            value={materialCode}
-        />
-    </div>
+                                {/* Material Code (Full-width) */}
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Material Code</label>
+                                    <input
+                                        type="text"
+                                        disabled
+                                        className="w-full bg-slate-100 text-slate-500 border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-not-allowed font-mono focus:outline-none"
+                                        value={materialCode}
+                                    />
+                                </div>
 
-    {/* IMAGE UPLOAD FIELD (Full-width para maganda ang bagsak ng dropzone) */}
-    <div className="md:col-span-2">
-        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Image Upload</label>
-        <div className="mt-1 flex items-center gap-3">
-            {existingImgPreview && !selectedFile && (
-                <img
-                    src={existingImgPreview}
-                    alt="Current raw material"
-                    className="w-12 h-12 rounded-lg border border-slate-200 object-cover shadow-sm flex-shrink-0"
-                />
-            )}
-            <label className="flex-1 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-200 rounded-xl py-3 px-4 transition-all cursor-pointer">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
-                    <Upload className="w-4 h-4 text-[#18174e]" />
-                    <span>{selectedFile ? selectedFile.name : "Choose profile image"}</span>
-                </div>
-                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-            </label>
-        </div>
-    </div>
+                                {/* IMAGE UPLOAD FIELD (Full-width para maganda ang bagsak ng dropzone) */}
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Image Upload</label>
+                                    <div className="mt-1 flex items-center gap-3">
+                                        {existingImgPreview && !selectedFile && (
+                                            <img
+                                                src={existingImgPreview}
+                                                alt="Current raw material"
+                                                className="w-12 h-12 rounded-lg border border-slate-200 object-cover shadow-sm flex-shrink-0"
+                                            />
+                                        )}
+                                        <label className="flex-1 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-200 rounded-xl py-3 px-4 transition-all cursor-pointer">
+                                            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
+                                                <Upload className="w-4 h-4 text-[#18174e]" />
+                                                <span>{selectedFile ? selectedFile.name : "Choose profile image"}</span>
+                                            </div>
+                                            <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                                        </label>
+                                    </div>
+                                </div>
 
-    {/* Category Dropdown */}
-    <div>
-        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category *</label>
-        <select
-            required
-            value={materialCategory}
-            onChange={(e) => setMaterialCategory(e.target.value)}
-            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
-        >
-            <option value="">-- Select Category --</option>
-            {[...categoriesInDB]
-                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                .map((cat) => <option key={cat} value={cat}>{cat}</option>)
-            }
-        </select>
-    </div>
+                                {/* Category Dropdown */}
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category *</label>
+                                    <select
+                                        required
+                                        value={materialCategory}
+                                        onChange={(e) => setMaterialCategory(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
+                                    >
+                                        <option value="">-- Select Category --</option>
+                                        {[...categoriesInDB]
+                                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                            .map((cat) => <option key={cat} value={cat}>{cat}</option>)
+                                        }
+                                    </select>
+                                </div>
 
-    {/* Segment Dropdown */}
-    <div>
-        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Segment</label>
-        <select
-            value={materialSegment}
-            onChange={(e) => setMaterialSegment(e.target.value)}
-            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
-        >
-            <option value="">-- Select Segment --</option>
-            {[...segmentsInDB]
-                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                .map((seg) => <option key={seg} value={seg}>{seg}</option>)
-            }
-        </select>
-    </div>
+                                {/* Segment Dropdown */}
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Segment</label>
+                                    <select
+                                        value={materialSegment}
+                                        onChange={(e) => setMaterialSegment(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
+                                    >
+                                        <option value="">-- Select Segment --</option>
+                                        {[...segmentsInDB]
+                                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                            .map((seg) => <option key={seg} value={seg}>{seg}</option>)
+                                        }
+                                    </select>
+                                </div>
 
-    {/* Item Description (Full-width para sa mahabang text strings) */}
-    <div className="md:col-span-2">
-        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Description *</label>
-        <select
-            required
-            value={itemDescription}
-            onChange={(e) => setItemDescription(e.target.value)}
-            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
-        >
-            <option value="">-- Select Description --</option>
-            {[...descriptionsInDB]
-                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                .map((desc) => <option key={desc} value={desc}>{desc}</option>)
-            }
-        </select>
-    </div>
+                                {/* Item Description (Full-width para sa mahabang text strings) */}
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Description *</label>
+                                    <select
+                                        required
+                                        value={itemDescription}
+                                        onChange={(e) => setItemDescription(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
+                                    >
+                                        <option value="">-- Select Description --</option>
+                                        {[...descriptionsInDB]
+                                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                            .map((desc) => <option key={desc} value={desc}>{desc}</option>)
+                                        }
+                                    </select>
+                                </div>
 
-    {/* Dimension */}
-    <div>
-        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Dimension</label>
-        <select
-            value={materialDimension}
-            onChange={(e) => setMaterialDimension(e.target.value)}
-            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
-        >
-            <option value="">-- Select Dimension --</option>
-            {[...dimensionsInDB]
-                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                .map((dim) => <option key={dim} value={dim}>{dim}</option>)
-            }
-        </select>
-    </div>
+                                {/* Dimension */}
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Dimension</label>
+                                    <select
+                                        value={materialDimension}
+                                        onChange={(e) => setMaterialDimension(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
+                                    >
+                                        <option value="">-- Select Dimension --</option>
+                                        {[...dimensionsInDB]
+                                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                            .map((dim) => <option key={dim} value={dim}>{dim}</option>)
+                                        }
+                                    </select>
+                                </div>
 
-    {/* UOM */}
-    <div>
-        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">UOM *</label>
-        <select
-            required
-            value={materialUom}
-            onChange={(e) => setMaterialUom(e.target.value)}
-            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
-        >
-            <option value="">-- Select UOM --</option>
-            {[...uomsInDB]
-                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                .map((uom) => <option key={uom} value={uom}>{uom}</option>)
-            }
-        </select>
-    </div>
+                                {/* UOM */}
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">UOM *</label>
+                                    <select
+                                        required
+                                        value={materialUom}
+                                        onChange={(e) => setMaterialUom(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
+                                    >
+                                        <option value="">-- Select UOM --</option>
+                                        {[...uomsInDB]
+                                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                            .map((uom) => <option key={uom} value={uom}>{uom}</option>)
+                                        }
+                                    </select>
+                                </div>
 
-    {/* Account To (Full-width sa dulo) */}
-    <div className="md:col-span-2">
-        <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Account To</label>
-        <select
-            value={accountTo}
-            onChange={(e) => setAccountTo(e.target.value)}
-            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
-        >
-            <option value="">-- Select Account To --</option>
-            {[...accountsInDB]
-                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                .map((acc) => <option key={acc} value={acc}>{acc}</option>)
-            }
-        </select>
-    </div>
+                                {/* Account To (Full-width sa dulo) */}
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Account To</label>
+                                    <select
+                                        value={accountTo}
+                                        onChange={(e) => setAccountTo(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
+                                    >
+                                        <option value="">-- Select Account To --</option>
+                                        {[...accountsInDB]
+                                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                            .map((acc) => <option key={acc} value={acc}>{acc}</option>)
+                                        }
+                                    </select>
+                                </div>
 
-</div>
+                            </div>
 
                             {/* Modal Bottom Actions */}
                             <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
@@ -827,56 +826,56 @@ const accountsInDB = [...new Set(rawMaterialsList.map(item => item.AccountTo).fi
             <ThresholdModal isOpen={isThresholdModalOpen} onClose={() => setIsThresholdModalOpen(false)} categoryType="raw_materials" onSaveSuccess={() => { fetchThresholdSettings(); fetchRawMaterials(); triggerSuccess("Successfully updated threshold configuration."); }} />
 
             {/* CONFIRMATION MODAL */}
-{isConfirmModalOpen && (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-        {/* Ginawang max-w-md para mas compact at compact ang bagsak sa screen, pero pinalitan ang rounded at borders ng katulad sa system mo */}
-        <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-xl relative flex flex-col animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
-                <h3 className="font-bold text-slate-800 text-base">
-                    {confirmModalConfig.title}
-                </h3>
-            </div>
+            {isConfirmModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                    {/* Ginawang max-w-md para mas compact at compact ang bagsak sa screen, pero pinalitan ang rounded at borders ng katulad sa system mo */}
+                    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-xl relative flex flex-col animate-in zoom-in-95 duration-200">
 
-            {/* System Inventory Protocol Notification Card (Eksaktong kulay ng system mo pero compact) */}
-            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
-                <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
-                    * System Action Protocol *
-                </span>
-                <p className="text-[11px] text-amber-700 leading-relaxed">
-                    Please review the operation context. Confirming this step commits changes directly to the live system registry.
-                </p>
-            </div>
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+                            <h3 className="font-bold text-slate-800 text-base">
+                                {confirmModalConfig.title}
+                            </h3>
+                        </div>
 
-            {/* Modal Body Message */}
-            <div className="mt-4 flex-1">
-                <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                    {confirmModalConfig.message}
-                </p>
-            </div>
+                        {/* System Inventory Protocol Notification Card (Eksaktong kulay ng system mo pero compact) */}
+                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
+                            <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                                * System Action Protocol *
+                            </span>
+                            <p className="text-[11px] text-amber-700 leading-relaxed">
+                                Please review the operation context. Confirming this step commits changes directly to the live system registry.
+                            </p>
+                        </div>
 
-            {/* Modal Bottom Actions (Pure #18174e and Slate-100 theme) */}
-            <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100 shrink-0">
-                <button 
-                    type="button" 
-                    onClick={() => setIsConfirmModalOpen(false)} 
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
-                >
-                    Cancel
-                </button>
-                <button 
-                    type="button" 
-                    onClick={handleConfirmAction} 
-                    className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
-                >
-                    Confirm
-                </button>
-            </div>
+                        {/* Modal Body Message */}
+                        <div className="mt-4 flex-1">
+                            <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                                {confirmModalConfig.message}
+                            </p>
+                        </div>
 
-        </div>
-    </div>
-)}
+                        {/* Modal Bottom Actions (Pure #18174e and Slate-100 theme) */}
+                        <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setIsConfirmModalOpen(false)}
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmAction}
+                                className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
+                            >
+                                Confirm
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
