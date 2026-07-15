@@ -489,8 +489,9 @@ function OutboundProducts() {
                   onChange={e => setTransactionType(e.target.value)}
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none text-[#18174e] cursor-pointer"
                 >
-                  <option value="Outbound">🔴 Outbound (Deduct & Dispatch)</option>
                   <option value="Reserve">🟡 Reserve (Hold Stock)</option>
+                  <option value="Outbound">🔴 Outbound (Deduct & Dispatch)</option>
+                  
                 </select>
               </div>
 
