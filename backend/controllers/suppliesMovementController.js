@@ -7,7 +7,8 @@ const generateSlipNo = async (type) => {
   else if (type === "Return") prefix = "RET";
   else if (type === "Reserved") prefix = "RES";
   else if (type === "Out") prefix = "OUT";
-  else if (type === "Scrap") prefix = "SCR";            // 🎯 Slip prefix para sa Scrap
+  else if (type === "Scrap") prefix = "SCR"; 
+  else if (type === "Repair") prefix = "RPR";           // 🎯 Slip prefix para sa Scrap
   else if (type === "Return to Vendor") prefix = "VND"; // 🎯 Slip prefix para sa Vendor
 
   const randomNum = Math.floor(100000 + Math.random() * 900000); 
@@ -33,31 +34,67 @@ export const createMovement = async (req, res) => {
       return res.status(400).json({ message: "Manifest items list cannot be empty." });
     }
 
+    // Linisin agad ang reference slip number kung mayroon man
+    const cleanRefNo = referenceSlipNo ? referenceSlipNo.replace("REF: ", "").trim() : "";
+
     for (const item of items) {
       const supply = await Supplies.findById(item.supplyId);
       if (!supply) {
         return res.status(404).json({ message: `Supply item with ID ${item.supplyId} not found.` });
       }
 
-      // 🛑 KASO A: SCRAP O RETURN TO VENDOR (Deducting from Repair/Damaged pool)
-      if (transactionType === "Scrap" || transactionType === "Return to Vendor") {
+      // Siguraduhing may initial structure ang ConditionBreakdown kung sakaling wala pa ito
+      if (!supply.ConditionBreakdown) {
+        supply.ConditionBreakdown = { Good: 0, Damaged: 0 };
+      }
+
+      // 🛠️ REPAIR LOGIC
+      if (transactionType === "Repair") {
+        const damageToDeduct = item.damagedQty || item.qty || 0;
+        const goodToAdd = item.goodConditionQty || item.qty || 0;
+
+        if (supply.DamagedCount < damageToDeduct) {
+          return res.status(400).json({ 
+            message: `Sobra ang isinusumiteng repair sa natitirang damage stock para sa ${supply.ItemDescription || supply.Code}. Available Damaged: ${supply.DamagedCount}` 
+          });
+        }
+
+        // Bawasan ang damage, idagdag sa actual (good)
+        supply.DamagedCount -= damageToDeduct;
+        supply.ActualCount += goodToAdd;
+
+        // I-sync sa nested Breakdown
+        supply.ConditionBreakdown.Damaged = supply.DamagedCount;
+        supply.ConditionBreakdown.Good = supply.ActualCount;
+      }
+
+      // 🟠 KASO A: SCRAP O RETURN TO VENDOR (Dito bawas lang sa Damaged/Auto-out)
+      else if (transactionType === "Scrap" || transactionType === "Return to Vendor") {
         if (supply.DamagedCount < item.qty) {
           return res.status(400).json({ 
             message: `Insufficient REPAIR/DAMAGED stock for ${supply.ItemDescription || supply.Code}. Available in repair: ${supply.DamagedCount}` 
           });
         }
-        // Bawasan ang Repair count ng item sa database
-        supply.DamagedCount -= item.qty; 
+        supply.DamagedCount -= item.qty;
+
+        // 🔥 SABAY NA I-UPDATE ANG BREAKDOWN
+        supply.ConditionBreakdown.Damaged = supply.DamagedCount;
       } 
       
-      // 🟡 KASO B: STANDARD REMOVALS (Deducting from Good core stock)
+      // 🟡 KASO B: STANDARD REMOVALS (Borrow, Reserved, Out)
       else if (transactionType === "Borrow" || transactionType === "Reserved" || transactionType === "Out") {
-        if (supply.ActualCount < item.qty) {
-          return res.status(400).json({ 
-            message: `Insufficient stock for ${supply.ItemDescription || supply.Code}. Available: ${supply.ActualCount}` 
-          });
+        const isAlreadyDeductedFromReserve = (transactionType === "Borrow" && cleanRefNo && cleanRefNo.startsWith("RES-"));
+        if (!isAlreadyDeductedFromReserve) {
+          if (supply.ActualCount < item.qty) {
+            return res.status(400).json({ 
+              message: `Insufficient stock for ${supply.ItemDescription || supply.Code}. Available: ${supply.ActualCount}` 
+            });
+          }
+          supply.ActualCount -= item.qty;
         }
-        supply.ActualCount -= item.qty;
+        
+        // 🔥 SABAY NA I-UPDATE ANG BREAKDOWN DITO KAPAG NABAWASAN ANG STOCK
+        supply.ConditionBreakdown.Good = supply.ActualCount;
       } 
       
       // 🟢 KASO C: RETURNS AND INCOMING RESTOCK
@@ -65,8 +102,13 @@ export const createMovement = async (req, res) => {
         supply.ActualCount += (item.goodConditionQty || 0);
         supply.UsedCount += (item.usedQty || 0);
         supply.DamagedCount += (item.damagedQty || 0);
+
+        supply.ConditionBreakdown.Good = supply.ActualCount;
+        supply.ConditionBreakdown.Damaged = supply.DamagedCount;
       }
 
+      // 🎯 IMPORTANT: Sabihan ang Mongoose na binago natin ang nested/mixed object para pilitin nitong i-save sa DB
+      supply.markModified('ConditionBreakdown');
       await supply.save();
     }
 
@@ -79,7 +121,7 @@ export const createMovement = async (req, res) => {
       partyName,
       originAddress,
       preparedBy,
-      referenceSlipNo: referenceSlipNo ? referenceSlipNo.replace("REF: ", "").trim() : "",
+      referenceSlipNo: cleanRefNo,
       items: items.map(i => ({
         supplyId: i.supplyId,
         qty: i.qty,
@@ -92,12 +134,22 @@ export const createMovement = async (req, res) => {
 
     await newMovement.save();
 
-    if (transactionType === "Return" && referenceSlipNo) {
-      const cleanRefNo = referenceSlipNo.replace("REF: ", "").trim();
-      await SuppliesMovement.findOneAndUpdate(
-        { slipNo: cleanRefNo, transactionType: "Borrow" },
-        { isReturned: true }
-      );
+    // 🎯 PAG-UPDATE SA MGA PENDING SLIPS (Para mawala na sila sa Quick-Return Assistant)
+    if (cleanRefNo) {
+      if (transactionType === "Return") {
+        // Kung nagsasauli (Return), hanapin ang orihinal na Borrow slip at i-close
+        await SuppliesMovement.findOneAndUpdate(
+          { slipNo: cleanRefNo, transactionType: "Borrow" },
+          { isReturned: true }
+        );
+      } else if (transactionType === "Borrow" && cleanRefNo.startsWith("RES-")) {
+        // Kung dine-deploy ang Reserved slip bilang isang ganap na Borrow slip,
+        // hanapin ang orihinal na Reserved slip at markahan itong tapos na (isReturned: true)
+        await SuppliesMovement.findOneAndUpdate(
+          { slipNo: cleanRefNo, transactionType: "Reserved" },
+          { isReturned: true }
+        );
+      }
     }
 
     return res.status(201).json(newMovement);

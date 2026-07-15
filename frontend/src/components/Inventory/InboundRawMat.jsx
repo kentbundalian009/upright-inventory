@@ -678,7 +678,7 @@ function InboundRawMat() {
                               min="1"
                               value={item.qty}
                               onChange={e => handleUpdateField(index, 'qty', e.target.value)}
-                              className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-[#18174e]"
+                              className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-[#18174e] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </td>
 
@@ -693,7 +693,7 @@ function InboundRawMat() {
                               min="0"
                               value={item.actualCount}
                               onChange={e => handleUpdateField(index, 'actualCount', e.target.value)}
-                              className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600"
+                              className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </td>
 

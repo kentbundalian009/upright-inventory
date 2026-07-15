@@ -500,7 +500,7 @@ function WorkInProgress() {
                   <td className="py-2 px-4 font-bold text-[#18174e]">{item.Code}</td>
                   <td className="py-2 px-4 truncate max-w-[200px]" title={item.ItemDescription}>{item.ItemDescription}</td>
                   <td className="py-2 px-4">
-                    <input type="number" min="1" value={item.qtyUsed} onChange={e => handleUpdateInputQty(index, e.target.value)} className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-500" required />
+                    <input type="number" min="1" value={item.qtyUsed} onChange={e => handleUpdateInputQty(index, e.target.value)} className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" required />
                   </td>
                   <td className="py-2 px-4 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span></td>
                   <td className="py-2 px-4 text-center font-medium text-slate-500">{item.Available}</td>
@@ -588,7 +588,7 @@ function WorkInProgress() {
                     </span>
                   </td>
                   <td className="py-2 px-4">
-                    <input type="number" min="1" value={item.qtyProduced} onChange={e => handleUpdateOutputQty(index, e.target.value)} className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-500" required />
+                    <input type="number" min="1" value={item.qtyProduced} onChange={e => handleUpdateOutputQty(index, e.target.value)} className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" required />
                   </td>
                   <td className="py-2 px-4 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span></td>
                   <td className="py-2 px-4 text-center">

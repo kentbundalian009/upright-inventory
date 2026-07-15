@@ -21,7 +21,7 @@ function SuppliesMovements() {
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
+  
   // Slip Form States
   const [transactionType, setTransactionType] = useState('Borrow');
   const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
@@ -37,7 +37,7 @@ function SuppliesMovements() {
 
   const [quickReturnSearch, setQuickReturnSearch] = useState('');
 
-  // 🔥 HELPER FUNCTIONS PARA SA CUSTOM TOAST LAYOUT MO
+  // 🔥 HELPER FUNCTIONS PARA SA CUSTOM TOAST LAYOUT
   const showSuccessToast = (message) => {
     toast.custom((t) => (
       <div className={`flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl shadow-lg transition-all duration-300 ${t.visible ? 'animate-in fade-in slide-in-from-top-4' : 'animate-out fade-out slide-out-to-top-4'}`}>
@@ -74,13 +74,11 @@ function SuppliesMovements() {
         axios.get(SUPPLIES_URL, config),
         axios.get(MOVEMENT_URL, config)
       ]);
-
       if (suppliesRes.data) {
         setDbSupplies(suppliesRes.data.filter(s => !s.isArchived));
       }
       if (movementsRes.data) {
         setMovementRecords(movementsRes.data);
-
         const parties = [...new Set(movementsRes.data.map(m => m.partyName).filter(Boolean))];
         const locations = [...new Set(movementsRes.data.map(m => m.originAddress).filter(Boolean))];
         setExistingParties(parties);
@@ -104,18 +102,21 @@ function SuppliesMovements() {
     }
   }, []);
 
-  const isDeductingType = ['Borrow', 'Reserved', 'Out', 'Scrap', 'Return to Vendor'].includes(transactionType);
-  const isDamagedDeductingType = ['Scrap', 'Return to Vendor'].includes(transactionType);
+  // Tanggalin natin ang 'Repair' sa general deducting types para ma-enable natin ang custom inputs
+const isDeductingType = ['Borrow', 'Reserved', 'Out', 'Scrap'].includes(transactionType);
+const isDamagedDeductingType = ['Scrap'].includes(transactionType);
+const isRepairType = transactionType === 'Repair';
 
   const handleSelectSupply = (item) => {
     if (manifestItems.some(i => i.supplyId === item._id)) return setSearchQuery('');
 
+    // Tukuyin ang limitasyon base sa transaction type
     const maxAvailable = isDamagedDeductingType
       ? (item.ConditionBreakdown?.Damaged ?? item.DamagedCount ?? 0)
       : (item.ConditionBreakdown?.Good ?? item.ActualCount ?? 0);
 
     if (isDeductingType && maxAvailable <= 0) {
-      showErrorToast(`No ${item.Code} available for ${transactionType} transaction.`);
+      showErrorToast(`No available stock of ${item.Code} for ${transactionType} transaction.`);
       return setSearchQuery('');
     }
 
@@ -133,13 +134,21 @@ function SuppliesMovements() {
     setSearchQuery('');
   };
 
-  const handleFastReturnCopy = (borrowSlip) => {
-    setTransactionType("Return");
-    setPartyName(borrowSlip.partyName || '');
-    setOriginAddress(borrowSlip.originAddress || '');
-    setReferenceSlipNo(borrowSlip.slipNo);
+  const handleFastReturnCopy = (slip) => {
+    // 💡 KONDISYON: Kung galing sa Reserved, i-deploy natin ito bilang "Borrow" (Deduct Stock)
+    // Kung galing naman sa Borrow, i-proseso natin bilang "Return" (Add Stock)
+    if (slip.transactionType === "Reserved") {
+      setTransactionType("Borrow");
+    } else {
+      setTransactionType("Return");
+    }
 
-    const fastItems = borrowSlip.items.map(it => ({
+    setPartyName(slip.partyName || '');
+    setOriginAddress(slip.originAddress || '');
+    setReferenceSlipNo(slip.slipNo); // Dito natatabi ang Slip No. ng pinagmulang record (hal. RES-784038)
+
+    // Awtomatikong kopyahin ang mga aytem mula sa orihinal na slip
+    const fastItems = slip.items.map(it => ({
       supplyId: it.supplyId?._id || it.supplyId,
       Code: it.supplyId?.Code || 'N/A',
       ItemDescription: it.supplyId?.ItemDescription || '-',
@@ -147,74 +156,90 @@ function SuppliesMovements() {
       UOM: it.supplyId?.UOM || 'pcs',
       goodConditionQty: it.qty,
       damagedQty: 0,
-      maxLimit: 9999,
-      remarks: `Returned from ${borrowSlip.slipNo}`
+      maxLimit: 9999, // Maaaring i-adjust depende sa iyong inventory restriction rules
+      remarks: slip.transactionType === "Reserved" 
+        ? `Deployed from Reserve Slip ${slip.slipNo}` 
+        : `Returned from ${slip.slipNo}`
     }));
 
     setManifestItems(fastItems);
-    showSuccessToast(`Form loaded mula sa slip ${borrowSlip.slipNo}`);
+    showSuccessToast(`Form loaded mula sa ${slip.transactionType} slip: ${slip.slipNo}`);
   };
 
   const handleUpdateField = (index, field, val) => {
-    const updated = [...manifestItems];
-
-    if (field === 'remarks') {
-      updated[index][field] = val;
-    } else {
-      let numericVal = Math.max(0, Number(val));
-
-      if (field === 'qty' && isDeductingType) {
-        if (numericVal > updated[index].maxLimit) {
-          showErrorToast(`Hanggang ${updated[index].maxLimit} lang ang pwedeng i-out sa transaksyong ito.`);
-          numericVal = updated[index].maxLimit;
-        }
-      }
-
-      updated[index][field] = numericVal;
-
-      if (isDeductingType) {
-        if (field === 'qty') {
-          if (isDamagedDeductingType) {
-            updated[index]['goodConditionQty'] = 0;
-            updated[index]['damagedQty'] = numericVal;
-          } else {
-            updated[index]['goodConditionQty'] = numericVal;
-            updated[index]['damagedQty'] = 0;
-          }
-        }
-      } else {
-        if (field === 'goodConditionQty' || field === 'damagedQty') {
-          updated[index]['qty'] = Number(updated[index]['goodConditionQty']) + Number(updated[index]['damagedQty']);
-        }
+  const updated = [...manifestItems];
+  if (field === 'remarks') {
+    updated[index][field] = val;
+  } else {
+    let numericVal = Math.max(0, Number(val));
+    
+    // Limitahan ang input base sa maxLimit (Damaged count kung Repair o Scrap)
+    if (field === 'qty' && (isDeductingType || isRepairType)) {
+      if (numericVal > updated[index].maxLimit) {
+        showErrorToast(`Hanggang ${updated[index].maxLimit} lang ang pwedeng i-proseso sa transaksyong ito.`);
+        numericVal = updated[index].maxLimit;
       }
     }
-    setManifestItems(updated);
-  };
+
+    updated[index][field] = numericVal;
+
+    if (isRepairType) {
+      // 🔥 REPAIR LOGIC:
+      // Ang input qty ay ang bilang ng aayusing damage.
+      // Babasahin ito ng backend para:
+      // - I-out / ibawas sa Damaged count: updated[index]['damagedQty']
+      // - I-add / ipasok sa Actual/Good count: updated[index]['goodConditionQty']
+      if (field === 'qty') {
+        updated[index]['goodConditionQty'] = numericVal; // Ito ang madadagdag sa Actual/Good
+        updated[index]['damagedQty'] = numericVal;       // Ito ang mababawas sa Damaged
+      }
+    } else if (isDeductingType) {
+      if (field === 'qty') {
+        if (isDamagedDeductingType) {
+          updated[index]['goodConditionQty'] = 0;
+          updated[index]['damagedQty'] = numericVal; // Bawas sa Damaged (Scrap)
+        } else {
+          updated[index]['goodConditionQty'] = numericVal;
+          updated[index]['damagedQty'] = 0;
+        }
+      }
+    } else {
+      if (field === 'goodConditionQty' || field === 'damagedQty') {
+        updated[index]['qty'] = Number(updated[index]['goodConditionQty']) + Number(updated[index]['damagedQty']);
+      }
+    }
+  }
+  setManifestItems(updated);
+};
 
   useEffect(() => {
-    const resetItems = manifestItems.map(item => {
-      const originalItem = dbSupplies.find(s => s._id === item.supplyId);
-      const currentMax = isDamagedDeductingType
-        ? (originalItem?.ConditionBreakdown?.Damaged ?? originalItem?.DamagedCount ?? 0)
-        : (originalItem?.ConditionBreakdown?.Good ?? originalItem?.ActualCount ?? 0);
+  const resetItems = manifestItems.map(item => {
+    const originalItem = dbSupplies.find(s => s._id === item.supplyId);
+    
+    // Kunin ang kasalukuyang Damaged Count para sa limitasyon ng Repair at Scrap
+    const currentMax = (isRepairType || isDamagedDeductingType)
+      ? (originalItem?.ConditionBreakdown?.Damaged ?? originalItem?.DamagedCount ?? 0)
+      : (originalItem?.ConditionBreakdown?.Good ?? originalItem?.ActualCount ?? 0);
 
-      const targetQty = currentMax > 0 ? 1 : 0;
+    const targetQty = currentMax > 0 ? 1 : 0;
 
-      return {
-        ...item,
-        maxLimit: currentMax,
-        qty: isDeductingType ? targetQty : (item.qty || 1),
-        goodConditionQty: isDeductingType ? (isDamagedDeductingType ? 0 : targetQty) : item.goodConditionQty,
-        damagedQty: isDeductingType ? (isDamagedDeductingType ? targetQty : 0) : item.damagedQty
-      };
-    });
-    setManifestItems(resetItems);
-  }, [transactionType]);
+    return {
+      ...item,
+      maxLimit: currentMax,
+      qty: (isRepairType || isDamagedDeductingType) ? targetQty : (isDeductingType ? targetQty : (item.qty || 1)),
+      // Para sa Repair:
+      // - goodConditionQty (madadagdag sa Good/Actual) = targetQty
+      // - damagedQty (mababawas sa Damaged) = targetQty
+      goodConditionQty: isRepairType ? targetQty : (isDeductingType ? (isDamagedDeductingType ? 0 : targetQty) : item.goodConditionQty),
+      damagedQty: isRepairType ? targetQty : (isDeductingType ? (isDamagedDeductingType ? targetQty : 0) : item.damagedQty)
+    };
+  });
+  setManifestItems(resetItems);
+}, [transactionType]);
 
   const handleSubmitSlip = async (e) => {
     e.preventDefault();
     if (manifestItems.length === 0) return showErrorToast("Mangyaring magdagdag ng items sa manifest list.");
-
     const payload = {
       transactionType, transactionDate, partyName, originAddress, preparedBy, referenceSlipNo,
       items: manifestItems.map(i => ({
@@ -225,11 +250,9 @@ function SuppliesMovements() {
         remarks: i.remarks
       }))
     };
-
     try {
       const config = getAuthConfig();
       const res = await axios.post(MOVEMENT_URL, payload, config);
-
       if (res.status === 200 || res.status === 201) {
         showSuccessToast(`Supply Transaction finalized successfully!`);
         setManifestItems([]); setPartyName(''); setOriginAddress(''); setReferenceSlipNo('');
@@ -246,20 +269,15 @@ function SuppliesMovements() {
     if (!selectedSlip) return;
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-
-      // Kunin ang mga sukat ng A4 (Portrait)
       const pageWidth = 210;
       const pageHeight = 297;
       const centerX = pageWidth / 2;
       const centerY = pageHeight / 2;
-
       const formattedDate = new Date().toLocaleString('en-US', {
         month: 'short', day: 'numeric', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
       });
-
-      // --- MGA DETALYE SA ITAAS NG TALAHANAYAN (Metadata Section) ---
-      // Bukod sa didDrawPage para iwas-double text artifact sa multi-page document
+      
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
@@ -273,12 +291,12 @@ function SuppliesMovements() {
       doc.text("Date Logged:", 120, 42);
       doc.setFont("helvetica", "normal");
       doc.text(`${selectedSlip.transactionDate ? new Date(selectedSlip.transactionDate).toLocaleDateString() : '-'}`, 155, 42);
-
+      
       // Row 2 Meta
       doc.setFont("helvetica", "bold");
       doc.text("Action Type:", 14, 49);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(79, 70, 229); // Accent indigo text
+      doc.setTextColor(79, 70, 229);
       doc.text(`${selectedSlip.transactionType}`, 45, 49);
 
       doc.setTextColor(40, 40, 40);
@@ -286,7 +304,7 @@ function SuppliesMovements() {
       doc.text("Prepared By:", 120, 49);
       doc.setFont("helvetica", "normal");
       doc.text(`${selectedSlip.preparedBy || preparedBy}`, 155, 49);
-
+      
       // Row 3 Meta
       doc.setFont("helvetica", "bold");
       doc.text("Full Name:", 14, 56);
@@ -299,7 +317,6 @@ function SuppliesMovements() {
       doc.setFont("helvetica", "normal");
       doc.text(`${selectedSlip.originAddress || 'N/A'}`, 45, 63);
 
-      // --- PAGHAHANDA NG DATA NG TALAHANAYAN ---
       const tableColumns = ["Supplies Profile", "Total QTY", "Good Cond.", "Damaged", "Item Remarks"];
       const tableRows = selectedSlip.items?.map(it => [
         `${it.supplyId?.Code || 'N/A'}\n${it.supplyId?.ItemDescription || '-'}`,
@@ -309,16 +326,12 @@ function SuppliesMovements() {
         it.remarks || "-"
       ]) || [];
 
-      // --- AUTOTABLE GENERATION WITH THUMBNAIL LAYOUT ---
       autoTable(doc, {
-        startY: 72, // May sapat na puwang para sa 4 rows ng metadata
+        startY: 72,
         head: [tableColumns],
         body: tableRows,
         theme: 'grid',
-
-        // I-inject ang automated structural consistency rules para sa bawat pahina
         didDrawPage: (data) => {
-          // 1. Unified Background Watermark Layer
           doc.saveGraphicsState();
           doc.setGState(new doc.GState({ opacity: 0.06 }));
           const logoWidth = 80;
@@ -328,11 +341,9 @@ function SuppliesMovements() {
           doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
           doc.restoreGraphicsState();
 
-          // 2. Branding Header Top Bar Block
           doc.setFillColor(24, 23, 78);
           doc.rect(0, 0, pageWidth, 30, 'F');
 
-          // 3. Header Texts (Naka-center para sa pormal at balanseng UI)
           doc.setTextColor(255, 255, 255);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(14);
@@ -342,8 +353,7 @@ function SuppliesMovements() {
           doc.setFont("helvetica", "normal");
           doc.setTextColor(200, 200, 220);
           doc.text(`Office & Operations Supplies Control Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
-
-          // 4. System Standard Absolute Footer
+          
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8);
           doc.setTextColor(120, 120, 120);
@@ -352,7 +362,6 @@ function SuppliesMovements() {
           const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
           doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
         },
-
         headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, valign: 'middle' },
         bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
         alternateRowStyles: { fillColor: [248, 249, 250] },
@@ -366,10 +375,6 @@ function SuppliesMovements() {
         }
       });
 
-      // --- SIGNATORIES SECTION ---
-      const finalY = doc.lastAutoTable.finalY + 20;
-
-
       doc.save(`SUPPLIES_SLIP_${selectedSlip.slipNo}.pdf`);
       showSuccessToast("PDF Slip downloaded successfully.");
     } catch (e) {
@@ -382,21 +387,19 @@ function SuppliesMovements() {
     item.ItemDescription?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const activeBorrows = movementRecords.filter(r =>
-    r.transactionType === "Borrow" && r.isReturned === false
-  );
+const activeBorrows = movementRecords.filter(r =>
+  (r.transactionType === "Borrow" || r.transactionType === "Reserved") && r.isReturned === false
+);
 
   const filteredHistoryLogs = movementRecords.filter(rec =>
     rec.slipNo?.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
     rec.partyName?.toLowerCase().includes(historySearchQuery.toLowerCase())
   );
-
   const displayedHistoryLogs = historySearchQuery ? filteredHistoryLogs : filteredHistoryLogs.slice(0, 4);
 
   return (
     <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased text-slate-600">
 
-      {/* 🟢 I-set up ang Toaster Container sa Top-Right at i-override ang default wrapper nito */}
       <Toaster
         position="top-right"
         containerClassName="mt-5 mr-5"
@@ -410,17 +413,15 @@ function SuppliesMovements() {
         <PageHeader activeTab="supplies-movements" />
       </div>
 
-
       {/* QUICK-RETURN ASSISTANT */}
       {activeBorrows.length > 0 && (
         <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 flex flex-col gap-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-xs font-bold text-[#18174e] uppercase tracking-wider">
               <Eye className="w-3.5 h-3.5 text-[#18174e]" />
-              <span>Quick-Return Assistant: Select a pending borrow record below to auto-populate form fields</span>
+              <span>Quick-Return Assistant: Select a pending borrow/reserved record below to auto-populate form fields</span>
             </div>
 
-            {/* 🔍 Search Box Filter */}
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-[#18174e]/60" />
               <input
@@ -433,7 +434,7 @@ function SuppliesMovements() {
             </div>
           </div>
 
-          {/* LISTAHAN NG MGA FILTERED BORROWS */}
+          {/* LISTAHAN NG MGA FILTERED BORROWS / RESERVED */}
           <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
             {activeBorrows
               .filter(b =>
@@ -446,33 +447,32 @@ function SuppliesMovements() {
                   type="button"
                   onClick={() => {
                     handleFastReturnCopy(b);
-                    setQuickReturnSearch(''); // Linisin ang search box pagkatapos mapili
+                    setQuickReturnSearch('');
                   }}
                   className="bg-white border border-indigo-100 hover:border-[#18174e] text-[#18174e] rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 w-22 h-22 shrink-0"
                 >
-                  {/* Mas maliit na text, dikit-dikit ang letter spacing, at bawal mag-break */}
                   <span className="font-bold text-[#18174e] text-[11px] tracking-tighter block mb-0.5 whitespace-nowrap">
                     {b.slipNo}
                   </span>
-
+                  {/* Naglagay ng visual badge kung "Reserved" ang orihinal na status */}
+                  {b.transactionType === "Reserved" && (
+                    <span className="text-[8px] bg-purple-100 text-purple-700 font-bold px-1 rounded scale-90 mb-0.5">RESERVED</span>
+                  )}
                   <span className="text-[9px] text-slate-500 line-clamp-2 break-words max-w-full leading-none">
                     {b.partyName}
                   </span>
                 </button>
               ))}
 
-            {/* Fallback kapag nag-match sa filter */}
             {activeBorrows.filter(b =>
               b.slipNo?.toLowerCase().includes(quickReturnSearch.toLowerCase()) ||
               b.partyName?.toLowerCase().includes(quickReturnSearch.toLowerCase())
             ).length === 0 && (
-                <span className="text-indigo-400 italic text-xs py-1">No matching borrow records found.</span>
+                <span className="text-indigo-400 italic text-xs py-1">No matching borrow/reserved records found.</span>
               )}
           </div>
         </div>
       )}
-
-
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         {/* LEFT CONTAINER (FORM SHEET) */}
@@ -494,7 +494,6 @@ function SuppliesMovements() {
           </div>
 
           <form onSubmit={handleSubmitSlip} className="flex flex-col gap-5">
-            {/* DETAILS GRID: Responsive columns from 1 to 3 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Slip Number</label>
@@ -517,7 +516,8 @@ function SuppliesMovements() {
                   <option value="Reserved">🟣 Reserved (Deployment only)</option>
                   <option value="Out">🔴 Out (Personal Use)</option>
                   <option value="Scrap">🟠 Scrap / Disposal (Deduct Repair)</option>
-                  <option value="Return to Vendor">🟤 Return to Vendor (Deduct Repair)</option>
+                  {/* 🔥 UPDATE: Mula "Return to Vendor" pinalitan ng "Repair" */}
+                  <option value="Repair">🛠️ Repair In (Deduct Damaged, Restock Good)</option>
                 </select>
               </div>
 
@@ -535,7 +535,7 @@ function SuppliesMovements() {
                   type="text"
                   value={partyName}
                   onChange={e => setPartyName(e.target.value)}
-                  placeholder={isDamagedDeductingType ? "Disposal Team, Supplier, or Junk shop" : "Enter full name of person"}
+                  placeholder={isDamagedDeductingType ? "Disposal Team, Repair Shop, or Junk shop" : "Enter full name of person"}
                   list="party-suggestions"
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
                   required
@@ -665,28 +665,31 @@ function SuppliesMovements() {
                           </td>
                           <td className="py-2 px-4 text-center">
                             <input
-                              type="number"
-                              value={item.goodConditionQty}
-                              onChange={e => handleUpdateField(index, 'goodConditionQty', e.target.value)}
-                              className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:outline-none focus:border-emerald-500"
-                              min="0"
-                              required
-                              disabled={isDeductingType}
-                            />
+  type="number"
+  value={item.goodConditionQty}
+  onChange={e => handleUpdateField(index, 'goodConditionQty', e.target.value)}
+  // 1. Added tailwind arbitrary classes to hide the spin buttons
+  className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+  min="0"
+  required
+  disabled={isDeductingType}
+  // 2. Prevents the mouse wheel from changing the number when hovered/focused
+  onWheel={(e) => e.currentTarget.blur()} 
+/>
                           </td>
                           <td className="py-2 px-4 text-center">
                             <input
                               type="number"
                               value={item.damagedQty}
                               onChange={e => handleUpdateField(index, 'damagedQty', e.target.value)}
-                              className="w-full border text-center rounded py-1 text-sm font-bold text-rose-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:outline-none focus:border-rose-500"
+                              className="w-full border text-center rounded py-1 text-sm font-bold text-rose-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:outline-none focus:border-rose-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               min="0"
                               required
                               disabled={isDeductingType}
                             />
                           </td>
                           <td className="py-2 px-4">
-                            <input type="text" value={item.remarks} onChange={e => handleUpdateField(index, 'remarks', e.target.value)} placeholder={isDamagedDeductingType ? "Reason for scrapping/returning" : "Provide context details..."} className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-[#18174e]" />
+                            <input type="text" value={item.remarks} onChange={e => handleUpdateField(index, 'remarks', e.target.value)} placeholder={isDamagedDeductingType ? "Reason for scrapping/repairing" : "Provide context details..."} className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-[#18174e]" />
                           </td>
                           <td className="py-2 px-4 text-center">
                             <button type="button" onClick={() => { setManifestItems(manifestItems.filter((_, i) => i !== index)); showSuccessToast("Item removed from template manifest."); }} className="text-red-500 cursor-pointer hover:text-red-700 transition-all p-1 inline-block"><Trash2 className="w-4 h-4 mx-auto" /></button>
@@ -746,7 +749,8 @@ function SuppliesMovements() {
                       rec.transactionType === 'Return' ? 'bg-blue-50 text-blue-600' :
                         rec.transactionType === 'Reserved' ? 'bg-purple-50 text-purple-600' :
                           rec.transactionType === 'Out' ? 'bg-rose-50 text-rose-600' :
-                            ['Scrap', 'Return to Vendor'].includes(rec.transactionType) ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+                            rec.transactionType === 'Scrap' ? 'bg-red-50 text-red-600' :
+                              rec.transactionType === 'Repair' ? 'bg-teal-50 text-teal-600' : 'bg-emerald-50 text-emerald-600'
                       }`}>
                       {rec.transactionType}
                     </span>
@@ -808,8 +812,6 @@ function SuppliesMovements() {
             {/* Itemization Table Layer with Scrollbar */}
             <div className="max-h-64 overflow-y-auto border border-slate-200/60 rounded-xl relative shadow-sm">
               <table className="w-full text-left text-xs border-collapse bg-white">
-
-                {/* STICKY THEAD */}
                 <thead className="sticky top-0 z-10 bg-[#18174e] text-white text-[11px] font-bold uppercase tracking-wide">
                   <tr>
                     <th className="p-3 w-1/4">Supplies Profile</th>
@@ -819,45 +821,26 @@ function SuppliesMovements() {
                     <th className="p-3 text-left pl-6">Remarks / Reason</th>
                   </tr>
                 </thead>
-
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 ">
                   {selectedSlip.items?.map((it, idx) => (
                     <tr key={it._id || idx} className="hover:bg-slate-50/50 transition-colors">
-                      {/* Supplies Profile & Description */}
-                      <td className="p-3 w-1/4 align-middle">
+                      <td className="p-3 w-1/4 align-middle ">
                         <div className="font-bold text-[#18174e]">{it.supplyId?.Code || 'N/A'}</div>
-                        <div className="text-slate-400 text-[11px] max-w-xs truncate font-medium" title={it.supplyId?.ItemDescription}>
+                        <div className="text-slate-400 text-[11px] max-w-xs truncate font-medium " title={it.supplyId?.ItemDescription}>
                           {it.supplyId?.ItemDescription || '-'}
                         </div>
                       </td>
-
-                      {/* Total QTY */}
-                      <td className="p-3 text-center text-slate-700 w-24 align-middle font-bold">
-                        {it.qty}
-                      </td>
-
-                      {/* Good Condition QTY */}
-                      <td className="p-3 text-center text-emerald-600 w-28 align-middle font-bold">
-                        {it.goodConditionQty ?? 0}
-                      </td>
-
-                      {/* Damaged QTY */}
-                      <td className="p-3 text-center text-rose-600 w-24 align-middle font-bold">
-                        {it.damagedQty ?? 0}
-                      </td>
-
-                      {/* Remarks / Reason */}
+                      <td className="p-3 text-center text-slate-700 w-24 align-middle font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">{it.qty}</td>
+                      <td className="p-3 text-center text-emerald-600 w-28 align-middle font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">{it.goodConditionQty ?? 0}</td>
+                      <td className="p-3 text-center text-rose-600 w-24 align-middle font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">{it.damagedQty ?? 0}</td>
                       <td className="p-3 italic text-slate-500 font-medium text-[11px] max-w-[140px] truncate align-middle pl-6" title={it.remarks}>
                         {it.remarks || '-'}
                       </td>
                     </tr>
                   ))}
-
                   {(!selectedSlip.items || selectedSlip.items.length === 0) && (
                     <tr>
-                      <td colSpan="5" className="p-4 text-center text-slate-400 italic">
-                        No materials recorded.
-                      </td>
+                      <td colSpan="5" className="p-4 text-center text-slate-400 italic">No materials recorded.</td>
                     </tr>
                   )}
                 </tbody>

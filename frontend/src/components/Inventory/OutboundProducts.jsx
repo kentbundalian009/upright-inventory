@@ -637,11 +637,11 @@ function OutboundProducts() {
                           <td className="py-2 px-4 font-bold text-[#18174e]">{item.Code}</td>
                           <td className="py-2 px-4 truncate max-w-[165px]" title={item.ItemDescription}>{item.ItemDescription}</td>
                           <td className="py-2 px-4">
-                            <input type="number" value={item.qtyRequested} onChange={e => handleUpdateField(index, 'qtyRequested', Number(e.target.value))} className="w-full border text-center rounded py-1 font-semibold text-slate-700 focus:outline-none focus:border-slate-400" min="1" required />
+                            <input type="number" value={item.qtyRequested} onChange={e => handleUpdateField(index, 'qtyRequested', Number(e.target.value))} className="w-full border text-center rounded py-1 font-semibold text-slate-700 focus:outline-none focus:border-slate-400[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" min="1" required />
                           </td>
                           <td className="py-2 px-4 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span></td>
                           <td className="py-2 px-4">
-                            <input type="number" value={item.actualCountShipped} onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))} className="w-full border text-center rounded py-1 font-bold text-emerald-600 focus:outline-none focus:border-emerald-500" min="1" required />
+                            <input type="number" value={item.actualCountShipped} onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))} className="w-full border text-center rounded py-1 font-bold text-emerald-600 focus:outline-none focus:border-emerald-500[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" min="1" required />
                           </td>
                           <td className="py-2 px-4">
                             <input type="text" value={item.remarks} onChange={e => handleUpdateField(index, 'remarks', e.target.value)} placeholder="Provide context details..." className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-slate-400" />
@@ -854,6 +854,7 @@ function OutboundProducts() {
                 <thead className="sticky top-0 z-10 bg-[#18174e] text-white text-[11px] font-bold uppercase tracking-wide">
                   <tr>
                     <th className="p-3 w-1/3">Material Profile</th>
+                    <th className="p-3 w-1/3">Dimensions</th>
                     <th className="p-3 text-center w-28">QTY Ordered</th>
                     <th className="p-3 text-right w-32">Verified Shipped</th>
                     <th className="p-3 text-left pl-6">Remarks</th>
@@ -873,13 +874,41 @@ function OutboundProducts() {
                           </div>
                         </td>
 
+                        {/* Dimensions Column */}
+                        <td className="p-3 w-1/3 align-middle">
+                          <div className="text-slate-600 font-semibold">
+                            {(() => {
+                              const targetMaterial = it.materialId || it.productId;
+
+                              // Kunin ang single string kung meron
+                              const rawDim = targetMaterial?.Dimensions ||
+                                targetMaterial?.dimensions ||
+                                targetMaterial?.Dimension ||
+                                targetMaterial?.dimension;
+
+                              if (rawDim) return rawDim;
+
+                              // Kung walang single string, subukan ang hiwalay na L x W x H (suportado ang uppercase at lowercase)
+                              const l = targetMaterial?.Length || targetMaterial?.length;
+                              const w = targetMaterial?.Width || targetMaterial?.width;
+                              const h = targetMaterial?.Height || targetMaterial?.height;
+
+                              if (l || w || h) {
+                                return `${l || '-'} × ${w || '-'} × ${h || '-'}`;
+                              }
+
+                              return "N/A";
+                            })()}
+                          </div>
+                        </td>
+
                         {/* QTY Ordered */}
                         <td className="p-3 text-center text-slate-600 w-28 align-middle font-semibold">
                           {it.qtyRequested} {targetMaterial?.UOM}
                         </td>
 
                         {/* Verified Shipped */}
-                        <td className="p-3 text-right font-bold text-emerald-600 w-32 align-middle">
+                        <td className="p-3 text-right font-bold text-emerald-600 w-32 align-middle ">
                           {it.actualCountShipped} {targetMaterial?.UOM}
                         </td>
 

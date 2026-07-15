@@ -6,8 +6,8 @@ const suppliesMovementSchema = new mongoose.Schema(
     transactionType: { 
       type: String, 
       required: true, 
-      // 🎯 Idinagdag ang Scrap at Return to Vendor dito:
-      enum: ["Borrow", "Return", "Restock", "Reserved", "Out", "Scrap", "Return to Vendor"], 
+      // 🎯 Idagdag ang "Repair" dito sa enum list:
+      enum: ["Borrow", "Return", "Restock", "Reserved", "Out", "Scrap", "Return to Vendor", "Repair"], 
       trim: true 
     },
     transactionDate: { type: Date, required: true, default: Date.now },
@@ -22,7 +22,7 @@ const suppliesMovementSchema = new mongoose.Schema(
     items: [
       {
         supplyId: { type: mongoose.Schema.Types.ObjectId, ref: "Supplies", required: true },
-        qty: { type: Number, required: true, min: 0 }, // Ginawang 0 ang min para flexible sa validation
+        qty: { type: Number, required: true, min: 0 }, 
         goodConditionQty: { type: Number, required: true, default: 0 }, 
         damagedQty: { type: Number, required: true, default: 0 }, 
         remarks: { type: String, trim: true, default: "" }
