@@ -29,7 +29,7 @@ function OutboundProducts() {
   const [passkeyInput, setPasskeyInput] = useState('');
 
   // Packing List Form States
-  const [transactionType, setTransactionType] = useState('Outbound');
+  const [transactionType, setTransactionType] = useState('Reserve');
   const [shipmentDate, setShipmentDate] = useState(new Date().toISOString().split('T')[0]);
   const [customer, setCustomer] = useState('');
   const [carrier, setCarrier] = useState('');
@@ -172,10 +172,10 @@ function OutboundProducts() {
     for (const item of manifestItems) {
       // Hanapin ang tugmang material sa dbRawMaterials gamit ang materialId
       const currentDbItem = dbRawMaterials.find(db => db._id === item.materialId);
-      
+
       if (currentDbItem) {
         const availableStock = currentDbItem.ActualCount || 0;
-        
+
         if (item.qtyRequested > availableStock) {
           showErrorToast(`Insufficient stock for ${item.Code}: Requested ${item.qtyRequested}, Available ${availableStock}.`);
           return; // Hihinto ang buong submission dito at hinding-hinde mag-di-diretso
@@ -418,25 +418,35 @@ function OutboundProducts() {
                 b.customer?.toLowerCase().includes(quickReserveSearch.toLowerCase())
               )
               .map(b => (
-                <div key={b._id} className="flex items-center bg-white border border-indigo-100 hover:border-[#18174e] rounded-lg shadow-2xs group shrink-0 overflow-hidden transition-all">
+                <div
+                  key={b._id}
+                  className="relative inline-block shrink-0 overflow-visible group"
+                >
+                  {/* Main Square Button */}
                   <button
                     type="button"
                     onClick={() => {
                       handleFastReturnCopy(b);
                       setQuickReserveSearch('');
                     }}
-                    className="hover:bg-indigo-50/30 text-[#18174e] px-3 py-1.5 font-medium cursor-pointer transition-all flex items-center gap-1 border-r border-indigo-50"
+                    className="bg-white border border-indigo-100 hover:border-[#18174e] text-[#18174e] rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 w-22 h-22 shrink-0"
                   >
-                    Fulfill <span className="font-bold text-[#18174e]">{b.plNo}</span> ({b.customer})
+                    <span className="font-bold text-[#18174e] text-[11px] tracking-tighter block mb-0.5 whitespace-nowrap">
+                      {b.customer}
+                    </span>
                   </button>
 
+                  {/* Inilagay sa top-1 right-1 para nasa LOOB ng safe zone pero mukhang nasa corner pa rin */}
                   <button
                     type="button"
-                    onClick={() => handleOpenVoidModal(b)}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenVoidModal(b);
+                    }}
+                    className="absolute top-1 right-1 w-5 h-5 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-slate-400 hover:text-rose-600 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center z-20"
                     title="Void and Cancel This Reservation Entry"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-2.5 h-2.5 shrink-0" />
                   </button>
                 </div>
               ))}
@@ -491,7 +501,7 @@ function OutboundProducts() {
                 >
                   <option value="Reserve">🟡 Reserve (Hold Stock)</option>
                   <option value="Outbound">🔴 Outbound (Deduct & Dispatch)</option>
-                  
+
                 </select>
               </div>
 
