@@ -112,21 +112,25 @@ function OutboundProducts() {
   }, []);
 
   const handleSelectRawMaterial = (item) => {
-    if (manifestItems.some(i => i.materialId === item._id || i.productId === item._id)) {
-      showErrorToast("This material is already in the manifest list.");
-      return setRawMatSearchQuery('');
-    }
-    setManifestItems([...manifestItems, {
-      materialId: item._id, // Ginawang materialId para magtugma sa raw material schema
-      Code: item.Code,
-      ItemDescription: item.ItemDescription,
-      qtyRequested: 1,
-      UOM: item.UOM,
-      actualCountShipped: 1,
-      remarks: ''
-    }]);
-    setRawMatSearchQuery('');
-  };
+  if (manifestItems.some(i => i.materialId === item._id || i.productId === item._id)) {
+    showErrorToast("This material is already in the manifest list.");
+    return setRawMatSearchQuery('');
+  }
+  setManifestItems([...manifestItems, {
+    materialId: item._id, // Ginawang materialId para magtugma sa raw material schema
+    Code: item.Code,
+    ItemDescription: item.ItemDescription,
+    Category: item.Category || 'N/A',     // Bagong dagdag
+    Segment: item.Segment || 'N/A',       // Bagong dagdag
+    Dimension: item.Dimension || 'N/A',   // Bagong dagdag
+    AccountTo: item.AccountTo || 'N/A',   // Bagong dagdag
+    qtyRequested: 1,
+    UOM: item.UOM,
+    actualCountShipped: 1,
+    remarks: ''
+  }]);
+  setRawMatSearchQuery('');
+};
 
   const handleFastReturnCopy = (reserveSlip) => {
     setTransactionType("Outbound");
@@ -394,7 +398,7 @@ function OutboundProducts() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-xs font-bold text-[#18174e] uppercase tracking-wider">
               <Eye className="w-3.5 h-3.5 text-[#18174e]" />
-              <span>Quick-Outbound Assistant: Select a pending reserved stock log below to fulfill transaction</span>
+              <span>Quick-Assistant: Select a packed rack below to fulfill transaction</span>
             </div>
 
             {/* 🔍 Search Box Filter */}
@@ -429,9 +433,9 @@ function OutboundProducts() {
                       handleFastReturnCopy(b);
                       setQuickReserveSearch('');
                     }}
-                    className="bg-white border border-indigo-100 hover:border-[#18174e] text-[#18174e] rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 w-22 h-22 shrink-0"
+                    className="bg-yellow-400 border border-slate-900 hover:border-slate-800 text-[#fff] rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 w-22 h-22 shrink-0"
                   >
-                    <span className="font-bold text-[#18174e] text-[11px] tracking-tighter block mb-0.5 whitespace-nowrap">
+                    <span className="font-bold text-[#000] text-[12px] tracking-tighter block mb-0.5 ">
                       {b.customer}
                     </span>
                   </button>
@@ -443,7 +447,7 @@ function OutboundProducts() {
                       e.stopPropagation();
                       handleOpenVoidModal(b);
                     }}
-                    className="absolute top-1 right-1 w-5 h-5 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-slate-400 hover:text-rose-600 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center z-20"
+                    className="absolute top-1 right-1 w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-rose-300 text-slate-900 hover:text-rose-600 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center z-20"
                     title="Void and Cancel This Reservation Entry"
                   >
                     <X className="w-2.5 h-2.5 shrink-0" />
@@ -615,53 +619,109 @@ function OutboundProducts() {
             </div>
 
             {/* TABLE SECTION */}
-            <div className="flex flex-col gap-2">
-              <span className="text-[10px] sm:text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically deducted</span>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-                  <thead>
-                    <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
-                      <th className="py-3 px-4">Material Code</th>
-                      <th className="py-3 px-4">Description</th>
-                      <th className="py-3 px-4 text-center w-24">QTY</th>
-                      <th className="py-3 px-4 text-center">UOM</th>
-                      <th className="py-3 px-4 text-center w-28">Verified Shipped</th>
-                      <th className="py-3 px-4">Remarks / Notes</th>
-                      <th className="py-3 px-4 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {manifestItems.length > 0 ? (
-                      manifestItems.map((item, index) => (
-                        <tr key={index} className="hover:bg-slate-50/80 text-xs">
-                          <td className="py-2 px-4 font-bold text-[#18174e]">{item.Code}</td>
-                          <td className="py-2 px-4 truncate max-w-[165px]" title={item.ItemDescription}>{item.ItemDescription}</td>
-                          <td className="py-2 px-4">
-                            <input type="number" value={item.qtyRequested} onChange={e => handleUpdateField(index, 'qtyRequested', Number(e.target.value))} className="w-full border text-center rounded py-1 font-semibold text-slate-700 focus:outline-none focus:border-slate-400[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" min="1" required />
-                          </td>
-                          <td className="py-2 px-4 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span></td>
-                          <td className="py-2 px-4">
-                            <input type="number" value={item.actualCountShipped} onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))} className="w-full border text-center rounded py-1 font-bold text-emerald-600 focus:outline-none focus:border-emerald-500[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" min="1" required />
-                          </td>
-                          <td className="py-2 px-4">
-                            <input type="text" value={item.remarks} onChange={e => handleUpdateField(index, 'remarks', e.target.value)} placeholder="Provide context details..." className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-slate-400" />
-                          </td>
-                          <td className="py-2 px-4 text-center">
-                            <button type="button" onClick={() => { setManifestItems(manifestItems.filter((_, i) => i !== index)); showSuccessToast("Item removed from outbound manifest lines."); }} className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block"><Trash2 className="w-4 h-4" /></button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="7" className="text-center py-6 text-red-600 italic font-bold text-xs">
-                          No items added. Search above to add rows.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+<div className="flex flex-col gap-2">
+  <span className="text-[10px] sm:text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">
+    Quantities will be automatically deducted
+  </span>
+  <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+    <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
+      <thead>
+        <tr className="text-white font-bold bg-red-700 uppercase text-xs whitespace-nowrap">
+          <th className="py-3 px-4">Material Code</th>
+          <th className="py-3 px-4">Category</th>
+          <th className="py-3 px-4">Segment</th>
+          <th className="py-3 px-4">Description</th>
+          <th className="py-3 px-4">Dimension</th>
+          <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
+          <th className="py-3 px-4 text-center">UOM</th>
+          {/* Nilagyan ng w-28 at min-w para terno sila ng QTY tulad sa inbound */}
+          <th className="py-3 px-4 text-center w-28 min-w-[112px]">Verified Shipped</th>
+          <th className="py-3 px-4">Account To</th>
+          <th className="py-3 px-4">Remarks / Notes</th>
+          <th className="py-3 px-4 text-center">Action</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {manifestItems.length > 0 ? (
+          manifestItems.map((item, index) => (
+            <tr key={index} className="hover:bg-slate-50/80 text-xs">
+              <td className="py-2 px-4 font-bold text-[#18174e]">{item.Code}</td>
+              <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
+              <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
+              <td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription}>
+                {item.ItemDescription}
+              </td>
+              <td className="py-2 px-4 text-slate-500">{item.Dimension}</td>
+
+              {/* QTY Column */}
+              <td className="py-2 px-4 w-28 min-w-[112px]">
+                <input 
+                  type="number" 
+                  value={item.qtyRequested} 
+                  onChange={e => handleUpdateField(index, 'qtyRequested', Number(e.target.value))} 
+                  className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                  min="1" 
+                  required 
+                />
+              </td>
+
+              {/* UOM Column */}
+              <td className="py-2 px-4 text-center">
+                <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
+              </td>
+
+              {/* Verified Shipped Column */}
+              <td className="py-2 px-4 w-28 min-w-[112px]">
+                <input 
+                  type="number" 
+                  value={item.actualCountShipped} 
+                  onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))} 
+                  className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                  min="1" 
+                  required 
+                />
+              </td>
+
+              <td className="py-2 px-4 text-slate-500">{item.AccountTo}</td>
+
+              {/* Remarks Column */}
+              <td className="py-2 px-4">
+                <input 
+                  type="text" 
+                  value={item.remarks} 
+                  onChange={e => handleUpdateField(index, 'remarks', e.target.value)} 
+                  placeholder="Provide context details..." 
+                  className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-slate-400" 
+                />
+              </td>
+
+              {/* Action Column */}
+              <td className="py-2 px-4 text-center">
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    setManifestItems(manifestItems.filter((_, i) => i !== index)); 
+                    showSuccessToast("Item removed from outbound manifest lines."); 
+                  }} 
+                  className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            {/* Ginawang colSpan="11" para sakop ang lahat ng bagong columns */}
+            <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
+              No items added. Search above to add rows.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>
 
             {/* SUBMIT BUTTON */}
             <button type="submit" className="w-full bg-red-800 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase tracking-wider shadow-sm">
@@ -851,7 +911,7 @@ function OutboundProducts() {
               <table className="w-full text-left text-xs border-collapse bg-white">
 
                 {/* STICKY THEAD */}
-                <thead className="sticky top-0 z-10 bg-[#18174e] text-white text-[11px] font-bold uppercase tracking-wide">
+                <thead className="sticky top-0 z-10 bg-red-700 text-white text-[11px] font-bold uppercase whitespace-nowrap">
                   <tr>
                     <th className="p-3 w-1/3">Material Profile</th>
                     <th className="p-3 w-1/3">Dimensions</th>

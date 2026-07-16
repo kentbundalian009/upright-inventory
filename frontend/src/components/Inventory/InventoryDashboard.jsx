@@ -3,12 +3,11 @@ import axios from 'axios';
 import { 
     Package, AlertTriangle, TrendingUp, DollarSign, 
     Layers, Calendar, BarChart3, PieChart as PieIcon, 
-    Activity, ShoppingCart, HardDrive, Loader2, Boxes
+    Activity, ShoppingCart, Loader2, Boxes, Database
 } from 'lucide-react';
 import { 
     ResponsiveContainer, PieChart, Pie, Cell, 
-    BarChart, Bar, XAxis, YAxis, Tooltip, Legend,
-    LineChart, Line, CartesianGrid
+    BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid
 } from 'recharts';
 import PageHeader from '../Common/PageHeader';
 
@@ -20,35 +19,37 @@ const BASE_API_URL = import.meta.env.MODE === 'production'
 function InventoryDashboard() {
     const [loading, setLoading] = useState(true);
     
-    // States para sa apat na live data collections mula sa Cluster0
+    // States para sa natitirang live data collections (Raw Materials -> Rackings at Supplies lamang)
     const [rawMaterials, setRawMaterials] = useState([]);
-    const [products, setProducts] = useState([]);
     const [supplies, setSupplies] = useState([]);
-    const [assets, setAssets] = useState([]);
 
-    // Filters for Dropdowns
+    // Filters for Dropdowns (Maaari mong gamitin sa filtering kung kinakailangan)
     const [selectedMonth, setSelectedMonth] = useState('June');
     const [selectedYear, setSelectedYear] = useState('2026');
 
-    // 1. Fetch Integration gamit ang Axios (Sabay-sabay gamit ang Promise.all)
+    // 1. Fetch Integration gamit ang Axios (Rackings at Supplies lamang)
     const fetchDashboardData = async () => {
         setLoading(true);
         try {
-            const [resRaw, resProd, resSupp, resAsset] = await Promise.all([
-                axios.get(`${BASE_API_URL}/raw-materials`).catch(() => ({ data: [] })),
-                axios.get(`${BASE_API_URL}/products`).catch(() => ({ data: [] })),
-                axios.get(`${BASE_API_URL}/supplies`).catch(() => ({ data: [] })),
-                axios.get(`${BASE_API_URL}/assets`).catch(() => ({ data: [] })),
+            const [resRaw, resSupp] = await Promise.all([
+                axios.get(`${BASE_API_URL}/raw-materials`)
+                    .catch((err) => {
+                        console.error("Failed to fetch Raw Materials:", err);
+                        return { data: [] };
+                    }),
+                axios.get(`${BASE_API_URL}/supplies`)
+                    .catch((err) => {
+                        console.error("Failed to fetch Supplies:", err);
+                        return { data: [] };
+                    }),
             ]);
 
             setRawMaterials(Array.isArray(resRaw.data) ? resRaw.data : []);
-            setProducts(Array.isArray(resProd.data) ? resProd.data : []);
             setSupplies(Array.isArray(resSupp.data) ? resSupp.data : []);
-            setAssets(Array.isArray(resAsset.data) ? resAsset.data : []);
         } catch (error) {
             console.error("Error fetching live inventory dashboard metrics:", error);
         } finally {
-            setLoading(false);
+            setLoading(false); 
         }
     };
 
@@ -58,72 +59,82 @@ function InventoryDashboard() {
 
     // 2. Memoized Computations mula sa MongoDB Live Data
 
-    // Graph 1: Stock Status Share Data (Pangkalahatang Status ng Lahat)
+    // Graph 1: Live Stock Status (Inbound, WIP, Outbound)
     const stockPieData = useMemo(() => {
-        const allInventoryItems = [...rawMaterials, ...products, ...supplies];
+        const allInventoryItems = [...rawMaterials, ...supplies];
         if (allInventoryItems.length === 0) {
             return [
-                { name: 'In Stock', value: 0, color: '#10b981' },
-                { name: 'Low Stock', value: 0, color: '#f59e0b' },
-                { name: 'Out of Stock', value: 0, color: '#f43f5e' }
+                { name: 'Inbound', value: 0, color: '#10b981' },   // Green
+                { name: 'WIP', value: 0, color: '#f59e0b' },       // Yellow
+                { name: 'Outbound', value: 0, color: '#ef4444' }    // Red
             ];
         }
 
-        const inStock = allInventoryItems.filter(item => (item.ActualCount ?? 0) > 15).length;
-        const lowStock = allInventoryItems.filter(item => {
-            const count = item.ActualCount ?? 0;
-            return count > 0 && count <= 15;
+        // Pag-grupo base sa Status ng item. Meron ding fallback para hindi maging 0 kung wala pang fields.
+        const inbound = allInventoryItems.filter(item => {
+            const status = (item.Status || '').toLowerCase();
+            if (status) return status === 'inbound' || status === 'incoming';
+            return (item.ActualCount ?? 0) > 30; // Fallback
         }).length;
-        const outOfStock = allInventoryItems.filter(item => (item.ActualCount ?? 0) === 0).length;
+
+        const wip = allInventoryItems.filter(item => {
+            const status = (item.Status || '').toLowerCase();
+            if (status) return status === 'wip' || status === 'work in progress' || status === 'processing';
+            return (item.ActualCount ?? 0) > 0 && (item.ActualCount ?? 0) <= 30; // Fallback
+        }).length;
+
+        const outbound = allInventoryItems.filter(item => {
+            const status = (item.Status || '').toLowerCase();
+            if (status) return status === 'outbound' || status === 'released';
+            return (item.ActualCount ?? 0) === 0; // Fallback
+        }).length;
 
         return [
-            { name: 'In Stock', value: inStock, color: '#10b981' },
-            { name: 'Low Stock', value: lowStock, color: '#f59e0b' },
-            { name: 'Out of Stock', value: outOfStock, color: '#f43f5e' }
+            { name: 'Inbound', value: inbound, color: '#10b981' }, // Green
+            { name: 'WIP', value: wip, color: '#f59e0b' },       // Yellow
+            { name: 'Outbound', value: outbound, color: '#ef4444' }  // Red
         ];
-    }, [rawMaterials, products, supplies]);
+    }, [rawMaterials, supplies]);
 
-    // Graph 2: Cluster0 Database Records Density Distribution
-    const databaseDistributionData = useMemo(() => {
-        return [
-            { name: 'Raw Materials', Items: rawMaterials.length, color: '#18174e' },
-            { name: 'Products', Items: products.length, color: '#10b981' },
-            { name: 'Supplies', Items: supplies.length, color: '#3b82f6' },
-            { name: 'Assets', Items: assets.length, color: '#f59e0b' },
-        ];
-    }, [rawMaterials, products, supplies, assets]);
-
-    // Graph 3: Dynamic Stock Density Breakdown (Raw Materials vs Products Breakdown)
+    // Graph 2: Stock Density Breakdown (Rackings vs Supplies)
     const stockDensityBreakdownData = useMemo(() => {
         return [
             {
                 name: 'Total Items',
-                'Raw Materials': rawMaterials.length,
-                'Finished Products': products.length,
+                'Rackings': rawMaterials.length,
+                'Supplies': supplies.length,
             },
             {
                 name: 'Available Stock',
-                'Raw Materials': rawMaterials.filter(item => (item.ActualCount ?? 0) > 0).length,
-                'Finished Products': products.filter(item => (item.ActualCount ?? 0) > 0).length,
+                'Rackings': rawMaterials.filter(item => (item.ActualCount ?? 0) > 0).length,
+                'Supplies': supplies.filter(item => (item.ActualCount ?? 0) > 0).length,
             },
             {
                 name: 'Critical / Low Stock',
-                'Raw Materials': rawMaterials.filter(item => (item.ActualCount ?? 0) <= 15).length,
-                'Finished Products': products.filter(item => (item.ActualCount ?? 0) <= 15).length,
+                'Rackings': rawMaterials.filter(item => (item.ActualCount ?? 0) <= 15).length,
+                'Supplies': supplies.filter(item => (item.ActualCount ?? 0) <= 15).length,
             }
         ];
-    }, [rawMaterials, products]);
+    }, [rawMaterials, supplies]);
 
-    // Graph 4: Fixed Asset Condition Tracking Trends (Mula sa Assets Collection)
-    const assetConditionData = useMemo(() => {
-        const assetGood = assets.filter(a => (a.Condition || '').toLowerCase().includes('good') || !(a.Condition)).length;
-        const assetDefective = assets.filter(a => (a.Condition || '').toLowerCase().includes('defective') || (a.Condition || '').toLowerCase().includes('repair')).length;
-        
+    // Graph 3: MongoDB Cluster0 Database Records Density Distribution
+    const databaseDistributionData = useMemo(() => {
         return [
-            { name: 'Q1 2026', 'Good Condition': assetGood > 0 ? assetGood - 2 : 0, 'Requires Attention': assetDefective },
-            { name: 'Q2 2026', 'Good Condition': assetGood, 'Requires Attention': assetDefective },
+            { name: 'Rackings', Items: rawMaterials.length, color: '#18174e' },
+            { name: 'Supplies', Items: supplies.length, color: '#3b82f6' },
         ];
-    }, [assets]);
+    }, [rawMaterials, supplies]);
+
+    // Graph 4: Actual Stock Quantity Breakdown (Pumalit sa Reserved Overview)
+    const stockQuantityData = useMemo(() => {
+        const totalRackingsStock = rawMaterials.reduce((acc, item) => acc + (item.ActualCount ?? 0), 0);
+        const totalSuppliesStock = supplies.reduce((acc, item) => acc + (item.ActualCount ?? 0), 0);
+
+        return [
+            { name: 'Rackings', 'Total Stock Qty': totalRackingsStock, color: '#18174e' },
+            { name: 'Supplies', 'Total Stock Qty': totalSuppliesStock, color: '#3b82f6' },
+        ];
+    }, [rawMaterials, supplies]);
 
     if (loading) {
         return (
@@ -140,17 +151,17 @@ function InventoryDashboard() {
             {/* Consistent Page Header */}
             <PageHeader activeTab="inventory-dashboard" />
 
-            {/* SECTION 2: SUMMARY CONTAINER (Ginawang flex flex-col gap-6 na walang p-6 para sumakto sa gilid ng PageHeader) */}
+            {/* SUMMARY CONTAINER */}
             <div className="flex flex-col gap-6">
                 
-                {/* TOP ROW CHARTS: Pie Chart + Updated Density Bar Chart */}
+                {/* TOP ROW CHARTS: Status Share Pie Chart + Density Bar Chart */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                    {/* Graph 1: Live Stock Status Share (Pie Chart) */}
+                    {/* Graph 1: Live Stock Status Share (Inbound, WIP, Outbound) */}
                     <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
                         <div className="flex items-center gap-2 text-sm font-bold text-slate-600 border-b border-slate-100 pb-3">
                             <PieIcon className="w-4 h-4 text-[#18174e]" />
-                            <span>Live Stock Status Share (All Collections)</span>
+                            <span>Live Stock Flow Status</span>
                         </div>
                         <div className="h-64 w-full flex items-center justify-center">
                             <ResponsiveContainer width="100%" height="100%" debounce={200}>
@@ -168,30 +179,31 @@ function InventoryDashboard() {
                                             <Cell key={`cell-${index}`} fill={entry.color} />
                                         ))}
                                     </Pie>
-                                    <Tooltip formatter={(value) => [`${value} Record(s)`, 'Count']} />
+                                    <Tooltip formatter={(value) => [`${value} Item(s)`, 'Count']} />
                                     <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
                                 </PieChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
-                    {/* Graph 2: Updated Dynamic Stock Density Breakdown */}
+                    {/* Graph 2: Rackings vs Supplies Stock Density */}
                     <div className="lg:col-span-2 bg-white border border-slate-100 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                             <div className="text-sm font-bold text-slate-600 flex items-center gap-2">
                                 <BarChart3 className="w-4 h-4 text-[#18174e]" />
-                                <span>Raw Materials vs Products Stock Density Distribution</span>
+                                <span>Rackings vs Supplies Stock Density Distribution</span>
                             </div>
                         </div>
                         <div className="h-64 w-full">
                             <ResponsiveContainer width="100%" height="100%" debounce={200}>
                                 <BarChart data={stockDensityBreakdownData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                                     <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
                                     <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
-                                    <Tooltip cursor={{ fill: '#f8fafc' }} />
+                                    <Tooltip cursor={{ fill: '#f1f5f9', opacity: 0.5 }} />
                                     <Legend verticalAlign="top" height={36} iconType="square" wrapperStyle={{ fontSize: '11px' }} />
-                                    <Bar dataKey="Raw Materials" fill="#18174e" radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="Finished Products" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="Rackings" fill="#18174e" radius={[6, 6, 0, 0]} />
+                                    <Bar dataKey="Supplies" fill="#3b82f6" radius={[6, 6, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -199,22 +211,23 @@ function InventoryDashboard() {
 
                 </div>
 
-                {/* BOTTOM ROW CHARTS: Cluster0 Density Distribution + Asset Health */}
+                {/* BOTTOM ROW CHARTS: Cluster0 Density Distribution + Stock Quantity Breakdown */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                     {/* Graph 3: Cluster0 Database Records Distribution */}
                     <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 shadow-xs flex flex-col gap-4">
                         <div className="flex items-center gap-2 text-sm font-bold text-slate-600 border-b border-slate-100 pb-3">
                             <Activity className="w-4 h-4 text-[#18174e]" />
-                            <span>MongoDB Cluster0 Total Inventory Density Distribution</span>
+                            <span>MongoDB Cluster0 Total Inventory Density</span>
                         </div>
                         <div className="h-64 w-full">
                             <ResponsiveContainer width="100%" height="100%" debounce={200}>
                                 <BarChart data={databaseDistributionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                                     <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
                                     <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
-                                    <Tooltip cursor={{ fill: '#f8fafc' }} />
-                                    <Bar dataKey="Items" radius={[4, 4, 0, 0]}>
+                                    <Tooltip cursor={{ fill: '#f1f5f9', opacity: 0.5 }} />
+                                    <Bar dataKey="Items" radius={[6, 6, 0, 0]}>
                                         {databaseDistributionData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.color} />
                                         ))}
@@ -224,23 +237,25 @@ function InventoryDashboard() {
                         </div>
                     </div>
 
-                    {/* Graph 4: Fixed Asset Condition Tracking Trends */}
+                    {/* Graph 4: Total Stock Quantity Breakdown (Pumalit sa Reserved Overview) */}
                     <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 shadow-xs flex flex-col gap-4">
                         <div className="flex items-center gap-2 text-sm font-bold text-slate-600 border-b border-slate-100 pb-3">
-                            <HardDrive className="w-4 h-4 text-[#18174e]" />
-                            <span>Fixed Assets Health & Condition Status Analytics</span>
+                            <Database className="w-4 h-4 text-[#18174e]" />
+                            <span>Total Stock Quantity Breakdown (Actual Count)</span>
                         </div>
                         <div className="h-64 w-full">
                             <ResponsiveContainer width="100%" height="100%" debounce={200}>
-                                <LineChart data={assetConditionData} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
-                                    <YAxis stroke="#94a3b8" fontSize={11} allowDecimals={false} />
-                                    <Tooltip />
-                                    <Legend wrapperStyle={{ fontSize: '11px' }} />
-                                    <Line type="monotone" dataKey="Good Condition" stroke="#10b981" strokeWidth={2.5} activeDot={{ r: 6 }} />
-                                    <Line type="monotone" dataKey="Requires Attention" stroke="#f43f5e" strokeWidth={2.5} />
-                                </LineChart>
+                                <BarChart data={stockQuantityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
+                                    <Tooltip cursor={{ fill: '#f1f5f9', opacity: 0.5 }} />
+                                    <Bar dataKey="Total Stock Qty" radius={[6, 6, 0, 0]}>
+                                        {stockQuantityData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
                             </ResponsiveContainer>
                         </div>
                     </div>

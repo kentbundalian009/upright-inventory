@@ -640,7 +640,7 @@ function InboundRawMat() {
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
                 <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
                   <thead>
-                    <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
+                    <tr className="text-white font-bold bg-emerald-700 uppercase text-xs whitespace-nowrap">
                       <th className="py-3 px-4">Item Code</th>
                       <th className="py-3 px-4">Category</th>
                       <th className="py-3 px-4">Segment</th>
@@ -815,7 +815,7 @@ function InboundRawMat() {
         <table className="w-full text-left text-xs border-collapse bg-white">
           
           {/* STICKY THEAD - Dito nakahanay ang mga hiniling mong kolum */}
-          <thead className="sticky top-0 z-10 bg-[#18174e] text-white text-[11px] font-bold uppercase tracking-wide">
+          <thead className="sticky top-0 z-10 bg-emerald-700 text-white text-[11px] font-bold uppercase tracking-wide">
             <tr>
               <th className="p-3 w-1/3">Material Profile</th>
               <th className="p-3 text-center w-28">QTY Ordered</th>

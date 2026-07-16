@@ -33,9 +33,9 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
     
     // INVENTORY ACCESSIBLE ONLY - RACKINGS
     { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, roles: ['Inventory'], section: 'rackings' },
-    { id: 'inbound-raw-mat', name: 'Inbound Raw Materials', icon: ArrowDownCircle, roles: ['Inventory'], section: 'rackings' },
-    { id: 'work-in-progress', name: 'Work in Progress', icon: TrendingUp, roles: ['Inventory'], section: 'rackings' },
-    { id: 'outbound-products', name: 'Outbound Products', icon: Truck, roles: ['Inventory'], section: 'rackings' },
+    { id: 'inbound-raw-mat', name: 'Inbound (Additions)', icon: ArrowDownCircle, roles: ['Inventory'], section: 'rackings' },
+    { id: 'work-in-progress', name: 'WIP (Production)', icon: TrendingUp, roles: ['Inventory'], section: 'rackings' },
+    { id: 'outbound-products', name: 'Outbound (Deductions)', icon: Truck, roles: ['Inventory'], section: 'rackings' },
     
     // INVENTORY ACCESSIBLE ONLY - SUPPLIES
     { id: 'supplies', name: 'Supplies (Records)', icon: Package, roles: ['Inventory'], section: 'supplies' },

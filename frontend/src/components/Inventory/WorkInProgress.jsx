@@ -94,6 +94,12 @@ function WorkInProgress() {
       materialId: item._id,
       Code: item.Code,
       ItemDescription: item.ItemDescription,
+      
+      // Idinagdag para lumabas sa Step 1 Table columns
+      Category: item.Category || 'N/A',
+      Segment: item.Segment || 'N/A',
+      Dimension: item.Dimension || 'N/A',
+      
       qtyUsed: 1,
       Available: item.ActualCount || 0,
       UOM: item.UOM || 'pcs'
@@ -118,6 +124,12 @@ function WorkInProgress() {
       itemType: type,
       Code: item.Code,
       ItemDescription: item.ItemDescription,
+      
+      // Idinagdag para lumabas sa Step 2 Table columns
+      Category: item.Category || 'N/A',
+      Segment: item.Segment || 'N/A',
+      Dimension: item.Dimension || 'N/A',
+      
       qtyProduced: 1,
       UOM: item.UOM || 'pcs'
     }]);
@@ -478,48 +490,99 @@ function WorkInProgress() {
       )}
     </div>
 
-    {/* INPUT TABLE */}
-    <div className="flex flex-col gap-2">
-      <span className="text-[10px] sm:text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically deducted</span>
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
-        <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-          <thead>
-            <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
-              <th className="py-3 px-4">Material Code</th>
-              <th className="py-3 px-4">Description</th>
-              <th className="py-3 px-4 text-center w-28">Qty Used</th>
-              <th className="py-3 px-4 text-center">UOM</th>
-              <th className="py-3 px-4 text-center">Stock Balance</th>
-              <th className="py-3 px-4 text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {inputMaterials.length > 0 ? (
-              inputMaterials.map((item, index) => (
-                <tr key={index} className="hover:bg-slate-50/80 text-xs">
-                  <td className="py-2 px-4 font-bold text-[#18174e]">{item.Code}</td>
-                  <td className="py-2 px-4 truncate max-w-[200px]" title={item.ItemDescription}>{item.ItemDescription}</td>
-                  <td className="py-2 px-4">
-                    <input type="number" min="1" value={item.qtyUsed} onChange={e => handleUpdateInputQty(index, e.target.value)} className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" required />
-                  </td>
-                  <td className="py-2 px-4 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span></td>
-                  <td className="py-2 px-4 text-center font-medium text-slate-500">{item.Available}</td>
-                  <td className="py-2 px-4 text-center">
-                    <button type="button" onClick={() => { setInputMaterials(inputMaterials.filter((_, i) => i !== index)); setSuccessMessage("Material removed from allocation matrix."); }} className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block"><Trash2 className="w-4 h-4 inline" /></button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="6" className="text-center py-6 text-red-600 italic font-bold text-xs">
-                  No items added. Search above to add rows.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <div className="flex flex-col gap-2"> 
+  <span className="text-[10px] sm:text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">
+    Quantities will be automatically deducted
+  </span> 
+  <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto"> 
+    <table className="w-full text-left border-collapse text-sm min-w-[1200px]"> 
+      <thead> 
+        <tr className="text-white font-bold bg-red-700 uppercase text-xs whitespace-nowrap"> 
+          <th className="py-3 px-4">Material Code</th> 
+          <th className="py-3 px-4">Category</th> 
+          <th className="py-3 px-4">Segment</th> 
+          <th className="py-3 px-4">Description</th> 
+          <th className="py-3 px-4">Dimension</th> 
+          <th className="py-3 px-4 text-center w-28 min-w-[112px]">Qty Used</th> 
+          <th className="py-3 px-4 text-center">UOM</th> 
+          <th className="py-3 px-4 text-center w-28 min-w-[112px]">Stock Balance</th> 
+          <th className="py-3 px-4 text-center">Action</th> 
+        </tr> 
+      </thead> 
+      <tbody className="divide-y divide-slate-100"> 
+        {inputMaterials.length > 0 ? ( 
+          inputMaterials.map((item, index) => ( 
+            <tr key={item.materialId || index} className="hover:bg-slate-50/80 text-xs"> 
+              {/* 1. Material Code */} 
+              <td className="py-2 px-4 font-bold text-sm text-[#18174e]"> 
+                {item.Code} 
+              </td> 
+              {/* Category */}
+<td className="py-2 px-4 italic text-slate-500">
+  {item.Category || item.category || item.categoryName || '-'}
+</td>
+
+{/* Segment */}
+<td className="py-2 px-4 italic text-slate-500">
+  {item.Segment || item.segment || item.segmentName || '-'}
+</td>
+
+{/* Description */}
+<td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription || item.description}>
+  {item.ItemDescription || item.description}
+</td>
+
+{/* Dimension */}
+<td className="py-2 px-4 text-slate-500">
+  {item.Dimension || item.dimension || item.dimensions || '-'}
+</td> 
+              {/* Qty Used Input */} 
+              <td className="py-2 px-4 w-28 min-w-[112px]"> 
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={item.qtyUsed} 
+                  onChange={e => handleUpdateInputQty(index, e.target.value)} 
+                  className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                  required 
+                /> 
+              </td> 
+              {/* UOM */} 
+              <td className="py-2 px-4 text-center"> 
+                <span className="bg-slate-100 px-2 py-0.5 rounded text-xs"> 
+                  {item.UOM} 
+                </span> 
+              </td> 
+              {/* Stock Balance */} 
+              <td className="py-2 px-4 w-28 min-w-[112px] text-center font-medium text-slate-500"> 
+                {item.Available} 
+              </td> 
+              {/* Action */} 
+              <td className="py-2 px-4 text-center"> 
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    setInputMaterials(inputMaterials.filter((_, i) => i !== index)); 
+                    setSuccessMessage("Material removed from allocation matrix."); 
+                  }} 
+                  className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block" 
+                > 
+                  <Trash2 className="w-4 h-4 inline" /> 
+                </button> 
+              </td> 
+            </tr> 
+          )) 
+        ) : ( 
+          <tr> 
+            <td colSpan="9" className="text-center py-6 text-red-600 italic font-bold text-xs"> 
+              No items added. Search above to add rows. 
+            </td> 
+          </tr> 
+        )} 
+      </tbody> 
+    </table> 
+  </div> 
+</div>
 
     {/* --- STEP 2: CONVERSION TARGET (RAW MATERIALS ONLY) --- */}
     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
@@ -562,51 +625,91 @@ function WorkInProgress() {
     </div>
 
     {/* OUTPUT TABLE */}
-    <div className="flex flex-col gap-2">
-      <span className="text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically added</span>
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
-        <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-          <thead>
-            <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
-              <th className="py-3 px-4">Output Code</th>
-              <th className="py-3 px-4">Yield Description Target</th>
-              <th className="py-3 px-4 text-center">Target Type</th>
-              <th className="py-3 px-4 text-center w-28">Qty Produced</th>
-              <th className="py-3 px-4 text-center">UOM</th>
-              <th className="py-3 px-4 text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {outputItems.length > 0 ? (
-              outputItems.map((item, index) => (
-                <tr key={index} className="hover:bg-slate-50/80 text-xs">
-                  <td className="py-2 px-4 font-bold text-emerald-700">{item.Code}</td>
-                  <td className="py-2 px-4 truncate max-w-[220px]" title={item.ItemDescription}>{item.ItemDescription}</td>
-                  <td className="py-2 px-4 text-center">
-                    <span className="text-[10px] px-2 py-0.5 font-bold rounded uppercase bg-amber-50 text-amber-700 border border-amber-200">
-                      Raw Mat
-                    </span>
-                  </td>
-                  <td className="py-2 px-4">
-                    <input type="number" min="1" value={item.qtyProduced} onChange={e => handleUpdateOutputQty(index, e.target.value)} className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" required />
-                  </td>
-                  <td className="py-2 px-4 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span></td>
-                  <td className="py-2 px-4 text-center">
-                    <button type="button" onClick={() => { setOutputItems(outputItems.filter((_, i) => i !== index)); setSuccessMessage("Yield output target line removed."); }} className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block"><Trash2 className="w-4 h-4 inline" /></button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="6" className="text-center py-6 text-red-600 italic font-bold text-xs">
-                  No items added. Search above to add rows.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <div className="flex flex-col gap-2"> 
+  <span className="text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">
+    Quantities will be automatically added
+  </span> 
+  <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto"> 
+    <table className="w-full text-left border-collapse text-sm min-w-[1200px]"> 
+      <thead> 
+        <tr className="text-white font-bold bg-emerald-700 uppercase text-xs whitespace-nowrap"> 
+          <th className="py-3 px-4">Material Code</th> 
+          <th className="py-3 px-4">Category</th> 
+          <th className="py-3 px-4">Segment</th> 
+          <th className="py-3 px-4">Description</th> 
+          <th className="py-3 px-4">Dimension</th> 
+          <th className="py-3 px-4 text-center w-28 min-w-[112px]">Qty Produced</th> 
+          <th className="py-3 px-4 text-center">UOM</th> 
+          <th className="py-3 px-4 text-center">Action</th> 
+        </tr> 
+      </thead> 
+      <tbody className="divide-y divide-slate-100"> 
+        {outputItems.length > 0 ? ( 
+          outputItems.map((item, index) => ( 
+            <tr key={`${item.itemType}-${item.itemId}` || index} className="hover:bg-slate-50/80 text-xs"> 
+              {/* 1. Material Code */} 
+              <td className="py-2 px-4 font-bold text-sm text-[#18174e]"> 
+                {item.Code} 
+              </td> 
+              {/* 2. Category */} 
+              <td className="py-2 px-4 italic text-slate-500"> 
+                {item.Category || item.category || '-'} 
+              </td> 
+              {/* 3. Segment */} 
+              <td className="py-2 px-4 italic text-slate-500"> 
+                {item.Segment || item.segment || '-'} 
+              </td> 
+              {/* 4. Description */} 
+              <td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription}> 
+                {item.ItemDescription} 
+              </td> 
+              {/* 5. Dimension */} 
+              <td className="py-2 px-4 text-slate-500"> 
+                {item.Dimension || item.dimensions || '-'} 
+              </td> 
+              {/* Qty Produced Input */} 
+              <td className="py-2 px-4 w-28 min-w-[112px]"> 
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={item.qtyProduced} 
+                  onChange={e => handleUpdateOutputQty(index, e.target.value)} 
+                  className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                  required 
+                /> 
+              </td> 
+              {/* UOM */} 
+              <td className="py-2 px-4 text-center"> 
+                <span className="bg-slate-100 px-2 py-0.5 rounded text-xs"> 
+                  {item.UOM} 
+                </span> 
+              </td> 
+              {/* Action */} 
+              <td className="py-2 px-4 text-center"> 
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    setOutputItems(outputItems.filter((_, i) => i !== index)); 
+                    setSuccessMessage("Output item removed."); 
+                  }} 
+                  className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block" 
+                > 
+                  <Trash2 className="w-4 h-4 inline" /> 
+                </button> 
+              </td> 
+            </tr> 
+          )) 
+        ) : ( 
+          <tr> 
+            <td colSpan="8" className="text-center py-6 text-red-600 italic font-bold text-xs"> 
+              No items added. Search above to add rows. 
+            </td> 
+          </tr> 
+        )} 
+      </tbody> 
+    </table> 
+  </div> 
+</div>
 
     {/* SUBMIT BUTTON */}
     <button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase tracking-wider">

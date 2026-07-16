@@ -405,7 +405,6 @@ function Supplies() {
                   <th className="py-3 px-4">Dimension</th>
                   <th className="py-3 px-4">Serial No.</th>
                   <th className="py-3 px-4 text-center">Actual Count</th>
-                  <th className="py-3 px-4 text-center">Good</th>
                   <th className="py-3 px-4 text-center">Damaged</th>
                   <th className="py-3 px-4">UOM</th>
                   <th className="py-3 px-4">Account To</th>
@@ -462,7 +461,6 @@ function Supplies() {
                         <td className="py-3.5 px-4 text-slate-600 text-xs font-mono">{supply.Dimension || '—'}</td>
                         <td className="py-3.5 px-4 text-slate-600 text-xs font-mono">{supply.SerialNo || '—'}</td>
                         <td className="py-3.5 px-4 text-center font-bold text-slate-700 bg-slate-50/40">{supply.ActualCount}</td>
-                        <td className="py-3.5 px-4 text-center font-semibold text-emerald-600">{supply.ActualCount - (supply.DamagedCount || 0)}</td>
                         <td className="py-3.5 px-4 text-center font-semibold text-rose-500">{supply.DamagedCount || 0}</td>
                         <td className="py-3 px-4">{supply.UOM || 'pcs'}</td>
                         <td className="py-3 px-4 font-semibold text-slate-700 bg-slate-50/20">{supply.AccountTo || 'General'}</td>
@@ -497,7 +495,7 @@ function Supplies() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-slate-800 text-base">Add New User Account</h3>
+                <h3 className="font-bold text-slate-800 text-base">Add New Supply</h3>
               </div>
               <button
                 type="button"
@@ -506,6 +504,17 @@ function Supplies() {
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+
+            {/* Audit Protocol Notification Card */}
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
+              <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                * System Inventory Protocol *
+              </span>
+              <p className="text-[11px] text-amber-700 leading-relaxed">
+                Manual quantity inputs are disabled to comply with audit protocols. Supplies images and related media must be uploaded through the <strong>Supplies Components.</strong>
+              </p>
             </div>
 
             {/* Modal Form */}
@@ -570,11 +579,15 @@ function Supplies() {
     <input
       type="text"
       required
+      list="descriptions-dl"
       placeholder="Detailed item description"
       value={itemDescription}
       onChange={(e) => setItemDescription(e.target.value)}
       className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700"
     />
+    <datalist id="descriptions-dl">
+      {uniqueDescriptionsInDB.map(d => <option key={d} value={d} />)}
+    </datalist>
   </div>
 
   {/* Brand */}
@@ -582,11 +595,15 @@ function Supplies() {
     <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Brand</label>
     <input
       type="text"
+      list="brands-dl"
       placeholder="Brand name"
       value={supplyBrand}
       onChange={(e) => setSupplyBrand(e.target.value)}
       className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700"
     />
+    <datalist id="brands-dl">
+      {uniqueBrandsInDB.map(b => <option key={b} value={b} />)}
+    </datalist>
   </div>
 
   {/* Dimension */}
@@ -594,11 +611,15 @@ function Supplies() {
     <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Dimension</label>
     <input
       type="text"
+      list="dimensions-dl"
       placeholder="e.g. A4, 10x12"
       value={supplyDimension}
       onChange={(e) => setSupplyDimension(e.target.value)}
       className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 font-mono"
     />
+    <datalist id="dimensions-dl">
+      {uniqueDimensionsInDB.map(d => <option key={d} value={d} />)}
+    </datalist>
   </div>
 
   {/* Serial No */}
@@ -619,11 +640,15 @@ function Supplies() {
     <input
       type="text"
       required
+      list="uoms-dl"
       placeholder="pcs, boxes, reams"
       value={supplyUom}
       onChange={(e) => setSupplyUom(e.target.value)}
       className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700"
     />
+    <datalist id="uoms-dl">
+      {uniqueUomsInDB.map(u => <option key={u} value={u} />)}
+    </datalist>
   </div>
 
   {/* Account To */}
@@ -631,11 +656,15 @@ function Supplies() {
     <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Account To</label>
     <input
       type="text"
+      list="accounts-dl"
       placeholder="Department/Staff"
       value={accountTo}
       onChange={(e) => setAccountTo(e.target.value)}
       className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700"
     />
+    <datalist id="accounts-dl">
+      {uniqueAccountsInDB.map(a => <option key={a} value={a} />)}
+    </datalist>
   </div>
 
   {/* Image File Upload */}
@@ -652,21 +681,21 @@ function Supplies() {
 </div>
 
               {/* Modal Bottom Actions */}
-<div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
-  <button
-    type="button"
-    onClick={() => setIsModalOpen(false)}
-    className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
-  >
-    Cancel
-  </button>
-  <button
-    type="submit"
-    className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
-  >
-    {isEditing ? 'Update Item' : 'Create Item'}
-  </button>
-</div>
+              <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
+                >
+                  {isEditing ? 'Update Item' : 'Create Item'}
+                </button>
+              </div>
 
             </form>
           </div>
