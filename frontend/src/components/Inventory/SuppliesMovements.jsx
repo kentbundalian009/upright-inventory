@@ -614,119 +614,135 @@ function SuppliesMovements() {
   </span>
   <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
     <table className="w-full text-left border-collapse text-sm min-w-[1200px]">
-      <thead>
-        <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
-          <th className="py-3 px-4 w-28">Supply Code</th>
-          <th className="py-3 px-4">Category</th>
-          <th className="py-3 px-4">Segment</th>
-          <th className="py-3 px-4 w-44">Item Description</th>
-          <th className="py-3 px-4">Dimension</th>
-          <th className="py-3 px-4">Serial No.</th>
-          <th className="py-3 px-4 text-center w-24">Total QTY</th>
-          <th className="py-3 px-4 text-center w-16">UOM</th>
-          <th className="py-3 px-4 text-center w-28 text-emerald-400">Good Cond.</th>
-          <th className="py-3 px-4 text-center w-28 text-rose-400">Damaged</th>
-          <th className="py-3 px-4 min-w-[180px]">Remarks / Notes</th>
-          <th className="py-3 px-4 text-center w-14">Action</th>
+  <thead>
+    <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
+      {/* NAKA-UNA NA ANG QUANTITY-RELATED COLUMNS */}
+      <th className="py-3 px-4 text-center w-24">Total QTY</th>
+      <th className="py-3 px-4 text-center w-16">UOM</th>
+      <th className="py-3 px-4 text-center w-28 text-emerald-400">Good Cond.</th>
+      <th className="py-3 px-4 text-center w-28 text-rose-400">Damaged</th>
+
+      {/* MGA SUMUSUNOD NA DETAILS (MAY WHITESPACE-NOWRAP YUNG MGA HININGI MO) */}
+      <th className="py-3 px-4 w-28 whitespace-nowrap">Supply Code</th>
+      <th className="py-3 px-4">Category</th>
+      <th className="py-3 px-4">Segment</th>
+      <th className="py-3 px-4 w-44 whitespace-nowrap">Item Description</th>
+      <th className="py-3 px-4">Dimension</th>
+      <th className="py-3 px-4">Serial No.</th>
+      <th className="py-3 px-4 min-w-[180px]">Remarks / Notes</th>
+      <th className="py-3 px-4 text-center w-14">Action</th>
+    </tr>
+  </thead>
+  <tbody className="divide-y divide-slate-100">
+    {manifestItems.length > 0 ? (
+      manifestItems.map((item, index) => (
+        <tr key={index} className="hover:bg-slate-50/80 text-xs">
+          
+          {/* 1. Total QTY Column */}
+          <td className="py-2 px-4 text-center w-24">
+            <input
+              type="number"
+              value={item.qty}
+              onChange={e => handleUpdateField(index, 'qty', e.target.value)}
+              className="w-full border text-center rounded py-1 text-sm disabled:bg-slate-50 font-semibold text-slate-700 focus:outline-none focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              min="0"
+              disabled={!isDeductingType}
+              required
+              onWheel={(e) => e.currentTarget.blur()}
+            />
+            <div className="text-[10px] text-slate-400 mt-0.5">Max: {item.maxLimit}</div>
+          </td>
+
+          {/* 2. UOM Column */}
+          <td className="py-2 px-4 text-center w-16">
+            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
+          </td>
+
+          {/* 3. Good Condition Column */}
+          <td className="py-2 px-4 text-center w-28">
+            <input
+              type="number"
+              value={item.goodConditionQty}
+              onChange={e => handleUpdateField(index, 'goodConditionQty', e.target.value)}
+              className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              min="0"
+              required
+              disabled={isDeductingType}
+              onWheel={(e) => e.currentTarget.blur()}
+            />
+          </td>
+
+          {/* 4. Damaged Column */}
+          <td className="py-2 px-4 text-center w-28">
+            <input
+              type="number"
+              value={item.damagedQty}
+              onChange={e => handleUpdateField(index, 'damagedQty', e.target.value)}
+              className="w-full border text-center rounded py-1 text-sm font-bold text-rose-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:outline-none focus:border-rose-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              min="0"
+              required
+              disabled={isDeductingType}
+              onWheel={(e) => e.currentTarget.blur()}
+            />
+          </td>
+
+          {/* 5. Supply Code Column (Naka-whitespace-nowrap) */}
+          <td className="py-2 px-4 font-bold text-[#18174e] whitespace-nowrap">{item.Code}</td>
+
+          {/* 6. Category Column */}
+          <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
+
+          {/* 7. Segment Column */}
+          <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
+
+          {/* 8. Item Description Column (Naka-whitespace-nowrap) */}
+          <td className="py-2 px-4 truncate max-w-[170px] whitespace-nowrap" title={item.ItemDescription}>
+            {item.ItemDescription}
+          </td>
+
+          {/* 9. Dimension Column */}
+          <td className="py-2 px-4 text-slate-500">{item.Dimension}</td>
+
+          {/* 10. Serial No. Column */}
+          <td className="py-2 px-4 font-mono text-slate-600">{item.SerialNo}</td>
+
+          {/* 11. Remarks Column */}
+          <td className="py-2 px-4 min-w-[180px]">
+            <input 
+              type="text" 
+              value={item.remarks} 
+              onChange={e => handleUpdateField(index, 'remarks', e.target.value)} 
+              placeholder={isDamagedDeductingType ? "Reason for scrapping/repairing" : "Provide context details..."} 
+              className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-[#18174e]" 
+            />
+          </td>
+
+          {/* 12. Action Column */}
+          <td className="py-2 px-4 text-center w-14">
+            <button 
+              type="button" 
+              onClick={() => { 
+                setManifestItems(manifestItems.filter((_, i) => i !== index)); 
+                showSuccessToast("Item removed from template manifest."); 
+              }} 
+              className="text-red-500 cursor-pointer hover:text-red-700 transition-all p-1 inline-block"
+            >
+              <Trash2 className="w-4 h-4 mx-auto" />
+            </button>
+          </td>
+
         </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-100">
-        {manifestItems.length > 0 ? (
-          manifestItems.map((item, index) => (
-            <tr key={index} className="hover:bg-slate-50/80 text-xs">
-              <td className="py-2 px-4 font-bold text-[#18174e]">{item.Code}</td>
-              <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
-              <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
-              <td className="py-2 px-4 truncate max-w-[170px]" title={item.ItemDescription}>
-                {item.ItemDescription}
-              </td>
-              <td className="py-2 px-4 text-slate-500">{item.Dimension}</td>
-              <td className="py-2 px-4 font-mono text-slate-600">{item.SerialNo}</td>
-
-              {/* Total QTY Column */}
-              <td className="py-2 px-4 text-center">
-                <input
-                  type="number"
-                  value={item.qty}
-                  onChange={e => handleUpdateField(index, 'qty', e.target.value)}
-                  className="w-full border text-center rounded py-1 text-sm disabled:bg-slate-50 font-semibold text-slate-700 focus:outline-none focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  min="0"
-                  disabled={!isDeductingType}
-                  required
-                  onWheel={(e) => e.currentTarget.blur()}
-                />
-                <div className="text-[10px] text-slate-400 mt-0.5">Max: {item.maxLimit}</div>
-              </td>
-
-              {/* UOM Column */}
-              <td className="py-2 px-4 text-center">
-                <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
-              </td>
-
-              {/* Good Condition Column */}
-              <td className="py-2 px-4 text-center">
-                <input
-                  type="number"
-                  value={item.goodConditionQty}
-                  onChange={e => handleUpdateField(index, 'goodConditionQty', e.target.value)}
-                  className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  min="0"
-                  required
-                  disabled={isDeductingType}
-                  onWheel={(e) => e.currentTarget.blur()}
-                />
-              </td>
-
-              {/* Damaged Column */}
-              <td className="py-2 px-4 text-center">
-                <input
-                  type="number"
-                  value={item.damagedQty}
-                  onChange={e => handleUpdateField(index, 'damagedQty', e.target.value)}
-                  className="w-full border text-center rounded py-1 text-sm font-bold text-rose-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:outline-none focus:border-rose-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  min="0"
-                  required
-                  disabled={isDeductingType}
-                  onWheel={(e) => e.currentTarget.blur()}
-                />
-              </td>
-
-              {/* Remarks Column */}
-              <td className="py-2 px-4">
-                <input 
-                  type="text" 
-                  value={item.remarks} 
-                  onChange={e => handleUpdateField(index, 'remarks', e.target.value)} 
-                  placeholder={isDamagedDeductingType ? "Reason for scrapping/repairing" : "Provide context details..."} 
-                  className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-[#18174e]" 
-                />
-              </td>
-
-              {/* Action Column */}
-              <td className="py-2 px-4 text-center">
-                <button 
-                  type="button" 
-                  onClick={() => { 
-                    setManifestItems(manifestItems.filter((_, i) => i !== index)); 
-                    showSuccessToast("Item removed from template manifest."); 
-                  }} 
-                  className="text-red-500 cursor-pointer hover:text-red-700 transition-all p-1 inline-block"
-                >
-                  <Trash2 className="w-4 h-4 mx-auto" />
-                </button>
-              </td>
-            </tr>
-          ))
-        ) : (
-          <tr>
-            {/* Ginawang colSpan="12" dahil may 12 columns na ang table ngayon */}
-            <td colSpan="12" className="text-center py-6 text-red-600 italic font-bold text-xs">
-              No items added. Search above to add rows.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+      ))
+    ) : (
+      <tr>
+        {/* Nanatiling colSpan="12" dahil eksaktong 12 columns ang kabuuang lapad ng table layout mo */}
+        <td colSpan="12" className="text-center py-6 text-red-600 italic font-bold text-xs">
+          No items added. Search above to add rows.
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
   </div>
 </div>
 
@@ -801,7 +817,7 @@ function SuppliesMovements() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-slate-800 text-lg">
-                Slip View: {selectedSlip.slipNo}
+                Transaction No: {selectedSlip.slipNo}
               </h3>
               <div className="flex items-center gap-2">
                 <button

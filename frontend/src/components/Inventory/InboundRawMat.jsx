@@ -261,7 +261,6 @@ function InboundRawMat() {
       });
 
       // --- MGA DETALYE SA ITAAS NG TALAHANAYAN (Metadata Section) ---
-      // Inilipat natin ito dito dahil ang static text ay magpapatong-patong kapag multi-page kung ilalagay sa didDrawPage.
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
@@ -291,15 +290,35 @@ function InboundRawMat() {
       doc.text(`${selectedPo.originAddress || 'N/A'}`, 50, 56);
 
       // --- PAGHAHANDA NG DATA NG TALAHANAYAN ---
-      const tableColumns = ["Material Profile", "QTY Ordered", "Actual Received", "Remarks"];
+      // Binago ang header ng unang kolum para maging "Description" na lamang
+      const tableColumns = ["Description", "Segment", "Dimension", "QTY Ordered", "Actual Received", "Remarks"];
       const tableRows = [];
 
       selectedPo.items?.forEach(it => {
-        const profileInfo = `${it.materialId?.Code || 'N/A'}\n${it.materialId?.ItemDescription || '-'}`;
-        const qtySent = `${it.qty} ${it.materialId?.UOM || ''}`;
-        const actualRec = `${it.actualCountReceived} ${it.materialId?.UOM || ''}`;
+        // I-lookup ang buong detalye ng materyal mula sa `dbMaterials` gamit ang ID nito para makuha ang kulang na data
+        const targetId = it.materialId?._id || it.materialId;
+        const fullMaterial = dbMaterials.find(m => m._id === targetId);
+
+        // 1. Description na lamang ang ilalagay natin dito (Tinanggal na ang Item Code ayon sa iyong request)
+        const descriptionOnly = fullMaterial?.ItemDescription || it.materialId?.ItemDescription || "-";
+
+        // 2. Pagkuha ng Segment gamit ang lookup fallback
+        const segment = fullMaterial?.Segment || fullMaterial?.segment || 
+                        it.materialId?.Segment || it.materialId?.segment || "N/A";
+        
+        // 3. Pagkuha ng Dimension gamit ang lookup fallback
+        const dimension = fullMaterial?.Dimension || fullMaterial?.dimension || 
+                          fullMaterial?.Dimensions || fullMaterial?.dimensions || 
+                          it.materialId?.Dimension || it.materialId?.dimension || 
+                          it.materialId?.Dimensions || it.materialId?.dimensions || "N/A";
+
+        // 4. Quantities at UOM
+        const uom = fullMaterial?.UOM || it.materialId?.UOM || '';
+        const qtySent = `${it.qty} ${uom}`;
+        const actualRec = `${it.actualCountReceived} ${uom}`;
         const rem = it.remarks || "-";
-        tableRows.push([profileInfo, qtySent, actualRec, rem]);
+
+        tableRows.push([descriptionOnly, segment, dimension, qtySent, actualRec, rem]);
       });
 
       // --- AUTOTABLE GENERATION ---
@@ -309,7 +328,6 @@ function InboundRawMat() {
         body: tableRows,
         theme: 'grid',
 
-        // Dito inilalagay ang Thumbnail/Layout Styles para sa bawat pahina
         didDrawPage: (data) => {
           // 1. Watermark (Logo sa Likod)
           doc.saveGraphicsState();
@@ -321,11 +339,11 @@ function InboundRawMat() {
           doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
           doc.restoreGraphicsState();
 
-          // 2. Header Banner (Same color scheme: 24, 23, 78)
+          // 2. Header Banner
           doc.setFillColor(24, 23, 78);
           doc.rect(0, 0, pageWidth, 30, 'F');
 
-          // 3. Header Titles (Naka-center para sa mas malinis na UI)
+          // 3. Header Titles
           doc.setTextColor(255, 255, 255);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(14);
@@ -336,7 +354,7 @@ function InboundRawMat() {
           doc.setTextColor(200, 200, 220);
           doc.text(`Inventory Management System Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
 
-          // 4. Footer (Confidentiality & Page Numbers)
+          // 4. Footer
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8);
           doc.setTextColor(120, 120, 120);
@@ -346,20 +364,19 @@ function InboundRawMat() {
           doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
         },
 
-        headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, valign: 'middle' },
+        headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5, valign: 'middle' },
         bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
         alternateRowStyles: { fillColor: [248, 249, 250] },
         columnStyles: {
-          0: { cellWidth: 85 },
-          1: { cellWidth: 28, halign: 'center' },
-          2: { cellWidth: 32, halign: 'center', fontStyle: 'bold' },
-          3: { cellWidth: 41 }
+          0: { cellWidth: 50 },                     // Description Only (No Code)
+          1: { cellWidth: 22, halign: 'center' },   // Segment
+          2: { cellWidth: 22, halign: 'center' },   // Dimension
+          3: { cellWidth: 23, halign: 'center' },   // QTY Ordered
+          4: { cellWidth: 25, halign: 'right', fontStyle: 'bold' }, // Actual Received
+          5: { cellWidth: 40 }                      // Remarks
         },
         styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 }
       });
-
-      // --- SIGNATORY SECTION ---
-      const finalY = doc.lastAutoTable.finalY + 20;
 
       doc.save(`PO_REPORT_${selectedPo.poNo}.pdf`);
       showSuccessToast("PDF Slip downloaded successfully.");
@@ -513,7 +530,7 @@ function InboundRawMat() {
         <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 flex flex-col gap-6 shadow-sm">
           <div className="border-b border-slate-100 pb-3 flex items-center gap-2 text-sm font-bold text-slate-600">
             <ListPlus className="w-4 h-4 text-[#18174e]" />
-            <span>Purchase Order Logging Sheet</span>
+            <span>Inbound Racking Materials</span>
           </div>
 
           <form onSubmit={handleSubmitPO} className="flex flex-col gap-5">
@@ -638,97 +655,111 @@ function InboundRawMat() {
             <div className="flex flex-col gap-2">
               <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically added</span>
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-                  <thead>
-                    <tr className="text-white font-bold bg-emerald-700 uppercase text-xs whitespace-nowrap">
-                      <th className="py-3 px-4">Item Code</th>
-                      <th className="py-3 px-4">Category</th>
-                      <th className="py-3 px-4">Segment</th>
-                      <th className="py-3 px-4">Description</th>
-                      <th className="py-3 px-4">Dimension</th>
-                      <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
+               <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
+  <thead>
+    <tr className="text-white font-bold bg-emerald-700 uppercase text-xs whitespace-nowrap">
+      {/* NAKA-UNA NA ANG QTY, UOM, AT ACTUAL */}
+      <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
+      <th className="py-3 px-4 text-center">UOM</th>
+      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Actual</th>
 
-                      <th className="py-3 px-4 text-center">UOM</th>
+      {/* ANG MGA SUMUSUNOD NA DETALYE */}
+      <th className="py-3 px-4">Item Code</th>
+      <th className="py-3 px-4">Category</th>
+      <th className="py-3 px-4">Segment</th>
+      <th className="py-3 px-4">Description</th>
+      <th className="py-3 px-4">Dimension</th>
+      <th className="py-3 px-4">Account To</th>
+      <th className="py-3 px-4">Remarks</th>
+      <th className="py-3 px-4 text-center">Action</th>
+    </tr>
+  </thead>
 
-                      {/* Kaparehong w-28 at min-w para terno sila ng QTY */}
-                      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Actual</th>
+  <tbody className="divide-y divide-slate-100">
+    {manifestItems.length > 0 ? (
+      manifestItems.map((item, index) => (
+        <tr key={item.materialId || index} className="hover:bg-slate-50/80 text-xs">
+          
+          {/* 1. QTY TD Cell */}
+          <td className="py-2 px-4 w-28 min-w-[112px]">
+            <input
+              type="number"
+              min="1"
+              value={item.qty}
+              onChange={e => handleUpdateField(index, 'qty', e.target.value)}
+              className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-[#18174e] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </td>
 
-                      <th className="py-3 px-4">Account To</th>
-                      <th className="py-3 px-4">Remarks</th>
-                      <th className="py-3 px-4 text-center">Action</th>
-                    </tr>
-                  </thead>
+          {/* 2. UOM TD Cell */}
+          <td className="py-2 px-4 text-center">
+            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
+          </td>
 
-                  <tbody className="divide-y divide-slate-100">
-                    {manifestItems.length > 0 ? (
-                      manifestItems.map((item, index) => (
-                        <tr key={item.materialId || index} className="hover:bg-slate-50/80 text-xs">
-                          <td className="py-2 px-4 font-bold text-sm text-[#18174e]">{item.Code}</td>
-                          <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
-                          <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
-                          <td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription}>
-                            {item.ItemDescription}
-                          </td>
-                          <td className="py-2 px-4 text-slate-500">{item.Dimension}</td>
+          {/* 3. Actual TD Cell */}
+          <td className="py-2 px-4 w-28 min-w-[112px]">
+            <input
+              type="number"
+              min="0"
+              value={item.actualCount}
+              onChange={e => handleUpdateField(index, 'actualCount', e.target.value)}
+              className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </td>
 
-                          {/* QTY TD Cell na may nakatali ring width restriction */}
-                          <td className="py-2 px-4 w-28 min-w-[112px]">
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.qty}
-                              onChange={e => handleUpdateField(index, 'qty', e.target.value)}
-                              className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-[#18174e] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </td>
+          {/* 4. Item Code */}
+          <td className="py-2 px-4 font-bold text-sm text-[#18174e] whitespace-nowrap">{item.Code}</td>
 
-                          <td className="py-2 px-4 text-center">
-                            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
-                          </td>
+          {/* 5. Category */}
+          <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
 
-                          {/* Actual TD Cell na kaparehong sukat para kuwadrado at pantay */}
-                          <td className="py-2 px-4 w-28 min-w-[112px]">
-                            <input
-                              type="number"
-                              min="0"
-                              value={item.actualCount}
-                              onChange={e => handleUpdateField(index, 'actualCount', e.target.value)}
-                              className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </td>
+          {/* 6. Segment */}
+          <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
 
-                          <td className="py-2 px-4 text-slate-500">{item.AccountTo}</td>
+          {/* 7. Description */}
+          <td className="py-2 px-4 truncate max-w-[150px] " title={item.ItemDescription}>
+            {item.ItemDescription}
+          </td>
 
-                          <td className="py-2 px-4">
-                            <input
-                              type="text"
-                              value={item.remarks}
-                              onChange={e => handleUpdateField(index, 'remarks', e.target.value)}
-                              placeholder="Remarks"
-                              className="w-full border rounded px-2 py-1 text-xs focus:outline-none"
-                            />
-                          </td>
+          {/* 8. Dimension */}
+          <td className="py-2 px-4 text-slate-500 whitespace-nowrap">{item.Dimension}</td>
 
-                          <td className="py-2 px-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => setManifestItems(manifestItems.filter((_, i) => i !== index))}
-                              className="text-red-500 hover:text-red-700 cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4 inline" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
-                          No items added. Search above to add rows.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+          {/* 9. Account To */}
+          <td className="py-2 px-4 text-slate-500">{item.AccountTo}</td>
+
+          {/* 10. Remarks */}
+          <td className="py-2 px-4">
+            <input
+              type="text"
+              value={item.remarks}
+              onChange={e => handleUpdateField(index, 'remarks', e.target.value)}
+              placeholder="Remarks"
+              className="w-full border rounded px-2 py-1 text-xs focus:outline-none"
+            />
+          </td>
+
+          {/* 11. Action */}
+          <td className="py-2 px-4 text-center">
+            <button
+              type="button"
+              onClick={() => setManifestItems(manifestItems.filter((_, i) => i !== index))}
+              className="text-red-500 hover:text-red-700 cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4 inline" />
+            </button>
+          </td>
+
+        </tr>
+      ))
+    ) : (
+      <tr>
+        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
+          No items added. Search above to add rows.
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
               </div>
             </div>
             <button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xs text-sm transition-colors cursor-pointer uppercase">Save PO (Purchase Order)</button>
@@ -782,7 +813,7 @@ function InboundRawMat() {
       {/* Modal Header */}
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 className="font-bold text-slate-800 text-lg">
-          Purchase Order Registry: {selectedPo.poNo}
+          Inbound No: {selectedPo.poNo}
         </h3>
         <div className="flex items-center gap-2">
           <button 
@@ -811,57 +842,65 @@ function InboundRawMat() {
       </div>
 
       {/* Itemization Table Layer with Scrollbar */}
-      <div className="max-h-64 overflow-y-auto border border-slate-200/60 rounded-xl relative shadow-sm">
-        <table className="w-full text-left text-xs border-collapse bg-white">
-          
-          {/* STICKY THEAD - Dito nakahanay ang mga hiniling mong kolum */}
-          <thead className="sticky top-0 z-10 bg-emerald-700 text-white text-[11px] font-bold uppercase tracking-wide">
-            <tr>
-              <th className="p-3 w-1/3">Material Profile</th>
-              <th className="p-3 text-center w-28">QTY Ordered</th>
-              <th className="p-3 text-right w-32">Actual Received</th>
-              <th className="p-3 text-left pl-6">Remarks</th>
-            </tr>
-          </thead>
+<div className="max-h-64 overflow-y-auto border border-slate-200/60 rounded-xl relative shadow-sm">
+  <table className="w-full text-left text-xs border-collapse bg-white">
+    {/* STICKY THEAD */}
+    <thead className="sticky top-0 z-10 bg-emerald-700 text-white text-[11px] font-bold uppercase tracking-wide">
+      <tr>
+        <th className="p-3 w-1/4">Material Profile</th>
+        
+        {/* Idinagdag na Kolum Header para sa Segment */}
+        <th className="p-3 w-24 text-center">Segment</th> 
+        
+        <th className="p-3 w-24 text-center">Dimension</th>
+        <th className="p-3 text-center w-24">QTY Ordered</th>
+        <th className="p-3 text-right w-28">Actual Received</th>
+        <th className="p-3 text-left pl-6">Remarks</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-slate-100">
+      {selectedPo.items?.map((it, idx) => (
+        <tr key={it._id || idx} className="hover:bg-slate-50/50 transition-colors">
+          {/* Material Profile & Description */}
+          <td className="p-3 w-1/4 align-middle">
+            <div className="font-bold text-[#18174e]">{it.materialId?.Code || "N/A"}</div>
+            <div className="text-slate-400 text-[11px] max-w-xs truncate font-medium" title={it.materialId?.ItemDescription}>
+              {it.materialId?.ItemDescription || "-"}
+            </div>
+          </td>
 
-          <tbody className="divide-y divide-slate-100">
-            {selectedPo.items?.map((it, idx) => (
-              <tr key={it._id || idx} className="hover:bg-slate-50/50 transition-colors">
-                {/* Material Profile & Description */}
-                <td className="p-3 w-1/3 align-middle">
-                  <div className="font-bold text-[#18174e]">{it.materialId?.Code || "N/A"}</div>
-                  <div className="text-slate-400 text-[11px] max-w-xs truncate font-medium" title={it.materialId?.ItemDescription}>
-                    {it.materialId?.ItemDescription || "-"}
-                  </div>
-                </td>
-                
-                {/* QTY Ordered */}
-                <td className="p-3 text-center text-slate-600 w-28 align-middle font-semibold">
-                  {it.qty} {it.materialId?.UOM}
-                </td>
-                
-                {/* Actual Received */}
-                <td className="p-3 text-right font-bold text-[#18174e] w-32 align-middle">
-                  {it.actualCountReceived} {it.materialId?.UOM}
-                </td>
-                
-                {/* Remarks */}
-                <td className="p-3 italic text-slate-500 font-medium text-[11px] max-w-[120px] truncate align-middle pl-6" title={it.remarks}>
-                  {it.remarks || "-"}
-                </td>
-              </tr>
-            ))}
-            
-            {(!selectedPo.items || selectedPo.items.length === 0) && (
-              <tr>
-                <td colSpan="4" className="p-4 text-center text-slate-400 italic">
-                  No materials recorded.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          {/* 1. Idinagdag na Cell para sa Segment na may Fallbacks */}
+          <td className="p-3 text-center text-slate-500 w-24 align-middle font-semibold text-[11px]">
+            {it.materialId?.Segment || it.materialId?.segment || "N/A"}
+          </td>
+
+          {/* 2. Inayos na Cell para sa Dimension para basahin lahat ng posibleng casing mula sa database */}
+          <td className="p-3 text-center text-slate-500 w-24 align-middle font-mono text-[11px]">
+            {it.materialId?.Dimension || 
+             it.materialId?.dimension || 
+             it.materialId?.Dimensions || 
+             it.materialId?.dimensions || "N/A"}
+          </td>
+
+          {/* QTY Ordered */}
+          <td className="p-3 text-center text-slate-600 w-24 align-middle font-semibold">
+            {it.qty} {it.materialId?.UOM}
+          </td>
+
+          {/* Actual Received */}
+          <td className="p-3 text-right font-bold text-[#18174e] w-28 align-middle">
+            {it.actualCountReceived} {it.materialId?.UOM}
+          </td>
+
+          {/* Remarks */}
+          <td className="p-3 italic text-slate-500 font-medium text-[11px] max-w-[120px] truncate align-middle pl-6" title={it.remarks}>
+            {it.remarks || "-"}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
 
     </div>
   </div>

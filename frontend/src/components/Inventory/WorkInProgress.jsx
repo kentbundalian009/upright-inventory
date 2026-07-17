@@ -250,25 +250,58 @@ function WorkInProgress() {
       doc.setFont("helvetica", "normal");
       doc.text(`${selectedConversion.remarks || "No supplementary remarks recorded."}`, 45, 56);
 
-      const tableColumns = ["Flow Direction", "Item Catalog Details", "Quantity Shift", "UOM"];
+      // Inayos ang Headers: Idinagdag ang Segment at Dimension, tinanggal ang Item Code
+      const tableColumns = ["Flow Direction", "Description", "Segment", "Dimension", "Quantity Shift", "UOM"];
       const tableRows = [];
 
-      // Map Inputs
+      // Map Inputs (Deducted)
       selectedConversion.inputs?.forEach(it => {
+        // Safe database lookup para makuha ang buong detalye ng racking material
+        const targetId = it.materialId?._id || it.materialId;
+        const fullMat = dbMaterials?.find(m => m._id === targetId);
+
+        const descOnly = fullMat?.ItemDescription || it.materialId?.ItemDescription || "-";
+        
+        const segment = fullMat?.Segment || fullMat?.segment || 
+                        it.materialId?.Segment || it.materialId?.segment || "N/A";
+        
+        const dimension = fullMat?.Dimension || fullMat?.dimension || 
+                          fullMat?.Dimensions || fullMat?.dimensions || 
+                          it.materialId?.Dimension || it.materialId?.dimension || 
+                          it.materialId?.Dimensions || it.materialId?.dimensions || "N/A";
+
         tableRows.push([
           "INPUT (Deducted)",
-          `${it.materialId?.Code || 'N/A'}\n${it.materialId?.ItemDescription || '-'}`,
+          descOnly,
+          segment,
+          dimension,
           `-${it.qtyUsed}`,
           `${it.materialId?.UOM || ''}`
         ]);
       });
 
-      // Map Outputs
+      // Map Outputs (Produced)
       selectedConversion.outputs?.forEach(it => {
+        // Safe database lookup para sa outputs (gagamit ng itemId)
+        const targetId = it.itemId?._id || it.itemId;
+        const fullMat = dbMaterials?.find(m => m._id === targetId);
+
         const typeLabel = it.itemType === 'RawMaterial' ? ' [Raw Mat]' : ' [Product]';
+        const descOnly = `${fullMat?.ItemDescription || it.itemId?.ItemDescription || "-"}${typeLabel}`;
+        
+        const segment = fullMat?.Segment || fullMat?.segment || 
+                        it.itemId?.Segment || it.itemId?.segment || "N/A";
+        
+        const dimension = fullMat?.Dimension || fullMat?.dimension || 
+                          fullMat?.Dimensions || fullMat?.dimensions || 
+                          it.itemId?.Dimension || it.itemId?.dimension || 
+                          it.itemId?.Dimensions || it.itemId?.dimensions || "N/A";
+
         tableRows.push([
           `OUTPUT (${it.itemType})`,
-          `${it.itemId?.Code || 'N/A'}${typeLabel}\n${it.itemId?.ItemDescription || '-'}`,
+          descOnly,
+          segment,
+          dimension,
           `+${it.qtyProduced}`,
           `${it.itemId?.UOM || ''}`
         ]);
@@ -316,11 +349,14 @@ function WorkInProgress() {
         bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
         alternateRowStyles: { fillColor: [248, 249, 250] },
         styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 },
+        // Inayos ang widths ng columns para magkasya silang lahat (Total width: 182mm)
         columnStyles: {
-          0: { cellWidth: 35, fontStyle: 'bold' },
-          1: { cellWidth: 85 },
-          2: { cellWidth: 35, halign: 'center', fontStyle: 'bold' },
-          3: { cellWidth: 25, halign: 'center' }
+          0: { cellWidth: 32, fontStyle: 'bold' },                   // Flow Direction
+          1: { cellWidth: 50 },                                     // Description Only (No Code)
+          2: { cellWidth: 22, halign: 'center' },                   // Segment
+          3: { cellWidth: 22, halign: 'center' },                   // Dimension
+          4: { cellWidth: 30, halign: 'center', fontStyle: 'bold' }, // Quantity Shift
+          5: { cellWidth: 26, halign: 'center' }                    // UOM
         },
 
         didParseCell: function (data) {
@@ -392,7 +428,7 @@ function WorkInProgress() {
   <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-2 text-sm font-bold text-slate-600">
     <div className="flex items-center gap-2 min-w-0">
       <Layers className="w-4 h-4 text-[#18174e] flex-shrink-0" />
-      <span className="truncate">Work In Progress (WIP) Conversion Matrix</span>
+      <span className="truncate">Conversion Racking Materials</span>
     </div>
     {(inputMaterials.length > 0 || outputItems.length > 0) && (
       <button
@@ -496,91 +532,101 @@ function WorkInProgress() {
   </span> 
   <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto"> 
     <table className="w-full text-left border-collapse text-sm min-w-[1200px]"> 
-      <thead> 
-        <tr className="text-white font-bold bg-red-700 uppercase text-xs whitespace-nowrap"> 
-          <th className="py-3 px-4">Material Code</th> 
-          <th className="py-3 px-4">Category</th> 
-          <th className="py-3 px-4">Segment</th> 
-          <th className="py-3 px-4">Description</th> 
-          <th className="py-3 px-4">Dimension</th> 
-          <th className="py-3 px-4 text-center w-28 min-w-[112px]">Qty Used</th> 
-          <th className="py-3 px-4 text-center">UOM</th> 
-          <th className="py-3 px-4 text-center w-28 min-w-[112px]">Stock Balance</th> 
-          <th className="py-3 px-4 text-center">Action</th> 
+  <thead> 
+    <tr className="text-white font-bold bg-red-700 uppercase text-xs whitespace-nowrap"> 
+      {/* NAKA-UNA NA ANG QTY USED, UOM, AT STOCK BALANCE */}
+      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Qty Used</th> 
+      <th className="py-3 px-4 text-center">UOM</th> 
+      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Stock Balance</th> 
+
+      {/* MGA SUMUSUNOD NA DETALYE */}
+      <th className="py-3 px-4">Material Code</th> 
+      <th className="py-3 px-4">Category</th> 
+      <th className="py-3 px-4">Segment</th> 
+      <th className="py-3 px-4">Description</th> 
+      <th className="py-3 px-4">Dimension</th> 
+      <th className="py-3 px-4 text-center">Action</th> 
+    </tr> 
+  </thead> 
+  <tbody className="divide-y divide-slate-100"> 
+    {inputMaterials.length > 0 ? ( 
+      inputMaterials.map((item, index) => ( 
+        <tr key={item.materialId || index} className="hover:bg-slate-50/80 text-xs"> 
+          
+          {/* 1. Qty Used Input Column */} 
+          <td className="py-2 px-4 w-28 min-w-[112px]"> 
+            <input 
+              type="number" 
+              min="1" 
+              value={item.qtyUsed} 
+              onChange={e => handleUpdateInputQty(index, e.target.value)} 
+              className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+              required 
+            /> 
+          </td> 
+
+          {/* 2. UOM Column */} 
+          <td className="py-2 px-4 text-center"> 
+            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs"> 
+              {item.UOM} 
+            </span> 
+          </td> 
+
+          {/* 3. Stock Balance Column */} 
+          <td className="py-2 px-4 w-28 min-w-[112px] text-center font-bold text-slate-600"> 
+            {item.Available} 
+          </td> 
+
+          {/* 4. Material Code Column */} 
+          <td className="py-2 px-4 font-bold text-sm text-[#18174e]"> 
+            {item.Code} 
+          </td> 
+
+          {/* 5. Category Column */}
+          <td className="py-2 px-4 italic text-slate-500">
+            {item.Category || item.category || item.categoryName || '-'}
+          </td>
+
+          {/* 6. Segment Column */}
+          <td className="py-2 px-4 italic text-slate-500">
+            {item.Segment || item.segment || item.segmentName || '-'}
+          </td>
+
+          {/* 7. Description Column */}
+          <td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription || item.description}>
+            {item.ItemDescription || item.description}
+          </td>
+
+          {/* 8. Dimension Column */}
+          <td className="py-2 px-4 text-slate-500">
+            {item.Dimension || item.dimension || item.dimensions || '-'}
+          </td> 
+
+          {/* 9. Action Column */} 
+          <td className="py-2 px-4 text-center"> 
+            <button 
+              type="button" 
+              onClick={() => { 
+                setInputMaterials(inputMaterials.filter((_, i) => i !== index)); 
+                setSuccessMessage("Material removed from allocation matrix."); 
+              }} 
+              className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block" 
+            > 
+              <Trash2 className="w-4 h-4 inline" /> 
+            </button> 
+          </td> 
         </tr> 
-      </thead> 
-      <tbody className="divide-y divide-slate-100"> 
-        {inputMaterials.length > 0 ? ( 
-          inputMaterials.map((item, index) => ( 
-            <tr key={item.materialId || index} className="hover:bg-slate-50/80 text-xs"> 
-              {/* 1. Material Code */} 
-              <td className="py-2 px-4 font-bold text-sm text-[#18174e]"> 
-                {item.Code} 
-              </td> 
-              {/* Category */}
-<td className="py-2 px-4 italic text-slate-500">
-  {item.Category || item.category || item.categoryName || '-'}
-</td>
-
-{/* Segment */}
-<td className="py-2 px-4 italic text-slate-500">
-  {item.Segment || item.segment || item.segmentName || '-'}
-</td>
-
-{/* Description */}
-<td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription || item.description}>
-  {item.ItemDescription || item.description}
-</td>
-
-{/* Dimension */}
-<td className="py-2 px-4 text-slate-500">
-  {item.Dimension || item.dimension || item.dimensions || '-'}
-</td> 
-              {/* Qty Used Input */} 
-              <td className="py-2 px-4 w-28 min-w-[112px]"> 
-                <input 
-                  type="number" 
-                  min="1" 
-                  value={item.qtyUsed} 
-                  onChange={e => handleUpdateInputQty(index, e.target.value)} 
-                  className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                  required 
-                /> 
-              </td> 
-              {/* UOM */} 
-              <td className="py-2 px-4 text-center"> 
-                <span className="bg-slate-100 px-2 py-0.5 rounded text-xs"> 
-                  {item.UOM} 
-                </span> 
-              </td> 
-              {/* Stock Balance */} 
-              <td className="py-2 px-4 w-28 min-w-[112px] text-center font-medium text-slate-500"> 
-                {item.Available} 
-              </td> 
-              {/* Action */} 
-              <td className="py-2 px-4 text-center"> 
-                <button 
-                  type="button" 
-                  onClick={() => { 
-                    setInputMaterials(inputMaterials.filter((_, i) => i !== index)); 
-                    setSuccessMessage("Material removed from allocation matrix."); 
-                  }} 
-                  className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block" 
-                > 
-                  <Trash2 className="w-4 h-4 inline" /> 
-                </button> 
-              </td> 
-            </tr> 
-          )) 
-        ) : ( 
-          <tr> 
-            <td colSpan="9" className="text-center py-6 text-red-600 italic font-bold text-xs"> 
-              No items added. Search above to add rows. 
-            </td> 
-          </tr> 
-        )} 
-      </tbody> 
-    </table> 
+      )) 
+    ) : ( 
+      <tr> 
+        {/* Nanatiling colSpan="9" dahil sakop pa rin ang kabuuang 9 na columns */}
+        <td colSpan="9" className="text-center py-6 text-red-600 italic font-bold text-xs"> 
+          No items added. Search above to add rows. 
+        </td> 
+      </tr> 
+    )} 
+  </tbody>
+</table>
   </div> 
 </div>
 
@@ -631,83 +677,95 @@ function WorkInProgress() {
   </span> 
   <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto"> 
     <table className="w-full text-left border-collapse text-sm min-w-[1200px]"> 
-      <thead> 
-        <tr className="text-white font-bold bg-emerald-700 uppercase text-xs whitespace-nowrap"> 
-          <th className="py-3 px-4">Material Code</th> 
-          <th className="py-3 px-4">Category</th> 
-          <th className="py-3 px-4">Segment</th> 
-          <th className="py-3 px-4">Description</th> 
-          <th className="py-3 px-4">Dimension</th> 
-          <th className="py-3 px-4 text-center w-28 min-w-[112px]">Qty Produced</th> 
-          <th className="py-3 px-4 text-center">UOM</th> 
-          <th className="py-3 px-4 text-center">Action</th> 
+  <thead> 
+    <tr className="text-white font-bold bg-emerald-700 uppercase text-xs whitespace-nowrap"> 
+      {/* NAKA-UNA NA ANG QTY PRODUCED AT UOM */} 
+      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Qty Produced</th> 
+      <th className="py-3 px-4 text-center">UOM</th> 
+
+      {/* MGA SUMUSUNOD NA DETALYE */} 
+      <th className="py-3 px-4">Material Code</th> 
+      <th className="py-3 px-4">Category</th> 
+      <th className="py-3 px-4">Segment</th> 
+      <th className="py-3 px-4">Description</th> 
+      <th className="py-3 px-4">Dimension</th> 
+      <th className="py-3 px-4 text-center">Action</th> 
+    </tr> 
+  </thead> 
+  <tbody className="divide-y divide-slate-100"> 
+    {outputItems.length > 0 ? ( 
+      outputItems.map((item, index) => ( 
+        <tr key={`${item.itemType}-${item.itemId}` || index} className="hover:bg-slate-50/80 text-xs"> 
+          
+          {/* 1. Qty Produced Input Column */} 
+          <td className="py-2 px-4 w-28 min-w-[112px]"> 
+            <input 
+              type="number" 
+              min="1" 
+              value={item.qtyProduced} 
+              onChange={e => handleUpdateOutputQty(index, e.target.value)} 
+              className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+              required 
+            /> 
+          </td> 
+
+          {/* 2. UOM Column */} 
+          <td className="py-2 px-4 text-center"> 
+            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs"> 
+              {item.UOM} 
+            </span> 
+          </td> 
+
+          {/* 3. Material Code Column */} 
+          <td className="py-2 px-4 font-bold text-sm text-[#18174e]"> 
+            {item.Code} 
+          </td> 
+
+          {/* 4. Category Column */} 
+          <td className="py-2 px-4 italic text-slate-500"> 
+            {item.Category || item.category || '-'} 
+          </td> 
+
+          {/* 5. Segment Column */} 
+          <td className="py-2 px-4 italic text-slate-500"> 
+            {item.Segment || item.segment || '-'} 
+          </td> 
+
+          {/* 6. Description Column */} 
+          <td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription}> 
+            {item.ItemDescription} 
+          </td> 
+
+          {/* 7. Dimension Column */} 
+          <td className="py-2 px-4 text-slate-500"> 
+            {item.Dimension || item.dimensions || '-'} 
+          </td> 
+
+          {/* 8. Action Column */} 
+          <td className="py-2 px-4 text-center"> 
+            <button 
+              type="button" 
+              onClick={() => { 
+                setOutputItems(outputItems.filter((_, i) => i !== index)); 
+                setSuccessMessage("Output item removed."); 
+              }} 
+              className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block" 
+            > 
+              <Trash2 className="w-4 h-4 inline" /> 
+            </button> 
+          </td> 
         </tr> 
-      </thead> 
-      <tbody className="divide-y divide-slate-100"> 
-        {outputItems.length > 0 ? ( 
-          outputItems.map((item, index) => ( 
-            <tr key={`${item.itemType}-${item.itemId}` || index} className="hover:bg-slate-50/80 text-xs"> 
-              {/* 1. Material Code */} 
-              <td className="py-2 px-4 font-bold text-sm text-[#18174e]"> 
-                {item.Code} 
-              </td> 
-              {/* 2. Category */} 
-              <td className="py-2 px-4 italic text-slate-500"> 
-                {item.Category || item.category || '-'} 
-              </td> 
-              {/* 3. Segment */} 
-              <td className="py-2 px-4 italic text-slate-500"> 
-                {item.Segment || item.segment || '-'} 
-              </td> 
-              {/* 4. Description */} 
-              <td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription}> 
-                {item.ItemDescription} 
-              </td> 
-              {/* 5. Dimension */} 
-              <td className="py-2 px-4 text-slate-500"> 
-                {item.Dimension || item.dimensions || '-'} 
-              </td> 
-              {/* Qty Produced Input */} 
-              <td className="py-2 px-4 w-28 min-w-[112px]"> 
-                <input 
-                  type="number" 
-                  min="1" 
-                  value={item.qtyProduced} 
-                  onChange={e => handleUpdateOutputQty(index, e.target.value)} 
-                  className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                  required 
-                /> 
-              </td> 
-              {/* UOM */} 
-              <td className="py-2 px-4 text-center"> 
-                <span className="bg-slate-100 px-2 py-0.5 rounded text-xs"> 
-                  {item.UOM} 
-                </span> 
-              </td> 
-              {/* Action */} 
-              <td className="py-2 px-4 text-center"> 
-                <button 
-                  type="button" 
-                  onClick={() => { 
-                    setOutputItems(outputItems.filter((_, i) => i !== index)); 
-                    setSuccessMessage("Output item removed."); 
-                  }} 
-                  className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block" 
-                > 
-                  <Trash2 className="w-4 h-4 inline" /> 
-                </button> 
-              </td> 
-            </tr> 
-          )) 
-        ) : ( 
-          <tr> 
-            <td colSpan="8" className="text-center py-6 text-red-600 italic font-bold text-xs"> 
-              No items added. Search above to add rows. 
-            </td> 
-          </tr> 
-        )} 
-      </tbody> 
-    </table> 
+      )) 
+    ) : ( 
+      <tr> 
+        {/* Nananatiling colSpan="8" para sakop ang buong lapad ng grid */} 
+        <td colSpan="8" className="text-center py-6 text-red-600 italic font-bold text-xs"> 
+          No items added. Search above to add rows. 
+        </td> 
+      </tr> 
+    )} 
+  </tbody>
+</table>
   </div> 
 </div>
 
@@ -758,7 +816,7 @@ function WorkInProgress() {
       {/* Modal Header */}
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 className="font-bold text-slate-800 text-lg">
-          Production Record Sheet: {selectedConversion.conversionNo}
+          WIP No: {selectedConversion.conversionNo}
         </h3>
         <div className="flex items-center gap-2">
           <button 

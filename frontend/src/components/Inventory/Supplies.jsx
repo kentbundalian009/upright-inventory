@@ -309,11 +309,24 @@ function Supplies() {
             {/* CONTROLS BAR: Icon-only sa mobile, full text naman sa desktop */}
             <div className="flex items-center gap-2.5 ml-auto">
               {/* Hide 0 Qty Checkbox */}
-              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-all flex-shrink-0">
-                <input type="checkbox" checked={hideZeroQty} onChange={(e) => setHideZeroQty(e.target.checked)} className="w-3.5 h-3.5 accent-[#18174e] rounded cursor-pointer" />
-                <span className="hidden sm:inline">Hide 0 Qty</span>
-                <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
-              </label>
+<label 
+  className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${
+    hideZeroQty 
+      ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' 
+      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+  }`}
+>
+  <input 
+    type="checkbox" 
+    checked={hideZeroQty} 
+    onChange={(e) => setHideZeroQty(e.target.checked)} 
+    className={`w-3.5 h-3.5 rounded cursor-pointer transition-all ${
+      hideZeroQty ? 'accent-red-600' : 'accent-[#18174e]'
+    }`} 
+  />
+  <span className="hidden sm:inline">Hide 0 Qty</span>
+  <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
+</label>
 
               {/* Palette Settings Button */}
               <button
@@ -495,7 +508,7 @@ function Supplies() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-slate-800 text-base">Add New Supply</h3>
+                <h3 className="font-bold text-slate-800 text-base">Add Supply Information</h3>
               </div>
               <button
                 type="button"
@@ -693,7 +706,7 @@ function Supplies() {
                   type="submit"
                   className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
                 >
-                  {isEditing ? 'Update Item' : 'Create Item'}
+                  {isEditing ? 'Save Changes' : 'Save Details'}
                 </button>
               </div>
 

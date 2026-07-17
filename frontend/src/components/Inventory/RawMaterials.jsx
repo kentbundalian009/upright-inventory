@@ -312,12 +312,25 @@ function RawMaterials() {
                         {/* CONTROLS BAR: Nagiging compact sa mobile gamit ang Icon-only style */}
                         <div className="flex items-center gap-2.5 ml-auto">
 
-                            {/* Hide 0 Qty Checkbox (Nananatiling maliit at compact) */}
-                            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-all flex-shrink-0">
-                                <input type="checkbox" checked={hideZeroQty} onChange={(e) => setHideZeroQty(e.target.checked)} className="w-3.5 h-3.5 accent-[#18174e] rounded cursor-pointer" />
-                                <span className="hidden sm:inline">Hide 0 Qty</span>
-                                <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
-                            </label>
+                            {/* Hide 0 Qty Checkbox (Compact at magre-red kapag naka-check) */}
+<label 
+    className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${
+        hideZeroQty 
+            ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' 
+            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+    }`}
+>
+    <input 
+        type="checkbox" 
+        checked={hideZeroQty} 
+        onChange={(e) => setHideZeroQty(e.target.checked)} 
+        className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${
+            hideZeroQty ? 'accent-red-600' : 'accent-[#18174e]'
+        }`} 
+    />
+    <span className="hidden sm:inline">Hide 0 Qty</span>
+    <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
+</label>
 
                             {/* Threshold Settings Button */}
                             <button
@@ -344,8 +357,8 @@ function RawMaterials() {
                                 onClick={() => setShowArchivedOnly(!showArchivedOnly)}
                                 title={showArchivedOnly ? "Show Active Materials" : "View Archive Vault"}
                                 className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${showArchivedOnly
-                                        ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
-                                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                                     }`}
                             >
                                 {showArchivedOnly ? (
@@ -366,6 +379,13 @@ function RawMaterials() {
                     </div>
 
                     <div className="flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid md:grid-cols-5 md:pb-0">
+
+                        <div className="min-w-[180px] w-full md:min-w-0">
+                            <div className="relative w-full">
+                                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <input type="text" placeholder="Search Code, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none text-slate-700" />
+                            </div>
+                        </div>
 
                         <div className="min-w-[150px] w-full md:min-w-0">
                             <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full">
@@ -399,12 +419,7 @@ function RawMaterials() {
                             </select>
                         </div>
 
-                        <div className="min-w-[180px] w-full md:min-w-0">
-                            <div className="relative w-full">
-                                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                                <input type="text" placeholder="Search Code, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none text-slate-700" />
-                            </div>
-                        </div>
+                        
 
                     </div>
 
@@ -642,7 +657,7 @@ function RawMaterials() {
 
                         {/* Modal Header */}
                         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <h3 className="font-bold text-slate-800 text-base">Update Raw Material Profile</h3>
+                            <h3 className="font-bold text-slate-800 text-base">Update Rackings Details</h3>
                             <button
                                 onClick={() => setIsEditModalOpen(false)}
                                 className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
@@ -678,7 +693,7 @@ function RawMaterials() {
                                     />
                                 </div>
 
-                                {/* IMAGE UPLOAD FIELD (Full-width para maganda ang bagsak ng dropzone) */}
+                                {/* IMAGE UPLOAD FIELD (Full-width) */}
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Image Upload</label>
                                     <div className="mt-1 flex items-center gap-3">
@@ -699,103 +714,133 @@ function RawMaterials() {
                                     </div>
                                 </div>
 
-                                {/* Category Dropdown */}
+                                {/* Category (Type-Dropdown) */}
                                 <div>
                                     <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category *</label>
-                                    <select
-                                        required
-                                        value={materialCategory}
-                                        onChange={(e) => setMaterialCategory(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
-                                    >
-                                        <option value="">-- Select Category --</option>
-                                        {[...categoriesInDB]
-                                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                                            .map((cat) => <option key={cat} value={cat}>{cat}</option>)
-                                        }
-                                    </select>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            required
+                                            value={materialCategory}
+                                            onChange={(e) => setMaterialCategory(e.target.value)}
+                                            list="categories-list"
+                                            placeholder="Search or enter category"
+                                            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                                        />
+                                        <datalist id="categories-list">
+                                            {[...categoriesInDB]
+                                                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                                .map((cat) => <option key={cat} value={cat} />)
+                                            }
+                                        </datalist>
+                                    </div>
                                 </div>
 
-                                {/* Segment Dropdown */}
+                                {/* Segment (Type-Dropdown) */}
                                 <div>
                                     <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Segment</label>
-                                    <select
-                                        value={materialSegment}
-                                        onChange={(e) => setMaterialSegment(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
-                                    >
-                                        <option value="">-- Select Segment --</option>
-                                        {[...segmentsInDB]
-                                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                                            .map((seg) => <option key={seg} value={seg}>{seg}</option>)
-                                        }
-                                    </select>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={materialSegment}
+                                            onChange={(e) => setMaterialSegment(e.target.value)}
+                                            list="segments-list"
+                                            placeholder="Search or enter segment"
+                                            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                                        />
+                                        <datalist id="segments-list">
+                                            {[...segmentsInDB]
+                                                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                                .map((seg) => <option key={seg} value={seg} />)
+                                            }
+                                        </datalist>
+                                    </div>
                                 </div>
 
-                                {/* Item Description (Full-width para sa mahabang text strings) */}
+                                {/* Item Description (Full-width, Type-Dropdown) */}
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Description *</label>
-                                    <select
-                                        required
-                                        value={itemDescription}
-                                        onChange={(e) => setItemDescription(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
-                                    >
-                                        <option value="">-- Select Description --</option>
-                                        {[...descriptionsInDB]
-                                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                                            .map((desc) => <option key={desc} value={desc}>{desc}</option>)
-                                        }
-                                    </select>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            required
+                                            value={itemDescription}
+                                            onChange={(e) => setItemDescription(e.target.value)}
+                                            list="descriptions-list"
+                                            placeholder="Search or enter item description"
+                                            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                                        />
+                                        <datalist id="descriptions-list">
+                                            {[...descriptionsInDB]
+                                                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                                .map((desc) => <option key={desc} value={desc} />)
+                                            }
+                                        </datalist>
+                                    </div>
                                 </div>
 
-                                {/* Dimension */}
+                                {/* Dimension (Type-Dropdown) */}
                                 <div>
                                     <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Dimension</label>
-                                    <select
-                                        value={materialDimension}
-                                        onChange={(e) => setMaterialDimension(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
-                                    >
-                                        <option value="">-- Select Dimension --</option>
-                                        {[...dimensionsInDB]
-                                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                                            .map((dim) => <option key={dim} value={dim}>{dim}</option>)
-                                        }
-                                    </select>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={materialDimension}
+                                            onChange={(e) => setMaterialDimension(e.target.value)}
+                                            list="dimensions-list"
+                                            placeholder="Search or enter dimension"
+                                            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                                        />
+                                        <datalist id="dimensions-list">
+                                            {[...dimensionsInDB]
+                                                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                                .map((dim) => <option key={dim} value={dim} />)
+                                            }
+                                        </datalist>
+                                    </div>
                                 </div>
 
-                                {/* UOM */}
+                                {/* UOM (Type-Dropdown) */}
                                 <div>
                                     <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">UOM *</label>
-                                    <select
-                                        required
-                                        value={materialUom}
-                                        onChange={(e) => setMaterialUom(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
-                                    >
-                                        <option value="">-- Select UOM --</option>
-                                        {[...uomsInDB]
-                                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                                            .map((uom) => <option key={uom} value={uom}>{uom}</option>)
-                                        }
-                                    </select>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            required
+                                            value={materialUom}
+                                            onChange={(e) => setMaterialUom(e.target.value)}
+                                            list="uoms-list"
+                                            placeholder="Search or enter UOM"
+                                            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                                        />
+                                        <datalist id="uoms-list">
+                                            {[...uomsInDB]
+                                                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                                .map((uom) => <option key={uom} value={uom} />)
+                                            }
+                                        </datalist>
+                                    </div>
                                 </div>
 
-                                {/* Account To (Full-width sa dulo) */}
+                                {/* Account To (Full-width sa dulo, Type-Dropdown) */}
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Account To</label>
-                                    <select
-                                        value={accountTo}
-                                        onChange={(e) => setAccountTo(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] cursor-pointer"
-                                    >
-                                        <option value="">-- Select Account To --</option>
-                                        {[...accountsInDB]
-                                            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                                            .map((acc) => <option key={acc} value={acc}>{acc}</option>)
-                                        }
-                                    </select>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={accountTo}
+                                            onChange={(e) => setAccountTo(e.target.value)}
+                                            list="accounts-list"
+                                            placeholder="Search or enter account"
+                                            className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                                        />
+                                        <datalist id="accounts-list">
+                                            {[...accountsInDB]
+                                                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                                .map((acc) => <option key={acc} value={acc} />)
+                                            }
+                                        </datalist>
+                                    </div>
                                 </div>
 
                             </div>

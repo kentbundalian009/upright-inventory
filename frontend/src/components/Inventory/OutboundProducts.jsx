@@ -262,15 +262,45 @@ function OutboundProducts() {
       doc.setFont("helvetica", "normal");
       doc.text(`${selectedSlip.destinationAddress || 'N/A'}`, 45, 63);
 
-      const tableColumns = ["Material Profile", "Requested QTY", "Shipped QTY Count", "Item Remarks"];
+      // Inayos ang Headers: Idinagdag ang Segment at Dimension, ginawang Description ang una
+      const tableColumns = ["Description", "Segment", "Dimension", "Requested QTY", "Shipped QTY Count", "Item Remarks"];
+      
       const tableRows = selectedSlip.items?.map(it => {
         const targetMaterial = it.materialId || it.productId;
-        return [
-          `${targetMaterial?.Code || 'N/A'}\n${targetMaterial?.ItemDescription || '-'}`,
-          `${it.qtyRequested} ${targetMaterial?.UOM || ''}`,
-          `${it.actualCountShipped} ${targetMaterial?.UOM || ''}`,
-          it.remarks || "-"
-        ];
+        
+        // GINAMIT ANG dbRawMaterials PARA SA LOOKUP DAHIL ETO ANG NAKADEKLARA SA IYONG COMPONENT
+        const targetId = targetMaterial?._id || targetMaterial;
+        const fullMat = dbRawMaterials?.find(m => m._id === targetId);
+
+        // 1. Description na lamang (Walang kasamang Item Code)
+        const descOnly = fullMat?.ItemDescription || targetMaterial?.ItemDescription || "-";
+        
+        // 2. Segment Lookup
+        const segment = fullMat?.Segment || fullMat?.segment || 
+                        targetMaterial?.Segment || targetMaterial?.segment || "N/A";
+                        
+        // 3. Dimension Lookup (Kasama ang lahat ng posibleng casing o standalone metrics)
+        let dimension = "N/A";
+        if (fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions) {
+          dimension = fullMat.Dimension || fullMat.dimension || fullMat.Dimensions || fullMat.dimensions;
+        } else if (targetMaterial?.Dimension || targetMaterial?.dimension || targetMaterial?.Dimensions || targetMaterial?.dimensions) {
+          dimension = targetMaterial.Dimension || targetMaterial.dimension || targetMaterial.Dimensions || targetMaterial.dimensions;
+        } else {
+          // Fallback para sa hiwalay na Length, Width, Height properties
+          const l = fullMat?.Length || fullMat?.length || targetMaterial?.Length || targetMaterial?.length;
+          const w = fullMat?.Width || fullMat?.width || targetMaterial?.Width || targetMaterial?.width;
+          const h = fullMat?.Height || fullMat?.height || targetMaterial?.Height || targetMaterial?.height;
+          if (l || w || h) {
+            dimension = `${l || '-'} × ${w || '-'} × ${h || '-'}`;
+          }
+        }
+
+        const uom = fullMat?.UOM || targetMaterial?.UOM || '';
+        const qtyRequested = `${it.qtyRequested} ${uom}`;
+        const actualCountShipped = `${it.actualCountShipped} ${uom}`;
+        const remarks = it.remarks || "-";
+
+        return [descOnly, segment, dimension, qtyRequested, actualCountShipped, remarks];
       }) || [];
 
       autoTable(doc, {
@@ -309,21 +339,32 @@ function OutboundProducts() {
           const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
           doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
         },
-        headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, valign: 'middle' },
+        headStyles: { 
+          fillColor: [32, 31, 85], 
+          textColor: [255, 255, 255], 
+          fontStyle: 'bold', 
+          fontSize: 8.5, 
+          valign: 'middle',
+          overflow: 'visible' 
+        },
         bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
         alternateRowStyles: { fillColor: [248, 249, 250] },
         styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 },
+        // Sakop ang kabuuang printable horizontal margin na 182mm (Portrait A4)
         columnStyles: {
-          0: { cellWidth: 85 },
-          1: { cellWidth: 28, halign: 'center' },
-          2: { cellWidth: 32, halign: 'center', fontStyle: 'bold' },
-          3: { cellWidth: 41 }
+          0: { cellWidth: 50 },                     // Description (No Code)
+          1: { cellWidth: 22, halign: 'center' },   // Segment
+          2: { cellWidth: 22, halign: 'center' },   // Dimension
+          3: { cellWidth: 25, halign: 'center' },   // Requested QTY
+          4: { cellWidth: 28, halign: 'center', fontStyle: 'bold' }, // Shipped QTY Count
+          5: { cellWidth: 35 }                      // Item Remarks
         }
       });
 
       doc.save(`OUTBOUND_SLIP_${selectedSlip.plNo}.pdf`);
       showSuccessToast("PDF Downloaded successfully!");
     } catch (e) {
+      console.error(e); // Para makita mo ang actual error stack sa developer console
       showErrorToast("Failed to download PDF slip configuration.");
     }
   };
@@ -472,7 +513,7 @@ function OutboundProducts() {
           <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-2 text-sm font-bold text-slate-600">
             <div className="flex items-center gap-2 min-w-0">
               <ArrowLeftRight className="w-4 h-4 text-[#18174e] flex-shrink-0" />
-              <span className="truncate">Materials Outbound & Logistics Slip</span>
+              <span className="truncate">Outbound Racking Materials</span>
             </div>
             {manifestItems.length > 0 && (
               <button
@@ -625,101 +666,114 @@ function OutboundProducts() {
   </span>
   <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
     <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-      <thead>
-        <tr className="text-white font-bold bg-red-700 uppercase text-xs whitespace-nowrap">
-          <th className="py-3 px-4">Material Code</th>
-          <th className="py-3 px-4">Category</th>
-          <th className="py-3 px-4">Segment</th>
-          <th className="py-3 px-4">Description</th>
-          <th className="py-3 px-4">Dimension</th>
-          <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
-          <th className="py-3 px-4 text-center">UOM</th>
-          {/* Nilagyan ng w-28 at min-w para terno sila ng QTY tulad sa inbound */}
-          <th className="py-3 px-4 text-center w-28 min-w-[112px]">Verified Shipped</th>
-          <th className="py-3 px-4">Account To</th>
-          <th className="py-3 px-4">Remarks / Notes</th>
-          <th className="py-3 px-4 text-center">Action</th>
+  <thead>
+    <tr className="text-white font-bold bg-red-700 uppercase text-xs whitespace-nowrap">
+      {/* NAKA-UNA NA ANG QTY, UOM, AT VERIFIED SHIPPED */}
+      <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
+      <th className="py-3 px-4 text-center">UOM</th>
+      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Verified Shipped</th>
+
+      {/* MGA SUMUSUNOD NA DETALYE */}
+      <th className="py-3 px-4">Material Code</th>
+      <th className="py-3 px-4">Category</th>
+      <th className="py-3 px-4">Segment</th>
+      <th className="py-3 px-4">Description</th>
+      <th className="py-3 px-4">Dimension</th>
+      <th className="py-3 px-4">Account To</th>
+      <th className="py-3 px-4">Remarks / Notes</th>
+      <th className="py-3 px-4 text-center">Action</th>
+    </tr>
+  </thead>
+  <tbody className="divide-y divide-slate-100">
+    {manifestItems.length > 0 ? (
+      manifestItems.map((item, index) => (
+        <tr key={index} className="hover:bg-slate-50/80 text-xs">
+          
+          {/* 1. QTY Input Column */}
+          <td className="py-2 px-4 w-28 min-w-[112px]">
+            <input 
+              type="number" 
+              value={item.qtyRequested} 
+              onChange={e => handleUpdateField(index, 'qtyRequested', Number(e.target.value))} 
+              className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+              min="1" 
+              required 
+            />
+          </td>
+
+          {/* 2. UOM Column */}
+          <td className="py-2 px-4 text-center">
+            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
+          </td>
+
+          {/* 3. Verified Shipped Input Column */}
+          <td className="py-2 px-4 w-28 min-w-[112px]">
+            <input 
+              type="number" 
+              value={item.actualCountShipped} 
+              onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))} 
+              className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+              min="1" 
+              required 
+            />
+          </td>
+
+          {/* 4. Material Code */}
+          <td className="py-2 px-4 font-bold text-[#18174e] whitespace-nowrap">{item.Code}</td>
+          
+          {/* 5. Category */}
+          <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
+          
+          {/* 6. Segment */}
+          <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
+          
+          {/* 7. Description */}
+          <td className="py-2 px-4 max-w-[150px]" title={item.ItemDescription}>
+            {item.ItemDescription}
+          </td>
+          
+          {/* 8. Dimension */}
+          <td className="py-2 px-4 text-slate-500 whitespace-nowrap">{item.Dimension}</td>
+
+          {/* 9. Account To */}
+          <td className="py-2 px-4 text-slate-500">{item.AccountTo}</td>
+
+          {/* 10. Remarks */}
+          <td className="py-2 px-4">
+            <input 
+              type="text" 
+              value={item.remarks} 
+              onChange={e => handleUpdateField(index, 'remarks', e.target.value)} 
+              placeholder="Provide context details..." 
+              className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-slate-400" 
+            />
+          </td>
+
+          {/* 11. Action */}
+          <td className="py-2 px-4 text-center">
+            <button 
+              type="button" 
+              onClick={() => { 
+                setManifestItems(manifestItems.filter((_, i) => i !== index)); 
+                showSuccessToast("Item removed from outbound manifest lines."); 
+              }} 
+              className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </td>
         </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-100">
-        {manifestItems.length > 0 ? (
-          manifestItems.map((item, index) => (
-            <tr key={index} className="hover:bg-slate-50/80 text-xs">
-              <td className="py-2 px-4 font-bold text-[#18174e]">{item.Code}</td>
-              <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
-              <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
-              <td className="py-2 px-4 truncate max-w-[150px]" title={item.ItemDescription}>
-                {item.ItemDescription}
-              </td>
-              <td className="py-2 px-4 text-slate-500">{item.Dimension}</td>
-
-              {/* QTY Column */}
-              <td className="py-2 px-4 w-28 min-w-[112px]">
-                <input 
-                  type="number" 
-                  value={item.qtyRequested} 
-                  onChange={e => handleUpdateField(index, 'qtyRequested', Number(e.target.value))} 
-                  className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                  min="1" 
-                  required 
-                />
-              </td>
-
-              {/* UOM Column */}
-              <td className="py-2 px-4 text-center">
-                <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
-              </td>
-
-              {/* Verified Shipped Column */}
-              <td className="py-2 px-4 w-28 min-w-[112px]">
-                <input 
-                  type="number" 
-                  value={item.actualCountShipped} 
-                  onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))} 
-                  className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                  min="1" 
-                  required 
-                />
-              </td>
-
-              <td className="py-2 px-4 text-slate-500">{item.AccountTo}</td>
-
-              {/* Remarks Column */}
-              <td className="py-2 px-4">
-                <input 
-                  type="text" 
-                  value={item.remarks} 
-                  onChange={e => handleUpdateField(index, 'remarks', e.target.value)} 
-                  placeholder="Provide context details..." 
-                  className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-slate-400" 
-                />
-              </td>
-
-              {/* Action Column */}
-              <td className="py-2 px-4 text-center">
-                <button 
-                  type="button" 
-                  onClick={() => { 
-                    setManifestItems(manifestItems.filter((_, i) => i !== index)); 
-                    showSuccessToast("Item removed from outbound manifest lines."); 
-                  }} 
-                  className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </td>
-            </tr>
-          ))
-        ) : (
-          <tr>
-            {/* Ginawang colSpan="11" para sakop ang lahat ng bagong columns */}
-            <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
-              No items added. Search above to add rows.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+      ))
+    ) : (
+      <tr>
+        {/* Nananatiling colSpan="11" dahil sakop pa rin ang kabuuang 11 columns */}
+        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
+          No items added. Search above to add rows.
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
   </div>
 </div>
 
@@ -846,154 +900,165 @@ function OutboundProducts() {
       )}
 
       {/* VIEW DETAILS LOG MODAL */}
-      {isModalOpen && selectedSlip && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
+{isModalOpen && selectedSlip && (
+  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
 
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-800 text-lg">
-                Log View: {selectedSlip.plNo}
-              </h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleOpenVoidModal(selectedSlip)}
-                  className="flex items-center gap-1 bg-red-800 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> Void Transaction
-                </button>
-                <button
-                  onClick={handleDownloadPDF}
-                  className="flex items-center gap-1.5 bg-[#18174e] hover:bg-[#18174e]/90 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" /> Download PDF
-                </button>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+      {/* Modal Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 className="font-bold text-slate-800 text-lg">
+          Outbound No: {selectedSlip.plNo}
+        </h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleOpenVoidModal(selectedSlip)}
+            className="flex items-center gap-1 bg-red-800 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Void Transaction
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            className="flex items-center gap-1.5 bg-[#18174e] hover:bg-[#18174e]/90 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" /> Download PDF
+          </button>
+          <button
+            onClick={() => setIsModalOpen(false)}
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
 
-            {/* Outbound Notice Alert */}
-            {selectedSlip.transactionType?.toLowerCase() === 'outbound' && (
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
-                <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
-                  * System Action Protocol *
-                </span>
-                <p className="text-[11px] text-amber-700 leading-relaxed">
-                  This is an <span className="font-bold text-amber-800">OUTBOUND</span> dispatch log.
-                  Cancelling dispatched orders disrupts supply chain tracking and returns items back to the active stock pile.
-                  You must provide a valid system reversal passkey to proceed with voiding this log entry.
-                </p>
-              </div>
-            )}
-
-            {/* Log Details Grid Metadata Block */}
-            <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div><span className="font-semibold text-slate-400">Tracking No:</span> <span className="font-bold text-slate-800">{selectedSlip.plNo}</span></div>
-              <div><span className="font-semibold text-slate-400">Shipment Date:</span> <span className="font-bold text-slate-800">{selectedSlip.shipmentDate ? new Date(selectedSlip.shipmentDate).toLocaleDateString() : '-'}</span></div>
-              <div><span className="font-semibold text-slate-400">Log Type:</span> <span className="font-bold text-indigo-700 uppercase">{selectedSlip.transactionType}</span></div>
-              <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedSlip.preparedBy || preparedBy}</span></div>
-              <div><span className="font-semibold text-slate-400">Customer:</span> <span className="font-bold text-slate-800">{selectedSlip.customer || 'N/A'}</span></div>
-              <div><span className="font-semibold text-slate-400">Destination:</span> <span className="font-bold text-slate-800">{selectedSlip.destinationAddress || 'N/A'}</span></div>
-              {selectedSlip.referencePlNo && (
-                <div className="col-span-2 text-xs text-amber-700 font-bold bg-amber-50 px-2 py-1 rounded border border-amber-200">
-                  Linked Reference: {selectedSlip.referencePlNo}
-                </div>
-              )}
-            </div>
-
-            {/* Itemization Table Layer with Scrollbar */}
-            <div className="max-h-64 overflow-y-auto border border-slate-200/60 rounded-xl relative shadow-sm">
-              <table className="w-full text-left text-xs border-collapse bg-white">
-
-                {/* STICKY THEAD */}
-                <thead className="sticky top-0 z-10 bg-red-700 text-white text-[11px] font-bold uppercase whitespace-nowrap">
-                  <tr>
-                    <th className="p-3 w-1/3">Material Profile</th>
-                    <th className="p-3 w-1/3">Dimensions</th>
-                    <th className="p-3 text-center w-28">QTY Ordered</th>
-                    <th className="p-3 text-right w-32">Verified Shipped</th>
-                    <th className="p-3 text-left pl-6">Remarks</th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-slate-100">
-                  {selectedSlip.items?.map((it, idx) => {
-                    const targetMaterial = it.materialId || it.productId;
-                    return (
-                      <tr key={it._id || idx} className="hover:bg-slate-50/50 transition-colors">
-                        {/* Material Profile & Description */}
-                        <td className="p-3 w-1/3 align-middle">
-                          <div className="font-bold text-[#18174e]">{targetMaterial?.Code || "N/A"}</div>
-                          <div className="text-slate-400 text-[11px] max-w-xs truncate font-medium" title={targetMaterial?.ItemDescription}>
-                            {targetMaterial?.ItemDescription || "-"}
-                          </div>
-                        </td>
-
-                        {/* Dimensions Column */}
-                        <td className="p-3 w-1/3 align-middle">
-                          <div className="text-slate-600 font-semibold">
-                            {(() => {
-                              const targetMaterial = it.materialId || it.productId;
-
-                              // Kunin ang single string kung meron
-                              const rawDim = targetMaterial?.Dimensions ||
-                                targetMaterial?.dimensions ||
-                                targetMaterial?.Dimension ||
-                                targetMaterial?.dimension;
-
-                              if (rawDim) return rawDim;
-
-                              // Kung walang single string, subukan ang hiwalay na L x W x H (suportado ang uppercase at lowercase)
-                              const l = targetMaterial?.Length || targetMaterial?.length;
-                              const w = targetMaterial?.Width || targetMaterial?.width;
-                              const h = targetMaterial?.Height || targetMaterial?.height;
-
-                              if (l || w || h) {
-                                return `${l || '-'} × ${w || '-'} × ${h || '-'}`;
-                              }
-
-                              return "N/A";
-                            })()}
-                          </div>
-                        </td>
-
-                        {/* QTY Ordered */}
-                        <td className="p-3 text-center text-slate-600 w-28 align-middle font-semibold">
-                          {it.qtyRequested} {targetMaterial?.UOM}
-                        </td>
-
-                        {/* Verified Shipped */}
-                        <td className="p-3 text-right font-bold text-emerald-600 w-32 align-middle ">
-                          {it.actualCountShipped} {targetMaterial?.UOM}
-                        </td>
-
-                        {/* Remarks */}
-                        <td className="p-3 italic text-slate-500 font-medium text-[11px] max-w-[120px] truncate align-middle pl-6" title={it.remarks}>
-                          {it.remarks || "-"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-
-                  {(!selectedSlip.items || selectedSlip.items.length === 0) && (
-                    <tr>
-                      <td colSpan="4" className="p-4 text-center text-slate-400 italic">
-                        No materials recorded.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-          </div>
+      {/* Outbound Notice Alert */}
+      {selectedSlip.transactionType?.toLowerCase() === 'outbound' && (
+        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
+          <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+            * System Action Protocol *
+          </span>
+          <p className="text-[11px] text-amber-700 leading-relaxed">
+            This is an <span className="font-bold text-amber-800">OUTBOUND</span> dispatch log.
+            Cancelling dispatched orders disrupts supply chain tracking and returns items back to the active stock pile.
+            You must provide a valid system reversal passkey to proceed with voiding this log entry.
+          </p>
         </div>
       )}
+
+      {/* Log Details Grid Metadata Block */}
+      <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+        <div><span className="font-semibold text-slate-400">Tracking No:</span> <span className="font-bold text-slate-800">{selectedSlip.plNo}</span></div>
+        <div><span className="font-semibold text-slate-400">Shipment Date:</span> <span className="font-bold text-slate-800">{selectedSlip.shipmentDate ? new Date(selectedSlip.shipmentDate).toLocaleDateString() : '-'}</span></div>
+        <div><span className="font-semibold text-slate-400">Log Type:</span> <span className="font-bold text-indigo-700 uppercase">{selectedSlip.transactionType}</span></div>
+        <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedSlip.preparedBy || preparedBy}</span></div>
+        <div><span className="font-semibold text-slate-400">Customer:</span> <span className="font-bold text-slate-800">{selectedSlip.customer || 'N/A'}</span></div>
+        <div><span className="font-semibold text-slate-400">Destination:</span> <span className="font-bold text-slate-800">{selectedSlip.destinationAddress || 'N/A'}</span></div>
+        {selectedSlip.referencePlNo && (
+          <div className="col-span-2 text-xs text-amber-700 font-bold bg-amber-50 px-2 py-1 rounded border border-amber-200">
+            Linked Reference: {selectedSlip.referencePlNo}
+          </div>
+        )}
+      </div>
+
+      {/* Itemization Table Layer with Scrollbar */}
+      <div className="max-h-64 overflow-y-auto border border-slate-200/60 rounded-xl relative shadow-sm">
+        <table className="w-full text-left text-xs border-collapse bg-white">
+
+          {/* STICKY THEAD */}
+          <thead className="sticky top-0 z-10 bg-red-700 text-white text-[11px] font-bold uppercase whitespace-nowrap">
+            <tr>
+              <th className="p-3 w-1/3">Material Profile</th>
+              <th className="p-3 w-1/3">Dimensions</th>
+              <th className="p-3 text-center w-28">QTY Ordered</th>
+              <th className="p-3 text-right w-32">Verified Shipped</th>
+              <th className="p-3 text-left pl-6">Remarks</th>
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-slate-100">
+            {selectedSlip.items?.map((it, idx) => {
+              const targetMaterial = it.materialId || it.productId;
+              return (
+                <tr key={it._id || idx} className="hover:bg-slate-50/50 transition-colors">
+                  
+                  {/* Pinatunaw ang Item Code; pinalit ang Description, Category, at Segment */}
+                  <td className="p-3 w-1/3 align-middle">
+                    {/* Item Description (Main text na ngayon) */}
+                    <div className="font-bold text-[#18174e] text-sm truncate max-w-xs" title={targetMaterial?.ItemDescription}>
+                      {targetMaterial?.ItemDescription || "-"}
+                    </div>
+                    {/* Subtext: Category & Segment (Italicized and lightweight styles) */}
+                    <div className="text-slate-400 text-[10px] font-medium mt-0.5">
+                      <span className="italic">{targetMaterial?.Category || "No Category"}</span>
+                      {targetMaterial?.Segment && (
+                        <>
+                          <span className="mx-1.5 text-slate-300">|</span>
+                          <span className="italic">{targetMaterial?.Segment}</span>
+                        </>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Dimensions Column */}
+                  <td className="p-3 w-1/3 align-middle">
+                    <div className="text-slate-600 font-semibold">
+                      {(() => {
+                        const targetMaterial = it.materialId || it.productId;
+
+                        // Kunin ang single string kung meron
+                        const rawDim = targetMaterial?.Dimensions ||
+                          targetMaterial?.dimensions ||
+                          targetMaterial?.Dimension ||
+                          targetMaterial?.dimension;
+
+                        if (rawDim) return rawDim;
+
+                        // Subukan ang hiwalay na L x W x H
+                        const l = targetMaterial?.Length || targetMaterial?.length;
+                        const w = targetMaterial?.Width || targetMaterial?.width;
+                        const h = targetMaterial?.Height || targetMaterial?.height;
+
+                        if (l || w || h) {
+                          return `${l || '-'} × ${w || '-'} × ${h || '-'}`;
+                        }
+
+                        return "N/A";
+                      })()}
+                    </div>
+                  </td>
+
+                  {/* QTY Ordered */}
+                  <td className="p-3 text-center text-slate-600 w-28 align-middle font-semibold">
+                    {it.qtyRequested} {targetMaterial?.UOM}
+                  </td>
+
+                  {/* Verified Shipped */}
+                  <td className="p-3 text-right font-bold text-emerald-600 w-32 align-middle">
+                    {it.actualCountShipped} {targetMaterial?.UOM}
+                  </td>
+
+                  {/* Remarks */}
+                  <td className="p-3 italic text-slate-500 font-medium text-[11px] max-w-[120px] truncate align-middle pl-6" title={it.remarks}>
+                    {it.remarks || "-"}
+                  </td>
+                </tr>
+              );
+            })}
+
+            {(!selectedSlip.items || selectedSlip.items.length === 0) && (
+              <tr>
+                <td colSpan="5" className="p-4 text-center text-slate-400 italic">
+                  No materials recorded.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+)}
     </div>
   );
 }
