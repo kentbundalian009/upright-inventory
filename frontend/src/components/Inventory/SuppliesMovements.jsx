@@ -174,7 +174,7 @@ function SuppliesMovements() {
 
       if (field === 'qty' && (isDeductingType || isRepairType)) {
         if (numericVal > updated[index].maxLimit) {
-          showErrorToast(`Hanggang ${updated[index].maxLimit} lang ang pwedeng i-proseso sa transaksyong ito.`);
+          showErrorToast(`Insufficient ${updated[index].maxLimit} stock for ${updated[index].Code}.`);
           numericVal = updated[index].maxLimit;
         }
       }
