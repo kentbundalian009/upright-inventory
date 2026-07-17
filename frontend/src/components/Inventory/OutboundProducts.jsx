@@ -356,7 +356,7 @@ function OutboundProducts() {
           1: { cellWidth: 22, halign: 'center' },   // Segment
           2: { cellWidth: 22, halign: 'center' },   // Dimension
           3: { cellWidth: 25, halign: 'center' },   // Requested QTY
-          4: { cellWidth: 28, halign: 'center', fontStyle: 'bold' }, // Shipped QTY Count
+          4: { cellWidth: 28, halign: 'center', fontStyle: 'bold' }, 
           5: { cellWidth: 35 }                      // Item Remarks
         }
       });
