@@ -148,47 +148,68 @@ function Reports() {
                     }
                 });
 
-                // B. Trace WIP Conversions (Production Movements)
-                wipConversions.forEach(wip => {
-                    const txDate = wip.conversionDate || wip.dateProcessed || wip.createdAt;
-                    if (matchDate(txDate)) {
-                        // Bawas kapag ginamit sa components/WIP (Outflow / Consumption)
-                        const matchedConsumed = (wip.materialsConsumed || wip.inputs)?.find(it =>
-                            it.materialId?._id === item._id ||
-                            it.materialId === item._id ||
-                            it.materialId?.Code === item.Code
-                        );
-                        if (matchedConsumed) {
-                            const qty = matchedConsumed.qtyUsed || 0;
-                            if (qty > 0) {
-                                outflows.push({
-                                    type: 'WIP',
-                                    qty: qty,
-                                    label: wip.wipOrderNo ? `To WIP: ${wip.wipOrderNo}` : `${wip.conversionNo || 'WIP'} (${wip.productionType || 'Deducted'})`,
-                                    date: formatDate(txDate)
-                                });
-                            }
-                        }
-
-                        // Dagdag mula sa production returns (Inflow / Return)
-                        const matchedReturned = wip.materialsReturned?.find(it =>
-                            it.materialId?._id === item._id ||
-                            it.materialId === item._id ||
-                            it.materialId?.Code === item.Code
-                        );
-                        if (matchedReturned) {
-                            const qty = matchedReturned.qtyReturned || 0;
-                            if (qty > 0) {
-                                inflows.push({
-                                    type: 'WIP_RET',
-                                    qty: qty,
-                                    label: `Return: ${wip.wipOrderNo || 'Job Order'}`,
-                                    date: formatDate(txDate)
-                                });
-                            }
-                        }
-                    }
+                // B. Trace WIP Conversions (Production Movements) sa Reports.jsx
+wipConversions.forEach(wip => {
+    const txDate = wip.conversionDate || wip.dateProcessed || wip.createdAt;
+    if (matchDate(txDate)) {
+        
+        // --- 1. OUTFLOWS (CONSUMED / DEDUCTED) ---
+        const matchedConsumed = (wip.materialsConsumed || wip.inputs)?.find(it =>
+            it.materialId?._id === item._id ||
+            it.materialId === item._id ||
+            it.materialId?.Code === item.Code
+        );
+        if (matchedConsumed) {
+            const qty = matchedConsumed.qtyUsed || 0;
+            if (qty > 0) {
+                outflows.push({
+                    type: 'WIP',
+                    qty: qty,
+                    label: wip.conversionNo ? `WIP Cut: ${wip.conversionNo}` : `WIP Deduct`,
+                    date: formatDate(txDate)
                 });
+            }
+        }
+
+        // --- 2. INFLOWS (YIELD CONVERSION OUTPUTS / ADDED STOCKS) ---
+        // Pinalitan/Idinagdag ang pagbasa sa wip.outputs para sa mga dagdag na stock (+122)
+        const matchedOutput = wip.outputs?.find(it =>
+            it.itemId?._id === item._id ||
+            it.itemId === item._id ||
+            it.itemId?.Code === item.Code ||
+            it.Code === item.Code
+        );
+        if (matchedOutput) {
+            const qty = matchedOutput.qtyProduced || 0;
+            if (qty > 0) {
+                inflows.push({
+                    type: 'WIP_IN',
+                    qty: qty,
+                    label: `WIP Yield: ${wip.conversionNo || 'Yield Output'}`,
+                    date: formatDate(txDate)
+                });
+            }
+        }
+
+        // --- 3. (OPTIONAL) PRODUCTION RETURNS ---
+        const matchedReturned = wip.materialsReturned?.find(it =>
+            it.materialId?._id === item._id ||
+            it.materialId === item._id ||
+            it.materialId?.Code === item.Code
+        );
+        if (matchedReturned) {
+            const qty = matchedReturned.qtyReturned || 0;
+            if (qty > 0) {
+                inflows.push({
+                    type: 'WIP_RET',
+                    qty: qty,
+                    label: `Return: ${wip.wipOrderNo || 'Job Order'}`,
+                    date: formatDate(txDate)
+                });
+            }
+        }
+    }
+});
 
                 // C. Trace Packing Lists (Outbound / Reserve Deliveries)
                 packingLists.forEach(pl => {
