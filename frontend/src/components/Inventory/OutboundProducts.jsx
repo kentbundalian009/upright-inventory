@@ -172,13 +172,18 @@ function OutboundProducts() {
       return;
     }
 
-    for (const item of manifestItems) {
-      const currentDbItem = dbRawMaterials.find(db => db._id === item.materialId);
-      if (currentDbItem) {
-        const availableStock = currentDbItem.ActualCount || 0;
-        if (item.qtyRequested > availableStock) {
-          showErrorToast(`Insufficient stock for ${item.Code}: Requested ${item.qtyRequested}, Available ${availableStock}.`);
-          return;
+    // 🔥 VALIDATION CHECK: I-bypass ang stock check kung ito ay pag-outbound mula sa Reserve slip (referencePlNo)
+    if (!referencePlNo) {
+      for (const item of manifestItems) {
+        const currentDbItem = dbRawMaterials.find(db => db._id === item.materialId);
+
+        if (currentDbItem) {
+          const availableStock = currentDbItem.ActualCount || 0;
+
+          if (item.qtyRequested > availableStock) {
+            showErrorToast(`Insufficient stock for ${item.Code}: Requested ${item.qtyRequested}, Available ${availableStock}.`);
+            return;
+          }
         }
       }
     }
