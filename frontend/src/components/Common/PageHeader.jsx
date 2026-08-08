@@ -108,34 +108,32 @@ function PageHeader({ activeTab }) {
   });
 
   return (
-    <header className="w-full bg-[#f8faff] border border-blue-100 rounded-2xl p-4 sm:p-5 transition-all duration-300">
-      
-      {/* KALIWANG PARTE: Main System Label / Tab Title Indicator */}
-      <div className="flex items-center gap-2.5 mb-3">
-        <div className="text-[#18174e] flex items-center">
-          <IconComponent size={20} className="stroke-[2.5]" />
-        </div>
-        <h1 className="text-base font-bold text-[#18174e] tracking-tight sm:text-lg">
-          {currentHeader.title}
-        </h1>
-      </div>
+    <header className="w-full bg-gradient-to-r from-[#18174e] via-[#1f1d63] to-[#282678] text-white border border-[#2e2c8a] rounded-2xl p-5 shadow-lg relative overflow-hidden transition-all duration-300">
+      {/* Ambient Background Glow Effect */}
+      <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#ff6600]/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
 
-      {/* INNER CARD: Dynamic content ng active tab na may manipis na height */}
-      <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          
-          {/* Active Tab Details */}
-          <div className="flex-1">
-            <h2 className="text-sm font-bold text-[#18174e] mb-0.5">
-              {currentHeader.title} Details
-            </h2>
-            <p className="text-xs sm:text-sm font-normal text-slate-600 leading-relaxed max-w-4xl">
+      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* Left Column: Title & Description */}
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="p-3 bg-white/10 backdrop-blur-md border border-white/15 rounded-xl shadow-inner text-[#ff6600] shrink-0">
+            <IconComponent size={22} className="stroke-[2.2]" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                {currentHeader.title}
+              </h1>
+              <span className="text-[10px] font-extrabold uppercase bg-[#ff6600]/20 text-[#ff8533] border border-[#ff6600]/30 px-2 py-0.5 rounded-full">
+                Live System
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm font-normal text-slate-300 mt-0.5 leading-relaxed max-w-3xl">
               {currentHeader.description}
             </p>
           </div>
         </div>
       </div>
-
     </header>
   );
 }

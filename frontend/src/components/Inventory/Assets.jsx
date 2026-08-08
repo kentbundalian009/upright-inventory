@@ -784,13 +784,14 @@ function Assets() {
                     required
                     value={actualCount}
                     onChange={(e) => handleActualCountChange(e.target.value)}
+                    onWheel={(e) => e.currentTarget.blur()}
                     className="w-full bg-white border-2 border-indigo-100 rounded-xl px-3 py-2 text-sm font-bold font-mono text-[#18174e] focus:border-[#18174e] focus:outline-none transition-colors"
                   />
                 </div>
 
                 {/* KONDISYON BREAKDOWN QUANTITIES (Full-width box panel) */}
                 <div className="md:col-span-2 p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
-                  <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  <span className="block text-xs font-bold text-slate-500 uppercase mb-1">
                     Condition Status Breakdown:
                   </span>
                   <div className="grid grid-cols-3 gap-3">
@@ -801,6 +802,7 @@ function Assets() {
                         min="0"
                         value={goodCount}
                         onChange={(e) => handleBreakdownChange('good', e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
                         className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-center font-bold font-mono focus:outline-none focus:border-emerald-500"
                       />
                     </div>
@@ -811,6 +813,7 @@ function Assets() {
                         min="0"
                         value={usedCount}
                         onChange={(e) => handleBreakdownChange('used', e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
                         className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-center font-bold font-mono focus:outline-none focus:border-amber-500"
                       />
                     </div>
@@ -821,6 +824,7 @@ function Assets() {
                         min="0"
                         value={damagedCount}
                         onChange={(e) => handleBreakdownChange('damaged', e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
                         className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-center font-bold font-mono focus:outline-none focus:border-rose-500"
                       />
                     </div>

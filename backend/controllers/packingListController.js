@@ -111,15 +111,20 @@ export const getPackingLists = async (req, res) => {
   }
 };
 
-// @desc    Cancel/Delete Packing List and RESTORE Stocks
+// @desc    Cancel/Void Packing List and RESTORE Stocks
 // @route   DELETE /api/packing-lists/:id
 export const cancelPackingList = async (req, res) => {
   try {
     const { id } = req.params;
+    const { voidReason, voidedBy } = req.body || {};
 
     const slip = await PackingList.findById(id);
     if (!slip) {
       return res.status(404).json({ message: "Packing list record not found." });
+    }
+
+    if (slip.isVoided) {
+      return res.status(400).json({ message: "This transaction log is already voided." });
     }
 
     // MAGSAULI NG STOCK sa Raw Materials
@@ -136,9 +141,13 @@ export const cancelPackingList = async (req, res) => {
       );
     }
 
-    await PackingList.findByIdAndDelete(id);
+    slip.isVoided = true;
+    slip.voidReason = voidReason || "Erroneous transaction entry voided by user";
+    slip.voidedAt = new Date();
+    slip.voidedBy = voidedBy || slip.preparedBy || "System User";
+    await slip.save();
 
-    res.status(200).json({ message: "Transaction cancelled successfully. Inventory stock has been restored." });
+    res.status(200).json({ message: "Transaction voided successfully. Inventory stock restored and recorded in Discrepancy Audit.", slip });
   } catch (err) {
     res.status(500).json({ 
       message: "Failed to process cancellation diagnostics.", 

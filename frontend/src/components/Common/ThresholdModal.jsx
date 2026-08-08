@@ -95,6 +95,7 @@ function ThresholdModal({ isOpen, onClose, categoryType, onSaveSuccess }) {
                                 type="number" 
                                 value={thresholds.critical} 
                                 onChange={(e) => setThresholds({ ...thresholds, critical: Math.max(0, parseInt(e.target.value) || 0) })} 
+                                onWheel={(e) => e.currentTarget.blur()}
                                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 font-semibold" 
                             />
                         </div>
@@ -106,6 +107,7 @@ function ThresholdModal({ isOpen, onClose, categoryType, onSaveSuccess }) {
                                 type="number" 
                                 value={thresholds.reorder} 
                                 onChange={(e) => setThresholds({ ...thresholds, reorder: Math.max(0, parseInt(e.target.value) || 0) })} 
+                                onWheel={(e) => e.currentTarget.blur()}
                                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 font-semibold" 
                             />
                         </div>
@@ -125,6 +127,7 @@ function ThresholdModal({ isOpen, onClose, categoryType, onSaveSuccess }) {
                                 type="number" 
                                 value={thresholds.overstock} 
                                 onChange={(e) => setThresholds({ ...thresholds, overstock: Math.max(0, parseInt(e.target.value) || 0) })} 
+                                onWheel={(e) => e.currentTarget.blur()}
                                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] text-slate-700 font-semibold" 
                             />
                         </div>

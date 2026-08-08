@@ -380,7 +380,7 @@ function SuppliesMovements() {
     rec.slipNo?.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
     rec.partyName?.toLowerCase().includes(historySearchQuery.toLowerCase())
   );
-  const displayedHistoryLogs = historySearchQuery ? filteredHistoryLogs : filteredHistoryLogs.slice(0, 4);
+  const displayedHistoryLogs = filteredHistoryLogs.slice(0, 50);
 
   return (
     <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased text-slate-600">
@@ -402,7 +402,7 @@ function SuppliesMovements() {
       {activeBorrows.length > 0 && (
         <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 flex flex-col gap-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#18174e] uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#18174e] uppercase">
               <Eye className="w-3.5 h-3.5 text-[#18174e]" />
               <span>Quick-Assistant: Select a borrow/reserved record to fulfill transaction</span>
             </div>
@@ -577,7 +577,7 @@ function SuppliesMovements() {
                             <span className="text-xs font-medium text-slate-400 lowercase italic truncate">{item.UOM || 'pcs'}</span>
                           </div>
 
-                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider flex-shrink-0">
+                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase flex-shrink-0">
                             <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
                               Good: {item.ConditionBreakdown?.Good ?? item.ActualCount ?? 0}
                             </span>
@@ -609,7 +609,7 @@ function SuppliesMovements() {
 
             {/* MANIFEST GRID TABLE */}
 <div className="flex flex-col gap-2">
-  <span className="text-[10px] sm:text-xs font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded w-fit uppercase tracking-wider">
+  <span className="text-[10px] sm:text-xs font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded w-fit uppercase">
     Quantities will be automatically (deducted / added)
   </span>
   <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
@@ -747,7 +747,7 @@ function SuppliesMovements() {
 </div>
 
             {/* SUBMIT BUTTON */}
-            <button type="submit" className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase tracking-wider shadow-sm">
+            <button type="submit" className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase shadow-sm">
               Save Supplies Activity
             </button>
           </form>
@@ -772,7 +772,7 @@ function SuppliesMovements() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 overflow-hidden">
+          <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[420px] pr-1 custom-scrollbar">
             {displayedHistoryLogs.length > 0 ? (
               displayedHistoryLogs.map((rec) => (
                 <div

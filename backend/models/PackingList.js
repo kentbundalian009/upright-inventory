@@ -67,6 +67,23 @@ const packingListSchema = new mongoose.Schema(
         },
       },
     ],
+    isVoided: {
+      type: Boolean,
+      default: false,
+    },
+    voidReason: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    voidedAt: {
+      type: Date,
+    },
+    voidedBy: {
+      type: String,
+      trim: true,
+      default: "",
+    },
   },
   {
     timestamps: true,

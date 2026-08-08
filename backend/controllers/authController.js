@@ -130,7 +130,7 @@ export const loginUser = async (req, res) => {
 
     res.status(200).json({
       message: "Login successful!", token,
-      user: { id: user._id, EmpNo: user.EmpNo, Username: user.Username, Fullname: user.Fullname, Email: user.Email, SystemRole: user.SystemRole }
+      user: { id: user._id, EmpNo: user.EmpNo, Username: user.Username, Fullname: user.Fullname, Email: user.Email, SystemRole: user.SystemRole, ProfileImage: user.ProfileImage }
     });
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });

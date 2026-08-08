@@ -86,6 +86,12 @@ function RawMaterials() {
         setTimeout(() => setSuccessMessage(null), 4000);
     };
 
+    const triggerError = (message) => {
+        setErrorMessage(message);
+        setSuccessMessage(null);
+        setTimeout(() => setErrorMessage(null), 4000);
+    };
+
     // 2. READ & FETCH SCHEMAS MULA SA SERVER (API CALLS)
     const fetchPaletteSettings = async () => {
         try {
@@ -229,7 +235,8 @@ function RawMaterials() {
             triggerSuccess("Successfully updated raw material profile details.");
             fetchRawMaterials();
         } catch (err) {
-            setErrorMessage(err.response?.data?.message || "Error updating item.");
+            const errMsg = err.response?.data?.message || "Error updating item.";
+            triggerError(errMsg);
         }
     };
 
@@ -684,12 +691,14 @@ function RawMaterials() {
 
                                 {/* Material Code (Full-width) */}
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Material Code</label>
+                                    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Material Code *</label>
                                     <input
                                         type="text"
-                                        disabled
-                                        className="w-full bg-slate-100 text-slate-500 border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-not-allowed font-mono focus:outline-none"
+                                        required
                                         value={materialCode}
+                                        onChange={(e) => setMaterialCode(e.target.value)}
+                                        placeholder="Enter Material Code (e.g. RCK-USSP00112)"
+                                        className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-[#18174e]"
                                     />
                                 </div>
 

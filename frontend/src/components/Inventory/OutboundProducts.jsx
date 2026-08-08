@@ -27,6 +27,7 @@ function OutboundProducts() {
   // Mga bagong states para sa Custom Void Modal
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [passkeyInput, setPasskeyInput] = useState('');
+  const [voidReasonInput, setVoidReasonInput] = useState('');
 
   // Packing List Form States
   const [transactionType, setTransactionType] = useState('Reserve');
@@ -376,7 +377,12 @@ function OutboundProducts() {
     }
 
     try {
-      const res = await axios.delete(`${PL_URL}/${selectedSlip._id}`);
+      const res = await axios.delete(`${PL_URL}/${selectedSlip._id}`, {
+        data: {
+          voidReason: voidReasonInput.trim() || "Erroneous transaction entry voided by user",
+          voidedBy: preparedBy || "System User"
+        }
+      });
       if (res.status === 200) {
         showSuccessToast(`Log Entry ${selectedSlip.plNo} successfully voided.`);
         setIsVoidModalOpen(false);
@@ -400,6 +406,7 @@ function OutboundProducts() {
     .map(r => r.referencePlNo.toString().replace("REF: ", "").trim().toLowerCase());
 
   const activeReserves = plRecords.filter(r =>
+    !r.isVoided &&
     r.transactionType?.toLowerCase() === "reserve" &&
     !completedPlNumbers.includes(r.plNo?.toString().trim().toLowerCase())
   );
@@ -409,7 +416,7 @@ function OutboundProducts() {
     rec.customer?.toLowerCase().includes(historySearchQuery.toLowerCase())
   );
 
-  const displayedHistoryLogs = historySearchQuery ? filteredHistoryLogs : filteredHistoryLogs.slice(0, 4);
+  const displayedHistoryLogs = filteredHistoryLogs.slice(0, 50);
 
   return (
     <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased text-slate-600">
@@ -430,7 +437,7 @@ function OutboundProducts() {
       {activeReserves.length > 0 && (
         <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 flex flex-col gap-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#18174e] uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#18174e] uppercase">
               <Eye className="w-3.5 h-3.5 text-[#18174e]" />
               <span>Quick-Assistant: Select a packed rack below to fulfill transaction</span>
             </div>
@@ -621,7 +628,7 @@ function OutboundProducts() {
                             <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
                             <span className="text-xs font-medium text-slate-400 lowercase italic truncate">{item.UOM || 'pcs'}</span>
                           </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200 flex-shrink-0">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 flex-shrink-0">
                             Avail: {item.ActualCount || 0}
                           </span>
                         </div>
@@ -646,7 +653,7 @@ function OutboundProducts() {
 
             {/* TABLE SECTION */}
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] sm:text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">
+              <span className="text-[10px] sm:text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase">
                 Quantities will be automatically deducted
               </span>
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
@@ -675,6 +682,7 @@ function OutboundProducts() {
                               type="number" 
                               value={item.qtyRequested} 
                               onChange={e => handleUpdateField(index, 'qtyRequested', Number(e.target.value))} 
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                               min="1" 
                               required 
@@ -688,6 +696,7 @@ function OutboundProducts() {
                               type="number" 
                               value={item.actualCountShipped} 
                               onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))} 
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                               min="1" 
                               required 
@@ -736,59 +745,58 @@ function OutboundProducts() {
               </div>
             </div>
 
-            <button type="submit" className="w-full bg-red-800 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase tracking-wider shadow-sm">
+            <button type="submit" className="w-full bg-red-800 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase shadow-sm">
               Save Packaging List
             </button>
           </form>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col gap-3 shadow-sm h-auto min-h-[400px]">
-          <div className="flex flex-col gap-1 border-b border-slate-100 pb-2">
-            <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
-              <ClipboardList className="w-4 h-4 text-[#18174e]" />
-              <span>History Logs</span>
-            </div>
-            <div className="relative mt-1">
-              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-              <input
-                type="text"
-                value={historySearchQuery}
-                onChange={e => setHistorySearchQuery(e.target.value)}
-                placeholder="Search slip or customer..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none"
-              />
-            </div>
-          </div>
+  {/* Header & Search Bar */}
+  <div className="flex flex-col gap-1 border-b border-slate-100 pb-2">
+    <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
+      <ClipboardList className="w-4 h-4 text-[#18174e]" />
+      <span>History Logs</span>
+    </div>
+    <div className="relative mt-1">
+      <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
+      <input
+        type="text"
+        value={historySearchQuery}
+        onChange={e => setHistorySearchQuery(e.target.value)}
+        placeholder="Search slip or customer..."
+        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none"
+      />
+    </div>
+  </div>
 
-          <div className="flex flex-col gap-1.5 overflow-hidden">
-            {displayedHistoryLogs.length > 0 ? (
-              displayedHistoryLogs.map((rec) => (
-                <div
-                  key={rec._id}
-                  onClick={() => { setSelectedSlip(rec); setIsModalOpen(true); }}
-                  className="bg-white border border-slate-100 rounded-xl p-2.5 flex flex-col gap-0.5 hover:border-[#18174e]/50 transition-all cursor-pointer hover:shadow-md group"
-                >
-                  <div className="flex justify-between items-center pb-0.5 border-b border-slate-50">
-                    <span className="text-xs font-black text-[#18174e] group-hover:text-emerald-600">{rec.plNo}</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${rec.transactionType?.toLowerCase() === 'reserve' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                      {rec.transactionType}
-                    </span>
-                  </div>
-                  <span className="text-xs font-bold text-slate-700 truncate">{rec.customer || 'N/A'}</span>
-                  <span className="text-[10px] font-semibold text-slate-400">{rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString() : 'No Date'}</span>
-                </div>
-              ))
-            ) : (
-              <span className="text-center pt-4 text-red-600 italic font-bold text-xs">No matching records found.</span>
-            )}
+  {/* Scrollable List Container */}
+  <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[420px] pr-1 custom-scrollbar">
+    {displayedHistoryLogs.length > 0 ? (
+      displayedHistoryLogs.map((rec) => (
+        <div
+          key={rec._id}
+          onClick={() => { setSelectedSlip(rec); setIsModalOpen(true); }}
+          className="bg-white border border-slate-100 rounded-xl p-2.5 flex flex-col gap-0.5 hover:border-[#18174e]/50 transition-all cursor-pointer hover:shadow-md group"
+        >
+          <div className="flex justify-between items-center pb-0.5 border-b border-slate-50">
+            <span className="text-xs font-black text-[#18174e] group-hover:text-emerald-600 flex items-center gap-1">
+              {rec.plNo}
+              {rec.isVoided && <span className="text-[8px] bg-rose-100 text-rose-700 px-1 py-0.5 rounded font-black uppercase">VOIDED</span>}
+            </span>
+            <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${rec.isVoided ? 'bg-slate-100 text-slate-500 line-through' : rec.transactionType?.toLowerCase() === 'reserve' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+              {rec.transactionType}
+            </span>
           </div>
-
-          {!historySearchQuery && plRecords.length > 4 && (
-            <div className="text-[10px] text-center font-semibold text-slate-400 mt-auto pt-2 border-t border-slate-50">
-              Showing latest 4 entries. Use search to view more records.
-            </div>
-          )}
+          <span className="text-xs font-bold text-slate-700 truncate">{rec.customer || 'N/A'}</span>
+          <span className="text-[10px] font-semibold text-slate-400">{rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString() : 'No Date'}</span>
         </div>
+      ))
+    ) : (
+      <span className="text-center pt-4 text-red-600 italic font-bold text-xs">No matching records found.</span>
+    )}
+  </div>
+</div>
       </div>
 
       {/* CUSTOM VOID TRANSACTION CONFIRMATION MODAL */}
@@ -818,6 +826,19 @@ function OutboundProducts() {
                   This action is <span className="font-bold text-amber-800">irreversible</span> and will remove the log from the system.
                   Please ensure you have the proper authorization to proceed with this operation.
                 </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  Reason for Cancellation / Discrepancy Note (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={voidReasonInput}
+                  onChange={e => setVoidReasonInput(e.target.value)}
+                  placeholder="e.g., Wrong item quantity or customer mistake"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#18174e] text-slate-700 placeholder-slate-400"
+                />
               </div>
 
               {selectedSlip.transactionType?.toLowerCase() === 'outbound' && (

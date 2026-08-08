@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
-    Layers, ShoppingCart,
+    Layers, ShoppingCart, ShieldAlert,
     Search, Download, Loader2, Filter
 } from 'lucide-react';
 import PageHeader from '../Common/PageHeader';
@@ -48,6 +48,7 @@ function Reports() {
     const reportModules = [
         { id: 'raw-materials', label: 'Rackings', icon: Layers },
         { id: 'supplies', label: 'Supplies', icon: ShoppingCart },
+        { id: 'discrepancy', label: 'Discrepancy & Voided Logs', icon: ShieldAlert },
     ];
 
     // 🔒 HELPER: Kinukuha ang Token mula sa localStorage para makalusot sa protectRoute
@@ -163,7 +164,7 @@ wipConversions.forEach(wip => {
             const qty = matchedConsumed.qtyUsed || 0;
             if (qty > 0) {
                 outflows.push({
-                    type: 'WIP',
+                    type: 'WIP_OUT',
                     qty: qty,
                     label: wip.conversionNo ? `WIP Cut: ${wip.conversionNo}` : `WIP Deduct`,
                     date: formatDate(txDate)
@@ -211,8 +212,8 @@ wipConversions.forEach(wip => {
     }
 });
 
-                // C. Trace Packing Lists (Outbound / Reserve Deliveries)
-                packingLists.forEach(pl => {
+                // C. Trace Packing Lists (Outbound / Reserve Deliveries) - Exclude Voided Logs
+                packingLists.filter(pl => !pl.isVoided).forEach(pl => {
                     const txDate = pl.shipmentDate || pl.createdAt;
                     if (matchDate(txDate)) {
                         const matchedPLItem = pl.items?.find(it =>
@@ -231,14 +232,14 @@ wipConversions.forEach(wip => {
                                     outflows.push({
                                         type: 'OUT',
                                         qty: qty,
-                                        label: `${pl.plNo || 'PL'} - ${pl.customer || 'Outbound'}`,
+                                        label: pl.customer || 'Outbound',
                                         date: formatDate(txDate)
                                     });
                                 } else if (pl.transactionType === "Reserve") {
                                     outflows.push({
                                         type: 'RESERVE',
                                         qty: qty,
-                                        label: `${pl.plNo || 'RES'} - ${pl.customer || 'Reserved'}`,
+                                        label: pl.customer || 'Reserved',
                                         date: formatDate(txDate)
                                     });
                                 }
@@ -363,9 +364,123 @@ wipConversions.forEach(wip => {
         return masterList;
     };
 
+    const getDiscrepancyLogs = () => {
+        let logs = packingLists.filter(pl => pl.isVoided).map(pl => ({
+            _id: pl._id,
+            slipNo: pl.plNo,
+            transactionType: pl.transactionType,
+            customer: pl.customer || 'N/A',
+            voidedAt: pl.voidedAt ? new Date(pl.voidedAt).toLocaleDateString() + ' ' + new Date(pl.voidedAt).toLocaleTimeString() : (pl.updatedAt ? new Date(pl.updatedAt).toLocaleDateString() : 'N/A'),
+            voidedBy: pl.voidedBy || pl.preparedBy || 'System User',
+            voidReason: pl.voidReason || 'Erroneous transaction entry voided by user',
+            itemsRestored: pl.items?.map(i => `${i.materialId?.Code || 'Item'} (${pl.transactionType === "Outbound" ? i.actualCountShipped : i.qtyRequested} ${i.materialId?.UOM || 'PCS'})`).join(', ') || 'N/A'
+        }));
+
+        if (globalSearch.trim()) {
+            const q = globalSearch.toLowerCase();
+            logs = logs.filter(l =>
+                l.slipNo.toLowerCase().includes(q) ||
+                l.customer.toLowerCase().includes(q) ||
+                l.voidReason.toLowerCase().includes(q) ||
+                l.voidedBy.toLowerCase().includes(q)
+            );
+        }
+        return logs;
+    };
+
     const consolidatedData = getConsolidatedSummary();
 
     const handleDownloadPDF = () => {
+        if (activeModule === 'discrepancy') {
+            const logs = getDiscrepancyLogs();
+            if (!logs || logs.length === 0) {
+                alert("No discrepancy or voided logs available to export.");
+                return;
+            }
+            try {
+                const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                const pageWidth = 297;
+                const pageHeight = 210;
+                const centerX = pageWidth / 2;
+                const centerY = pageHeight / 2;
+
+                doc.setTextColor(40, 40, 40);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(10);
+
+                doc.text("Report Module:", 14, 42);
+                doc.setFont("helvetica", "normal");
+                doc.text("Discrepancy & Voided Audit Log", 45, 42);
+
+                doc.setFont("helvetica", "bold");
+                doc.text("Date Generated:", 185, 42);
+                doc.setFont("helvetica", "normal");
+                doc.text(`${new Date().toLocaleDateString()}`, 220, 42);
+
+                doc.setFont("helvetica", "bold");
+                doc.text("Security Class:", 14, 49);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(225, 29, 72);
+                doc.text("Internal Audit Discrepancy Registry", 45, 49);
+
+                const columns = ["Slip No", "Type", "Customer / Recipient", "Date Voided", "Voided By", "Discrepancy / Void Reason", "Restored Items & Quantities"];
+                const rows = logs.map(l => [
+                    l.slipNo,
+                    l.transactionType,
+                    l.customer,
+                    l.voidedAt,
+                    l.voidedBy,
+                    l.voidReason,
+                    l.itemsRestored
+                ]);
+
+                autoTable(doc, {
+                    startY: 58,
+                    margin: { top: 38 },
+                    head: [columns],
+                    body: rows,
+                    theme: 'grid',
+                    didDrawPage: (data) => {
+                        try {
+                            doc.saveGraphicsState();
+                            doc.setGState(new doc.GState({ opacity: 0.05 }));
+                            doc.addImage('/cropped_circle_image.png', 'PNG', centerX - 37.5, centerY - 37.5, 75, 75);
+                            doc.restoreGraphicsState();
+                        } catch (e) {}
+
+                        doc.setFillColor(225, 29, 72);
+                        doc.rect(0, 0, pageWidth, 28, 'F');
+
+                        doc.setTextColor(255, 255, 255);
+                        doc.setFont("helvetica", "bold");
+                        doc.setFontSize(14);
+                        doc.text("DISCREPANCY & VOIDED TRANSACTION LOGS AUDIT REPORT", centerX, 13, { align: 'center' });
+
+                        doc.setFontSize(8.5);
+                        doc.setFont("helvetica", "normal");
+                        doc.setTextColor(255, 235, 235);
+                        doc.text("System Error Corrective Action Audit Trail Registry", centerX, 20, { align: 'center' });
+
+                        doc.setFont("helvetica", "normal");
+                        doc.setFontSize(8);
+                        doc.setTextColor(120, 120, 120);
+                        doc.text("CONFIDENTIAL AUDIT LEDGER - INTERNAL USE ONLY", 14, pageHeight - 10);
+
+                        const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
+                        doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
+                    },
+                    headStyles: { fillColor: [225, 29, 72], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+                    bodyStyles: { fontSize: 8, textColor: [60, 60, 60] }
+                });
+
+                doc.save(`DISCREPANCY_VOIDED_LOGS_REPORT_${new Date().toISOString().split('T')[0]}.pdf`);
+            } catch (e) {
+                console.error(e);
+                alert("Failed to export Discrepancy PDF Report.");
+            }
+            return;
+        }
+
         if (!consolidatedData || consolidatedData.length === 0) {
             alert("No data available to export for the selected filters.");
             return;
@@ -423,11 +538,11 @@ const rows = consolidatedData.map(item => [
     item.UOM || '—',
     // Inflows - Tinanggal ang .slice(0, 8) at ang "...and more logs" condition
     item.inflows && item.inflows.length > 0
-        ? item.inflows.map(inf => `${inf.type || ''} | Qty: ${inf.qty || 0} | ${inf.label || ''} | ${inf.date || ''}`).join('\n')
+        ? item.inflows.map(inf => `${inf.type === 'WIP_IN' ? 'WIP-IN' : inf.type === 'WIP_RET' ? 'WIP-RET' : 'IN'} | Qty: ${inf.qty || 0} | ${inf.label || ''} | ${inf.date || ''}`).join('\n')
         : 'No logs recorded',
     // Outflows - Tinanggal ang .slice(0, 8) at ang "...and more logs" condition
     item.outflows && item.outflows.length > 0
-        ? item.outflows.map(out => `${out.type || ''} | Qty: ${out.qty || 0} | ${out.label || ''} | ${out.date || ''}`).join('\n')
+        ? item.outflows.map(out => `${(out.type === 'WIP_OUT' || out.type === 'WIP') ? 'WIP-OUT' : out.type || 'OUT'} | Qty: ${out.qty || 0} | ${out.label || ''} | ${out.date || ''}`).join('\n')
         : 'No logs recorded'
 ]);
 
@@ -487,19 +602,29 @@ const rows = consolidatedData.map(item => [
 
                             if (isNaN(data.cell.x) || isNaN(lineYStart) || isNaN(safeYEnd)) return;
 
-                            doc.setLineWidth(1.2);
                             const cleanLine = line.trim();
 
-                            // PDF Marker Colors aligning with requirements
-                            if (/^RESERVE\b|^WIP\b/i.test(cleanLine)) {
-                                doc.setDrawColor(245, 158, 11); // Yellow for WIP and Reserve
-                                doc.line(data.cell.x, lineYStart, data.cell.x, safeYEnd);
-                            } else if (/^IN\b|^WIP_RET\b/i.test(cleanLine)) {
-                                doc.setDrawColor(16, 185, 129); // Green for IN & WIP Return
-                                doc.line(data.cell.x, lineYStart, data.cell.x, safeYEnd);
+                            // PDF Marker Colors aligning with requirements:
+                            if (/^WIP-IN\b|^WIP_IN\b|^WIP_RET\b/i.test(cleanLine)) {
+                                doc.setLineWidth(1.8);
+                                doc.setDrawColor(217, 119, 6); // Yellow/Amber for WIP-IN
+                                doc.line(data.cell.x + 0.5, lineYStart, data.cell.x + 0.5, safeYEnd);
+                            } else if (/^WIP-OUT\b|^WIP_OUT\b|^WIP\b/i.test(cleanLine)) {
+                                doc.setLineWidth(1.8);
+                                doc.setDrawColor(249, 115, 22); // Orange for WIP-OUT
+                                doc.line(data.cell.x + 0.5, lineYStart, data.cell.x + 0.5, safeYEnd);
+                            } else if (/^IN\b/i.test(cleanLine)) {
+                                doc.setLineWidth(1.8);
+                                doc.setDrawColor(16, 185, 129); // Green for IN
+                                doc.line(data.cell.x + 0.5, lineYStart, data.cell.x + 0.5, safeYEnd);
+                            } else if (/^RESERVE\b/i.test(cleanLine)) {
+                                doc.setLineWidth(1.8);
+                                doc.setDrawColor(168, 85, 247); // Purple for RESERVE
+                                doc.line(data.cell.x + 0.5, lineYStart, data.cell.x + 0.5, safeYEnd);
                             } else if (/^OUT\b/i.test(cleanLine)) {
+                                doc.setLineWidth(1.8);
                                 doc.setDrawColor(239, 68, 68); // Red for OUT
-                                doc.line(data.cell.x, lineYStart, data.cell.x, safeYEnd);
+                                doc.line(data.cell.x + 0.5, lineYStart, data.cell.x + 0.5, safeYEnd);
                             }
                         });
                     }
@@ -655,6 +780,57 @@ const rows = consolidatedData.map(item => [
                                 <Loader2 className="w-10 h-10 animate-spin text-green-700" />
                                 <span className="text-center text-green-700 font-medium italic">Compiling system transaction schemas...</span>
                             </div>
+                        ) : activeModule === 'discrepancy' ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse text-sm">
+                                    <thead>
+                                        <tr className="text-white font-bold bg-rose-800 uppercase text-xs">
+                                            <th className="py-3 px-4 whitespace-nowrap">Slip No</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">Type</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">Customer / Party</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">Date Voided</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">Voided By</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">Discrepancy / Void Reason</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">Restored Items & Quantities</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-slate-100 text-slate-700">
+                                        {getDiscrepancyLogs().length > 0 ? (
+                                            getDiscrepancyLogs().map((log) => (
+                                                <tr key={log._id} className="hover:bg-rose-50/40 transition-colors">
+                                                    <td className="px-4 py-3.5 whitespace-nowrap text-xs font-bold text-rose-900 font-mono">
+                                                        {log.slipNo}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 whitespace-nowrap text-xs font-semibold text-slate-700">
+                                                        {log.transactionType}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-xs text-slate-600 font-medium">
+                                                        {log.customer}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 whitespace-nowrap text-xs font-mono text-slate-500">
+                                                        {log.voidedAt}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 whitespace-nowrap text-xs font-bold text-slate-700">
+                                                        {log.voidedBy}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-xs italic text-rose-700 font-medium max-w-[200px]">
+                                                        {log.voidReason}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-xs text-emerald-700 font-semibold max-w-[250px]">
+                                                        {log.itemsRestored}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="7" className="text-center p-8 text-slate-400 font-medium italic">
+                                                    No voided or discrepancy transaction logs recorded.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         ) : consolidatedData.length > 0 ? (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse text-sm">
@@ -703,15 +879,25 @@ const rows = consolidatedData.map(item => [
                                                 <td className="px-4 py-3.5 text-xs">
                                                     <div className="max-h-[100px] overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
                                                         {row.inflows && row.inflows.length > 0 ? (
-                                                            row.inflows.map((inf, idx) => (
-                                                                <div key={idx} className="flex items-center gap-1.5 bg-emerald-50/60 border border-emerald-100/70 text-emerald-800 px-2 py-1 rounded text-[10px] font-medium leading-tight">
-                                                                    <span className="font-bold text-emerald-700 font-mono">+{inf.qty}</span>
-                                                                    <span className="text-slate-400">|</span>
-                                                                    <span className="text-slate-600 truncate flex-1 max-w-[100px]">{inf.label}</span>
-                                                                    <span className="text-slate-400">|</span>
-                                                                    <span className="text-slate-500 font-mono">{inf.date}</span>
-                                                                </div>
-                                                            ))
+                                                            row.inflows.map((inf, idx) => {
+                                                                const isWip = inf.type === 'WIP_IN' || inf.type === 'WIP_RET';
+                                                                const typeTag = inf.type === 'WIP_IN' ? 'WIP-IN' : inf.type === 'WIP_RET' ? 'WIP-RET' : 'IN';
+                                                                return (
+                                                                    <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium leading-tight border ${
+                                                                        isWip
+                                                                            ? 'bg-amber-50 border-amber-200/80 text-amber-900'
+                                                                            : 'bg-emerald-50/60 border-emerald-100/70 text-emerald-800'
+                                                                    }`}>
+                                                                        <span className={`font-bold font-mono ${isWip ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                                                            {typeTag}: +{inf.qty}
+                                                                        </span>
+                                                                        <span className="text-slate-400">|</span>
+                                                                        <span className="text-slate-600 truncate flex-1 max-w-[100px]">{inf.label}</span>
+                                                                        <span className="text-slate-400">|</span>
+                                                                        <span className="text-slate-500 font-mono">{inf.date}</span>
+                                                                    </div>
+                                                                );
+                                                            })
                                                         ) : (
                                                             <span className="text-[10px] text-slate-400 italic px-1">No inflows</span>
                                                         )}
@@ -722,15 +908,28 @@ const rows = consolidatedData.map(item => [
                                                 <td className="px-4 py-3.5 text-xs">
                                                     <div className="max-h-[100px] overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
                                                         {row.outflows && row.outflows.length > 0 ? (
-                                                            row.outflows.map((out, idx) => (
-                                                                <div key={idx} className="flex items-center gap-1.5 bg-rose-50/60 border border-rose-100/70 text-rose-800 px-2 py-1 rounded text-[10px] font-medium leading-tight">
-                                                                    <span className="font-bold text-rose-700 font-mono">-{out.qty}</span>
-                                                                    <span className="text-slate-400">|</span>
-                                                                    <span className="text-slate-600 truncate flex-1 max-w-[100px]">{out.label}</span>
-                                                                    <span className="text-slate-400">|</span>
-                                                                    <span className="text-slate-500 font-mono">{out.date}</span>
-                                                                </div>
-                                                            ))
+                                                            row.outflows.map((out, idx) => {
+                                                                const isWip = out.type === 'WIP_OUT' || out.type === 'WIP';
+                                                                const isReserve = out.type === 'RESERVE';
+                                                                const typeTag = isWip ? 'WIP-OUT' : isReserve ? 'RESERVE' : 'OUT';
+                                                                return (
+                                                                    <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium leading-tight border ${
+                                                                        isWip
+                                                                            ? 'bg-orange-50 border-orange-200/80 text-orange-900'
+                                                                            : isReserve
+                                                                            ? 'bg-purple-50 border-purple-100/70 text-purple-800'
+                                                                            : 'bg-rose-50/60 border-rose-100/70 text-rose-800'
+                                                                    }`}>
+                                                                        <span className={`font-bold font-mono ${isWip ? 'text-orange-700' : isReserve ? 'text-purple-700' : 'text-rose-700'}`}>
+                                                                            {typeTag}: -{out.qty}
+                                                                        </span>
+                                                                        <span className="text-slate-400">|</span>
+                                                                        <span className="text-slate-600 truncate flex-1 max-w-[100px]">{out.label}</span>
+                                                                        <span className="text-slate-400">|</span>
+                                                                        <span className="text-slate-500 font-mono">{out.date}</span>
+                                                                    </div>
+                                                                );
+                                                            })
                                                         ) : (
                                                             <span className="text-[10px] text-slate-400 italic px-1">No outflows</span>
                                                         )}

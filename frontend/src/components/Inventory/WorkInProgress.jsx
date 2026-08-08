@@ -503,7 +503,7 @@ function WorkInProgress() {
                             <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
                             <span className="text-xs font-medium text-slate-400 lowercase italic truncate">{item.UOM || 'pcs'}</span>
                           </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200 flex-shrink-0">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 flex-shrink-0">
                             Avail: {item.ActualCount || 0}
                           </span>
                         </div>
@@ -527,7 +527,7 @@ function WorkInProgress() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] sm:text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase tracking-wider">
+              <span className="text-[10px] sm:text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase">
                 Quantities will be automatically deducted
               </span>
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
@@ -560,6 +560,7 @@ function WorkInProgress() {
                               min="1"
                               value={item.qtyUsed}
                               onChange={e => handleUpdateInputQty(index, e.target.value)}
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               required
                             />
@@ -647,7 +648,7 @@ function WorkInProgress() {
                             <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
                             <span className="text-xs font-medium text-slate-400 lowercase italic truncate">{item.UOM || 'pcs'}</span>
                           </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200 flex-shrink-0">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase bg-amber-100 text-amber-800 border border-amber-200 flex-shrink-0">
                             Raw Mat Return
                           </span>
                         </div>
@@ -672,7 +673,7 @@ function WorkInProgress() {
 
             {/* OUTPUT TABLE */}
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">
+              <span className="text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase">
                 Quantities will be automatically added
               </span>
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
@@ -704,6 +705,7 @@ function WorkInProgress() {
                               min="1"
                               value={item.qtyProduced}
                               onChange={e => handleUpdateOutputQty(index, e.target.value)}
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               required
                             />
@@ -770,7 +772,7 @@ function WorkInProgress() {
             </div>
 
             {/* SUBMIT BUTTON */}
-            <button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase tracking-wider">
+            <button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase font-semibold">
               Save WIP Conversion Activity
             </button>
           </form>
@@ -789,9 +791,9 @@ function WorkInProgress() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 overflow-hidden">
+          <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[420px] pr-1 custom-scrollbar">
             {filteredConversionRecords.length > 0 ? (
-              filteredConversionRecords.slice(0, 5).map((rec) => (
+              filteredConversionRecords.slice(0, 50).map((rec) => (
                 <div key={rec._id} onClick={() => { setSelectedConversion(rec); setIsModalOpen(true); }} className="bg-white border border-slate-100 rounded-xl p-2.5 flex flex-col gap-0.5 hover:border-[#18174e]/50 transition-all cursor-pointer hover:shadow-md group">
                   <div className="flex justify-between items-center pb-0.5 border-b border-slate-50">
                     <span className="text-xs font-black text-[#18174e] group-hover:text-emerald-600">{rec.conversionNo}</span>

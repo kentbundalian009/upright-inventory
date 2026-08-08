@@ -132,72 +132,74 @@ function Login() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#18174e] text-white px-6">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-[#0b0a26] via-[#18174e] to-[#242270] text-white px-6 relative overflow-hidden pb-12 select-none">
       
+      {/* Ambient background glow objects */}
+      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-[#ff6600]/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
+
       {/* BRAND LOGO SECTION */}
-      <div className="flex flex-col items-center text-center mb-8">
-        <div className="bg-white rounded-full p-2 flex items-center justify-center shadow-inner w-16 h-16">
-          <img
-            src="/cropped_circle_image.png"
-            alt="logo"
-            className="w-full h-full object-contain"
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
+      <div className="flex flex-col items-center text-center mb-8 relative z-10 animate-fade-in">
+        <div className="bg-white/10 backdrop-blur-md p-3 rounded-full border border-white/20 shadow-2xl mb-2">
+          <div className="bg-white rounded-full p-2 flex items-center justify-center shadow-inner w-16 h-16">
+            <img
+              src="/cropped_circle_image.png"
+              alt="logo"
+              className="w-full h-full object-contain"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          </div>
         </div>
-        <h1 className="font-black text-xl uppercase tracking-wider text-white mt-3">
+        <h1 className="font-black text-2xl uppercase text-white mt-3 drop-shadow-md">
           USSP INVENTORY
         </h1>
-        <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest opacity-80 mt-0.5">
-          Upright Storage Solutions
+        <h2 className="text-[11px] font-bold text-slate-300 uppercase opacity-90 mt-0.5">
+          Upright Storage Solutions PH
         </h2>
       </div>
 
-      <p className="text-sm font-medium text-slate-300 mb-6">
-        This is a restricted portal. 
-      </p>
-
       {/* LOGIN CARD */}
-      <div className="w-full max-w-sm bg-black/10 border border-white/5 rounded-2xl p-6 shadow-xl">
+      <div className="w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/15 rounded-3xl p-7 shadow-2xl relative z-10">
         
         {/* ERROR MESSAGE DISPLAY */}
         {error && (
-          <div className="mb-4 rounded-xl bg-red-500/20 border border-red-500/30 p-3 text-center text-xs font-semibold text-red-400">
+          <div className="mb-4 rounded-2xl bg-rose-500/20 border border-rose-500/40 p-3.5 text-center text-xs font-semibold text-rose-300 animate-in fade-in duration-200">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4 font-sans">
           
           {/* USERNAME INPUT */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">
               Username
             </label>
             <input
               type="text"
               required
-              disabled={lockoutTimeLeft > 0} // I-disable kapag naka-lockout
+              disabled={lockoutTimeLeft > 0}
               placeholder="Enter your username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-[#18174e] px-4 py-3 text-sm text-white placeholder-slate-500 transition-all focus:border-[#252375] focus:outline-none focus:ring-2 focus:ring-[#252375]/40 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder-slate-400 transition-all focus:border-[#ff6600] focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-[#ff6600]/30 disabled:opacity-40 disabled:cursor-not-allowed"
             />
           </div>
 
           {/* PASSWORD INPUT WITH HIDE/UNHIDE */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-[11px] font-bold uppercase text-slate-300 mb-1.5">
               Password
             </label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 required
-                disabled={lockoutTimeLeft > 0} // I-disable kapag naka-lockout
+                disabled={lockoutTimeLeft > 0}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-[#18174e] px-4 py-3 text-sm text-white placeholder-slate-500 transition-all focus:border-[#252375] focus:outline-none focus:ring-2 focus:ring-[#252375]/40 pr-12 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder-slate-400 transition-all focus:border-[#ff6600] focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-[#ff6600]/30 pr-12 disabled:opacity-40 disabled:cursor-not-allowed"
               />
               <button
                 type="button"
@@ -211,18 +213,23 @@ function Login() {
           </div>
 
           {/* BUTTON ACTIONS CONTAINER */}
-          <div className="flex flex-col gap-3 mt-4">
+          <div className="pt-2">
             <button
               type="submit"
-              disabled={loading || lockoutTimeLeft > 0} // I-disable ang button
-              className="group inline-flex items-center gap-2.5 rounded-xl bg-[#ff6600] py-3.5 px-8 text-sm font-bold text-white shadow-lg hover:bg-[#ff6600]/80 active:scale-[0.98] transition-all cursor-pointer w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading || lockoutTimeLeft > 0}
+              className="group inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#ff6600] to-[#ff8533] py-3.5 px-8 text-sm font-bold text-white shadow-lg hover:shadow-orange-500/25 active:scale-[0.98] transition-all cursor-pointer w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {lockoutTimeLeft > 0 
-                ? `Locked (${formatTime(lockoutTimeLeft)})` 
-                : loading 
-                  ? "Verifying..." 
-                  : "Sign In"
-              }
+              <span>
+                {lockoutTimeLeft > 0 
+                  ? `Locked (${formatTime(lockoutTimeLeft)})` 
+                  : loading 
+                    ? "Verifying Credentials..." 
+                    : "Sign In to Portal"
+                }
+              </span>
+              {!loading && lockoutTimeLeft <= 0 && (
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              )}
             </button>
           </div>
 
@@ -230,15 +237,14 @@ function Login() {
       </div>
 
       {/* SECURITY NOTICE FOOTER */}
-      <p className="mt-6 text-[12px] font-medium text-slate-500 text-center">
-        Authorized personnel only. Secure login protocols enforced.
+      <p className="mt-8 text-[12px] font-medium text-slate-400 text-center relative z-10">
+        Corporate Security Protocols Enforced • Encrypted Session
       </p>
 
-
       {/* SYSTEM COPYRIGHT FOOTER */}
-      <div className="absolute bottom-4 left-0 right-0 text-center px-4">
-        <p className="text-[10px] font-semibold text-slate-100 tracking-wide">
-          Copyright © 2026 Inventory System Upright Storage Solution PH. All Rights Reserved.
+      <div className="absolute bottom-4 left-0 right-0 text-center px-4 z-10">
+        <p className="text-[10px] font-semibold text-slate-400 tracking-wide">
+          Copyright © 2026 Upright Storage Solutions PH. All Rights Reserved.
         </p>
       </div>
 

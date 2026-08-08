@@ -614,7 +614,7 @@ function InboundRawMat() {
                             </span>
                           </div>
                           {/* Idinagdag na Avail Badge para sa natitirang stock */}
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
                             Avail: {item.ActualCount || item.actualCount || item.AvailableStock || 0}
                           </span>
                         </div>
@@ -653,7 +653,7 @@ function InboundRawMat() {
               )}
             </div>
             <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase tracking-wider">Quantities will be automatically added</span>
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase">Quantities will be automatically added</span>
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
   <thead>
@@ -687,6 +687,7 @@ function InboundRawMat() {
               min="1"
               value={item.qty}
               onChange={e => handleUpdateField(index, 'qty', e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
               className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-[#18174e] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </td>
@@ -703,6 +704,7 @@ function InboundRawMat() {
               min="0"
               value={item.actualCount}
               onChange={e => handleUpdateField(index, 'actualCount', e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
               className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </td>
@@ -782,9 +784,9 @@ function InboundRawMat() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 overflow-hidden">
+          <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[420px] pr-1 custom-scrollbar">
             {filteredPoRecords.length > 0 ? (
-              filteredPoRecords.slice(0, 4).map((rec) => (
+              filteredPoRecords.slice(0, 50).map((rec) => (
                 <div key={rec._id} onClick={() => { setSelectedPo(rec); setIsModalOpen(true); }} className="bg-white border border-slate-100 rounded-xl p-2.5 flex flex-col gap-0.5 hover:border-[#18174e]/50 transition-all cursor-pointer hover:shadow-md group">
                   <div className="flex justify-between items-center pb-0.5 border-b border-slate-50">
                     <span className="text-xs font-black text-[#18174e] group-hover:text-emerald-600">{rec.poNo}</span>

@@ -67,13 +67,13 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
 
     switch (currentSection) {
       case 'admin':
-        return <div className="text-[10px] font-bold text-[#ff6600] uppercase tracking-wider px-4 pt-2.5 pb-1">User Controls</div>;
+        return <div className="text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1">User Controls</div>;
       case 'rackings':
-        return <div className="text-[10px] font-bold text-[#ff6600] uppercase tracking-wider px-4 pt-2.5 pb-1 border-t border-white/5 mt-1.5">Rackings Process</div>;
+        return <div className="text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t border-white/5 mt-1">Rackings Process</div>;
       case 'supplies':
-        return <div className="text-[10px] font-bold text-[#ff6600] uppercase tracking-wider px-4 pt-2.5 pb-1 border-t border-white/5 mt-1.5">Supplies Process</div>;
+        return <div className="text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t border-white/5 mt-1">Supplies Process</div>;
       case 'others':
-        return <div className="text-[10px] font-bold text-[#ff6600] uppercase tracking-wider px-4 pt-2.5 pb-1 border-t border-white/5 mt-1.5">Assets Management</div>;
+        return <div className="text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t border-white/5 mt-1">Assets Management</div>;
       default:
         return null;
     }
@@ -101,29 +101,29 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
 
       {/* 3. MAIN SIDEBAR */}
       <aside className={`
-        fixed top-0 bottom-0 left-0 z-40 md:sticky min-h-screen
-        bg-[#18174e] border-r border-white/10 text-white flex flex-col gap-3 
-        transition-all duration-300 shadow-2xl md:shadow-none
+        fixed top-0 bottom-0 left-0 z-40 md:sticky h-screen max-h-screen
+        bg-gradient-to-b from-[#18174e] via-[#1b1a56] to-[#12113d] border-r border-white/10 text-white flex flex-col
+        transition-all duration-300 shadow-2xl md:shadow-none relative
         
         ${isMobileOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full md:translate-x-0'}
         ${isCollapsed ? 'md:w-20' : 'md:w-64'}
       `}>
 
-        {/* DESKTOP TOGGLE BUTTON */}
+        {/* DESKTOP TOGGLE BUTTON (Naka-position sa ibabaw ng border nang walang crop) */}
         <div className="absolute -right-3.5 top-6 z-50 hidden md:block">
           <button
             onClick={handleDesktopCollapse}
-            className="w-7 h-7 bg-[#252375] text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 border border-white/10 cursor-pointer transition"
+            className="w-7 h-7 bg-[#ff6600] text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 border border-white/20 cursor-pointer transition-transform"
           >
             {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
         </div>
 
         {/* INNER CONTAINER */}
-        <div className="flex flex-col overflow-hidden mt-14 md:mt-0 h-full">
+        <div className="flex flex-col overflow-hidden mt-12 md:mt-0 h-full">
           {/* LOGO SECTION */}
-          <div className="py-3 px-4 flex flex-col items-center border-b border-white/10">
-            <div className={`transition-all duration-300 bg-white rounded-full p-2 flex items-center justify-center shadow-inner ${isCollapsed ? "md:w-9 md:h-9 w-14 h-14" : "w-14 h-14"}`}>
+          <div className="py-3 px-4 flex flex-col items-center border-b border-white/10 bg-white/5 backdrop-blur-sm shrink-0">
+            <div className={`transition-all duration-300 bg-white rounded-full p-2 flex items-center justify-center shadow-md ${isCollapsed ? "md:w-9 md:h-9 w-12 h-12" : "w-12 h-12"}`}>
               <img
                 src="/upright.png"
                 alt="logo"
@@ -133,16 +133,16 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
             </div>
 
             <div className={`text-center mt-1.5 ${isCollapsed ? 'md:hidden block' : 'block'}`}>
-              <h1 className="font-black text-base uppercase text-white">USSP INVENTORY</h1>
-              <p className="text-[9px] font-bold text-slate-400 uppercase opacity-80">Upright Storage Solutions</p>
-              <span className="inline-block text-[9px] bg-[#252375] text-[#ff6600] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border border-white/5 mt-1">
+              <h1 className="font-black text-sm uppercase text-white tracking-wide leading-tight">USSP INVENTORY</h1>
+              <p className="text-[9px] font-bold text-slate-400 uppercase opacity-90 leading-tight">Upright Storage Solutions</p>
+              <span className="inline-block text-[9px] bg-[#ff6600]/20 text-[#ff8533] px-2.5 py-0.5 rounded-full font-bold uppercase border border-[#ff6600]/30 mt-1">
                 {userRole}
               </span>
             </div>
           </div>
 
           {/* NAVIGATION LINKS */}
-          <nav className="overflow-y-auto py-2.5 space-y-1 px-3 custom-scrollbar flex-1">
+          <nav className="overflow-y-auto py-2 space-y-1 px-3 custom-scrollbar flex-1">
             {allowedMenuItems.map((item, index) => {
               const IconComponent = item.icon;
               const isActive = activeTab === item.id;
@@ -157,15 +157,17 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
                       setIsMobileOpen(false);
                     }}
                     title={isCollapsed ? item.name : ''}
-                    className={`w-full flex items-center gap-3 px-4 py-1.5 rounded-xl text-[13px] font-semibold transition-all relative cursor-pointer ${isCollapsed ? 'md:justify-center' : ''} ${
+                    className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all relative cursor-pointer group ${isCollapsed ? 'md:justify-center' : ''} ${
                       isActive
-                        ? 'bg-[#252375] text-white font-bold shadow-md'
-                        : 'text-slate-300 hover:bg-[#252375]/50 hover:text-white'
+                        ? 'bg-[#28267a] text-white font-bold shadow-sm border border-white/10'
+                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
                     }`}
                   >
-                    <IconComponent size={18} className="flex-shrink-0" />
+                    {isActive && (
+                      <div className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#ff6600] rounded-r-full shadow-sm" />
+                    )}
+                    <IconComponent size={17} className={`flex-shrink-0 transition-transform ${isActive ? 'text-[#ff8533] scale-105' : 'group-hover:scale-105'}`} />
                     <span className={`truncate ${isCollapsed ? 'md:hidden block' : 'block'}`}>{item.name}</span>
-                    {isActive && <div className={`absolute right-0 w-1 h-1/2 bg-white rounded-l-full ${isCollapsed ? 'md:hidden block' : 'block'}`} />}
                   </button>
                 </React.Fragment>
               );

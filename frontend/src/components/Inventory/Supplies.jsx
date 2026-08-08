@@ -232,7 +232,7 @@ function Supplies() {
       setIsModalOpen(false);
       fetchSuppliesAndPalette();
     } catch (err) {
-      alert(err.response?.data?.message || "Nagka-error sa pag-save ng item.");
+      showToast(err.response?.data?.message || "Nagka-error sa pag-save ng item.", true);
     }
   };
 
@@ -543,12 +543,13 @@ function Supplies() {
 
   {/* Supply Code */}
   <div className="md:col-span-2">
-    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Supply Code</label>
+    <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Supply Code *</label>
     <input
       type="text"
-      disabled
+      required
       value={supplyCode}
-      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-500 cursor-not-allowed font-mono"
+      onChange={(e) => setSupplyCode(e.target.value)}
+      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-mono focus:outline-none focus:border-[#18174e]"
     />
   </div>
 

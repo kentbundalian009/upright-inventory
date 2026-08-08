@@ -37,6 +37,11 @@ export const createUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(Password, salt);
 
+    let finalImagePath = "";
+    if (req.file) {
+      finalImagePath = `/${req.file.path.replace(/\\/g, "/")}`;
+    }
+
     const newUser = await User.create({
       EmpNo: normalizedEmpNo,
       Username: normalizedUsername,
@@ -44,6 +49,7 @@ export const createUser = async (req, res) => {
       Email: normalizedEmail,
       Password: hashedPassword,
       SystemRole: SystemRole || 'Inventory',
+      ProfileImage: finalImagePath,
       isArchived: false
     });
 
@@ -83,15 +89,25 @@ export const updateUser = async (req, res) => {
       }
     }
 
+    let finalImagePath = undefined;
+    if (req.file) {
+      finalImagePath = `/${req.file.path.replace(/\\/g, "/")}`;
+    }
+
+    const updateFields = { 
+      EmpNo: normalizedEmpNo, 
+      Username: normalizedUsername, 
+      Fullname: Fullname?.trim(), 
+      Email: normalizedEmail, 
+      SystemRole 
+    };
+    if (finalImagePath !== undefined) {
+      updateFields.ProfileImage = finalImagePath;
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       id,
-      { 
-        EmpNo: normalizedEmpNo, 
-        Username: normalizedUsername, 
-        Fullname: Fullname?.trim(), 
-        Email: normalizedEmail, 
-        SystemRole 
-      },
+      updateFields,
       { new: true, runValidators: true }
     ).select("-Password");
 

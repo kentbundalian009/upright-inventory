@@ -109,23 +109,51 @@ const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
     setIsConfirmModalOpen(true);
   };
 
+  // User profile details
+  const userRole = localStorage.getItem("SystemRole") || "Inventory";
+  const storedUserStr = localStorage.getItem("user");
+  const storedUser = storedUserStr ? JSON.parse(storedUserStr) : null;
+  const userName = storedUser?.FullName || storedUser?.Username || "System User";
+  const userInitial = userName.charAt(0).toUpperCase();
+
   return (
     <>
-      <header className="w-full h-14 bg-white flex justify-between items-center pl-14 sm:pl-6 px-4 sm:px-6 md:px-8 border-b border-slate-100 shadow-sm z-30 flex-shrink-0 select-none">      
+      <header className="w-full h-14 bg-white/90 backdrop-blur-md flex justify-between items-center pl-14 sm:pl-6 px-4 sm:px-6 md:px-8 border-b border-slate-200/80 shadow-sm z-30 flex-shrink-0 select-none">      
         
         {/* DATE AT TIME SECTION */}
-        <div className="text-[11px] sm:text-[13px] md:text-[14px] font-semibold text-slate-700 tracking-wide font-sans flex items-center gap-2">
-          {currentDateTime || "Wednesday, June 24, 2026 07:16 PM"}
+        <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200/70 px-3.5 py-1.5 rounded-full shadow-inner">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[11px] sm:text-[12px] font-semibold text-slate-700 font-mono tracking-tight">
+            {currentDateTime || "Wednesday, June 24, 2026 07:16 PM"}
+          </span>
         </div>
 
-        {/* LOGOUT BUTTON SECTION */}
-        <button
-          onClick={handleLogoutClick}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold text-red-600 hover:bg-red-100 transition-colors cursor-pointer border border-red-100"
-        >
-          <LogOut size={16} className="flex-shrink-0" />
-          <span className="hidden sm:inline">Logout</span>
-        </button>
+        {/* RIGHT SECTION: USER PROFILE & LOGOUT BUTTON */}
+        <div className="flex items-center gap-3">
+          {/* USER PROFILE BADGE */}
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-xl shadow-sm">
+            <div className="w-7 h-7 rounded-full bg-[#18174e] text-white flex items-center justify-center text-xs font-bold shrink-0">
+              {userInitial}
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[130px] sm:max-w-[180px]">
+                {userName}
+              </span>
+              <span className="text-[9px] font-bold text-[#ff6600] uppercase leading-tight">
+                {userRole}
+              </span>
+            </div>
+          </div>
+
+          {/* LOGOUT BUTTON SECTION */}
+          <button
+            onClick={handleLogoutClick}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50/80 hover:bg-rose-100/90 border border-rose-200/80 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+          >
+            <LogOut size={15} className="flex-shrink-0" />
+            <span className="hidden sm:inline">Logout</span>
+          </button>
+        </div>
       </header>
 
       {/* 🎉 SUCCESS NOTIFICATION TOAST */}
