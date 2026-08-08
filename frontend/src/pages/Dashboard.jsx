@@ -1,65 +1,55 @@
 import React, { useState } from 'react';
-// 🌟 INILAGAY DITO: I-import si axios para sa global header configuration
 import axios from 'axios'; 
-import Sidebar from "../components/Common/SIdebar"; 
-import Topbar from "../components/Common/Topbar";
+import Sidebar from "../components/Sidebar"; 
+import Topbar from "../components/Topbar";
 
 // Dashboard file imports
-import UserManagement from '../components/Admin/UserManagement';
-import UserActivity from '../components/Admin/UserActivity';
-import InventoryDashboard from '../components/Inventory/InventoryDashboard';
-import RawMaterials from '../components/Inventory/RawMaterials';
-import InboundRawMat from '../components/Inventory/InboundRawMat';
-import WorkInProgress from '../components/Inventory/WorkInProgress';
-import Products from '../components/Inventory/Products';
-import OutboundProducts from '../components/Inventory/OutboundProducts';
-import Supplies from '../components/Inventory/Supplies';
-import SuppliesMovements from '../components/Inventory/SuppliesMovements';
-import Assets from '../components/Inventory/Assets';
+import AdminUserManagement from '../components/AdminUserManagement';
+import AdminUserActivity from '../components/AdminUserActivity';
+import InventoryDashboard from '../components/InventoryDashboard';
+import InventoryRawMaterials from '../components/InventoryRawMaterials';
+import InventoryInboundRawMat from '../components/InventoryInboundRawMat';
+import InventoryWIP from '../components/InventoryWIP';
+import InventoryProducts from '../components/InventoryProducts';
+import InventoryOutboundProducts from '../components/InventoryOutboundProducts';
+import InventorySupplies from '../components/InventorySupplies';
+import InventorySuppliesMovements from '../components/InventorySuppliesMovements';
+import InventoryAssets from '../components/InventoryAssets';
 
-import Settings from '../components/Common/Settings';
-import Reports from '../components/Common/Reports';
+import Settings from '../components/Settings';
+import Reports from '../components/Reports';
 
 function Dashboard() {
-    // Kunin ang role mula sa localStorage (Fallback sa 'Inventory' kung walang nahanap)
     const userRole = localStorage.getItem("SystemRole") || "Inventory"; 
     
-    // 🌟 GLOBAL AXIOS CAPTURE: Bago mag-load ang kahit anong sub-tab,
-    // pilit nating isasaksak ang Token sa lahat ng lalabas na Axios request.
     const token = localStorage.getItem("token");
     if (token) {
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
 
-    // Naka-default sa 'dashboard' para sa parehong Admin at Inventory role
     const [activeTab, setActiveTab] = useState('dashboard');
 
     const renderContent = () => {
         switch (activeTab) {
-            // PINAG-ISANG DASHBOARD (InventoryDashboard ang ipapakita sa parehong role)
             case 'dashboard': 
                 return <InventoryDashboard />;
 
-            // ADMIN ACCESSIBLE ONLY
             case 'user-management': 
-                return userRole === 'Admin' ? <UserManagement /> : <InventoryDashboard />;
+                return userRole === 'Admin' ? <AdminUserManagement /> : <InventoryDashboard />;
             case 'user-activity': 
-                return userRole === 'Admin' ? <UserActivity /> : <InventoryDashboard />;
+                return userRole === 'Admin' ? <AdminUserActivity /> : <InventoryDashboard />;
                 
-            // INVENTORY ACCESSIBLE ONLY
-            case 'raw-materials': return <RawMaterials />;
-            case 'products': return <Products />;
-            case 'supplies': return <Supplies />;
-            case 'assets': return <Assets />;
-            case 'inbound-raw-mat': return <InboundRawMat />;
-            case 'work-in-progress': return <WorkInProgress />;
-            case 'outbound-products': return <OutboundProducts />;
-            case 'supplies-movements': return <SuppliesMovements />;
+            case 'raw-materials': return <InventoryRawMaterials />;
+            case 'products': return <InventoryProducts />;
+            case 'supplies': return <InventorySupplies />;
+            case 'assets': return <InventoryAssets />;
+            case 'inbound-raw-mat': return <InventoryInboundRawMat />;
+            case 'work-in-progress': return <InventoryWIP />;
+            case 'outbound-products': return <InventoryOutboundProducts />;
+            case 'supplies-movements': return <InventorySuppliesMovements />;
             
-            // COMMON SHARED VIEWS
             case 'settings': return <Settings />;
 
-            // INVENTORY ONLY (Naka-hide sa Admin)
             case 'reports': 
                 return userRole !== 'Admin' ? <Reports /> : <InventoryDashboard />;
             

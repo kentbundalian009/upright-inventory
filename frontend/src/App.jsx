@@ -6,8 +6,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Signup from './pages/Signup';
 
-import InventoryDashboard from './components/Inventory/InventoryDashboard';
-import AdminDashboard from './components/Admin/AdminDashboard';  
+import InventoryDashboard from './components/InventoryDashboard';
+import AdminDashboard from './components/AdminDashboard';  
 
 // =========================================================================
 // 🌟 AXIOS INTERCEPTOR: Awtomatikong nagkakabit ng Susi (Token) sa lahat ng API Calls

@@ -1,0 +1,931 @@
+import React, { useState, useEffect } from 'react';
+import { FileText, Truck, Calendar, ClipboardList, ListPlus, Trash2, Search, X, Download, User, Plus, CheckCircle2, AlertCircle } from 'lucide-react';
+import axios from 'axios';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import PageHeader from './PageHeader';
+import toast, { Toaster } from 'react-hot-toast';
+
+const API_BASE_URL = import.meta.env.MODE === 'production'
+  ? 'https://one-inventory.onrender.com/api'
+  : 'http://localhost:5000/api';
+
+const RAW_MAT_URL = `${API_BASE_URL}/raw-materials`;
+const PO_URL = `${API_BASE_URL}/purchase-orders`;
+
+const getTodayDateString = () => {
+  const today = new Date();
+  const offset = today.getTimezoneOffset();
+  const localToday = new Date(today.getTime() - (offset * 60 * 1000));
+  return localToday.toISOString().split('T')[0];
+};
+
+function InventoryInboundRawMat() {
+  const [dbMaterials, setDbMaterials] = useState([]);
+  const [poRecords, setPoRecords] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
+  const [selectedPo, setSelectedPo] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMatModalOpen, setIsMatModalOpen] = useState(false);
+
+  // PO Form States
+  const [poNo, setPoNo] = useState('');
+  const [supplier, setSupplier] = useState('');
+  const [dateReceived, setDateReceived] = useState(getTodayDateString());
+  const [originAddress, setOriginAddress] = useState('');
+  const [manifestItems, setManifestItems] = useState([]);
+
+  // New Raw Material Form States
+  const [newMatCode, setNewMatCode] = useState('');
+  const [newMatCategory, setNewMatCategory] = useState('');
+  const [newMatSegment, setNewMatSegment] = useState('');
+  const [newMatDesc, setNewMatDesc] = useState('');
+  const [newMatDimension, setNewMatDimension] = useState('');
+  const [newMatUOM, setNewMatUOM] = useState('');
+  const [newMatAccountTo, setNewMatAccountTo] = useState('');
+
+  const [preparedBy, setPreparedBy] = useState('System User');
+
+  // Autocomplete / Datalist Extractors
+  const [uniqueSuppliers, setUniqueSuppliers] = useState([]);
+  const [uniqueAddresses, setUniqueAddresses] = useState([]);
+  const [uniqueCategories, setUniqueCategories] = useState([]);
+  const [uniqueSegments, setUniqueSegments] = useState([]);
+
+  const [uniqueDescriptions, setUniqueDescriptions] = useState([]);
+  const [uniqueDimensions, setUniqueDimensions] = useState([]);
+  const [uniqueUOMs, setUniqueUOMs] = useState([]);
+  const [uniqueAccounts, setUniqueAccounts] = useState([]);
+
+  const showSuccessToast = (message) => {
+    toast.custom((t) => (
+      <div className={`flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl shadow-lg transition-all duration-300 ${t.visible ? 'animate-in fade-in slide-in-from-top-4' : 'animate-out fade-out slide-out-to-top-4'}`}>
+        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+        <span className="text-sm font-semibold">{message}</span>
+        <button onClick={() => toast.dismiss(t.id)} className="text-emerald-400 hover:text-emerald-600 ml-2 cursor-pointer">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    ));
+  };
+
+  const showErrorToast = (message) => {
+    toast.custom((t) => (
+      <div className={`flex items-center gap-3 bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl shadow-lg transition-all duration-300 ${t.visible ? 'animate-in fade-in slide-in-from-top-4' : 'animate-out fade-out slide-out-to-top-4'}`}>
+        <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+        <span className="text-sm font-semibold">{message}</span>
+        <button onClick={() => toast.dismiss(t.id)} className="text-rose-400 hover:text-rose-600 ml-2 cursor-pointer">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    ));
+  };
+
+  const fetchData = async () => {
+    try {
+      const [matsRes, posRes] = await axios.all([
+        axios.get(RAW_MAT_URL),
+        axios.get(PO_URL)
+      ]);
+
+      const materials = matsRes.data || [];
+      const pos = posRes.data || [];
+
+      setDbMaterials(materials);
+      setPoRecords(pos);
+
+      const suppliers = [...new Set(pos.map(p => p.supplier).filter(Boolean))];
+      const addresses = [...new Set(pos.map(p => p.originAddress).filter(Boolean))];
+      setUniqueSuppliers(suppliers);
+      setUniqueAddresses(addresses);
+
+      const categories = [...new Set(materials.map(m => m.Category).filter(Boolean))];
+      const segments = [...new Set(materials.map(m => m.Segment).filter(Boolean))];
+      setUniqueCategories(categories);
+      setUniqueSegments(segments);
+
+      const descriptions = [...new Set(materials.map(m => m.ItemDescription).filter(Boolean))];
+      const dimensions = [...new Set(materials.map(m => m.Dimension).filter(Boolean))];
+      const uoms = [...new Set(materials.map(m => m.UOM).filter(Boolean))];
+      const accounts = [...new Set(materials.map(m => m.AccountTo).filter(Boolean))];
+
+      setUniqueDescriptions(descriptions);
+      setUniqueDimensions(dimensions);
+      setUniqueUOMs(uoms);
+      setUniqueAccounts(accounts);
+
+    } catch (err) {
+      console.error("Failed to load data from the server.", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        const fullName = parsedUser.Fullname || parsedUser.fullname || 'System User';
+        setPreparedBy(fullName);
+      } catch (e) {
+        console.error("Error parsing user session:", e);
+      }
+    }
+  }, []);
+
+  const handleSelectMaterial = (item) => {
+    if (manifestItems.some(i => i.materialId === item._id)) {
+      showErrorToast("Item already added.");
+      return;
+    }
+    setManifestItems([...manifestItems, {
+      materialId: item._id,
+      Code: item.Code,
+      ItemDescription: item.ItemDescription,
+      Category: item.Category || 'N/A',
+      Segment: item.Segment || 'N/A',
+      Dimension: item.Dimension || 'N/A',
+      AccountTo: item.AccountTo || 'N/A',
+      qty: 1,
+      UOM: item.UOM,
+      actualCount: 1,
+      remarks: ''
+    }]);
+    setSearchQuery('');
+  };
+
+  const handleUpdateField = (index, field, val) => {
+    const updated = [...manifestItems];
+    if (field === 'qty' || field === 'actualCount') {
+      updated[index][field] = val === '' ? '' : Number(val);
+    } else {
+      updated[index][field] = val;
+    }
+    setManifestItems(updated);
+  };
+
+  const handleCreateMaterialProfile = async (e) => {
+    e.preventDefault();
+    if (!newMatCode || !newMatCategory || !newMatDesc || !newMatUOM) {
+      return showErrorToast("Please fill up all required fields.");
+    }
+
+    const payload = {
+      Code: newMatCode,
+      Category: newMatCategory,
+      Segment: newMatSegment,
+      ItemDescription: newMatDesc,
+      Dimension: newMatDimension,
+      UOM: newMatUOM,
+      AccountTo: newMatAccountTo
+    };
+
+    try {
+      const res = await axios.post(RAW_MAT_URL, payload);
+      if (res.status === 200 || res.status === 201) {
+        showSuccessToast("New Raw Material Profile Added Successfully!");
+        setNewMatCode(''); setNewMatCategory(''); setNewMatSegment('');
+        setNewMatDesc(''); setNewMatDimension(''); setNewMatUOM(''); setNewMatAccountTo('');
+        setIsMatModalOpen(false);
+        fetchData();
+      }
+    } catch (err) {
+      const errMsg = err.response?.data?.message || "Error adding raw material profile.";
+      showErrorToast(errMsg);
+    }
+  };
+
+  const handleSubmitPO = async (e) => {
+    e.preventDefault();
+    if (!poNo || poNo.trim() === "") return showErrorToast("Please fill up Purchase Order No.");
+    if (manifestItems.length === 0) return showErrorToast("Please add at least one item to the manifest grid.");
+    if (!dateReceived || dateReceived === "") return showErrorToast("Please select a valid Date Received.");
+
+    const hasInvalidQty = manifestItems.some(i => i.qty === '' || i.actualCount === '' || isNaN(i.qty) || isNaN(i.actualCount));
+    if (hasInvalidQty) return showErrorToast("Please input valid quantities for all items before saving.");
+
+    const payload = {
+      poNo: poNo.trim(),
+      supplier: supplier.trim() || "N/A",
+      originAddress: originAddress.trim() || "N/A",
+      deliveryDate: dateReceived,
+      preparedBy,
+      items: manifestItems.map(i => ({
+        materialId: i.materialId,
+        qty: Number(i.qty),
+        actualCountReceived: Number(i.actualCount),
+        remarks: i.remarks ? i.remarks.trim() : ""
+      }))
+    };
+
+    try {
+      const res = await axios.post(PO_URL, payload);
+      if (res.status === 200 || res.status === 201) {
+        showSuccessToast("Purchase Order Saved Successfully!");
+        setManifestItems([]);
+        setPoNo('');
+        setSupplier('');
+        setDateReceived(getTodayDateString());
+        setOriginAddress('');
+        fetchData();
+      }
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.response?.data?.error || "Server error connection upon logging Purchase Order.";
+      showErrorToast("Error: " + errMsg);
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    if (!selectedPo) return;
+    try {
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const centerX = pageWidth / 2;
+      const centerY = pageHeight / 2;
+
+      const formattedDate = new Date().toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+
+      doc.text("Purchase Order No.:", 14, 42);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedPo.poNo}`, 50, 42);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Date Received:", 120, 42);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedPo.deliveryDate ? new Date(selectedPo.deliveryDate).toLocaleDateString() : '-'}`, 155, 42);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Supplier:", 14, 49);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedPo.supplier || 'N/A'}`, 50, 49);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Prepared By:", 120, 49);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedPo.preparedBy || preparedBy}`, 155, 49);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Origin Address:", 14, 56);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedPo.originAddress || 'N/A'}`, 50, 56);
+
+      const tableColumns = ["Description", "Segment", "Dimension", "QTY Ordered", "Actual Received", "Remarks"];
+      const tableRows = [];
+
+      selectedPo.items?.forEach(it => {
+        const targetId = it.materialId?._id || it.materialId;
+        const fullMaterial = dbMaterials.find(m => m._id === targetId);
+
+        const descriptionOnly = fullMaterial?.ItemDescription || it.materialId?.ItemDescription || "-";
+
+        const segment = fullMaterial?.Segment || fullMaterial?.segment || 
+                        it.materialId?.Segment || it.materialId?.segment || "N/A";
+        
+        const dimension = fullMaterial?.Dimension || fullMaterial?.dimension || 
+                          fullMaterial?.Dimensions || fullMaterial?.dimensions || 
+                          it.materialId?.Dimension || it.materialId?.dimension || 
+                          it.materialId?.Dimensions || it.materialId?.dimensions || "N/A";
+
+        const uom = fullMaterial?.UOM || it.materialId?.UOM || '';
+        const qtySent = `${it.qty} ${uom}`;
+        const actualRec = `${it.actualCountReceived} ${uom}`;
+        const rem = it.remarks || "-";
+
+        tableRows.push([descriptionOnly, segment, dimension, qtySent, actualRec, rem]);
+      });
+
+      autoTable(doc, {
+        startY: 65,
+        head: [tableColumns],
+        body: tableRows,
+        theme: 'grid',
+
+        didDrawPage: (data) => {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.06 }));
+          const logoWidth = 80;
+          const logoHeight = 80;
+          const logoX = centerX - (logoWidth / 2);
+          const logoY = centerY - (logoHeight / 2);
+          doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
+          doc.restoreGraphicsState();
+
+          doc.setFillColor(24, 23, 78);
+          doc.rect(0, 0, pageWidth, 30, 'F');
+
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(14);
+          doc.text("PURCHASE ORDER REPORT", centerX, 13, { align: 'center' });
+
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(200, 200, 220);
+          doc.text(`Inventory Management System Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(120, 120, 120);
+          doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10);
+
+          const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
+          doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
+        },
+
+        headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5, valign: 'middle' },
+        bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
+        alternateRowStyles: { fillColor: [248, 249, 250] },
+        columnStyles: {
+          0: { cellWidth: 50 },
+          1: { cellWidth: 22, halign: 'center' },
+          2: { cellWidth: 22, halign: 'center' },
+          3: { cellWidth: 23, halign: 'center' },
+          4: { cellWidth: 25, halign: 'right', fontStyle: 'bold' },
+          5: { cellWidth: 40 }
+        },
+        styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 }
+      });
+
+      doc.save(`PO_REPORT_${selectedPo.poNo}.pdf`);
+      showSuccessToast("PDF Slip downloaded successfully.");
+    } catch (e) {
+      showErrorToast("Something went wrong while downloading the PDF.");
+    }
+  };
+
+  const filteredSuggestions = dbMaterials.filter(item =>
+    item.Code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.ItemDescription?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredPoRecords = poRecords.filter(rec =>
+    rec.poNo?.toLowerCase().includes(sidebarSearchQuery.toLowerCase()) ||
+    rec.supplier?.toLowerCase().includes(sidebarSearchQuery.toLowerCase())
+  );
+
+  useEffect(() => {
+    if (isMatModalOpen) {
+      const rackingCodes = dbMaterials
+        .map(m => m.Code)
+        .filter(code => code && code.startsWith("RCK-USSP-"));
+
+      if (rackingCodes.length === 0) {
+        setNewMatCode("RCK-USSP-00001");
+      } else {
+        const numbers = rackingCodes.map(code => {
+          const parts = code.split("-");
+          const lastPart = parts[parts.length - 1];
+          return parseInt(lastPart, 10) || 0;
+        });
+
+        const maxNumber = Math.max(...numbers);
+        const nextNumber = maxNumber + 1;
+
+        const formattedNumber = String(nextNumber).padStart(5, '0');
+        setNewMatCode(`RCK-USSP-${formattedNumber}`);
+      }
+    }
+  }, [isMatModalOpen, dbMaterials]);
+
+  return (
+    <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased text-slate-600">
+
+      <Toaster
+        position="top-right"
+        containerClassName="mt-5 mr-5"
+        toastOptions={{
+          className: '',
+          style: { background: 'transparent', boxShadow: 'none', border: 'none', padding: 0 }
+        }}
+      />
+
+      <div><PageHeader activeTab="purchase-order" /></div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+        <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-100 flex flex-col gap-6 shadow-sm">
+          <div className="border-b border-slate-100 pb-3 flex items-center gap-2 text-sm font-bold text-slate-600">
+            <ListPlus className="w-4 h-4 text-[#18174e]" />
+            <span>Inbound Racking Materials</span>
+          </div>
+
+          <form onSubmit={handleSubmitPO} className="flex flex-col gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Purchase Order No.</label>
+                <div className="relative">
+                  <input type="text" value={poNo} onChange={e => setPoNo(e.target.value)} placeholder="Enter PO Number" className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Supplier Origin *</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={supplier}
+                    onChange={e => setSupplier(e.target.value)}
+                    list="po-suppliers-list"
+                    placeholder="Enter supplier name"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                    required
+                  />
+                  <datalist id="po-suppliers-list">
+                    {uniqueSuppliers.map((sup, idx) => <option key={idx} value={sup} />)}
+                  </datalist>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Date Received</label>
+                <div className="relative"><Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input type="date" value={dateReceived} onChange={e => setDateReceived(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#18174e]" required />
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Origin Location Address</label>
+                <input
+                  type="text"
+                  value={originAddress}
+                  onChange={e => setOriginAddress(e.target.value)}
+                  list="po-addresses-list"
+                  placeholder="Enter origin address"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                />
+                <datalist id="po-addresses-list">
+                  {uniqueAddresses.map((addr, idx) => <option key={idx} value={addr} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Prepared Name</label>
+                <div className="relative"><User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input type="text" value={preparedBy} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
+              <div className="flex justify-between items-center mb-0.5">
+                <label className="block text-sm font-bold text-emerald-800 uppercase">Step 1: Type / Select Materials for Stock Addition</label>
+                <button type="button" onClick={() => setIsMatModalOpen(true)} className="flex items-center justify-center gap-2 bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-1/3 cursor-pointer transition-all">Add New Rackings Item</button>
+              </div>
+              <div className="relative"><Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search item code or description..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
+              </div>
+              {searchQuery && (
+                <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
+                  {filteredSuggestions.length > 0 ? (
+                    filteredSuggestions.map(item => (
+                      <div
+                        key={item._id}
+                        onClick={() => handleSelectMaterial(item)}
+                        className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors"
+                      >
+                        <div className="flex justify-between items-center font-bold text-slate-800 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">
+                              {item.Code}
+                            </span>
+                            <span className="text-xs font-medium text-slate-400 lowercase italic">
+                              {item.UOM || 'pcs'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            Avail: {item.ActualCount || item.actualCount || item.AvailableStock || 0}
+                          </span>
+                        </div>
+
+                        <span className="text-slate-800 font-semibold text-sm truncate">
+                          {item.ItemDescription}
+                        </span>
+
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
+                          <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
+                            Cat: {item.Category || item.category || 'Material'}
+                          </span>
+
+                          {(item.Segment || item.segment) && (
+                            <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
+                              Seg: {item.Segment || item.segment}
+                            </span>
+                          )}
+
+                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
+                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">
+                              Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+                      No records found matching.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit uppercase">Quantities will be automatically added</span>
+              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+               <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
+  <thead>
+    <tr className="text-white font-bold bg-emerald-700 uppercase text-xs whitespace-nowrap">
+      <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
+      <th className="py-3 px-4 text-center">UOM</th>
+      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Actual</th>
+
+      <th className="py-3 px-4">Item Code</th>
+      <th className="py-3 px-4">Category</th>
+      <th className="py-3 px-4">Segment</th>
+      <th className="py-3 px-4">Description</th>
+      <th className="py-3 px-4">Dimension</th>
+      <th className="py-3 px-4">Account To</th>
+      <th className="py-3 px-4">Remarks</th>
+      <th className="py-3 px-4 text-center">Action</th>
+    </tr>
+  </thead>
+
+  <tbody className="divide-y divide-slate-100">
+    {manifestItems.length > 0 ? (
+      manifestItems.map((item, index) => (
+        <tr key={item.materialId || index} className="hover:bg-slate-50/80 text-xs">
+          
+          <td className="py-2 px-4 w-28 min-w-[112px]">
+            <input
+              type="number"
+              min="1"
+              value={item.qty}
+              onChange={e => handleUpdateField(index, 'qty', e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-[#18174e] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </td>
+
+          <td className="py-2 px-4 text-center">
+            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
+          </td>
+
+          <td className="py-2 px-4 w-28 min-w-[112px]">
+            <input
+              type="number"
+              min="0"
+              value={item.actualCount}
+              onChange={e => handleUpdateField(index, 'actualCount', e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 focus:outline-none focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </td>
+
+          <td className="py-2 px-4 font-bold text-sm text-[#18174e] whitespace-nowrap">{item.Code}</td>
+
+          <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
+
+          <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
+
+          <td className="py-2 px-4 truncate max-w-[150px] " title={item.ItemDescription}>
+            {item.ItemDescription}
+          </td>
+
+          <td className="py-2 px-4 text-slate-500 whitespace-nowrap">{item.Dimension}</td>
+
+          <td className="py-2 px-4 text-slate-500">{item.AccountTo}</td>
+
+          <td className="py-2 px-4">
+            <input
+              type="text"
+              value={item.remarks}
+              onChange={e => handleUpdateField(index, 'remarks', e.target.value)}
+              placeholder="Remarks"
+              className="w-full border rounded px-2 py-1 text-xs focus:outline-none"
+            />
+          </td>
+
+          <td className="py-2 px-4 text-center">
+            <button
+              type="button"
+              onClick={() => setManifestItems(manifestItems.filter((_, i) => i !== index))}
+              className="text-red-500 hover:text-red-700 cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4 inline" />
+            </button>
+          </td>
+
+        </tr>
+      ))
+    ) : (
+      <tr>
+        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
+          No items added. Search above to add rows.
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
+              </div>
+            </div>
+            <button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xs text-sm transition-colors cursor-pointer uppercase">Save PO (Purchase Order)</button>
+          </form>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col gap-3 shadow-sm h-auto min-h-[400px]">
+          <div className="flex flex-col gap-1 border-b border-slate-100 pb-2">
+            <div className="flex items-center justify-between w-full text-sm font-bold text-slate-600">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-[#18174e]" />
+                <span>History Logs</span>
+              </div>
+
+            </div>
+            <div className="relative mt-1">
+              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
+              <input type="text" value={sidebarSearchQuery} onChange={e => setSidebarSearchQuery(e.target.value)} placeholder="Search PO or supplier..." className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none focus:border-[#18174e]/50" />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[420px] pr-1 custom-scrollbar">
+            {filteredPoRecords.length > 0 ? (
+              filteredPoRecords.slice(0, 50).map((rec) => (
+                <div key={rec._id} onClick={() => { setSelectedPo(rec); setIsModalOpen(true); }} className="bg-white border border-slate-100 rounded-xl p-2.5 flex flex-col gap-0.5 hover:border-[#18174e]/50 transition-all cursor-pointer hover:shadow-md group">
+                  <div className="flex justify-between items-center pb-0.5 border-b border-slate-50">
+                    <span className="text-xs font-black text-[#18174e] group-hover:text-emerald-600">{rec.poNo}</span>
+                    <span className="text-[9px] px-1.5 py-0.5 font-bold rounded-md bg-emerald-50 text-emerald-600">Inbound</span>
+                  </div>
+                  <span className="text-xs font-bold text-slate-700 truncate">{rec.supplier || 'No Supplier'}</span>
+                  <span className="text-[10px] font-semibold text-slate-400">{rec.deliveryDate ? new Date(rec.deliveryDate).toLocaleDateString() : 'No Date'}</span>
+                </div>
+              ))
+            ) : (
+              <span className="text-center pt-4 text-red-600 italic font-bold text-xs">No matching records found.</span>
+            )}
+          </div>
+
+          {!sidebarSearchQuery && poRecords.length > 4 && (
+            <div className="text-[10px] text-center font-semibold text-slate-400 mt-auto pt-2 border-t border-slate-50">Showing latest 4 entries.</div>
+          )}
+        </div>
+      </div>
+
+{isModalOpen && selectedPo && (
+  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
+      
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 className="font-bold text-slate-800 text-lg">
+          Inbound No: {selectedPo.poNo}
+        </h3>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleDownloadPDF} 
+            className="flex items-center gap-1.5 bg-[#18174e] hover:bg-[#18174e]/90 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" /> 
+            Download PDF
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(false)} 
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+        <div><span className="font-semibold text-slate-400">Purchase Order No:</span> <span className="font-bold text-slate-800">{selectedPo.poNo}</span></div>
+        <div><span className="font-semibold text-slate-400">Date Received:</span> <span className="font-bold text-slate-800">{selectedPo.deliveryDate ? new Date(selectedPo.deliveryDate).toLocaleDateString() : '-'}</span></div>
+        <div><span className="font-semibold text-slate-400">Supplier Profile:</span> <span className="font-bold text-slate-800">{selectedPo.supplier || 'N/A'}</span></div>
+        <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedPo.preparedBy || preparedBy}</span></div>
+        <div className="col-span-2"><span className="font-semibold text-slate-400">Origin Logistical Address:</span> <span className="font-bold text-slate-600">{selectedPo.originAddress || 'N/A'}</span></div>
+      </div>
+
+<div className="max-h-64 overflow-y-auto border border-slate-200/60 rounded-xl relative shadow-sm">
+  <table className="w-full text-left text-xs border-collapse bg-white">
+    <thead className="sticky top-0 z-10 bg-emerald-700 text-white text-[11px] font-bold uppercase tracking-wide">
+      <tr>
+        <th className="p-3 w-1/4">Material Profile</th>
+        
+        <th className="p-3 w-24 text-center">Segment</th> 
+        
+        <th className="p-3 w-24 text-center">Dimension</th>
+        <th className="p-3 text-center w-24">QTY Ordered</th>
+        <th className="p-3 text-right w-28">Actual Received</th>
+        <th className="p-3 text-left pl-6">Remarks</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-slate-100">
+      {selectedPo.items?.map((it, idx) => (
+        <tr key={it._id || idx} className="hover:bg-slate-50/50 transition-colors">
+          <td className="p-3 w-1/4 align-middle">
+            <div className="font-bold text-[#18174e]">{it.materialId?.Code || "N/A"}</div>
+            <div className="text-slate-400 text-[11px] max-w-xs truncate font-medium" title={it.materialId?.ItemDescription}>
+              {it.materialId?.ItemDescription || "-"}
+            </div>
+          </td>
+
+          <td className="p-3 text-center text-slate-500 w-24 align-middle font-semibold text-[11px]">
+            {it.materialId?.Segment || it.materialId?.segment || "N/A"}
+          </td>
+
+          <td className="p-3 text-center text-slate-500 w-24 align-middle font-mono text-[11px]">
+            {it.materialId?.Dimension || 
+             it.materialId?.dimension || 
+             it.materialId?.Dimensions || 
+             it.materialId?.dimensions || "N/A"}
+          </td>
+
+          <td className="p-3 text-center text-slate-600 w-24 align-middle font-semibold">
+            {it.qty} {it.materialId?.UOM}
+          </td>
+
+          <td className="p-3 text-right font-bold text-[#18174e] w-28 align-middle">
+            {it.actualCountReceived} {it.materialId?.UOM}
+          </td>
+
+          <td className="p-3 italic text-slate-500 font-medium text-[11px] max-w-[120px] truncate align-middle pl-6" title={it.remarks}>
+            {it.remarks || "-"}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+    </div>
+  </div>
+)}
+
+      {isMatModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-slate-800 text-base">Add Materials Information</h3>
+              </div>
+              <button
+                onClick={() => setIsMatModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3">
+              <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+                * System Inventory Protocol *
+              </span>
+              <p className="text-[11px] text-amber-700 leading-relaxed">
+                Manual quantity inputs are disabled to comply with audit protocols. Racking images and related media must be uploaded through the <strong>Rackings Components.</strong>
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateMaterialProfile} className="space-y-4 mt-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Material Code *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Generating code..."
+                    value={newMatCode}
+                    onChange={e => setNewMatCode(e.target.value)}
+                    readOnly
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-500 font-mono rounded-lg px-3 py-2 text-sm cursor-not-allowed focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category *</label>
+                  <input
+                    type="text"
+                    required
+                    list="modal-categories-list"
+                    placeholder="Enter category name"
+                    value={newMatCategory}
+                    onChange={e => setNewMatCategory(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                  />
+                  <datalist id="modal-categories-list">
+                    {uniqueCategories.map((cat, i) => <option key={i} value={cat} />)}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Segment *</label>
+                  <input
+                    type="text"
+                    required
+                    list="modal-segments-list"
+                    placeholder="Enter segment name"
+                    value={newMatSegment}
+                    onChange={e => setNewMatSegment(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                  />
+                  <datalist id="modal-segments-list">
+                    {uniqueSegments.map((seg, i) => <option key={i} value={seg} />)}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Item Description *</label>
+                  <input
+                    type="text"
+                    required
+                    list="modal-desc-list"
+                    placeholder="Enter item description"
+                    value={newMatDesc}
+                    onChange={e => setNewMatDesc(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                  />
+                  <datalist id="modal-desc-list">
+                    {uniqueDescriptions.map((desc, i) => <option key={i} value={desc} />)}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Dimension *</label>
+                  <input
+                    type="text"
+                    required
+                    list="modal-dimension-list"
+                    placeholder="Enter product dimension"
+                    value={newMatDimension}
+                    onChange={e => setNewMatDimension(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                  />
+                  <datalist id="modal-dimension-list">
+                    {uniqueDimensions.map((dim, i) => <option key={i} value={dim} />)}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">UOM *</label>
+                  <input
+                    type="text"
+                    required
+                    list="modal-uom-list"
+                    placeholder="Enter unit of measure"
+                    value={newMatUOM}
+                    onChange={e => setNewMatUOM(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                  />
+                  <datalist id="modal-uom-list">
+                    {uniqueUOMs.map((uom, i) => <option key={i} value={uom} />)}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Account To *</label>
+                  <input
+                    type="text"
+                    required
+                    list="modal-account-list"
+                    placeholder="Enter account to"
+                    value={newMatAccountTo}
+                    onChange={e => setNewMatAccountTo(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e]"
+                  />
+                  <datalist id="modal-account-list">
+                    {uniqueAccounts.map((acc, i) => <option key={i} value={acc} />)}
+                  </datalist>
+                </div>
+
+              </div>
+
+              <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsMatModalOpen(false)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                >
+                  Save Details
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default InventoryInboundRawMat;

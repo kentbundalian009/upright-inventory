@@ -10,21 +10,23 @@ import { fileURLToPath } from "url";
 
 
 
-// API Routes Imports
-import authRoutes from "./routes/authRoutes.js";
-import userRoutes from "./routes/userRoutes.js";
-import rawMaterialRoutes from "./routes/rawMaterialRoutes.js"; 
-import assetsRoutes from "./routes/assetsRoutes.js"; 
-import suppliesRoutes from "./routes/suppliesRoutes.js"; 
-import suppliesMovementRoutes from "./routes/suppliesMovementRoutes.js"; 
-import conversionRoutes from "./routes/conversionRoutes.js";
-import productRoutes from "./routes/productRoutes.js"; 
-import packingListRoutes from "./routes/packingListRoutes.js"; 
-import activityLogRoutes from "./routes/userActivityRoutes.js"; 
-import purchaseOrderRoutes from "./routes/purchaseOrderRoutes.js";
-import settingRoutes from "./routes/settingRoutes.js";
-import paletteRoutes from "./routes/paletteRoutes.js"; 
-import paletteSupRoutes from "./routes/paletteSupRoutes.js"; 
+// API Routes Imports - Admin
+import authRoutes from "./routes/admin/authRoutes.js";
+import userRoutes from "./routes/admin/userRoutes.js";
+import activityLogRoutes from "./routes/admin/userActivityRoutes.js"; 
+import settingRoutes from "./routes/admin/settingRoutes.js";
+import paletteRoutes from "./routes/admin/paletteRoutes.js"; 
+import paletteSupRoutes from "./routes/admin/paletteSupRoutes.js"; 
+
+// API Routes Imports - Inventory
+import rawMaterialRoutes from "./routes/inventory/rawMaterialRoutes.js"; 
+import assetsRoutes from "./routes/inventory/assetsRoutes.js"; 
+import suppliesRoutes from "./routes/inventory/suppliesRoutes.js"; 
+import suppliesMovementRoutes from "./routes/inventory/suppliesMovementRoutes.js"; 
+import conversionRoutes from "./routes/inventory/conversionRoutes.js";
+import productRoutes from "./routes/inventory/productRoutes.js"; 
+import packingListRoutes from "./routes/inventory/packingListRoutes.js"; 
+import purchaseOrderRoutes from "./routes/inventory/purchaseOrderRoutes.js"; 
 
 
 // 🌟 I-import ang protectRoute middleware para sa backend filtering
