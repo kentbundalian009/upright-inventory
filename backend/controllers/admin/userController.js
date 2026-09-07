@@ -37,7 +37,7 @@ export const createUser = async (req, res) => {
 
     let finalImagePath = "";
     if (req.file) {
-      finalImagePath = `/${req.file.path.replace(/\\/g, "/")}`;
+      finalImagePath = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
     }
 
     const newUser = await User.create({
@@ -88,7 +88,7 @@ export const updateUser = async (req, res) => {
 
     let finalImagePath = undefined;
     if (req.file) {
-      finalImagePath = `/${req.file.path.replace(/\\/g, "/")}`;
+      finalImagePath = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
     }
 
     const updateFields = { 

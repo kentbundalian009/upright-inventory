@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
 import toast, { Toaster } from 'react-hot-toast';
+import { useTheme } from '../context/ThemeContext';
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
   ? 'https://one-inventory.onrender.com/api'
@@ -16,12 +17,15 @@ const PL_URL = `${API_BASE_URL}/packing-lists`;
 const MASTER_CANCELLATION_KEY = "VOID-CONFIRM-2026";
 
 function InventoryOutboundProducts() {
+  const { isDark } = useTheme();
   const [dbRawMaterials, setDbRawMaterials] = useState([]);
   const [plRecords, setPlRecords] = useState([]);
   const [rawMatSearchQuery, setRawMatSearchQuery] = useState('');
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [passkeyInput, setPasskeyInput] = useState('');
@@ -86,6 +90,7 @@ function InventoryOutboundProducts() {
         setExistingCustomers(uniqueCustomers);
         setExistingCarriers(uniqueCarriers);
         setExistingDestinations(uniqueDestinations);
+        window.dispatchEvent(new Event('packingListUpdated'));
       }
     } catch (err) {
       console.error("Error loading registry data:", err);
@@ -141,6 +146,8 @@ function InventoryOutboundProducts() {
         materialId: targetMaterial?._id || targetMaterial,
         Code: targetMaterial?.Code || 'N/A',
         ItemDescription: targetMaterial?.ItemDescription || '-',
+        Segment: targetMaterial?.Segment || targetMaterial?.segment || 'N/A',
+        Dimension: targetMaterial?.Dimension || targetMaterial?.dimension || targetMaterial?.Dimensions || targetMaterial?.dimensions || 'N/A',
         qtyRequested: it.qtyRequested,
         UOM: targetMaterial?.UOM || 'pcs',
         actualCountShipped: it.qtyRequested,
@@ -161,7 +168,7 @@ function InventoryOutboundProducts() {
     setManifestItems(updated);
   };
 
-  const handleSubmitPL = async (e) => {
+  const handleInitiateConfirm = (e) => {
     e.preventDefault();
     if (manifestItems.length === 0) {
       showErrorToast("Please add material lines into your list manifest.");
@@ -183,6 +190,11 @@ function InventoryOutboundProducts() {
       }
     }
 
+    setIsConfirmModalOpen(true);
+  };
+
+  const handleSavePL = async () => {
+    setIsSaving(true);
     const payload = {
       transactionType, shipmentDate, customer, carrier, destinationAddress, preparedBy, referencePlNo,
       items: manifestItems.map(i => ({
@@ -199,11 +211,14 @@ function InventoryOutboundProducts() {
         showSuccessToast(`Material ${transactionType} Slip generated and stock updated!`);
         setManifestItems([]); setCustomer(''); setCarrier(''); setDestinationAddress(''); setReferencePlNo('');
         setTransactionType('Outbound');
+        setIsConfirmModalOpen(false);
         fetchData();
       }
     } catch (err) {
       const errMessage = err.response?.data?.message || "Failed to execute transaction registry record.";
       showErrorToast(errMessage);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -409,7 +424,7 @@ function InventoryOutboundProducts() {
   const displayedHistoryLogs = filteredHistoryLogs.slice(0, 50);
 
   return (
-    <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased text-slate-600">
+    <div className={`mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
 
       <Toaster
         position="top-right"
@@ -425,21 +440,21 @@ function InventoryOutboundProducts() {
       </div>
 
       {activeReserves.length > 0 && (
-        <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 flex flex-col gap-3">
+        <div className={`${isDark ? 'bg-[#0e1017] border-slate-800' : 'bg-indigo-50/50 border-indigo-100'} rounded-xl p-4 flex flex-col gap-3 border`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#18174e] uppercase">
-              <Eye className="w-3.5 h-3.5 text-[#18174e]" />
+            <div className={`flex items-center gap-2 text-xs font-bold ${isDark ? 'text-slate-200' : 'text-[#18174e]'} uppercase`}>
+              <Eye className="w-3.5 h-3.5 text-[#ff6600]" />
               <span>Quick-Assistant: Select a packed rack below to fulfill transaction</span>
             </div>
 
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-[#18174e]/60" />
+              <Search className={`absolute left-2.5 top-2 w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-[#18174e]/60'}`} />
               <input
                 type="text"
                 placeholder="Type PL No or Customer to filter..."
                 value={quickReserveSearch}
                 onChange={(e) => setQuickReserveSearch(e.target.value)}
-                className="w-full bg-white border border-indigo-200/80 rounded-lg pl-8 pr-2 py-1 text-xs text-[#18174e] focus:outline-none focus:border-[#18174e] placeholder-indigo-300"
+                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-indigo-200/80 text-[#18174e] placeholder-indigo-300'} border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none focus:border-[#ff6600]`}
               />
             </div>
           </div>
@@ -486,69 +501,69 @@ function InventoryOutboundProducts() {
               b.plNo?.toLowerCase().includes(quickReserveSearch.toLowerCase()) ||
               b.customer?.toLowerCase().includes(quickReserveSearch.toLowerCase())
             ).length === 0 && (
-                <span className="text-indigo-400 italic text-xs py-1">No matching reservation logs found.</span>
+                <span className={`${isDark ? 'text-slate-500' : 'text-indigo-400'} italic text-xs py-1`}>No matching reservation logs found.</span>
               )}
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-        <div className="lg:col-span-3 bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 flex flex-col gap-6 shadow-sm">
-          <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-2 text-sm font-bold text-slate-600">
+        <div className={`lg:col-span-3 ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 sm:p-6 rounded-2xl border flex flex-col gap-6 shadow-sm`}>
+          <div className={`border-b ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'} pb-3 flex items-center justify-between gap-2 text-sm font-bold`}>
             <div className="flex items-center gap-2 min-w-0">
-              <ArrowLeftRight className="w-4 h-4 text-[#18174e] flex-shrink-0" />
+              <ArrowLeftRight className="w-4 h-4 text-[#ff6600] flex-shrink-0" />
               <span className="truncate">Outbound Racking Materials</span>
             </div>
             {manifestItems.length > 0 && (
               <button
                 type="button"
                 onClick={() => { setManifestItems([]); setReferencePlNo(''); setTransactionType('Outbound'); showSuccessToast("Form grid cleared."); }}
-                className="text-xs font-bold text-rose-500 hover:underline cursor-pointer flex-shrink-0"
+                className="text-xs font-bold text-rose-400 hover:underline cursor-pointer flex-shrink-0"
               >
                 Clear Form Grid
               </button>
             )}
           </div>
 
-          <form onSubmit={handleSubmitPL} className="flex flex-col gap-5">
+          <form onSubmit={handleInitiateConfirm} className="flex flex-col gap-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Slip Number</label>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Slip Number</label>
                 <div className="relative">
                   <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={referencePlNo ? `REF: ${referencePlNo}` : "[ AUTO-GENERATED ]"} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none" />
+                  <input type="text" value={referencePlNo ? `REF: ${referencePlNo}` : "[ AUTO-GENERATED ]"} disabled className={`w-full ${isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'} border rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none`} />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Transaction Type</label>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Transaction Type</label>
                 <select
                   value={transactionType}
                   onChange={e => setTransactionType(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none text-[#18174e] cursor-pointer"
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-[#18174e]'} border rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none cursor-pointer`}
                 >
-                  <option value="Reserve">🟡 Reserve (Hold Stock)</option>
-                  <option value="Outbound">🔴 Outbound (Deduct & Dispatch)</option>
+                  <option value="Reserve" className={isDark ? 'bg-[#141622] text-slate-200' : ''}>🟡 Reserve (Hold Stock)</option>
+                  <option value="Outbound" className={isDark ? 'bg-[#141622] text-slate-200' : ''}>🔴 Outbound (Deduct & Dispatch)</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Date Processed</label>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Date Processed</label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="date" value={shipmentDate} onChange={e => setShipmentDate(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" required />
+                  <input type="date" value={shipmentDate} onChange={e => setShipmentDate(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} required />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Customer Name</label>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Customer Name</label>
                 <input
                   type="text"
                   list="customers-list"
                   value={customer}
                   onChange={e => setCustomer(e.target.value)}
                   placeholder="Enter customer name"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
                   required
                 />
                 <datalist id="customers-list">
@@ -559,14 +574,14 @@ function InventoryOutboundProducts() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Logistics</label>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Logistics</label>
                 <input
                   type="text"
                   list="carriers-list"
                   value={carrier}
                   onChange={e => setCarrier(e.target.value)}
                   placeholder="Enter logistics name"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
                 />
                 <datalist id="carriers-list">
                   {existingCarriers.map((car, i) => (
@@ -576,14 +591,14 @@ function InventoryOutboundProducts() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Destination Address</label>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Destination Address</label>
                 <input
                   type="text"
                   list="destinations-list"
                   value={destinationAddress}
                   onChange={e => setDestinationAddress(e.target.value)}
                   placeholder="Enter destination address"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
                 />
                 <datalist id="destinations-list">
                   {existingDestinations.map((dest, i) => (
@@ -593,46 +608,45 @@ function InventoryOutboundProducts() {
               </div>
 
               <div className="col-span-1 sm:col-span-2 md:col-span-3">
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Prepared Name</label>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Prepared Name</label>
                 <div className="relative">
                   <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={preparedBy} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none" />
+                  <input type="text" value={preparedBy} disabled className={`w-full ${isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'} border rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none`} />
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
-              <label className="block text-xs sm:text-sm font-bold text-red-800 uppercase leading-snug">Step 1: Type / Select Materials for Stock Deduction</label>
+            <div className={`${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border flex flex-col gap-1.5 relative`}>
+              <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-rose-400' : 'text-red-800'} uppercase leading-snug`}>Step 1: Type / Select Materials for Stock Deduction</label>
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" value={rawMatSearchQuery} onChange={e => setRawMatSearchQuery(e.target.value)} placeholder="Search raw material code or description..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
+                <input type="text" value={rawMatSearchQuery} onChange={e => setRawMatSearchQuery(e.target.value)} placeholder="Search raw material code or description..." className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
               </div>
               {rawMatSearchQuery && (
-                <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
+                <div className={`absolute left-0 right-0 top-[102%] ${isDark ? 'bg-[#0e1017] border-slate-700 divide-slate-800 shadow-2xl' : 'bg-white border-slate-200 divide-slate-100 shadow-xl'} border rounded-xl max-h-64 overflow-y-auto z-50 divide-y p-1`}>
                   {filteredRawMatSuggestions.length > 0 ? (
                     filteredRawMatSuggestions.map(item => (
-                      <div key={item._id} onClick={() => handleSelectRawMaterial(item)} className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors">
-                        <div className="flex justify-between items-center font-bold text-slate-800 text-sm gap-2">
+                      <div key={item._id} onClick={() => handleSelectRawMaterial(item)} className={`p-3 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex flex-col gap-1 rounded-lg transition-colors`}>
+                        <div className={`flex justify-between items-center font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm gap-2`}>
                           <div className="flex items-center gap-2 truncate">
-                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
-                            <span className="text-xs font-medium text-slate-400 lowercase italic truncate">{item.UOM || 'pcs'}</span>
+                            <span className={`${isDark ? 'bg-slate-800 text-slate-200 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-0.5 rounded text-xs font-mono`}>{item.Code}</span>
+                            <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-400'} lowercase italic truncate`}>{item.UOM || 'pcs'}</span>
                           </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 flex-shrink-0">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'} flex-shrink-0`}>
                             Avail: {item.ActualCount || 0}
                           </span>
                         </div>
-                        <span className="text-slate-800 font-semibold text-sm truncate">{item.ItemDescription}</span>
+                        <span className={`${isDark ? 'text-slate-200' : 'text-slate-800'} font-semibold text-sm truncate`}>{item.ItemDescription}</span>
                         <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-                          <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Cat: {item.Category || item.category || 'Raw Material'}</span>
-                          {(item.Segment || item.segment) && <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Seg: {item.Segment || item.segment}</span>}
+                          {(item.Segment || item.segment) && <span className={`${isDark ? 'bg-slate-800/60 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'} border px-1.5 py-0.5 rounded`}>Seg: {item.Segment || item.segment}</span>}
                           {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
+                            <span className={`${isDark ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/60' : 'bg-indigo-50 text-indigo-700 border-indigo-100'} border px-1.5 py-0.5 rounded font-mono`}>Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
                           )}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+                    <div className="text-center py-4 text-red-500 italic font-bold text-xs">
                       No records found matching.
                     </div>
                   )}
@@ -641,43 +655,41 @@ function InventoryOutboundProducts() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] sm:text-xs font-bold text-red-700 bg-red-50 px-2 py-1 rounded w-fit uppercase">
+              <span className={`text-[10px] sm:text-xs font-bold ${isDark ? 'text-rose-400 bg-rose-950/40 border border-rose-800' : 'text-red-700 bg-red-50'} px-2 py-1 rounded w-fit uppercase`}>
                 Quantities will be automatically deducted
               </span>
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
+              <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-x-auto`}>
                 <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
                   <thead>
-                    <tr className="text-white font-bold bg-red-700 uppercase text-xs whitespace-nowrap">
+                    <tr className={`text-white font-bold ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700'} uppercase text-xs whitespace-nowrap`}>
                       <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
                       <th className="py-3 px-4 text-center">UOM</th>
                       <th className="py-3 px-4 text-center w-28 min-w-[112px]">Verified Shipped</th>
                       <th className="py-3 px-4">Material Code</th>
-                      <th className="py-3 px-4">Category</th>
                       <th className="py-3 px-4">Segment</th>
                       <th className="py-3 px-4">Description</th>
                       <th className="py-3 px-4">Dimension</th>
-                      <th className="py-3 px-4">Account To</th>
                       <th className="py-3 px-4">Remarks / Notes</th>
                       <th className="py-3 px-4 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10]' : 'divide-slate-100'}`}>
                     {manifestItems.length > 0 ? (
                       manifestItems.map((item, index) => (
-                        <tr key={index} className="hover:bg-slate-50/80 text-xs">
+                        <tr key={index} className={`${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} text-xs`}>
                           <td className="py-2 px-4 w-28 min-w-[112px]">
                             <input 
                               type="number" 
                               value={item.qtyRequested} 
                               onChange={e => handleUpdateField(index, 'qtyRequested', Number(e.target.value))} 
                               onWheel={(e) => e.currentTarget.blur()}
-                              className="w-full border text-center rounded py-1 text-sm focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                              className={`w-full border ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'border-slate-200 text-slate-800'} text-center rounded py-1 text-sm focus:outline-none focus:border-[#ff6600] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} 
                               min="1" 
                               required 
                             />
                           </td>
                           <td className="py-2 px-4 text-center">
-                            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
+                            <span className={`${isDark ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-0.5 rounded text-xs`}>{item.UOM}</span>
                           </td>
                           <td className="py-2 px-4 w-28 min-w-[112px]">
                             <input 
@@ -685,26 +697,24 @@ function InventoryOutboundProducts() {
                               value={item.actualCountShipped} 
                               onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))} 
                               onWheel={(e) => e.currentTarget.blur()}
-                              className="w-full border text-center rounded py-1 text-sm font-bold text-red-600 focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                              className={`w-full border ${isDark ? 'bg-[#141622] border-slate-700 text-rose-400' : 'border-slate-200 text-red-600'} text-center rounded py-1 text-sm font-bold focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} 
                               min="1" 
                               required 
                             />
                           </td>
-                          <td className="py-2 px-4 font-bold text-[#18174e] whitespace-nowrap">{item.Code}</td>
-                          <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
-                          <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
-                          <td className="py-2 px-4 max-w-[150px]" title={item.ItemDescription}>
+                          <td className={`py-2 px-4 font-bold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'} whitespace-nowrap`}>{item.Code}</td>
+                          <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.Segment}</td>
+                          <td className={`py-2 px-4 max-w-[150px] ${isDark ? 'text-slate-200' : 'text-slate-800'}`} title={item.ItemDescription}>
                             {item.ItemDescription}
                           </td>
-                          <td className="py-2 px-4 text-slate-500 whitespace-nowrap">{item.Dimension}</td>
-                          <td className="py-2 px-4 text-slate-500">{item.AccountTo}</td>
+                          <td className={`py-2 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'} whitespace-nowrap`}>{item.Dimension}</td>
                           <td className="py-2 px-4">
                             <input 
                               type="text" 
                               value={item.remarks} 
                               onChange={e => handleUpdateField(index, 'remarks', e.target.value)} 
                               placeholder="Provide context details..." 
-                              className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-slate-400" 
+                              className={`w-full border ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'border-slate-200 text-slate-800'} rounded px-2 py-1 text-xs focus:outline-none focus:border-[#ff6600]`} 
                             />
                           </td>
                           <td className="py-2 px-4 text-center">
@@ -723,7 +733,7 @@ function InventoryOutboundProducts() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="11" className="text-center py-6 text-red-600 italic font-bold text-xs">
+                        <td colSpan="9" className="text-center py-6 text-red-500 italic font-bold text-xs">
                           No items added. Search above to add rows.
                         </td>
                       </tr>
@@ -733,16 +743,16 @@ function InventoryOutboundProducts() {
               </div>
             </div>
 
-            <button type="submit" className="w-full bg-red-800 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase shadow-sm">
-              Save Packaging List
+            <button type="submit" className="w-full bg-[#ff6600] hover:bg-[#e05a00] text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer uppercase shadow-sm">
+              Confirm Outbound Slip
             </button>
           </form>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col gap-3 shadow-sm h-auto min-h-[400px]">
-  <div className="flex flex-col gap-1 border-b border-slate-100 pb-2">
-    <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
-      <ClipboardList className="w-4 h-4 text-[#18174e]" />
+        <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 rounded-2xl border flex flex-col gap-3 shadow-sm h-auto min-h-[400px]`}>
+  <div className={`flex flex-col gap-1 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-2`}>
+    <div className={`flex items-center gap-2 text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
+      <ClipboardList className="w-4 h-4 text-[#ff6600]" />
       <span>History Logs</span>
     </div>
     <div className="relative mt-1">
@@ -752,7 +762,7 @@ function InventoryOutboundProducts() {
         value={historySearchQuery}
         onChange={e => setHistorySearchQuery(e.target.value)}
         placeholder="Search slip or customer..."
-        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none"
+        className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-800'} border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none`}
       />
     </div>
   </div>
@@ -763,58 +773,58 @@ function InventoryOutboundProducts() {
         <div
           key={rec._id}
           onClick={() => { setSelectedSlip(rec); setIsModalOpen(true); }}
-          className="bg-white border border-slate-100 rounded-xl p-2.5 flex flex-col gap-0.5 hover:border-[#18174e]/50 transition-all cursor-pointer hover:shadow-md group"
+          className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
         >
-          <div className="flex justify-between items-center pb-0.5 border-b border-slate-50">
-            <span className="text-xs font-black text-[#18174e] group-hover:text-emerald-600 flex items-center gap-1">
+          <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
+            <span className={`text-xs font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1`}>
               {rec.plNo}
-              {rec.isVoided && <span className="text-[8px] bg-rose-100 text-rose-700 px-1 py-0.5 rounded font-black uppercase">VOIDED</span>}
+              {rec.isVoided && <span className="text-[8px] bg-rose-950/60 text-rose-300 border border-rose-800 px-1 py-0.5 rounded font-black uppercase">VOIDED</span>}
             </span>
-            <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${rec.isVoided ? 'bg-slate-100 text-slate-500 line-through' : rec.transactionType?.toLowerCase() === 'reserve' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+            <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${rec.isVoided ? 'bg-slate-800 text-slate-500 line-through' : rec.transactionType?.toLowerCase() === 'reserve' ? isDark ? 'bg-amber-950/60 text-amber-300 border border-amber-800' : 'bg-amber-50 text-amber-600' : isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-50 text-emerald-600'}`}>
               {rec.transactionType}
             </span>
           </div>
-          <span className="text-xs font-bold text-slate-700 truncate">{rec.customer || 'N/A'}</span>
-          <span className="text-[10px] font-semibold text-slate-400">{rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString() : 'No Date'}</span>
+          <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`}>{rec.customer || 'N/A'}</span>
+          <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString() : 'No Date'}</span>
         </div>
       ))
     ) : (
-      <span className="text-center pt-4 text-red-600 italic font-bold text-xs">No matching records found.</span>
+      <span className="text-center pt-4 text-red-500 italic font-bold text-xs">No matching records found.</span>
     )}
   </div>
 </div>
       </div>
 
       {isVoidModalOpen && selectedSlip && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-md p-6 shadow-2xl relative animate-in slide-in-from-top-5 duration-300">
+        <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200`}>
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200'} border rounded-xl w-full max-w-md p-6 shadow-2xl relative animate-in slide-in-from-top-5 duration-300`}>
 
-            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
-              <h3 className="font-bold text-slate-800 text-sm tracking-wide flex items-center gap-2">
+            <div className={`border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3 flex items-center justify-between`}>
+              <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm tracking-wide flex items-center gap-2`}>
                 Void Transaction Log
               </h3>
               <button
                 onClick={() => setIsVoidModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer flex items-center"
+                className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer flex items-center`}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="mt-4 space-y-4">
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
-                <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+              <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-800/60' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3 shrink-0`}>
+                <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
                   * System Action Protocol *
                 </span>
-                <p className="text-[11px] text-amber-700 leading-relaxed">
-                  You are about to void the log entry <span className="font-bold text-amber-800">{selectedSlip.plNo}</span> ({selectedSlip.transactionType}).
-                  This action is <span className="font-bold text-amber-800">irreversible</span> and will remove the log from the system.
+                <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
+                  You are about to void the log entry <span className="font-bold">{selectedSlip.plNo}</span> ({selectedSlip.transactionType}).
+                  This action is <span className="font-bold">irreversible</span> and will remove the log from the system.
                   Please ensure you have the proper authorization to proceed with this operation.
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>
                   Reason for Cancellation / Discrepancy Note (Optional)
                 </label>
                 <input
@@ -822,13 +832,13 @@ function InventoryOutboundProducts() {
                   value={voidReasonInput}
                   onChange={e => setVoidReasonInput(e.target.value)}
                   placeholder="e.g., Wrong item quantity or customer mistake"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#18174e] text-slate-700 placeholder-slate-400"
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-700 placeholder-slate-400'} border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#ff6600]`}
                 />
               </div>
 
               {selectedSlip.transactionType?.toLowerCase() === 'outbound' && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>
                     Management Reversal Passkey
                   </label>
                   <input
@@ -836,24 +846,24 @@ function InventoryOutboundProducts() {
                     value={passkeyInput}
                     onChange={e => setPasskeyInput(e.target.value)}
                     placeholder="Enter authorized key token"
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#18174e] focus:ring-1 focus:ring-[#18174e]/20 text-slate-700 placeholder-slate-400 font-mono"
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-700 placeholder-slate-400'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600] font-mono`}
                   />
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
+            <div className={`flex items-center justify-end gap-2 mt-6 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
               <button
                 type="button"
                 onClick={() => setIsVoidModalOpen(false)}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
+                className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer`}
               >
                 Keep Log Entry
               </button>
               <button
                 type="button"
                 onClick={handleExecuteCancellation}
-                className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
+                className="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
               >
                 Confirm System Void
               </button>
@@ -864,29 +874,29 @@ function InventoryOutboundProducts() {
       )}
 
       {isModalOpen && selectedSlip && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-3xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
+        <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-2xl w-full max-w-3xl p-6 shadow-xl relative flex flex-col gap-4`}>
 
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-800 text-lg">
+            <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
+              <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-lg`}>
                 Outbound No: {selectedSlip.plNo}
               </h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleOpenVoidModal(selectedSlip)}
-                  className="flex items-center gap-1 bg-red-800 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                  className="flex items-center gap-1 bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Void Transaction
                 </button>
                 <button
                   onClick={handleDownloadPDF}
-                  className="flex items-center gap-1.5 bg-[#18174e] hover:bg-[#18174e]/90 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" /> Download PDF
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+                  className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer transition-colors`}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -894,36 +904,36 @@ function InventoryOutboundProducts() {
             </div>
 
             {selectedSlip.transactionType?.toLowerCase() === 'outbound' && (
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
-                <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+              <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-800/60' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3 shrink-0`}>
+                <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
                   * System Action Protocol *
                 </span>
-                <p className="text-[11px] text-amber-700 leading-relaxed">
-                  This is an <span className="font-bold text-amber-800">OUTBOUND</span> dispatch log.
+                <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
+                  This is an <span className="font-bold">OUTBOUND</span> dispatch log.
                   Cancelling dispatched orders disrupts supply chain tracking and returns items back to the active stock pile.
                   You must provide a valid system reversal passkey to proceed with voiding this log entry.
                 </p>
               </div>
             )}
 
-            <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div><span className="font-semibold text-slate-400">Tracking No:</span> <span className="font-bold text-slate-800">{selectedSlip.plNo}</span></div>
-              <div><span className="font-semibold text-slate-400">Shipment Date:</span> <span className="font-bold text-slate-800">{selectedSlip.shipmentDate ? new Date(selectedSlip.shipmentDate).toLocaleDateString() : '-'}</span></div>
-              <div><span className="font-semibold text-slate-400">Log Type:</span> <span className="font-bold text-indigo-700 uppercase">{selectedSlip.transactionType}</span></div>
-              <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedSlip.preparedBy || preparedBy}</span></div>
-              <div><span className="font-semibold text-slate-400">Customer:</span> <span className="font-bold text-slate-800">{selectedSlip.customer || 'N/A'}</span></div>
-              <div><span className="font-semibold text-slate-400">Destination:</span> <span className="font-bold text-slate-800">{selectedSlip.destinationAddress || 'N/A'}</span></div>
+            <div className={`grid grid-cols-2 text-sm gap-2 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border`}>
+              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Tracking No:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.plNo}</span></div>
+              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Shipment Date:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.shipmentDate ? new Date(selectedSlip.shipmentDate).toLocaleDateString() : '-'}</span></div>
+              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Log Type:</span> <span className={`font-bold ${isDark ? 'text-indigo-400' : 'text-indigo-700'} uppercase`}>{selectedSlip.transactionType}</span></div>
+              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Prepared By:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.preparedBy || preparedBy}</span></div>
+              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Customer:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.customer || 'N/A'}</span></div>
+              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Destination:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.destinationAddress || 'N/A'}</span></div>
               {selectedSlip.referencePlNo && (
-                <div className="col-span-2 text-xs text-amber-700 font-bold bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                <div className={`col-span-2 text-xs ${isDark ? 'text-amber-300 bg-amber-950/40 border-amber-800' : 'text-amber-700 bg-amber-50 border-amber-200'} font-bold px-2 py-1 rounded border`}>
                   Linked Reference: {selectedSlip.referencePlNo}
                 </div>
               )}
             </div>
 
-            <div className="max-h-64 overflow-y-auto border border-slate-200/60 rounded-xl relative shadow-sm overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse bg-white min-w-[650px]">
+            <div className={`max-h-64 overflow-y-auto border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm overflow-x-auto`}>
+              <table className="w-full text-left text-xs border-collapse min-w-[650px]">
 
-                <thead className="sticky top-0 z-10 bg-red-700 text-white text-[11px] font-bold uppercase whitespace-nowrap">
+                <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700 text-white'} text-[11px] font-bold uppercase whitespace-nowrap`}>
                   <tr>
                     <th className="p-3 text-left">Segment</th>
                     <th className="p-3 text-left">Item Description</th>
@@ -933,7 +943,7 @@ function InventoryOutboundProducts() {
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-slate-100">
+                <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
                   {selectedSlip.items?.map((it, idx) => {
                     const targetMaterial = it.materialId || it.productId;
                     const targetId = targetMaterial?._id || targetMaterial;
@@ -961,24 +971,24 @@ function InventoryOutboundProducts() {
                     const uom = fullMat?.UOM || targetMaterial?.UOM || '';
 
                     return (
-                      <tr key={it._id || idx} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="p-3 font-semibold text-slate-700 whitespace-nowrap align-middle">
+                      <tr key={it._id || idx} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
+                        <td className={`p-3 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap align-middle`}>
                           {segment}
                         </td>
 
-                        <td className="p-3 font-bold text-[#18174e] text-xs max-w-xs truncate align-middle" title={description}>
+                        <td className={`p-3 font-bold ${isDark ? 'text-white' : 'text-[#18174e]'} text-xs max-w-xs truncate align-middle`} title={description}>
                           {description}
                         </td>
 
-                        <td className="p-3 text-slate-600 font-medium whitespace-nowrap align-middle">
+                        <td className={`p-3 ${isDark ? 'text-slate-400' : 'text-slate-600'} font-medium whitespace-nowrap align-middle`}>
                           {dimension}
                         </td>
 
-                        <td className="p-3 text-right font-bold text-emerald-600 align-middle whitespace-nowrap">
+                        <td className="p-3 text-right font-bold text-emerald-400 align-middle whitespace-nowrap">
                           {it.actualCountShipped} {uom}
                         </td>
 
-                        <td className="p-3 italic text-slate-500 font-medium text-[11px] max-w-[120px] truncate align-middle pl-4" title={it.remarks}>
+                        <td className={`p-3 italic ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium text-[11px] max-w-[120px] truncate align-middle pl-4`} title={it.remarks}>
                           {it.remarks || "-"}
                         </td>
                       </tr>
@@ -994,6 +1004,144 @@ function InventoryOutboundProducts() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+          </div>
+        </div>
+      )}
+      {/* CONFIRMATION MODAL */}
+      {isConfirmModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto flex flex-col gap-5 animate-in zoom-in-95 duration-200`}>
+            
+            {/* Header */}
+            <div className={`flex justify-between items-start border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
+              <div>
+                <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-[#18174e]'}`}>
+                  Confirm Material {transactionType} Slip
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Paki-review ang mga detalye ng outbound shipment bago i-save sa registry.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConfirmModalOpen(false)}
+                className={`p-1.5 rounded-lg ${isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'} transition-colors cursor-pointer`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Details Summary Card */}
+            <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border text-xs ${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Transaction Type</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block ${transactionType === 'Outbound' ? (isDark ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-800' : 'bg-indigo-50 text-indigo-700 border border-indigo-200') : (isDark ? 'bg-amber-950/60 text-amber-300 border border-amber-800' : 'bg-amber-50 text-amber-700 border border-amber-200')}`}>
+                  {transactionType}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Shipment Date</span>
+                <span className="font-semibold">{shipmentDate ? new Date(shipmentDate).toLocaleDateString() : '—'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Customer</span>
+                <span className="font-semibold">{customer || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Carrier</span>
+                <span className="font-semibold">{carrier || 'N/A'}</span>
+              </div>
+              <div className="sm:col-span-2">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Destination Address</span>
+                <span className="font-semibold truncate block">{destinationAddress || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Prepared By</span>
+                <span className="font-semibold">{preparedBy}</span>
+              </div>
+              {referencePlNo && (
+                <div className="sm:col-span-2">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Reference Slip</span>
+                  <span className={`font-mono font-bold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`}>{referencePlNo}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Manifest Items Table */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center text-xs font-bold px-1">
+                <span className="uppercase text-slate-400">Materials to Dispatch ({manifestItems.length})</span>
+                <span className="text-rose-500 font-bold">
+                  Total Shipped: {manifestItems.reduce((sum, item) => sum + (Number(item.actualCountShipped) || 0), 0)}
+                </span>
+              </div>
+              <div className={`rounded-xl border overflow-hidden max-h-56 overflow-y-auto ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-200'}`}>
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className={`uppercase text-[10px] font-bold ${isDark ? 'bg-[#141622] text-slate-300 border-b border-slate-800' : 'bg-slate-100 text-slate-600 border-b border-slate-200'}`}>
+                      <th className="py-2 px-3">Description</th>
+                      <th className="py-2 px-3">Segment</th>
+                      <th className="py-2 px-3">Dimension</th>
+                      <th className="py-2 px-3 text-center">Qty Req</th>
+                      <th className="py-2 px-3 text-center font-bold text-rose-500">Shipped Qty</th>
+                      <th className="py-2 px-3">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-100'}`}>
+                    {manifestItems.map((item, idx) => (
+                      <tr key={idx} className={isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
+                        <td className="py-2 px-3 font-semibold max-w-[180px] truncate" title={item.ItemDescription}>
+                          {item.ItemDescription}
+                        </td>
+                        <td className="py-2 px-3 text-slate-400">
+                          {item.Segment || item.segment || '—'}
+                        </td>
+                        <td className="py-2 px-3 text-slate-400 font-mono text-[11px]">{item.Dimension || item.dimensions || '—'}</td>
+                        <td className="py-2 px-3 text-center text-slate-400">
+                          {item.qtyRequested}
+                        </td>
+                        <td className="py-2 px-3 text-center font-bold text-rose-500">
+                          {item.actualCountShipped}
+                        </td>
+                        <td className="py-2 px-3 text-slate-400 italic">
+                          {item.remarks || '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className={`flex items-center justify-end gap-3 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => setIsConfirmModalOpen(false)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                  isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                }`}
+              >
+                Cancel / Edit
+              </button>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={handleSavePL}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#ff6600] hover:bg-[#e05a00] disabled:opacity-50 transition-all cursor-pointer shadow-md"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Saving Slip...</span>
+                  </>
+                ) : (
+                  <span>Save Packaging List</span>
+                )}
+              </button>
             </div>
 
           </div>

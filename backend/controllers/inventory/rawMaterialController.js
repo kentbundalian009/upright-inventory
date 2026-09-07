@@ -25,9 +25,9 @@ export const createRawMaterial = async (req, res) => {
   try {
     const { Code, Category, Segment, ItemDescription, Dimension, UOM, AccountTo } = req.body;
 
-    if (!Code || !Category || !ItemDescription || !UOM) {
+    if (!Code || !ItemDescription || !UOM) {
       return res.status(400).json({ 
-        message: "Please fill in all required fields (Code, Category, Description, UOM)" 
+        message: "Please fill in all required fields (Code, Description, UOM)" 
       });
     }
 
@@ -38,13 +38,13 @@ export const createRawMaterial = async (req, res) => {
 
     let finalImagePath = "";
     if (req.file) {
-      finalImagePath = `/${req.file.path.replace(/\\/g, "/")}`;
+      finalImagePath = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
     }
 
     const newMaterial = await RawMaterial.create({
       Code: Code.trim().toUpperCase(),
       ImageUrl: finalImagePath,
-      Category: Category.trim(),
+      Category: Category?.trim() || "",
       Segment: Segment?.trim() || "N/A",
       ItemDescription: ItemDescription.trim(),
       Dimension: Dimension?.trim() || "N/A",
@@ -83,7 +83,7 @@ export const updateRawMaterial = async (req, res) => {
 
     let finalImagePath = existingMaterial.ImageUrl;
     if (req.file) {
-      finalImagePath = `/${req.file.path.replace(/\\/g, "/")}`;
+      finalImagePath = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
     }
 
     const updatedMaterial = await RawMaterial.findByIdAndUpdate(

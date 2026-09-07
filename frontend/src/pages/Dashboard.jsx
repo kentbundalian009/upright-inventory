@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios'; 
+import { useTheme } from '../context/ThemeContext';
 import Sidebar from "../components/Sidebar"; 
 import Topbar from "../components/Topbar";
 
@@ -40,13 +41,13 @@ function Dashboard() {
                 return userRole === 'Admin' ? <AdminUserActivity /> : <InventoryDashboard />;
                 
             case 'raw-materials': return <InventoryRawMaterials />;
-            case 'products': return <InventoryProducts />;
+            case 'products': return userRole === 'Viewer' ? <InventoryDashboard /> : <InventoryProducts />;
             case 'supplies': return <InventorySupplies />;
             case 'assets': return <InventoryAssets />;
-            case 'inbound-raw-mat': return <InventoryInboundRawMat />;
-            case 'work-in-progress': return <InventoryWIP />;
-            case 'outbound-products': return <InventoryOutboundProducts />;
-            case 'supplies-movements': return <InventorySuppliesMovements />;
+            case 'inbound-raw-mat': return userRole === 'Viewer' ? <InventoryDashboard /> : <InventoryInboundRawMat />;
+            case 'work-in-progress': return userRole === 'Viewer' ? <InventoryDashboard /> : <InventoryWIP />;
+            case 'outbound-products': return userRole === 'Viewer' ? <InventoryDashboard /> : <InventoryOutboundProducts />;
+            case 'supplies-movements': return userRole === 'Viewer' ? <InventoryDashboard /> : <InventorySuppliesMovements />;
             
             case 'settings': return <Settings />;
 
@@ -58,8 +59,10 @@ function Dashboard() {
         }
     };
 
+    const { isDark } = useTheme();
+
     return (
-        <div className="flex min-h-screen bg-[#f5f6f7] text-slate-800">
+        <div className={`flex min-h-screen ${isDark ? 'bg-[#090a0f] text-slate-100' : 'bg-[#f5f6f7] text-slate-800'} transition-colors duration-200`}>
             {/* 1. SIDEBAR */}
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userRole={userRole} />
 
@@ -70,7 +73,7 @@ function Dashboard() {
                 <Topbar activeTab={activeTab} />
 
                 {/* 4. MAIN CONTENT AREA */}
-                <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+                <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-y-auto">
                     <div className="animate-fade-in">
                         {renderContent()}
                     </div>

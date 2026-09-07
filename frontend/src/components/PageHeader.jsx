@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard,
   Package,
@@ -15,8 +16,25 @@ import {
   Calendar
 } from "lucide-react";
 
-function PageHeader({ activeTab }) {
+function PageHeader({ activeTab, title, description, icon, badge, actions, children }) {
+  const { isDark } = useTheme();
+  
   const headerConfig = {
+    'dashboard': {
+      title: 'Dashboard Overview',
+      description: 'Centralized view of inventory metrics, key performance indicators, and recent operations.',
+      icon: LayoutDashboard
+    },
+    'inventory-dashboard': {
+      title: 'Inventory Dashboard',
+      description: 'Centralized view of stock levels, turnover rates, and real-time alerts.',
+      icon: LayoutDashboard
+    },
+    'admin-dashboard': {
+      title: 'Admin Dashboard',
+      description: 'Overview of system metrics, quick statistics, and administrative controls.',
+      icon: LayoutDashboard
+    },
     'admin': {
       title: 'Admin Dashboard',
       description: 'Overview of system metrics, quick statistics, and administrative controls.',
@@ -38,13 +56,18 @@ function PageHeader({ activeTab }) {
       icon: FileSpreadsheet
     },
     'raw-materials': {
-      title: 'Raw Materials Inventory',
-      description: 'Track and manage available raw stocks and basic production components.',
+      title: 'Rackings (Records)',
+      description: 'Track and manage available rackings stock, raw materials, and components.',
       icon: Layers
     },
     'inbound-raw-mat': {
-      title: 'Inbound Raw Materials',
-      description: 'Log and monitor incoming raw material shipments and supplier deliveries.',
+      title: 'Inbound (Additions)',
+      description: 'Log and monitor incoming stock shipments and supplier deliveries.',
+      icon: ArrowDownCircle
+    },
+    'purchase-order': {
+      title: 'Inbound (Additions)',
+      description: 'Log and monitor incoming stock shipments and supplier deliveries.',
       icon: ArrowDownCircle
     },
     'work-in-progress': {
@@ -58,12 +81,17 @@ function PageHeader({ activeTab }) {
       icon: ShoppingBag
     },
     'outbound-products': {
-      title: 'Outbound Products',
-      description: 'Track outgoing orders, shipments, and customer fulfillments.',
+      title: 'Outbound',
+      description: 'Track outgoing orders, packing lists, and customer fulfillments.',
+      icon: Truck
+    },
+    'packing-list': {
+      title: 'Outbound',
+      description: 'Track outgoing orders, packing lists, and customer fulfillments.',
       icon: Truck
     },
     'supplies': {
-      title: 'Supplies Inventory',
+      title: 'Supplies (Records)',
       description: 'Manage internal maintenance, operating, and office supplies.',
       icon: Package
     },
@@ -78,56 +106,70 @@ function PageHeader({ activeTab }) {
       icon: Briefcase
     },
     'settings': {
-      title: 'Personal Information',
-      description: 'Manage your profile, preferences, and account settings.',
+      title: 'Personal Information & Settings',
+      description: 'Manage your profile, preferences, palette colors, and account settings.',
       icon: Calendar
     },
     'reports': {
       title: 'Reports & Analytics',
-      description: 'Generate and view detailed reports on inventory, sales, and operations.',
+      description: 'Generate and view detailed audit ledger reports, monthly summaries, and exports.',
       icon: FileSpreadsheet
     }
   };
 
-  const currentHeader = headerConfig[activeTab] || {
+  const configured = headerConfig[activeTab] || {
     title: 'Dashboard',
     description: 'Welcome to USSP Inventory Management System.',
     icon: LayoutDashboard
   };
 
-  const IconComponent = currentHeader.icon;
-
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
+  const finalTitle = title || configured.title;
+  const finalDescription = description || configured.description;
+  const IconComponent = icon || configured.icon || LayoutDashboard;
+  const finalBadge = badge !== undefined ? badge : 'Live System';
 
   return (
-    <header className="w-full bg-gradient-to-r from-[#18174e] via-[#1f1d63] to-[#282678] text-white border border-[#2e2c8a] rounded-2xl p-5 shadow-lg relative overflow-hidden transition-all duration-300">
-      <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#ff6600]/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
+    <header className={`w-full ${
+      isDark
+        ? 'bg-gradient-to-r from-[#090a10] via-[#0f111d] to-[#151829] text-white border border-slate-800/90 shadow-xl'
+        : 'bg-gradient-to-r from-[#18174e] via-[#1f1d63] to-[#282678] text-white border border-[#2e2c8a] shadow-md'
+    } rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 relative overflow-hidden transition-all duration-300`}>
+      {/* Background Ambient Glow Accents */}
+      <div className={`absolute -top-10 -right-10 w-36 h-36 sm:w-48 sm:h-48 ${isDark ? 'bg-[#ff6600]/10' : 'bg-[#ff6600]/15'} rounded-full blur-3xl pointer-events-none`} />
+      <div className={`absolute -bottom-10 -left-10 w-36 h-36 sm:w-48 sm:h-48 ${isDark ? 'bg-indigo-900/20' : 'bg-blue-500/15'} rounded-full blur-3xl pointer-events-none`} />
 
-      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-3.5">
-          <div className="p-3 bg-white/10 backdrop-blur-md border border-white/15 rounded-xl shadow-inner text-[#ff6600] shrink-0">
-            <IconComponent size={22} className="stroke-[2.2]" />
+      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        {/* Left Section: Icon + Title & Description */}
+        <div className="flex items-start sm:items-center gap-2.5 sm:gap-3.5 min-w-0">
+          <div className={`p-2 sm:p-2.5 md:p-3 ${isDark ? 'bg-black/40 border-slate-700/60' : 'bg-white/10 border-white/15'} backdrop-blur-md border rounded-lg sm:rounded-xl shadow-inner text-[#ff6600] shrink-0`}>
+            <IconComponent className="w-5 h-5 sm:w-5 sm:h-5 md:w-[22px] md:h-[22px] stroke-[2.2]" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                {currentHeader.title}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <h1 className="text-sm sm:text-base md:text-lg font-bold text-white tracking-tight leading-snug">
+                {finalTitle}
               </h1>
-              <span className="text-[10px] font-extrabold uppercase bg-[#ff6600]/20 text-[#ff8533] border border-[#ff6600]/30 px-2 py-0.5 rounded-full">
-                Live System
-              </span>
+              {finalBadge && (
+                <span className="text-[9px] sm:text-[10px] font-extrabold uppercase bg-[#ff6600]/20 text-[#ff8533] border border-[#ff6600]/30 px-2 py-0.5 rounded-full shrink-0">
+                  {finalBadge}
+                </span>
+              )}
             </div>
-            <p className="text-xs sm:text-sm font-normal text-slate-300 mt-0.5 leading-relaxed max-w-3xl">
-              {currentHeader.description}
-            </p>
+            {finalDescription && (
+              <p className={`text-[11px] sm:text-xs md:text-sm font-normal ${isDark ? 'text-slate-300' : 'text-slate-200'} mt-0.5 leading-relaxed line-clamp-2 sm:line-clamp-none`}>
+                {finalDescription}
+              </p>
+            )}
           </div>
         </div>
+
+        {/* Right Section: Optional Action Buttons or Children */}
+        {(actions || children) && (
+          <div className="flex flex-wrap items-center gap-2 shrink-0 sm:self-center">
+            {actions}
+            {children}
+          </div>
+        )}
       </div>
     </header>
   );

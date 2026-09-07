@@ -4,8 +4,13 @@ import axios from 'axios';
 import PageHeader from './PageHeader';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useTheme } from '../context/ThemeContext';
 
 function InventoryAssets() {
+  const { isDark } = useTheme();
+  const userRole = localStorage.getItem("SystemRole") || "Inventory";
+  const isViewer = userRole?.toLowerCase() === 'viewer';
+
   const [assetsList, setAssetsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -262,11 +267,14 @@ function InventoryAssets() {
     if (selectedConditionFilter === 'Has Damaged') matchesCondition = (asset.ConditionBreakdown?.Damaged > 0);
 
     const matchesSearch =
+      !searchTerm ||
       (asset.Code && asset.Code.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (asset.Category && asset.Category.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (asset.Segment && asset.Segment.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (asset.ItemDescription && asset.ItemDescription.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (asset.Brand && asset.Brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (asset.Model && asset.Model.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (asset.SerialNo && asset.SerialNo.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (asset.ItemDescription && asset.ItemDescription.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (asset.Location && asset.Location.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (asset.AccountTo && asset.AccountTo.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -413,41 +421,45 @@ function InventoryAssets() {
         </div>
       )}
 
-      <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col gap-6">
+      <div className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100 text-slate-600'} border rounded-2xl p-6 shadow-sm flex flex-col gap-6 transition-colors duration-200`}>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 flex-shrink-0">
-              <Filter className="w-4 h-4 text-[#18174e]" />
+            <div className={`flex items-center gap-2 text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-500'} flex-shrink-0`}>
+              <Filter className={`w-4 h-4 ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`} />
               <span>{showArchivedOnly ? 'Archive' : 'Filter'}</span>
             </div>
             
-            <button
-              onClick={() => setShowArchivedOnly(!showArchivedOnly)}
-              title={showArchivedOnly ? "Show Active Assets" : "View Archive Vault"}
-              className={`flex items-center gap-2 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${
-                showArchivedOnly ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              {showArchivedOnly ? (
-                <>
-                  <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> 
-                  <span className="hidden md:inline">Show Active Assets</span> 
-                  <span className="text-[11px] font-bold">({activeCount})</span>
-                </>
-              ) : (
-                <>
-                  <Archive className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> 
-                  <span className="hidden md:inline">View Archive Vault</span> 
-                  <span className="text-[11px] font-bold">({archivedCount})</span>
-                </>
-              )}
-            </button>
+            {!isViewer && (
+              <button
+                onClick={() => setShowArchivedOnly(!showArchivedOnly)}
+                title={showArchivedOnly ? "Show Active Assets" : "View Archive Vault"}
+                className={`flex items-center gap-2 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${
+                  showArchivedOnly 
+                    ? (isDark ? 'bg-rose-950/40 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100') 
+                    : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
+                }`}
+              >
+                {showArchivedOnly ? (
+                  <>
+                    <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> 
+                    <span className="hidden md:inline">Show Active Assets</span> 
+                    <span className="text-[11px] font-bold">({activeCount})</span>
+                  </>
+                ) : (
+                  <>
+                    <Archive className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> 
+                    <span className="hidden md:inline">View Archive Vault</span> 
+                    <span className="text-[11px] font-bold">({archivedCount})</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
-          <div className="flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-7 lg:pb-0">
+          <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid ${isViewer ? 'lg:grid-cols-5' : 'lg:grid-cols-7'} lg:pb-0`}>
             
             <div className="min-w-[150px] w-full lg:min-w-0">
-              <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer">
+              <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className={`${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer`}>
                 {categories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
@@ -455,7 +467,7 @@ function InventoryAssets() {
             </div>
 
             <div className="min-w-[150px] w-full lg:min-w-0">
-              <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer">
+              <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className={`${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer`}>
                 {segments.map(seg => (
                   <option key={seg} value={seg}>{seg}</option>
                 ))}
@@ -463,7 +475,7 @@ function InventoryAssets() {
             </div>
 
             <div className="min-w-[170px] w-full lg:min-w-0">
-              <select value={selectedDescription} onChange={(e) => setSelectedDescription(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer">
+              <select value={selectedDescription} onChange={(e) => setSelectedDescription(e.target.value)} className={`${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer`}>
                 {descriptions.map(desc => (
                   <option key={desc} value={desc}>{desc}</option>
                 ))}
@@ -471,7 +483,7 @@ function InventoryAssets() {
             </div>
 
             <div className="min-w-[160px] w-full lg:min-w-0">
-              <select value={selectedConditionFilter} onChange={(e) => setSelectedConditionFilter(e.target.value)} className="bg-white border border-slate-200 text-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none font-medium w-full cursor-pointer">
+              <select value={selectedConditionFilter} onChange={(e) => setSelectedConditionFilter(e.target.value)} className={`${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-lg px-3 py-2 text-sm focus:outline-none font-medium w-full cursor-pointer`}>
                 <option value="All">All Stocks</option>
                 <option value="Has Good">🟢 Contains Good Items</option>
                 <option value="Has Used">🟡 Contains Used Items</option>
@@ -481,103 +493,130 @@ function InventoryAssets() {
 
             <div className="min-w-[200px] w-full lg:min-w-0">
               <div className="relative w-full">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" placeholder="Search Code, Brand, Model, Serial, Location..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none text-slate-700" />
+                <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+                <input type="text" placeholder="Search Code, Category, Segment, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
               </div>
             </div>
 
-            <div className="min-w-[130px] w-full lg:min-w-0">
-              <button onClick={downloadPDFReport} className="flex items-center justify-center bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px] whitespace-nowrap">
-                Download PDF
-              </button>
-            </div>
+            {!isViewer && (
+              <div className="min-w-[130px] w-full lg:min-w-0">
+                <button onClick={downloadPDFReport} className={`flex items-center justify-center ${isDark ? 'bg-[#141622] hover:bg-slate-800 border-slate-700 text-slate-200 border' : 'bg-[#18174e] hover:bg-[#18174e]/90 text-white'} disabled:bg-slate-700 px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px] whitespace-nowrap`}>
+                  Download PDF
+                </button>
+              </div>
+            )}
 
-            <div className="min-w-[120px] w-full lg:min-w-0">
-              <button onClick={openAddModal} disabled={showArchivedOnly} className="flex items-center justify-center bg-[#18174e] hover:bg-[#18174e]/90 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px] whitespace-nowrap">
-                Add Asset
-              </button>
-            </div>
+            {!isViewer && (
+              <div className="min-w-[120px] w-full lg:min-w-0">
+                <button onClick={openAddModal} disabled={showArchivedOnly} className={`flex items-center justify-center ${isDark ? 'bg-[#ff6600] hover:bg-[#ff6600]/90' : 'bg-[#18174e] hover:bg-[#18174e]/90'} disabled:bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px] whitespace-nowrap`}>
+                  Add Asset
+                </button>
+              </div>
+            )}
             
           </div>
-          <div className="h-px bg-slate-100 w-full mt-3"></div>
+          <div className={`h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'} w-full mt-3`}></div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-hidden`}>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
-                <tr className="text-white font-bold bg-[#18174e] uppercase text-nowrap text-sm">
+                <tr className={`text-white font-bold uppercase text-nowrap text-sm ${isDark ? 'bg-[#0f111d] border-b border-slate-800' : 'bg-[#18174e]'}`}>
+                  <th 
+                    className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-0 z-20 ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
+                    style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' }}
+                  >
+                    <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
+                    Item Description
+                  </th>
                   <th className="py-3 px-4">Code</th>
                   <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Item Description</th>
                   <th className="py-3 px-4">Model</th>
                   <th className="py-3 px-4">Brand</th>
                   <th className="py-3 px-4">Serial No.</th>
-                  <th className="py-3 px-4 text-center bg-indigo-950">Actual Count</th>
+                  <th className={`py-3 px-4 text-center ${isDark ? 'bg-[#141626]' : 'bg-indigo-950'}`}>Actual Count</th>
                   <th className="py-3 px-4">UOM</th>
                   <th className="py-3 px-4 text-center">Condition Status Breakdown</th>
                   <th className="py-3 px-4">Account To</th>
                   <th className="py-3 px-4">Location</th>
                   <th className="py-3 px-4">Acquisition Date</th>
-                  <th className="py-3 px-4 text-center">Action</th>
+                  {!isViewer && (
+                    <th className="py-3 px-4 text-center whitespace-nowrap">
+                      Action
+                    </th>
+                  )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                 {loading ? (
                   <tr>
-                    <td colSpan="13" className="text-center py-10 text-green-700 font-medium italic">
+                    <td colSpan={isViewer ? "12" : "13"} className="text-center py-10 text-green-700 font-medium italic">
                       Fetching secure asset data from database...
                     </td>
                   </tr>
                 ) : filteredAssets.length === 0 ? (
                   <tr>
-                    <td colSpan="13" className="text-center py-10 text-red-600 font-medium italic">
+                    <td colSpan={isViewer ? "12" : "13"} className="text-center py-10 text-red-600 font-medium italic">
                       No records match the selected filters or search queries.
                     </td>
                   </tr>
                 ) : (
                   filteredAssets.map((asset) => (
-                    <tr key={asset._id} className="hover:bg-slate-50/80 text-slate-600 font-medium text-sm whitespace-nowrap">
-                      <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{asset.Code}</td>
-                      <td className="py-3 px-4"><span className="bg-slate-100 px-2 py-1 rounded text-xs text-slate-700">{asset.Category}</span></td>
-                      <td className="py-3 px-4 text-slate-800 font-semibold">{asset.ItemDescription}</td>
-                      <td className="py-3 px-4">{asset.Model || '—'}</td>
-                      <td className="py-3 px-4">{asset.Brand || '—'}</td>
-                      <td className="py-3 px-4 font-mono text-xs">{asset.SerialNo || '—'}</td>
-                      <td className="py-3 px-4 text-center font-bold font-mono text-base text-slate-900 bg-slate-50/40">{asset.ActualCount}</td>
-                      <td className="py-3 px-4 text-slate-500">{asset.UOM}</td>
+                    <tr key={asset._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} font-medium text-sm whitespace-nowrap transition-colors`}>
+                      <td 
+                        className={`py-3 px-4 font-semibold static md:sticky md:left-0 z-10 min-w-[160px] sm:min-w-[190px] md:max-w-[280px] whitespace-normal md:whitespace-nowrap transition-colors ${
+                          isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
+                        }`}
+                        style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
+                        title={asset.ItemDescription}
+                      >
+                        <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
+                        <div className="line-clamp-2 md:truncate font-semibold" title={asset.ItemDescription}>
+                          {asset.ItemDescription}
+                        </div>
+                      </td>
+                      <td className={`py-3 px-4 font-mono font-extrabold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`}>{asset.Code}</td>
+                      <td className="py-3 px-4"><span className={`${isDark ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-1 rounded text-xs`}>{asset.Category}</span></td>
+                      <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>{asset.Model || '—'}</td>
+                      <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>{asset.Brand || '—'}</td>
+                      <td className={`py-3 px-4 font-mono text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{asset.SerialNo || '—'}</td>
+                      <td className={`py-3 px-4 text-center font-bold font-mono text-base ${isDark ? 'text-white' : 'text-slate-900 bg-slate-50/40'}`}>{asset.ActualCount}</td>
+                      <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{asset.UOM}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center justify-center gap-1.5">
                           {(asset.ConditionBreakdown?.Good > 0) && (
-                            <span className="text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-bold">Good: {asset.ConditionBreakdown.Good}</span>
+                            <span className={`text-[11px] ${isDark ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60' : 'bg-emerald-50 text-emerald-700 border-emerald-200'} border px-2 py-0.5 rounded font-bold`}>Good: {asset.ConditionBreakdown.Good}</span>
                           )}
                           {(asset.ConditionBreakdown?.Used > 0) && (
-                            <span className="text-[11px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded font-bold">Used: {asset.ConditionBreakdown.Used}</span>
+                            <span className={`text-[11px] ${isDark ? 'bg-amber-950/40 text-amber-300 border-amber-800/60' : 'bg-amber-50 text-amber-700 border-amber-200'} border px-2 py-0.5 rounded font-bold`}>Used: {asset.ConditionBreakdown.Used}</span>
                           )}
                           {(asset.ConditionBreakdown?.Damaged > 0) && (
-                            <span className="text-[11px] bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded font-bold">Repair: {asset.ConditionBreakdown.Damaged}</span>
+                            <span className={`text-[11px] ${isDark ? 'bg-rose-950/40 text-rose-300 border-rose-800/60' : 'bg-rose-50 text-rose-700 border-rose-200'} border px-2 py-0.5 rounded font-bold`}>Repair: {asset.ConditionBreakdown.Damaged}</span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-4 font-semibold text-slate-700">{asset.AccountTo || '—'}</td>
-                      <td className="py-3 px-4 text-slate-700">{asset.Location || '—'}</td>
-                      <td className="py-3 px-4 font-mono text-slate-500">
+                      <td className={`py-3 px-4 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{asset.AccountTo || '—'}</td>
+                      <td className={`py-3 px-4 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{asset.Location || '—'}</td>
+                      <td className={`py-3 px-4 font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         {asset.AcquisitionDate ? new Date(asset.AcquisitionDate).toLocaleDateString() : '—'}
                       </td>
-                      <td className="py-3 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          {!showArchivedOnly ? (
-                            <>
-                              <button onClick={() => openEditModal(asset)} className="p-1 border border-slate-200 rounded text-indigo-600 hover:bg-indigo-600 hover:text-white cursor-pointer"><Edit2 className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => triggerArchiveConfirm(asset)} className="p-1 border border-slate-200 rounded text-rose-600 hover:bg-rose-600 hover:text-white cursor-pointer"><Archive className="w-3.5 h-3.5" /></button>
-                            </>
-                          ) : (
-                            <button onClick={() => triggerUnarchiveConfirm(asset)} className="flex items-center gap-1 px-2 py-1 bg-white border border-emerald-200 rounded text-emerald-600 hover:bg-emerald-600 hover:text-white text-xs font-bold cursor-pointer">
-                              <RotateCcw className="w-3 h-3" /> Restore
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                      {!isViewer && (
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            {!showArchivedOnly ? (
+                              <>
+                                <button onClick={() => openEditModal(asset)} className={`p-1 border ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} rounded cursor-pointer transition-colors`}><Edit2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => triggerArchiveConfirm(asset)} className={`p-1 border ${isDark ? 'bg-[#181a26] border-slate-700 text-rose-400 hover:bg-rose-600 hover:text-white' : 'border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} rounded cursor-pointer transition-colors`}><Archive className="w-3.5 h-3.5" /></button>
+                              </>
+                            ) : (
+                              <button onClick={() => triggerUnarchiveConfirm(asset)} className={`flex items-center gap-1 px-2 py-1 ${isDark ? 'bg-[#181a26] border-emerald-800/80 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-white border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white'} border rounded text-xs font-bold cursor-pointer transition-colors`}>
+                                <RotateCcw className="w-3 h-3" /> Restore
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}

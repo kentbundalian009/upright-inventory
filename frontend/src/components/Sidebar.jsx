@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard,
   Package,
@@ -19,34 +21,119 @@ import {
   X
 } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.MODE === 'production'
+  ? 'https://one-inventory.onrender.com/api'
+  : 'http://localhost:5000/api';
+
 function Sidebar({ activeTab, setActiveTab, userRole }) {
+  const { isDark } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(true); 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [pendingOutboundCount, setPendingOutboundCount] = useState(0);
 
-  const menuItems = [
-    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Inventory'], section: 'main' },
-    
-    { id: 'user-management', name: 'User Management', icon: Users, roles: ['Admin'], section: 'admin' },
-    { id: 'user-activity', name: 'User Activity', icon: Activity, roles: ['Admin'], section: 'admin' },
-    
-    { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, roles: ['Inventory'], section: 'rackings' },
-    { id: 'inbound-raw-mat', name: 'Inbound (Additions)', icon: ArrowDownCircle, roles: ['Inventory'], section: 'rackings' },
-    { id: 'work-in-progress', name: 'WIP (Production)', icon: TrendingUp, roles: ['Inventory'], section: 'rackings' },
-    { id: 'outbound-products', name: 'Outbound (Deductions)', icon: Truck, roles: ['Inventory'], section: 'rackings' },
-    
-    { id: 'supplies', name: 'Supplies (Records)', icon: Package, roles: ['Inventory'], section: 'supplies' },
-    { id: 'supplies-movements', name: 'Supplies Movements', icon: History, roles: ['Inventory'], section: 'supplies' },
-    
-    { id: 'assets', name: 'Assets (Records)', icon: Briefcase, roles: ['Inventory'], section: 'others' },
-    { id: 'reports', name: 'Reports', icon: FileSpreadsheet, roles: ['Inventory'], section: 'others' },
-    
-    { id: 'settings', name: 'Settings', icon: Settings, roles: ['Admin', 'Inventory'], section: 'main' },
-  ];
+  // Close mobile drawer on ESC key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isMobileOpen) {
+        setIsMobileOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileOpen]);
 
-  const allowedMenuItems = menuItems.filter(item => {
-    if (item.id === 'reports' && userRole === 'Admin') return false;
-    return item.roles.includes(userRole);
-  });
+  // Auto-close mobile drawer when window expands past md breakpoint
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768 && isMobileOpen) {
+        setIsMobileOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobileOpen]);
+
+  const fetchPendingOutboundCount = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`${API_BASE_URL}/packing-lists`, { headers });
+      if (res.data && Array.isArray(res.data)) {
+        const records = res.data;
+        const completedPlNumbers = records
+          .filter(r => r.transactionType?.toLowerCase() === "outbound" && r.referencePlNo)
+          .map(r => r.referencePlNo.toString().replace("REF: ", "").trim().toLowerCase());
+
+        const activeReserves = records.filter(r =>
+          !r.isVoided &&
+          r.transactionType?.toLowerCase() === "reserve" &&
+          !completedPlNumbers.includes(r.plNo?.toString().trim().toLowerCase())
+        );
+        setPendingOutboundCount(activeReserves.length);
+      }
+    } catch (err) {
+      console.error("Error fetching pending outbound count for sidebar:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPendingOutboundCount();
+
+    const handleUpdate = () => {
+      fetchPendingOutboundCount();
+    };
+
+    window.addEventListener('packingListUpdated', handleUpdate);
+    window.addEventListener('focus', handleUpdate);
+
+    const interval = setInterval(fetchPendingOutboundCount, 15000);
+
+    return () => {
+      window.removeEventListener('packingListUpdated', handleUpdate);
+      window.removeEventListener('focus', handleUpdate);
+      clearInterval(interval);
+    };
+  }, [fetchPendingOutboundCount]);
+
+  const getMenuItems = () => {
+    if (userRole === 'Viewer') {
+      return [
+        { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, section: 'main' },
+        { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, section: 'records' },
+        { id: 'supplies', name: 'Supplies (Records)', icon: Package, section: 'records' },
+        { id: 'assets', name: 'Assets (Records)', icon: Briefcase, section: 'records' },
+        { id: 'reports', name: 'Reports', icon: FileSpreadsheet, section: 'settings_section' },
+        { id: 'settings', name: 'Settings', icon: Settings, section: 'settings_section' },
+      ];
+    }
+
+    const defaultMenuItems = [
+      { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Inventory'], section: 'main' },
+      
+      { id: 'user-management', name: 'User Management', icon: Users, roles: ['Admin'], section: 'admin' },
+      { id: 'user-activity', name: 'User Activity', icon: Activity, roles: ['Admin'], section: 'admin' },
+      
+      { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, roles: ['Inventory'], section: 'rackings' },
+      { id: 'inbound-raw-mat', name: 'Inbound (Additions)', icon: ArrowDownCircle, roles: ['Inventory'], section: 'rackings' },
+      { id: 'work-in-progress', name: 'WIP (Production)', icon: TrendingUp, roles: ['Inventory'], section: 'rackings' },
+      { id: 'outbound-products', name: 'Outbound', icon: Truck, roles: ['Inventory'], section: 'rackings' },
+      
+      { id: 'supplies', name: 'Supplies (Records)', icon: Package, roles: ['Inventory'], section: 'supplies' },
+      { id: 'supplies-movements', name: 'Supplies Movements', icon: History, roles: ['Inventory'], section: 'supplies' },
+      
+      { id: 'assets', name: 'Assets (Records)', icon: Briefcase, roles: ['Inventory'], section: 'others' },
+      { id: 'reports', name: 'Reports', icon: FileSpreadsheet, roles: ['Inventory'], section: 'others' },
+      
+      { id: 'settings', name: 'Settings', icon: Settings, roles: ['Admin', 'Inventory'], section: 'main' },
+    ];
+
+    return defaultMenuItems.filter(item => {
+      if (item.id === 'reports' && userRole === 'Admin') return false;
+      return item.roles.includes(userRole);
+    });
+  };
+
+  const allowedMenuItems = getMenuItems();
 
   const handleDesktopCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -62,12 +149,16 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
     switch (currentSection) {
       case 'admin':
         return <div className="text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1">User Controls</div>;
+      case 'records':
+        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Records</div>;
+      case 'settings_section':
+        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Settings</div>;
       case 'rackings':
-        return <div className="text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t border-white/5 mt-1">Rackings Process</div>;
+        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Rackings Process</div>;
       case 'supplies':
-        return <div className="text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t border-white/5 mt-1">Supplies Process</div>;
+        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Supplies Process</div>;
       case 'others':
-        return <div className="text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t border-white/5 mt-1">Assets Management</div>;
+        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Assets Management</div>;
       default:
         return null;
     }
@@ -75,47 +166,68 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
 
   return (
     <>
+      {/* Mobile Floating Toggle Button */}
       <div className="fixed top-2.5 left-2.5 z-50 md:hidden">
         <button
           onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="p-2.5 bg-[#18174e] text-white rounded-xl shadow-lg border border-white/10 cursor-pointer active:scale-95 transition-transform"
+          aria-label={isMobileOpen ? "Close navigation menu" : "Open navigation menu"}
+          className={`p-2.5 ${isDark ? 'bg-[#0f111a] border-slate-800 text-white' : 'bg-[#18174e] border-white/10 text-white'} rounded-xl shadow-lg border cursor-pointer active:scale-95 transition-transform flex items-center justify-center`}
         >
           {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
 
+      {/* Mobile Backdrop Overlay */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden"
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 animate-in fade-in"
           onClick={() => setIsMobileOpen(false)}
+          aria-hidden="true"
         />
       )}
 
+      {/* Sidebar Drawer Container */}
       <aside className={`
         fixed top-0 bottom-0 left-0 z-40 md:sticky h-screen max-h-screen
-        bg-gradient-to-b from-[#18174e] via-[#1b1a56] to-[#12113d] border-r border-white/10 text-white flex flex-col
-        transition-all duration-300 shadow-2xl md:shadow-none relative
+        ${isDark
+          ? 'bg-gradient-to-b from-[#0a0b10] via-[#0e1017] to-[#07070b] border-r border-slate-800/80 text-slate-100'
+          : 'bg-gradient-to-b from-[#18174e] via-[#1b1a56] to-[#12113d] border-r border-white/10 text-white'
+        } flex flex-col
+        transition-all duration-300 shadow-2xl md:shadow-none
         
-        ${isMobileOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full md:translate-x-0'}
+        ${isMobileOpen ? 'w-64 max-w-[85vw] translate-x-0' : 'w-64 max-w-[85vw] -translate-x-full md:translate-x-0'}
         ${isCollapsed ? 'md:w-20' : 'md:w-64'}
       `}>
 
+        {/* Desktop Collapse Toggle Button */}
         <div className="absolute -right-3.5 top-6 z-50 hidden md:block">
           <button
             onClick={handleDesktopCollapse}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             className="w-7 h-7 bg-[#ff6600] text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 border border-white/20 cursor-pointer transition-transform"
           >
             {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
         </div>
 
+        {/* Content Wrapper */}
         <div className="flex flex-col overflow-hidden mt-12 md:mt-0 h-full">
-          <div className="py-3 px-4 flex flex-col items-center border-b border-white/10 bg-white/5 backdrop-blur-sm shrink-0">
-            <div className={`transition-all duration-300 bg-white rounded-full p-2 flex items-center justify-center shadow-md ${isCollapsed ? "md:w-9 md:h-9 w-12 h-12" : "w-12 h-12"}`}>
+          {/* Logo & System Brand Header */}
+          <div className={`py-3.5 px-4 flex flex-col items-center border-b ${isDark ? 'border-slate-800/80 bg-black/30' : 'border-white/10 bg-white/5'} backdrop-blur-sm shrink-0 relative`}>
+            {/* Mobile close button inside drawer header */}
+            <button
+              onClick={() => setIsMobileOpen(false)}
+              className="md:hidden absolute top-2 right-2 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+              aria-label="Close sidebar"
+            >
+              <X size={18} />
+            </button>
+
+            <div className={`transition-all duration-300 ${isDark ? 'bg-slate-900 border border-slate-800' : 'bg-white'} rounded-full p-1 flex items-center justify-center shadow-md overflow-hidden ${isCollapsed ? "md:w-9 md:h-9 w-12 h-12" : "w-12 h-12"}`}>
               <img
-                src="/upright.png"
+                src="/cropped_circle_image.png"
                 alt="logo"
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain rounded-full"
                 onError={(e) => { e.target.style.display = 'none'; }}
               />
             </div>
@@ -129,7 +241,8 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
             </div>
           </div>
 
-          <nav className="overflow-y-auto py-2 space-y-1 px-3 custom-scrollbar flex-1">
+          {/* Navigation Links */}
+          <nav className="overflow-y-auto py-2.5 space-y-1 px-3 custom-scrollbar flex-1 pb-8 md:pb-4">
             {allowedMenuItems.map((item, index) => {
               const IconComponent = item.icon;
               const isActive = activeTab === item.id;
@@ -143,18 +256,37 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
                       setActiveTab(item.id);
                       setIsMobileOpen(false);
                     }}
-                    title={isCollapsed ? item.name : ''}
-                    className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all relative cursor-pointer group ${isCollapsed ? 'md:justify-center' : ''} ${
+                    title={isCollapsed ? `${item.name}${item.id === 'outbound-products' && pendingOutboundCount > 0 ? ` (${pendingOutboundCount} pending packed)` : ''}` : ''}
+                    className={`w-full flex items-center gap-3 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all relative cursor-pointer group ${isCollapsed ? 'md:justify-center' : ''} ${
                       isActive
-                        ? 'bg-[#28267a] text-white font-bold shadow-sm border border-white/10'
-                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                        ? isDark
+                          ? 'bg-[#181a26] text-white font-bold shadow-sm border border-slate-700/60'
+                          : 'bg-[#28267a] text-white font-bold shadow-sm border border-white/10'
+                        : isDark
+                          ? 'text-slate-400 hover:bg-white/5 hover:text-white'
+                          : 'text-slate-300 hover:bg-white/10 hover:text-white'
                     }`}
                   >
                     {isActive && (
                       <div className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#ff6600] rounded-r-full shadow-sm" />
                     )}
-                    <IconComponent size={17} className={`flex-shrink-0 transition-transform ${isActive ? 'text-[#ff8533] scale-105' : 'group-hover:scale-105'}`} />
-                    <span className={`truncate ${isCollapsed ? 'md:hidden block' : 'block'}`}>{item.name}</span>
+                    
+                    <div className="relative flex-shrink-0 flex items-center justify-center">
+                      <IconComponent size={17} className={`transition-transform ${isActive ? 'text-[#ff8533] scale-105' : 'group-hover:scale-105'}`} />
+                      {item.id === 'outbound-products' && pendingOutboundCount > 0 && isCollapsed && (
+                        <span className={`hidden md:flex absolute -top-1.5 -right-2 items-center justify-center min-w-[17px] h-[17px] px-0.5 text-[9px] font-black text-white bg-[#ff6600] rounded-full ring-2 ${isDark ? 'ring-[#0a0b10]' : 'ring-[#18174e]'} shadow-sm`}>
+                          {pendingOutboundCount > 99 ? '99+' : pendingOutboundCount}
+                        </span>
+                      )}
+                    </div>
+
+                    <span className={`truncate flex-1 text-left ${isCollapsed ? 'md:hidden block' : 'block'}`}>{item.name}</span>
+
+                    {item.id === 'outbound-products' && pendingOutboundCount > 0 && (
+                      <span className={`ml-auto items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black text-white bg-[#ff6600] rounded-full shadow-md shrink-0 ${isCollapsed ? 'md:hidden flex' : 'flex'}`}>
+                        {pendingOutboundCount > 99 ? '99+' : pendingOutboundCount}
+                      </span>
+                    )}
                   </button>
                 </React.Fragment>
               );

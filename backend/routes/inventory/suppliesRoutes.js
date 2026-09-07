@@ -14,15 +14,7 @@ import { protectRoute, restrictTo } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-const storage = () => multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
-  },
-});
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith("image/")) {
@@ -32,23 +24,27 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ storage: storage(), fileFilter: fileFilter });
+const upload = multer({ 
+  storage: storage, 
+  fileFilter: fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
 
-router.use(protectRoute, restrictTo("Inventory"));
+router.use(protectRoute);
 
 router.route("/")
-  .get(getAllSupplies)    
-  .post(upload.single("image"), createSupplies);
+  .get(restrictTo("Inventory", "Viewer"), getAllSupplies)    
+  .post(restrictTo("Inventory"), upload.single("image"), createSupplies);
 
 router.route("/:id/unarchive")
-  .put(unarchiveSupplies); 
+  .put(restrictTo("Inventory"), unarchiveSupplies); 
 
 router.route("/:id/permanent")
-  .delete(permanentDeleteSupplies);
+  .delete(restrictTo("Inventory"), permanentDeleteSupplies);
 
 router.route("/:id")
-  .get(getSuppliesById)   
-  .put(upload.single("image"), updateSupplies)
-  .delete(deleteSupplies); 
+  .get(restrictTo("Inventory", "Viewer"), getSuppliesById)   
+  .put(restrictTo("Inventory"), upload.single("image"), updateSupplies)
+  .delete(restrictTo("Inventory"), deleteSupplies); 
 
 export default router;

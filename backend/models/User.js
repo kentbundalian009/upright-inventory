@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema(
     SystemRole: {
       type: String,
       required: [true, "System Role is required"],
-      enum: ["Admin", "Inventory"], 
+      enum: ["Admin", "Inventory", "Viewer"], 
       default: "Inventory", 
     },
     Username: {

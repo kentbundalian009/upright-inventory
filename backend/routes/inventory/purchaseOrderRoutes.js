@@ -7,7 +7,7 @@ import { protectRoute, restrictTo } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.use(protectRoute, restrictTo("Inventory"));
+router.use(protectRoute, restrictTo("Inventory", "Viewer"));
 
 router.post("/", createPurchaseOrder);
 router.get("/", getPurchaseOrders);

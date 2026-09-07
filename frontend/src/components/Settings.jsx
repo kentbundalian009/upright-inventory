@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Settings as SettingsIcon, Eye, EyeOff, Key, X, CheckCircle2, Camera, Upload, User } from 'lucide-react';
+import { Shield, Settings as SettingsIcon, Eye, EyeOff, Key, X, CheckCircle2, Camera, Upload, User, Palette, Sun, Moon } from 'lucide-react';
 import PageHeader from './PageHeader';
+import { useTheme } from '../context/ThemeContext';
 
 function Settings() {
+    const { theme, isDark, toggleTheme, setTheme } = useTheme();
     const [userData, setUserData] = useState(null);
     const [name, setName] = useState('');
     const [username, setUsername] = useState('');
@@ -252,10 +254,65 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
 
             <PageHeader activeTab="settings" />
 
-            <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 flex flex-col gap-6 shadow-xs">
+            {/* 1. SYSTEM THEME & APPEARANCE */}
+            <div className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100 text-slate-600'} border rounded-2xl p-6 flex flex-col gap-6 shadow-xs transition-colors duration-200`}>
 
                 <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center gap-2 text-sm font-bold text-slate-600 border-b border-slate-100 pb-3">                      
+                    <div className={`flex items-center gap-2 text-sm font-bold ${isDark ? 'text-slate-200 border-slate-800' : 'text-slate-600 border-slate-100'} border-b pb-3`}>                      
+                        <span>System Theme & Appearance</span>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <h3 className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'} uppercase mb-1.5`}>Display Theme</h3>
+
+                    <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 p-4 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-200'} border rounded-xl`}>
+                        <div className="flex items-center gap-3.5 w-full sm:w-auto">
+                            <div className={`w-12 h-12 rounded-full ${isDark ? 'bg-[#181a26] text-[#ff8533] border-slate-700/60' : 'bg-white text-[#18174e] border-slate-200'} border flex items-center justify-center text-xl font-bold shadow-xs shrink-0`}>
+                                {isDark ? <Moon className="w-5 h-5 text-[#ff6600]" /> : <Sun className="w-5 h-5 text-[#ff6600]" />}
+                            </div>
+
+                            <div className="flex flex-col text-left">
+                                <h4 className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'} uppercase tracking-wide`}>
+                                    Dark Mode
+                                </h4>
+                                <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                    Dark Mode toggle para sa Sidebar, Page Header, at Topbar.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-200/40">
+                            <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-[#ff8533]' : 'text-slate-400'}`}>
+                                {isDark ? 'Dark Mode: ON' : 'Dark Mode: OFF'}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={toggleTheme}
+                                role="switch"
+                                aria-checked={isDark}
+                                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-300 focus:outline-none cursor-pointer shadow-inner shrink-0 ${
+                                    isDark ? 'bg-[#ff6600]' : 'bg-slate-300'
+                                }`}
+                            >
+                                <span
+                                    className={`inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white transition-transform duration-300 shadow-md ${
+                                        isDark ? 'translate-x-8 text-[#ff6600]' : 'translate-x-1 text-slate-500'
+                                    }`}
+                                >
+                                    {isDark ? <Moon className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 2. PROFILE SETTINGS */}
+            <div className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100 text-slate-600'} border rounded-2xl p-6 flex flex-col gap-6 shadow-xs transition-colors duration-200`}>
+
+                <div className="flex flex-col gap-1.5">
+                    <div className={`flex items-center gap-2 text-sm font-bold ${isDark ? 'text-slate-200 border-slate-800' : 'text-slate-600 border-slate-100'} border-b pb-3`}>                      
                         <span>Profile Settings</span>
                     </div>
                 </div>
@@ -263,22 +320,33 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                     <div className="space-y-4">
-                        <h3 className="text-sm font-bold text-slate-600 uppercase mb-1.5">Personal Information</h3>
+                        <h3 className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'} uppercase mb-1.5`}>Personal Information</h3>
 
-                        <div className="flex flex-col sm:flex-row items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                        <div className={`flex flex-col sm:flex-row items-center gap-4 p-4 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-200'} border rounded-xl`}>
                             <div className="relative group">
                                 {profileImagePreview ? (
-                                    <img
-                                        src={
-                                            profileImagePreview.startsWith('blob:') || profileImagePreview.startsWith('http')
-                                                ? profileImagePreview
-                                                : import.meta.env.MODE === 'production'
+                                    <>
+                                        <img
+                                            src={
+                                                profileImagePreview.startsWith('blob:') || profileImagePreview.startsWith('http') || profileImagePreview.startsWith('data:')
                                                     ? profileImagePreview
-                                                    : `${window.location.protocol}//${window.location.hostname}:5000${profileImagePreview}`
-                                        }
-                                        alt="Profile Preview"
-                                        className="w-20 h-20 rounded-full object-cover border-2 border-[#18174e] shadow-sm"
-                                    />
+                                                    : import.meta.env.MODE === 'production'
+                                                        ? profileImagePreview
+                                                        : `${window.location.protocol}//${window.location.hostname}:5000${profileImagePreview}`
+                                            }
+                                            alt="Profile Preview"
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
+                                                if (e.target.nextElementSibling) {
+                                                    e.target.nextElementSibling.style.display = 'flex';
+                                                }
+                                            }}
+                                            className="w-20 h-20 rounded-full object-cover border-2 border-[#18174e] shadow-sm"
+                                        />
+                                        <div style={{ display: 'none' }} className="w-20 h-20 rounded-full bg-[#18174e] text-white items-center justify-center text-2xl font-bold border-2 border-[#18174e] shadow-sm">
+                                            {(name || 'U').charAt(0).toUpperCase()}
+                                        </div>
+                                    </>
                                 ) : (
                                     <div className="w-20 h-20 rounded-full bg-[#18174e] text-white flex items-center justify-center text-2xl font-bold border-2 border-[#18174e] shadow-sm">
                                         {(name || 'U').charAt(0).toUpperCase()}
@@ -301,12 +369,12 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
                             </div>
 
                             <div className="flex flex-col items-center sm:items-start text-center sm:text-left gap-1 flex-1">
-                                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Profile Picture</h4>
-                                <p className="text-[11px] text-slate-500">Upload a square image (JPG, PNG). Max 5MB.</p>
+                                <h4 className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'} uppercase tracking-wide`}>Profile Picture</h4>
+                                <p className="text-[11px] text-slate-400">Upload a square image (JPG, PNG). Max 5MB.</p>
                                 <div className="flex items-center gap-2 mt-1">
                                     <label
                                         htmlFor="profile-image-input"
-                                        className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer transition-all shadow-xs"
+                                        className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${isDark ? 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'} cursor-pointer transition-all shadow-xs`}
                                     >
                                         Choose File
                                     </label>
@@ -326,65 +394,65 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-slate-500 mb-1">Employee No.</label>
+                            <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>Employee No.</label>
                             <input
                                 type="text"
                                 value={employeeNo}
                                 disabled
-                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-500 font-mono font-bold cursor-not-allowed"
+                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'} border rounded-lg px-3 py-2 text-sm font-mono font-bold cursor-not-allowed`}
                             />
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-slate-500 mb-1">System Role</label>
+                            <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>System Role</label>
                             <input
                                 type="text"
                                 value={role}
                                 disabled
-                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-500 font-semibold cursor-not-allowed"
+                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'} border rounded-lg px-3 py-2 text-sm font-semibold cursor-not-allowed`}
                             />
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-slate-500 mb-1">Full Name</label>
+                            <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>Full Name</label>
                             <input
                                 type="text"
                                 value={name}
                                 disabled
-                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-500 font-semibold cursor-not-allowed"
+                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'} border rounded-lg px-3 py-2 text-sm font-semibold cursor-not-allowed`}
                             />
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-slate-500 mb-1">Username</label>
+                            <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>Username</label>
                             <input
                                 type="text"
                                 value={username}
                                 disabled
-                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-500 font-mono cursor-not-allowed"
+                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'} border rounded-lg px-3 py-2 text-sm font-mono cursor-not-allowed`}
                             />
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-slate-500 mb-1">Email Address</label>
+                            <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>Email Address</label>
                             <input
                                 type="email"
                                 value={email}
                                 disabled
-                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-500 cursor-not-allowed"
+                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'} border rounded-lg px-3 py-2 text-sm cursor-not-allowed`}
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-4 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 flex flex-col justify-start">
-                        <h3 className="text-sm font-bold text-slate-600 uppercase mb-1.5">
+                    <div className={`space-y-4 border-t md:border-t-0 md:border-l ${isDark ? 'border-slate-800' : 'border-slate-100'} pt-4 md:pt-0 md:pl-6 flex flex-col justify-start`}>
+                        <h3 className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'} uppercase mb-1.5`}>
                             Account Security
                         </h3>
-            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
-                <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+            <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-800/40 text-amber-300' : 'bg-amber-50 border-amber-200/60 text-amber-700'} rounded-xl border mt-3 shrink-0`}>
+                <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
                     * System Action Protocol *
                 </span>
-                <p className="text-[11px] text-amber-700 leading-relaxed">
+                <p className="text-[11px] leading-relaxed">
                     Please review the operation context. Confirming this step commits changes directly to the live system registry.
                 </p>
             </div>
@@ -404,26 +472,26 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
             </div>
 
 {isPasswordModalOpen && (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-        <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-xl relative flex flex-col animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+        <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-md p-6 shadow-xl relative flex flex-col animate-in zoom-in-95 duration-200`}>
             
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
-                <h3 className="font-bold text-slate-800 text-base">
+            <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3 shrink-0`}>
+                <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-base`}>
                     Security & Password
                 </h3>
                 <button 
                     onClick={closePasswordModal} 
-                    className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer flex items-center transition-colors"
+                    className={`p-1 rounded-lg ${isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} cursor-pointer flex items-center transition-colors`}
                 >
                     <X className="w-4 h-4" />
                 </button>
             </div>
 
-            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/60 mt-3 shrink-0">
-                <span className="block text-xs font-bold text-amber-800 uppercase mb-1">
+            <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-800/40 text-amber-300' : 'bg-amber-50 border-amber-200/60 text-amber-700'} rounded-xl border mt-3 shrink-0`}>
+                <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
                     * System Action Protocol *
                 </span>
-                <p className="text-[11px] text-amber-700 leading-relaxed">
+                <p className="text-[11px] leading-relaxed">
                     Please review the operation context. Confirming this step commits changes directly to the live system registry.
                 </p>
             </div>
@@ -431,14 +499,14 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
             <div className="mt-4 flex-1 space-y-4">
                 
                 <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Current Password</label>
+                    <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>Current Password</label>
                     <div className="relative">
                         <input
                             type={showCurrentPass ? "text" : "password"}
                             placeholder="Enter current password to verify identity"
                             value={currentPassword}
                             onChange={(e) => setCurrentPassword(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] focus:ring-1 focus:ring-[#18174e]/20 text-slate-700 placeholder-slate-400 transition-all"
+                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-700 placeholder-slate-400'} border rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] transition-all`}
                         />
                         <button
                             type="button"
@@ -452,7 +520,7 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
 
                 <div>
                     <div className="flex justify-between items-center mb-1">
-                        <label className="block text-xs font-semibold text-slate-500">New Password</label>
+                        <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>New Password</label>
                         {newPassword && (
                             <span className={`text-xs font-bold ${passwordStrength.color}`}>
                                 {passwordStrength.label} Password
@@ -465,7 +533,7 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
                             placeholder="Enter new strong password"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] focus:ring-1 focus:ring-[#18174e]/20 text-slate-700 placeholder-slate-400 transition-all"
+                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-700 placeholder-slate-400'} border rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] transition-all`}
                         />
                         <button
                             type="button"
@@ -477,7 +545,7 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
                     </div>
 
                     {newPassword && (
-                        <div className="w-full bg-slate-100 h-1 rounded-full mt-1.5 overflow-hidden">
+                        <div className={`w-full ${isDark ? 'bg-slate-800' : 'bg-slate-100'} h-1 rounded-full mt-1.5 overflow-hidden`}>
                             <div className={`h-full transition-all duration-300 ${passwordStrength.bg} ${
                                 passwordStrength.label === 'Weak' ? 'w-1/3' : passwordStrength.label === 'Medium' ? 'w-2/3' : 'w-full'
                             }`} />
@@ -487,9 +555,9 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
 
                 <div>
                     <div className="flex justify-between items-center mb-1">
-                        <label className="block text-xs font-semibold text-slate-500">Confirm New Password</label>
+                        <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Confirm New Password</label>
                         {confirmPassword && (
-                            <span className={`text-xs font-bold ${newPassword === confirmPassword ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            <span className={`text-xs font-bold ${newPassword === confirmPassword ? 'text-emerald-500' : 'text-rose-500'}`}>
                                 {newPassword === confirmPassword ? 'Passwords Match' : 'Passwords Mismatch'}
                             </span>
                         )}
@@ -500,7 +568,7 @@ const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId
                             placeholder="Re-type new password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] focus:ring-1 focus:ring-[#18174e]/20 text-slate-700 placeholder-slate-400 transition-all"
+                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-700 placeholder-slate-400'} border rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:border-[#18174e] transition-all`}
                         />
                         <button
                             type="button"

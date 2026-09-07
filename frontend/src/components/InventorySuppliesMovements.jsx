@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
 import toast, { Toaster } from 'react-hot-toast';
+import { useTheme } from '../context/ThemeContext';
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
   ? 'https://one-inventory.onrender.com/api'
@@ -14,12 +15,15 @@ const SUPPLIES_URL = `${API_BASE_URL}/supplies`;
 const MOVEMENT_URL = `${API_BASE_URL}/supplies-movements`;
 
 function InventorySuppliesMovements() {
+  const { isDark } = useTheme();
   const [dbSupplies, setDbSupplies] = useState([]);
   const [movementRecords, setMovementRecords] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [transactionType, setTransactionType] = useState('Out');
   const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
@@ -147,6 +151,8 @@ function InventorySuppliesMovements() {
       supplyId: it.supplyId?._id || it.supplyId,
       Code: it.supplyId?.Code || 'N/A',
       ItemDescription: it.supplyId?.ItemDescription || '-',
+      Segment: it.supplyId?.Segment || it.supplyId?.segment || 'N/A',
+      Dimension: it.supplyId?.Dimension || it.supplyId?.dimension || 'N/A',
       qty: it.qty,
       UOM: it.supplyId?.UOM || 'pcs',
       goodConditionQty: it.qty,
@@ -222,9 +228,23 @@ function InventorySuppliesMovements() {
     setManifestItems(resetItems);
   }, [transactionType]);
 
-  const handleSubmitSlip = async (e) => {
+  const handleInitiateConfirm = (e) => {
     e.preventDefault();
     if (manifestItems.length === 0) return showErrorToast("Mangyaring magdagdag ng items sa manifest list.");
+    
+    const hasInvalidQty = manifestItems.some(i => {
+      const q = Number(i.qty);
+      return isNaN(q) || q <= 0;
+    });
+    if (hasInvalidQty) {
+      return showErrorToast("Mangyaring maglagay ng valid quantity sa lahat ng items.");
+    }
+
+    setIsConfirmModalOpen(true);
+  };
+
+  const handleSaveSlip = async () => {
+    setIsSaving(true);
     const payload = {
       transactionType, transactionDate, partyName, originAddress, preparedBy, referenceSlipNo,
       items: manifestItems.map(i => ({
@@ -242,11 +262,14 @@ function InventorySuppliesMovements() {
         showSuccessToast(`Supply Transaction finalized successfully!`);
         setManifestItems([]); setPartyName(''); setOriginAddress(''); setReferenceSlipNo('');
         setTransactionType('Borrow');
+        setIsConfirmModalOpen(false);
         fetchData();
       }
     } catch (err) {
       const errMessage = err.response?.data?.message || "Failed to execute transaction registry record.";
       showErrorToast(errMessage);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -379,7 +402,7 @@ function InventorySuppliesMovements() {
   const displayedHistoryLogs = filteredHistoryLogs.slice(0, 50);
 
   return (
-    <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased text-slate-600">
+    <div className={`mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
 
       <Toaster
         position="top-right"
@@ -395,21 +418,25 @@ function InventorySuppliesMovements() {
       </div>
 
       {activeBorrows.length > 0 && (
-        <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 flex flex-col gap-3">
+        <div className={`${isDark ? 'bg-[#141622] border-slate-800 text-slate-200' : 'bg-indigo-50/50 border-indigo-100'} border rounded-xl p-4 flex flex-col gap-3 shadow-sm`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#18174e] uppercase">
-              <Eye className="w-3.5 h-3.5 text-[#18174e]" />
+            <div className={`flex items-center gap-2 text-xs font-bold uppercase ${isDark ? 'text-slate-300' : 'text-[#18174e]'}`}>
+              <Eye className={`w-3.5 h-3.5 ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}`} />
               <span>Quick-Assistant: Select a borrow/reserved record to fulfill transaction</span>
             </div>
 
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-[#18174e]/60" />
+              <Search className={`absolute left-2.5 top-2 w-3.5 h-3.5 ${isDark ? 'text-slate-500' : 'text-[#18174e]/60'}`} />
               <input
                 type="text"
                 placeholder="Type Slip No or Name to filter..."
                 value={quickReturnSearch}
                 onChange={(e) => setQuickReturnSearch(e.target.value)}
-                className="w-full bg-white border border-indigo-200/80 rounded-lg pl-8 pr-2 py-1 text-xs text-[#18174e] focus:outline-none focus:border-[#18174e] placeholder-indigo-300"
+                className={`w-full rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none transition-colors ${
+                  isDark
+                    ? 'bg-[#0e1017] border border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
+                    : 'bg-white border border-indigo-200/80 text-[#18174e] focus:border-[#18174e] placeholder-indigo-300'
+                }`}
               />
             </div>
           </div>
@@ -446,17 +473,17 @@ function InventorySuppliesMovements() {
               b.slipNo?.toLowerCase().includes(quickReturnSearch.toLowerCase()) ||
               b.partyName?.toLowerCase().includes(quickReturnSearch.toLowerCase())
             ).length === 0 && (
-                <span className="text-indigo-400 italic text-xs py-1">No matching borrow/reserved records found.</span>
+                <span className={`${isDark ? 'text-slate-500' : 'text-indigo-400'} italic text-xs py-1`}>No matching borrow/reserved records found.</span>
               )}
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-        <div className="lg:col-span-3 bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 flex flex-col gap-6 shadow-sm">
-          <div className="border-b border-slate-100 pb-3 flex items-center justify-between gap-2 text-sm font-bold text-slate-600">
+        <div className={`lg:col-span-3 p-4 sm:p-6 rounded-2xl border flex flex-col gap-6 shadow-sm ${isDark ? 'bg-[#0e1017] border-slate-800' : 'bg-white border-slate-100'}`}>
+          <div className={`border-b pb-3 flex items-center justify-between gap-2 text-sm font-bold ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'}`}>
             <div className="flex items-center gap-2 min-w-0">
-              <ArrowLeftRight className="w-4 h-4 text-[#18174e] flex-shrink-0" />
+              <ArrowLeftRight className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}`} />
               <span className="truncate">Supplies Movement & Transaction Slip</span>
             </div>
             {manifestItems.length > 0 && (
@@ -470,22 +497,33 @@ function InventorySuppliesMovements() {
             )}
           </div>
 
-          <form onSubmit={handleSubmitSlip} className="flex flex-col gap-5">
+          <form onSubmit={handleInitiateConfirm} className="flex flex-col gap-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Slip Number</label>
+                <label className={`block text-xs sm:text-sm font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Slip Number</label>
                 <div className="relative">
-                  <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={referenceSlipNo ? `REF: ${referenceSlipNo}` : "[ AUTO-GENERATED ]"} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none" />
+                  <FileText className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+                  <input
+                    type="text"
+                    value={referenceSlipNo ? `REF: ${referenceSlipNo}` : "[ AUTO-GENERATED ]"}
+                    disabled
+                    className={`w-full border rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none ${
+                      isDark ? 'bg-[#141622] border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'
+                    }`}
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Transaction Type</label>
+                <label className={`block text-xs sm:text-sm font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Transaction Type</label>
                 <select
                   value={transactionType}
                   onChange={e => setTransactionType(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none text-[#18174e] cursor-pointer"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none cursor-pointer ${
+                    isDark
+                      ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]'
+                      : 'bg-white border-slate-200 text-[#18174e] focus:border-[#18174e]'
+                  }`}
                 >
                   <option value="Out">🔴 Out (Deduct Stock)</option>
                   <option value="Restock">🟢 Restock (Stock In)</option>
@@ -498,22 +536,36 @@ function InventorySuppliesMovements() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Date Processed</label>
+                <label className={`block text-xs sm:text-sm font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Date Processed</label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="date" value={transactionDate} onChange={e => setTransactionDate(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" required />
+                  <Calendar className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+                  <input
+                    type="date"
+                    value={transactionDate}
+                    onChange={e => setTransactionDate(e.target.value)}
+                    className={`w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none ${
+                      isDark
+                        ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]'
+                        : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
+                    }`}
+                    required
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Full Name</label>
+                <label className={`block text-xs sm:text-sm font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Full Name</label>
                 <input
                   type="text"
                   value={partyName}
                   onChange={e => setPartyName(e.target.value)}
                   placeholder={isDamagedDeductingType ? "Disposal Team, Repair Shop, or Junk shop" : "Enter full name of person"}
                   list="party-suggestions"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none ${
+                    isDark
+                      ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
+                      : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
+                  }`}
                   required
                 />
                 <datalist id="party-suggestions">
@@ -524,14 +576,18 @@ function InventorySuppliesMovements() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Location / Address</label>
+                <label className={`block text-xs sm:text-sm font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Location / Address</label>
                 <input
                   type="text"
                   value={originAddress}
                   onChange={e => setOriginAddress(e.target.value)}
                   placeholder="Enter origin address or department"
                   list="location-suggestions"
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none ${
+                    isDark
+                      ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
+                      : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
+                  }`}
                 />
                 <datalist id="location-suggestions">
                   {existingLocations.map((loc, idx) => (
@@ -541,58 +597,83 @@ function InventorySuppliesMovements() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-600 uppercase mb-1.5">Prepared Name</label>
+                <label className={`block text-xs sm:text-sm font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Prepared Name</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={preparedBy} disabled className="w-full bg-slate-50 border border-slate-200 text-slate-400 rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none" />
+                  <User className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+                  <input
+                    type="text"
+                    value={preparedBy}
+                    disabled
+                    className={`w-full border rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none ${
+                      isDark
+                        ? 'bg-[#141622] border-slate-800 text-slate-500'
+                        : 'bg-slate-50 border-slate-200 text-slate-400'
+                    }`}
+                  />
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1.5 relative">
-              <label className="block text-xs sm:text-sm font-bold text-amber-600 uppercase leading-snug">Step 1: Type / Select Supplies (Optional)</label>
+            <div className={`p-4 rounded-xl border flex flex-col gap-1.5 relative ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
+              <label className={`block text-xs sm:text-sm font-bold uppercase leading-snug ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>Step 1: Type / Select Supplies (Optional)</label>
               <div className="relative">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search item code or details..." className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none" />
+                <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search item code or details..."
+                  className={`w-full rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none transition-colors ${
+                    isDark
+                      ? 'bg-[#0e1017] border border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
+                      : 'bg-white border border-slate-200 text-slate-800 focus:border-[#18174e]'
+                  }`}
+                />
               </div>
               {searchQuery && (
-                <div className="absolute left-0 right-0 top-[102%] bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1">
+                <div className={`absolute left-0 right-0 top-[102%] border rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 p-1 divide-y ${
+                  isDark
+                    ? 'bg-[#0e1017] border-slate-700 divide-slate-800 text-slate-200'
+                    : 'bg-white border-slate-200 divide-slate-100 text-slate-800'
+                }`}>
                   {filteredSuggestions.length > 0 ? (
                     filteredSuggestions.map(item => (
                       <div
                         key={item._id}
                         onClick={() => handleSelectSupply(item)}
-                        className="p-3 hover:bg-slate-50 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors"
+                        className={`p-3 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors ${
+                          isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'
+                        }`}
                       >
-                        <div className="flex justify-between items-center font-bold text-slate-800 text-sm gap-2">
+                        <div className={`flex justify-between items-center font-bold text-sm gap-2 ${isDark ? 'text-white' : 'text-slate-800'}`}>
                           <div className="flex items-center gap-2 truncate">
-                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-mono">{item.Code}</span>
-                            <span className="text-xs font-medium text-slate-400 lowercase italic truncate">{item.UOM || 'pcs'}</span>
+                            <span className={`px-2 py-0.5 rounded text-xs font-mono ${isDark ? 'bg-[#1a1d2d] text-[#ff6600]' : 'bg-slate-100 text-slate-700'}`}>{item.Code}</span>
+                            <span className={`text-xs font-medium lowercase italic truncate ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{item.UOM || 'pcs'}</span>
                           </div>
 
                           <div className="flex items-center gap-1 text-[10px] font-bold uppercase flex-shrink-0">
-                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                               Good: {item.ConditionBreakdown?.Good ?? item.ActualCount ?? 0}
                             </span>
-                            <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
+                            <span className="px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/30">
                               Damaged: {item.ConditionBreakdown?.Damaged ?? item.DamagedCount ?? 0}
                             </span>
                           </div>
                         </div>
 
-                        <span className="text-slate-800 font-semibold text-sm truncate">{item.ItemDescription}</span>
+                        <span className={`font-semibold text-sm truncate ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{item.ItemDescription}</span>
 
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-                          <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Cat: {item.Category || item.category || 'Supply'}</span>
-                          {(item.Segment || item.segment) && <span className="bg-slate-50 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Seg: {item.Segment || item.segment}</span>}
+                        <div className={`flex flex-wrap items-center gap-1.5 text-[10px] font-medium pt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          <span className={`px-1.5 py-0.5 rounded border ${isDark ? 'bg-[#141622] border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>Cat: {item.Category || item.category || 'Supply'}</span>
+                          {(item.Segment || item.segment) && <span className={`px-1.5 py-0.5 rounded border ${isDark ? 'bg-[#141622] border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>Seg: {item.Segment || item.segment}</span>}
                           {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono">Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
+                            <span className={`px-1.5 py-0.5 rounded font-mono border ${isDark ? 'bg-[#18174e]/40 border-indigo-500/30 text-indigo-300' : 'bg-indigo-50 text-indigo-700 border-indigo-100'}`}>Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
                           )}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-4 text-red-600 italic font-bold text-xs">
+                    <div className="text-center py-4 text-red-500 italic font-bold text-xs">
                       No records found matching.
                     </div>
                   )}
@@ -600,149 +681,176 @@ function InventorySuppliesMovements() {
               )}
             </div>
 
-<div className="flex flex-col gap-2">
-  <span className="text-[10px] sm:text-xs font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded w-fit uppercase">
-    Quantities will be automatically (deducted / added)
-  </span>
-  <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
-    <table className="w-full text-left border-collapse text-sm min-w-[1200px]">
-  <thead>
-    <tr className="text-white font-bold bg-[#18174e] uppercase text-xs whitespace-nowrap">
-      <th className="py-3 px-4 text-center w-24">Total QTY</th>
-      <th className="py-3 px-4 text-center w-16">UOM</th>
-      <th className="py-3 px-4 text-center w-28 text-emerald-400">Good Cond.</th>
-      <th className="py-3 px-4 text-center w-28 text-rose-400">Damaged</th>
+            <div className="flex flex-col gap-2">
+              <span className={`text-[10px] sm:text-xs font-bold px-2 py-1 rounded w-fit uppercase ${
+                isDark ? 'bg-amber-950/40 text-amber-300 border border-amber-800/40' : 'text-amber-700 bg-amber-50'
+              }`}>
+                Quantities will be automatically (deducted / added)
+              </span>
+              <div className={`rounded-xl border shadow-sm overflow-x-auto ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'}`}>
+                <table className="w-full text-left border-collapse text-sm min-w-[1200px]">
+                  <thead>
+                    <tr className={`uppercase text-xs whitespace-nowrap font-bold ${isDark ? 'bg-[#0f111d] text-slate-200' : 'bg-[#18174e] text-white'}`}>
+                      <th className="py-3 px-4 text-center w-24">Total QTY</th>
+                      <th className="py-3 px-4 text-center w-16">UOM</th>
+                      <th className="py-3 px-4 text-center w-28 text-emerald-400">Good Cond.</th>
+                      <th className="py-3 px-4 text-center w-28 text-rose-400">Damaged</th>
 
-      <th className="py-3 px-4 w-28 whitespace-nowrap">Supply Code</th>
-      <th className="py-3 px-4">Category</th>
-      <th className="py-3 px-4">Segment</th>
-      <th className="py-3 px-4 w-44 whitespace-nowrap">Item Description</th>
-      <th className="py-3 px-4">Dimension</th>
-      <th className="py-3 px-4">Serial No.</th>
-      <th className="py-3 px-4 min-w-[180px]">Remarks / Notes</th>
-      <th className="py-3 px-4 text-center w-14">Action</th>
-    </tr>
-  </thead>
-  <tbody className="divide-y divide-slate-100">
-    {manifestItems.length > 0 ? (
-      manifestItems.map((item, index) => (
-        <tr key={index} className="hover:bg-slate-50/80 text-xs">
-          
-          <td className="py-2 px-4 text-center w-24">
-            <input
-              type="number"
-              value={item.qty}
-              onChange={e => handleUpdateField(index, 'qty', e.target.value)}
-              className="w-full border text-center rounded py-1 text-sm disabled:bg-slate-50 font-semibold text-slate-700 focus:outline-none focus:border-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              min="0"
-              disabled={!isDeductingType}
-              required
-              onWheel={(e) => e.currentTarget.blur()}
-            />
-            <div className="text-[10px] text-slate-400 mt-0.5">Max: {item.maxLimit}</div>
-          </td>
+                      <th className="py-3 px-4 w-28 whitespace-nowrap">Supply Code</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4">Segment</th>
+                      <th className="py-3 px-4 w-44 whitespace-nowrap">Item Description</th>
+                      <th className="py-3 px-4">Dimension</th>
+                      <th className="py-3 px-4">Serial No.</th>
+                      <th className="py-3 px-4 min-w-[180px]">Remarks / Notes</th>
+                      <th className="py-3 px-4 text-center w-14">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y text-xs ${isDark ? 'divide-slate-800/60 bg-[#090b10] text-slate-300' : 'divide-slate-100 bg-white text-slate-700'}`}>
+                    {manifestItems.length > 0 ? (
+                      manifestItems.map((item, index) => (
+                        <tr key={index} className={`transition-colors ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/80'}`}>
+                          
+                          <td className="py-2 px-4 text-center w-24">
+                            <input
+                              type="number"
+                              value={item.qty}
+                              onChange={e => handleUpdateField(index, 'qty', e.target.value)}
+                              className={`w-full border text-center rounded py-1 text-sm font-semibold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                                isDark
+                                  ? 'bg-[#141622] border-slate-700 text-white disabled:bg-[#0e1017] disabled:text-slate-600 focus:border-[#ff6600]'
+                                  : 'border-slate-200 text-slate-700 disabled:bg-slate-50 focus:border-slate-400'
+                              }`}
+                              min="0"
+                              disabled={!isDeductingType}
+                              required
+                              onWheel={(e) => e.currentTarget.blur()}
+                            />
+                            <div className="text-[10px] text-slate-500 mt-0.5">Max: {item.maxLimit}</div>
+                          </td>
 
-          <td className="py-2 px-4 text-center w-16">
-            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.UOM}</span>
-          </td>
+                          <td className="py-2 px-4 text-center w-16">
+                            <span className={`px-2 py-0.5 rounded text-xs ${isDark ? 'bg-[#141622] text-slate-300' : 'bg-slate-100 text-slate-700'}`}>{item.UOM}</span>
+                          </td>
 
-          <td className="py-2 px-4 text-center w-28">
-            <input
-              type="number"
-              value={item.goodConditionQty}
-              onChange={e => handleUpdateField(index, 'goodConditionQty', e.target.value)}
-              className="w-full border text-center rounded py-1 text-sm font-bold text-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              min="0"
-              required
-              disabled={isDeductingType}
-              onWheel={(e) => e.currentTarget.blur()}
-            />
-          </td>
+                          <td className="py-2 px-4 text-center w-28">
+                            <input
+                              type="number"
+                              value={item.goodConditionQty}
+                              onChange={e => handleUpdateField(index, 'goodConditionQty', e.target.value)}
+                              className={`w-full border text-center rounded py-1 text-sm font-bold text-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none ${
+                                isDark
+                                  ? 'bg-[#141622] border-slate-700 disabled:bg-[#0e1017] disabled:text-slate-600 disabled:border-slate-800 disabled:font-normal focus:border-emerald-400'
+                                  : 'border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:border-emerald-500'
+                              }`}
+                              min="0"
+                              required
+                              disabled={isDeductingType}
+                              onWheel={(e) => e.currentTarget.blur()}
+                            />
+                          </td>
 
-          <td className="py-2 px-4 text-center w-28">
-            <input
-              type="number"
-              value={item.damagedQty}
-              onChange={e => handleUpdateField(index, 'damagedQty', e.target.value)}
-              className="w-full border text-center rounded py-1 text-sm font-bold text-rose-600 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:outline-none focus:border-rose-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              min="0"
-              required
-              disabled={isDeductingType}
-              onWheel={(e) => e.currentTarget.blur()}
-            />
-          </td>
+                          <td className="py-2 px-4 text-center w-28">
+                            <input
+                              type="number"
+                              value={item.damagedQty}
+                              onChange={e => handleUpdateField(index, 'damagedQty', e.target.value)}
+                              className={`w-full border text-center rounded py-1 text-sm font-bold text-rose-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none ${
+                                isDark
+                                  ? 'bg-[#141622] border-slate-700 disabled:bg-[#0e1017] disabled:text-slate-600 disabled:border-slate-800 disabled:font-normal focus:border-rose-400'
+                                  : 'border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:font-normal focus:border-rose-500'
+                              }`}
+                              min="0"
+                              required
+                              disabled={isDeductingType}
+                              onWheel={(e) => e.currentTarget.blur()}
+                            />
+                          </td>
 
-          <td className="py-2 px-4 font-bold text-[#18174e] whitespace-nowrap">{item.Code}</td>
+                          <td className={`py-2 px-4 font-bold whitespace-nowrap font-mono ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}`}>{item.Code}</td>
 
-          <td className="py-2 px-4 italic text-slate-500">{item.Category}</td>
+                          <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.Category}</td>
 
-          <td className="py-2 px-4 italic text-slate-500">{item.Segment}</td>
+                          <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.Segment}</td>
 
-          <td className="py-2 px-4 truncate max-w-[170px] whitespace-nowrap" title={item.ItemDescription}>
-            {item.ItemDescription}
-          </td>
+                          <td className={`py-2 px-4 truncate max-w-[170px] whitespace-nowrap ${isDark ? 'text-slate-200' : 'text-slate-700'}`} title={item.ItemDescription}>
+                            {item.ItemDescription}
+                          </td>
 
-          <td className="py-2 px-4 text-slate-500">{item.Dimension}</td>
+                          <td className={`py-2 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.Dimension}</td>
 
-          <td className="py-2 px-4 font-mono text-slate-600">{item.SerialNo}</td>
+                          <td className={`py-2 px-4 font-mono ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{item.SerialNo}</td>
 
-          <td className="py-2 px-4 min-w-[180px]">
-            <input 
-              type="text" 
-              value={item.remarks} 
-              onChange={e => handleUpdateField(index, 'remarks', e.target.value)} 
-              placeholder={isDamagedDeductingType ? "Reason for scrapping/repairing" : "Provide context details..."} 
-              className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:border-[#18174e]" 
-            />
-          </td>
+                          <td className="py-2 px-4 min-w-[180px]">
+                            <input 
+                              type="text" 
+                              value={item.remarks} 
+                              onChange={e => handleUpdateField(index, 'remarks', e.target.value)} 
+                              placeholder={isDamagedDeductingType ? "Reason for scrapping/repairing" : "Provide context details..."} 
+                              className={`w-full border rounded px-2 py-1 text-xs focus:outline-none ${
+                                isDark
+                                  ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
+                                  : 'border-slate-200 text-slate-700 focus:border-[#18174e]'
+                              }`} 
+                            />
+                          </td>
 
-          <td className="py-2 px-4 text-center w-14">
-            <button 
-              type="button" 
-              onClick={() => { 
-                setManifestItems(manifestItems.filter((_, i) => i !== index)); 
-                showSuccessToast("Item removed from template manifest."); 
-              }} 
-              className="text-red-500 cursor-pointer hover:text-red-700 transition-all p-1 inline-block"
+                          <td className="py-2 px-4 text-center w-14">
+                            <button 
+                              type="button" 
+                              onClick={() => { 
+                                setManifestItems(manifestItems.filter((_, i) => i !== index)); 
+                                showSuccessToast("Item removed from template manifest."); 
+                              }} 
+                              className="text-red-500 cursor-pointer hover:text-red-400 transition-all p-1 inline-block"
+                            >
+                              <Trash2 className="w-4 h-4 mx-auto" />
+                            </button>
+                          </td>
+
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="12" className="text-center py-6 text-red-500 italic font-bold text-xs">
+                          No items added. Search above to add rows.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-[#ff6600] hover:bg-[#e05a00] text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase shadow-sm"
             >
-              <Trash2 className="w-4 h-4 mx-auto" />
-            </button>
-          </td>
-
-        </tr>
-      ))
-    ) : (
-      <tr>
-        <td colSpan="12" className="text-center py-6 text-red-600 italic font-bold text-xs">
-          No items added. Search above to add rows.
-        </td>
-      </tr>
-    )}
-  </tbody>
-</table>
-  </div>
-</div>
-
-            <button type="submit" className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-4 rounded-lg text-sm transition-colors cursor-pointer uppercase shadow-sm">
-              Save Supplies Activity
+              Confirm Supplies Activity
             </button>
           </form>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col gap-3 shadow-sm h-auto min-h-[400px]">
-          <div className="flex flex-col gap-1 border-b border-slate-100 pb-2">
-            <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
-              <ClipboardList className="w-4 h-4 text-[#18174e]" />
+        <div className={`p-4 rounded-2xl border flex flex-col gap-3 shadow-sm h-auto min-h-[400px] ${
+          isDark ? 'bg-[#0e1017] border-slate-800' : 'bg-white border-slate-100'
+        }`}>
+          <div className={`flex flex-col gap-1 border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+            <div className={`flex items-center gap-2 text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
+              <ClipboardList className={`w-4 h-4 ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}`} />
               <span>History Logs</span>
             </div>
             <div className="relative mt-1">
-              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
+              <Search className={`absolute left-2.5 top-2 w-3.5 h-3.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
               <input
                 type="text"
                 value={historySearchQuery}
                 onChange={e => setHistorySearchQuery(e.target.value)}
                 placeholder="Search slip or name..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none"
+                className={`w-full border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none transition-colors ${
+                  isDark
+                    ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
+                    : 'bg-slate-50 border-slate-200 text-slate-800 focus:border-[#18174e]'
+                }`}
               />
             </div>
           </div>
@@ -753,31 +861,39 @@ function InventorySuppliesMovements() {
                 <div
                   key={rec._id}
                   onClick={() => { setSelectedSlip(rec); setIsModalOpen(true); }}
-                  className="bg-white border border-slate-100 rounded-xl p-2.5 flex flex-col gap-0.5 hover:border-[#18174e]/50 transition-all cursor-pointer hover:shadow-md group"
+                  className={`border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer hover:shadow-md group ${
+                    isDark
+                      ? 'bg-[#141622] border-slate-800/80 hover:border-[#ff6600]/50'
+                      : 'bg-white border-slate-100 hover:border-[#18174e]/50'
+                  }`}
                 >
-                  <div className="flex justify-between items-center pb-0.5 border-b border-slate-50">
-                    <span className="text-xs font-black text-[#18174e] group-hover:text-emerald-600">{rec.slipNo}</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${rec.transactionType === 'Borrow' ? 'bg-amber-50 text-amber-600' :
-                      rec.transactionType === 'Return' ? 'bg-blue-50 text-blue-600' :
-                        rec.transactionType === 'Reserved' ? 'bg-purple-50 text-purple-600' :
-                          rec.transactionType === 'Out' ? 'bg-rose-50 text-rose-600' :
-                            rec.transactionType === 'Scrap' ? 'bg-red-50 text-red-600' :
-                              rec.transactionType === 'Repair' ? 'bg-teal-50 text-teal-600' : 'bg-emerald-50 text-emerald-600'
-                      }`}>
+                  <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
+                    <span className={`text-xs font-black font-mono ${isDark ? 'text-[#ff6600] group-hover:text-amber-400' : 'text-[#18174e] group-hover:text-emerald-600'}`}>{rec.slipNo}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${
+                      rec.transactionType === 'Borrow' ? (isDark ? 'bg-amber-950/50 text-amber-400' : 'bg-amber-50 text-amber-600') :
+                      rec.transactionType === 'Return' ? (isDark ? 'bg-blue-950/50 text-blue-400' : 'bg-blue-50 text-blue-600') :
+                      rec.transactionType === 'Reserved' ? (isDark ? 'bg-purple-950/50 text-purple-400' : 'bg-purple-50 text-purple-600') :
+                      rec.transactionType === 'Out' ? (isDark ? 'bg-rose-950/50 text-rose-400' : 'bg-rose-50 text-rose-600') :
+                      rec.transactionType === 'Scrap' ? (isDark ? 'bg-red-950/50 text-red-400' : 'bg-red-50 text-red-600') :
+                      rec.transactionType === 'Repair' ? (isDark ? 'bg-teal-950/50 text-teal-400' : 'bg-teal-50 text-teal-600') : 
+                      (isDark ? 'bg-emerald-950/50 text-emerald-400' : 'bg-emerald-50 text-emerald-600')
+                    }`}>
                       {rec.transactionType}
                     </span>
                   </div>
-                  <span className="text-xs font-bold text-slate-700 truncate">{rec.partyName || 'N/A'}</span>
-                  <span className="text-[10px] font-semibold text-slate-400">{rec.transactionDate ? new Date(rec.transactionDate).toLocaleDateString() : 'No Date'}</span>
+                  <span className={`text-xs font-bold truncate ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{rec.partyName || 'N/A'}</span>
+                  <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{rec.transactionDate ? new Date(rec.transactionDate).toLocaleDateString() : 'No Date'}</span>
                 </div>
               ))
             ) : (
-              <span className="text-center pt-4 text-red-600 italic font-bold text-xs">No matching records found.</span>
+              <span className="text-center pt-4 text-red-500 italic font-bold text-xs">No matching records found.</span>
             )}
           </div>
 
           {!historySearchQuery && movementRecords.length > 4 && (
-            <div className="text-[10px] text-center font-semibold text-slate-400 mt-auto pt-2 border-t border-slate-50">
+            <div className={`text-[10px] text-center font-semibold mt-auto pt-2 border-t ${
+              isDark ? 'border-slate-800 text-slate-500' : 'border-slate-50 text-slate-400'
+            }`}>
               Showing latest 4 entries. Use search to view more records.
             </div>
           )}
@@ -785,84 +901,234 @@ function InventorySuppliesMovements() {
       </div>
 
       {isModalOpen && selectedSlip && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-xl relative text-slate-700 flex flex-col gap-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`border rounded-2xl w-full max-w-2xl p-6 shadow-2xl relative flex flex-col gap-4 ${
+            isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
+          }`}>
 
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-800 text-lg">
-                Transaction No: {selectedSlip.slipNo}
+            <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                Transaction No: <span className="font-mono text-[#ff6600]">{selectedSlip.slipNo}</span>
               </h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleDownloadPDF}
-                  className="flex items-center gap-1.5 bg-[#18174e] hover:bg-[#18174e]/90 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Download PDF
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+                  className={`p-1 rounded-lg cursor-pointer transition-colors ${
+                    isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                  }`}
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 text-sm gap-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div><span className="font-semibold text-slate-400">Slip ID No:</span> <span className="font-bold text-slate-800">{selectedSlip.slipNo}</span></div>
-              <div><span className="font-semibold text-slate-400">Date Logged:</span> <span className="font-bold text-slate-800">{selectedSlip.transactionDate ? new Date(selectedSlip.transactionDate).toLocaleDateString() : '-'}</span></div>
-              <div><span className="font-semibold text-slate-400">Movement:</span> <span className="font-bold text-indigo-700 uppercase">{selectedSlip.transactionType}</span></div>
-              <div><span className="font-semibold text-slate-400">Prepared By:</span> <span className="font-bold text-slate-800">{selectedSlip.preparedBy || preparedBy}</span></div>
-              <div><span className="font-semibold text-slate-400">Full Name:</span> <span className="font-bold text-slate-800">{selectedSlip.partyName || 'N/A'}</span></div>
-              <div><span className="font-semibold text-slate-400">Dept Location:</span> <span className="font-bold text-slate-800">{selectedSlip.originAddress || 'N/A'}</span></div>
+            <div className={`grid grid-cols-2 text-sm gap-2 p-4 rounded-xl border ${
+              isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'
+            }`}>
+              <div><span className="font-semibold text-slate-500">Slip ID No:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.slipNo}</span></div>
+              <div><span className="font-semibold text-slate-500">Date Logged:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.transactionDate ? new Date(selectedSlip.transactionDate).toLocaleDateString() : '-'}</span></div>
+              <div><span className="font-semibold text-slate-500">Movement:</span> <span className="font-bold text-[#ff6600] uppercase">{selectedSlip.transactionType}</span></div>
+              <div><span className="font-semibold text-slate-500">Prepared By:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.preparedBy || preparedBy}</span></div>
+              <div><span className="font-semibold text-slate-500">Full Name:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.partyName || 'N/A'}</span></div>
+              <div><span className="font-semibold text-slate-500">Dept Location:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.originAddress || 'N/A'}</span></div>
             </div>
 
-            <div className="max-h-64 overflow-y-auto border border-slate-200/60 rounded-xl relative shadow-sm">
-              <table className="w-full text-left text-xs border-collapse bg-white">
-  <thead className="sticky top-0 z-10 bg-[#18174e] text-white text-[11px] font-bold uppercase tracking-wide">
-    <tr>
-      <th className="p-3 w-1/4">Supplies Profile</th>
-      <th className="p-3 text-center w-24">Total QTY</th>
-      <th className="p-3 text-center w-28 text-emerald-400">Good Cond.</th>
-      <th className="p-3 text-center w-24 text-rose-400">Damaged</th>
-      <th className="p-3 text-left pl-6">Remarks / Reason</th>
-    </tr>
-  </thead>
-  <tbody className="divide-y divide-slate-100 ">
-    {selectedSlip.items?.map((it, idx) => (
-      <tr key={it._id || idx} className="hover:bg-slate-50/50 transition-colors">
-        <td className="p-3 w-1/4 align-middle">
-          <div className="font-bold text-[#18174e]">{it.supplyId?.Code || 'N/A'}</div>
-          <div className="text-slate-400 text-[11px] max-w-xs truncate font-medium " title={it.supplyId?.ItemDescription}>
-            {it.supplyId?.ItemDescription || '-'}
+            <div className={`max-h-64 overflow-y-auto border rounded-xl relative shadow-sm ${
+              isDark ? 'border-slate-800 bg-[#0c0e14]' : 'border-slate-200/60 bg-white'
+            }`}>
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className={`sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wide ${
+                  isDark ? 'bg-[#0f111d] text-slate-200' : 'bg-[#18174e] text-white'
+                }`}>
+                  <tr>
+                    <th className="p-3 w-1/4">Supplies Profile</th>
+                    <th className="p-3 text-center w-24">Total QTY</th>
+                    <th className="p-3 text-center w-28 text-emerald-400">Good Cond.</th>
+                    <th className="p-3 text-center w-24 text-rose-400">Damaged</th>
+                    <th className="p-3 text-left pl-6">Remarks / Reason</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10] text-slate-300' : 'divide-slate-100 bg-white text-slate-700'}`}>
+                  {selectedSlip.items?.map((it, idx) => (
+                    <tr key={it._id || idx} className={`transition-colors ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'}`}>
+                      <td className="p-3 w-1/4 align-middle">
+                        <div className={`font-bold font-mono ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}`}>{it.supplyId?.Code || 'N/A'}</div>
+                        <div className={`text-[11px] max-w-xs truncate font-medium ${isDark ? 'text-slate-400' : 'text-slate-400'}`} title={it.supplyId?.ItemDescription}>
+                          {it.supplyId?.ItemDescription || '-'}
+                        </div>
+                      </td>
+                      
+                      <td className={`p-3 text-center w-24 align-middle font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                        {it.qty}
+                      </td>
+                      
+                      <td className="p-3 text-center text-emerald-500 w-28 align-middle font-bold">
+                        {it.goodConditionQty ?? 0}
+                      </td>
+                      
+                      <td className="p-3 text-center text-rose-500 w-24 align-middle font-bold">
+                        {it.damagedQty ?? 0}
+                      </td>
+                      
+                      <td className={`p-3 italic font-medium text-[11px] max-w-[140px] truncate align-middle pl-6 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} title={it.remarks}>
+                        {it.remarks || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                  {(!selectedSlip.items || selectedSlip.items.length === 0) && (
+                    <tr>
+                      <td colSpan="5" className="p-4 text-center text-slate-500 italic">No materials recorded.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
           </div>
-        </td>
-        
-        <td className="p-3 text-center text-slate-700 w-24 align-middle font-bold">
-          {it.qty}
-        </td>
-        
-        <td className="p-3 text-center text-emerald-600 w-28 align-middle font-bold">
-          {it.goodConditionQty ?? 0}
-        </td>
-        
-        <td className="p-3 text-center text-rose-600 w-24 align-middle font-bold">
-          {it.damagedQty ?? 0}
-        </td>
-        
-        <td className="p-3 italic text-slate-500 font-medium text-[11px] max-w-[140px] truncate align-middle pl-6" title={it.remarks}>
-          {it.remarks || '-'}
-        </td>
-      </tr>
-    ))}
-    {(!selectedSlip.items || selectedSlip.items.length === 0) && (
-      <tr>
-        <td colSpan="5" className="p-4 text-center text-slate-400 italic">No materials recorded.</td>
-      </tr>
-    )}
-  </tbody>
-</table>
+        </div>
+      )}
+      {/* CONFIRMATION MODAL */}
+      {isConfirmModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto flex flex-col gap-5 animate-in zoom-in-95 duration-200`}>
+            
+            {/* Header */}
+            <div className={`flex justify-between items-start border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
+              <div>
+                <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-[#18174e]'}`}>
+                  Confirm Supplies Movement ({transactionType})
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Paki-review ang mga detalye ng supply transaction bago i-save sa database.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConfirmModalOpen(false)}
+                className={`p-1.5 rounded-lg ${isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'} transition-colors cursor-pointer`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Details Summary Card */}
+            <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border text-xs ${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Transaction Type</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block ${isDark ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-800' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'}`}>
+                  {transactionType}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Date Processed</span>
+                <span className="font-semibold">{transactionDate ? new Date(transactionDate).toLocaleDateString() : '—'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Party / Receiver / Issuer</span>
+                <span className="font-semibold">{partyName || 'N/A'}</span>
+              </div>
+              <div className="sm:col-span-2">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Location / Dept Address</span>
+                <span className="font-semibold truncate block">{originAddress || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Prepared By</span>
+                <span className="font-semibold">{preparedBy}</span>
+              </div>
+              {referenceSlipNo && (
+                <div className="sm:col-span-3">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Reference Slip</span>
+                  <span className={`font-mono font-bold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`}>{referenceSlipNo}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Manifest Items Table */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center text-xs font-bold px-1">
+                <span className="uppercase text-slate-400">Supplies to Process ({manifestItems.length})</span>
+                <span className="text-[#ff6600] font-bold">
+                  Total Qty: {manifestItems.reduce((sum, item) => sum + (Number(item.qty) || 0), 0)}
+                </span>
+              </div>
+              <div className={`rounded-xl border overflow-hidden max-h-56 overflow-y-auto ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-200'}`}>
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className={`uppercase text-[10px] font-bold ${isDark ? 'bg-[#141622] text-slate-300 border-b border-slate-800' : 'bg-slate-100 text-slate-600 border-b border-slate-200'}`}>
+                      <th className="py-2 px-3">Item Description</th>
+                      <th className="py-2 px-3">Segment</th>
+                      <th className="py-2 px-3">Dimension</th>
+                      <th className="py-2 px-3 text-center font-bold">Total Qty</th>
+                      <th className="py-2 px-3 text-center text-emerald-500">Good</th>
+                      <th className="py-2 px-3 text-center text-rose-500">Damaged</th>
+                      <th className="py-2 px-3">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-100'}`}>
+                    {manifestItems.map((item, idx) => (
+                      <tr key={idx} className={isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
+                        <td className="py-2 px-3 font-semibold max-w-[180px] truncate" title={item.ItemDescription}>
+                          {item.ItemDescription}
+                        </td>
+                        <td className="py-2 px-3 text-slate-400">
+                          {item.Segment || item.segment || '—'}
+                        </td>
+                        <td className="py-2 px-3 text-slate-400 font-mono text-[11px]">
+                          {item.Dimension || item.dimension || '—'}
+                        </td>
+                        <td className="py-2 px-3 text-center font-bold">
+                          {item.qty} {item.UOM}
+                        </td>
+                        <td className="py-2 px-3 text-center font-semibold text-emerald-500">
+                          {item.goodConditionQty}
+                        </td>
+                        <td className="py-2 px-3 text-center font-semibold text-rose-500">
+                          {item.damagedQty}
+                        </td>
+                        <td className="py-2 px-3 text-slate-400 italic">
+                          {item.remarks || '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className={`flex items-center justify-end gap-3 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => setIsConfirmModalOpen(false)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                  isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                }`}
+              >
+                Cancel / Edit
+              </button>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={handleSaveSlip}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#ff6600] hover:bg-[#e05a00] disabled:opacity-50 transition-all cursor-pointer shadow-md"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Saving Activity...</span>
+                  </>
+                ) : (
+                  <span>Save Supplies Activity</span>
+                )}
+              </button>
             </div>
 
           </div>

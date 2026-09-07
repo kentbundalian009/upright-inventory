@@ -4,10 +4,10 @@ import { protectRoute, restrictTo } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.use(protectRoute, restrictTo("Inventory"));
+router.use(protectRoute);
 
 router.route("/:categoryType")
-  .get(getThresholdByCategory)
-  .put(updateThresholdByCategory);
+  .get(restrictTo("Inventory", "Viewer"), getThresholdByCategory)
+  .put(restrictTo("Inventory"), updateThresholdByCategory);
 
 export default router;

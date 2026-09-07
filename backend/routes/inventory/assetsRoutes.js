@@ -11,15 +11,14 @@ import { protectRoute, restrictTo } from "../../middleware/authMiddleware.js";
 const router = express.Router();
 
 router.use(protectRoute);
-router.use(restrictTo("Inventory"));
 
 router.route("/")
-  .get(getAllAssets)
-  .post(createAssets);
+  .get(restrictTo("Inventory", "Viewer"), getAllAssets)
+  .post(restrictTo("Inventory"), createAssets);
 
 router.route("/:id")
-  .get(getAssetsById)
-  .put(updateAssets)
-  .delete(deleteAssets);
+  .get(restrictTo("Inventory", "Viewer"), getAssetsById)
+  .put(restrictTo("Inventory"), updateAssets)
+  .delete(restrictTo("Inventory"), deleteAssets);
 
 export default router;

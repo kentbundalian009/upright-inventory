@@ -10,6 +10,7 @@ import {
     BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid
 } from 'recharts';
 import PageHeader from './PageHeader';
+import { useTheme } from '../context/ThemeContext';
 
 // Base URL para sa iyong backend API port (Dynamic: Render kapag live, Localhost kapag dev)
 const BASE_API_URL = import.meta.env.MODE === 'production'
@@ -17,6 +18,7 @@ const BASE_API_URL = import.meta.env.MODE === 'production'
   : 'http://localhost:5000/api';
 
 function InventoryDashboard() {
+    const { isDark } = useTheme();
     const [loading, setLoading] = useState(true);
     
     // States para sa natitirang live data collections (Raw Materials -> Rackings at Supplies lamang)
@@ -120,10 +122,10 @@ function InventoryDashboard() {
     // Graph 3: MongoDB Cluster0 Database Records Density Distribution
     const databaseDistributionData = useMemo(() => {
         return [
-            { name: 'Rackings', Items: rawMaterials.length, color: '#18174e' },
+            { name: 'Rackings', Items: rawMaterials.length, color: isDark ? '#ff6600' : '#18174e' },
             { name: 'Supplies', Items: supplies.length, color: '#3b82f6' },
         ];
-    }, [rawMaterials, supplies]);
+    }, [rawMaterials, supplies, isDark]);
 
     // Graph 4: Actual Stock Quantity Breakdown (Pumalit sa Reserved Overview)
     const stockQuantityData = useMemo(() => {
@@ -131,22 +133,22 @@ function InventoryDashboard() {
         const totalSuppliesStock = supplies.reduce((acc, item) => acc + (item.ActualCount ?? 0), 0);
 
         return [
-            { name: 'Rackings', 'Total Stock Qty': totalRackingsStock, color: '#18174e' },
+            { name: 'Rackings', 'Total Stock Qty': totalRackingsStock, color: isDark ? '#ff6600' : '#18174e' },
             { name: 'Supplies', 'Total Stock Qty': totalSuppliesStock, color: '#3b82f6' },
         ];
-    }, [rawMaterials, supplies]);
+    }, [rawMaterials, supplies, isDark]);
 
     if (loading) {
         return (
-            <div className="flex flex-col justify-center items-center min-h-[80vh] text-slate-400 gap-3">
-                <Loader2 className="w-10 h-10 animate-spin text-green-700" />
-                <span className="text-center text-green-700 font-medium italic">Fetching secure rackings data from database...</span>
+            <div className={`flex flex-col justify-center items-center min-h-[80vh] ${isDark ? 'text-slate-500' : 'text-slate-400'} gap-3`}>
+                <Loader2 className="w-10 h-10 animate-spin text-[#ff6600]" />
+                <span className="text-center text-[#ff6600] font-medium italic">Fetching secure rackings data from database...</span>
             </div>
         );
     }
 
     return (
-        <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased text-slate-700">
+        <div className={`mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
 
             {/* Consistent Page Header */}
             <PageHeader activeTab="inventory-dashboard" />
@@ -158,9 +160,9 @@ function InventoryDashboard() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                     {/* Graph 1: Live Stock Status Share (Inbound, WIP, Outbound) */}
-                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-600 border-b border-slate-100 pb-3">
-                            <PieIcon className="w-4 h-4 text-[#18174e]" />
+                    <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} border rounded-2xl p-5 shadow-xs flex flex-col gap-4`}>
+                        <div className={`flex items-center gap-2 text-sm font-bold ${isDark ? 'text-slate-200 border-slate-800' : 'text-slate-600 border-slate-100'} border-b pb-3`}>
+                            <PieIcon className="w-4 h-4 text-[#ff6600]" />
                             <span>Live Stock Flow Status</span>
                         </div>
                         <div className="h-64 w-full flex items-center justify-center">
@@ -179,7 +181,10 @@ function InventoryDashboard() {
                                             <Cell key={`cell-${index}`} fill={entry.color} />
                                         ))}
                                     </Pie>
-                                    <Tooltip formatter={(value) => [`${value} Item(s)`, 'Count']} />
+                                    <Tooltip 
+                                        formatter={(value) => [`${value} Item(s)`, 'Count']} 
+                                        contentStyle={{ backgroundColor: isDark ? '#141622' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#f8fafc' : '#1e293b' }}
+                                    />
                                     <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
                                 </PieChart>
                             </ResponsiveContainer>
@@ -187,22 +192,25 @@ function InventoryDashboard() {
                     </div>
 
                     {/* Graph 2: Rackings vs Supplies Stock Density */}
-                    <div className="lg:col-span-2 bg-white border border-slate-100 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                            <div className="text-sm font-bold text-slate-600 flex items-center gap-2">
-                                <BarChart3 className="w-4 h-4 text-[#18174e]" />
+                    <div className={`lg:col-span-2 ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} border rounded-2xl p-5 shadow-xs flex flex-col gap-4`}>
+                        <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-2`}>
+                            <div className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'} flex items-center gap-2`}>
+                                <BarChart3 className="w-4 h-4 text-[#ff6600]" />
                                 <span>Rackings vs Supplies Stock Density Distribution</span>
                             </div>
                         </div>
                         <div className="h-64 w-full">
                             <ResponsiveContainer width="100%" height="100%" debounce={200}>
                                 <BarChart data={stockDensityBreakdownData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
-                                    <Tooltip cursor={{ fill: '#f1f5f9', opacity: 0.5 }} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#1e293b' : '#f1f5f9'} vertical={false} />
+                                    <XAxis dataKey="name" stroke={isDark ? '#64748b' : '#94a3b8'} fontSize={11} tickLine={false} />
+                                    <YAxis stroke={isDark ? '#64748b' : '#94a3b8'} fontSize={11} tickLine={false} allowDecimals={false} />
+                                    <Tooltip 
+                                        cursor={{ fill: isDark ? '#1e293b' : '#f1f5f9', opacity: 0.4 }} 
+                                        contentStyle={{ backgroundColor: isDark ? '#141622' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#f8fafc' : '#1e293b' }}
+                                    />
                                     <Legend verticalAlign="top" height={36} iconType="square" wrapperStyle={{ fontSize: '11px' }} />
-                                    <Bar dataKey="Rackings" fill="#18174e" radius={[6, 6, 0, 0]} />
+                                    <Bar dataKey="Rackings" fill={isDark ? '#ff6600' : '#18174e'} radius={[6, 6, 0, 0]} />
                                     <Bar dataKey="Supplies" fill="#3b82f6" radius={[6, 6, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
@@ -215,18 +223,21 @@ function InventoryDashboard() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                     {/* Graph 3: Cluster0 Database Records Distribution */}
-                    <div className="w-full bg-white border border-slate-100 rounded-2xl p-6 shadow-xs flex flex-col gap-4">
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-600 border-b border-slate-100 pb-3">
-                            <Activity className="w-4 h-4 text-[#18174e]" />
+                    <div className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} border rounded-2xl p-6 shadow-xs flex flex-col gap-4`}>
+                        <div className={`flex items-center gap-2 text-sm font-bold ${isDark ? 'text-slate-200 border-slate-800' : 'text-slate-600 border-slate-100'} border-b pb-3`}>
+                            <Activity className="w-4 h-4 text-[#ff6600]" />
                             <span>MongoDB Cluster0 Total Inventory Density</span>
                         </div>
                         <div className="h-64 w-full">
                             <ResponsiveContainer width="100%" height="100%" debounce={200}>
                                 <BarChart data={databaseDistributionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
-                                    <Tooltip cursor={{ fill: '#f1f5f9', opacity: 0.5 }} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#1e293b' : '#f1f5f9'} vertical={false} />
+                                    <XAxis dataKey="name" stroke={isDark ? '#64748b' : '#94a3b8'} fontSize={11} tickLine={false} />
+                                    <YAxis stroke={isDark ? '#64748b' : '#94a3b8'} fontSize={11} tickLine={false} allowDecimals={false} />
+                                    <Tooltip 
+                                        cursor={{ fill: isDark ? '#1e293b' : '#f1f5f9', opacity: 0.4 }} 
+                                        contentStyle={{ backgroundColor: isDark ? '#141622' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#f8fafc' : '#1e293b' }}
+                                    />
                                     <Bar dataKey="Items" radius={[6, 6, 0, 0]}>
                                         {databaseDistributionData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.color} />
@@ -238,18 +249,21 @@ function InventoryDashboard() {
                     </div>
 
                     {/* Graph 4: Total Stock Quantity Breakdown (Pumalit sa Reserved Overview) */}
-                    <div className="w-full bg-[#ffffff] border border-slate-100 rounded-2xl p-6 shadow-xs flex flex-col gap-4">
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-600 border-b border-slate-100 pb-3">
-                            <Database className="w-4 h-4 text-[#18174e]" />
+                    <div className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-[#ffffff] border-slate-100'} border rounded-2xl p-6 shadow-xs flex flex-col gap-4`}>
+                        <div className={`flex items-center gap-2 text-sm font-bold ${isDark ? 'text-slate-200 border-slate-800' : 'text-slate-600 border-slate-100'} border-b pb-3`}>
+                            <Database className="w-4 h-4 text-[#ff6600]" />
                             <span>Total Stock Quantity Breakdown (Actual Count)</span>
                         </div>
                         <div className="h-64 w-full">
                             <ResponsiveContainer width="100%" height="100%" debounce={200}>
                                 <BarChart data={stockQuantityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
-                                    <Tooltip cursor={{ fill: '#f1f5f9', opacity: 0.5 }} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#1e293b' : '#f1f5f9'} vertical={false} />
+                                    <XAxis dataKey="name" stroke={isDark ? '#64748b' : '#94a3b8'} fontSize={11} tickLine={false} />
+                                    <YAxis stroke={isDark ? '#64748b' : '#94a3b8'} fontSize={11} tickLine={false} allowDecimals={false} />
+                                    <Tooltip 
+                                        cursor={{ fill: isDark ? '#1e293b' : '#f1f5f9', opacity: 0.4 }} 
+                                        contentStyle={{ backgroundColor: isDark ? '#141622' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0', color: isDark ? '#f8fafc' : '#1e293b' }}
+                                    />
                                     <Bar dataKey="Total Stock Qty" radius={[6, 6, 0, 0]}>
                                         {stockQuantityData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.color} />

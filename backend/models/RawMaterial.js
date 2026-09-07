@@ -15,7 +15,7 @@ const rawMaterialSchema = new mongoose.Schema(
     },
     Category: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
     },
     Segment: {

@@ -16,20 +16,7 @@ import { loginUser } from "../../controllers/admin/authController.js";
 import { protectRoute, restrictTo } from "../../middleware/authMiddleware.js";
 import { loginRateLimiter } from "../../middleware/limiter.js"; 
 
-const uploadDir = "uploads/";
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, "user-" + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith("image/")) {
@@ -39,7 +26,11 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ storage: storage, fileFilter: fileFilter });
+const upload = multer({ 
+  storage: storage, 
+  fileFilter: fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
 const router = express.Router();
 
 router.post("/login", loginRateLimiter, loginUser); 
@@ -47,7 +38,7 @@ router.post("/login", loginRateLimiter, loginUser);
 router.use(protectRoute);
 
 router.get("/profile/:id", getUserProfile); 
-router.put("/change-password/:id", restrictTo("Admin", "Inventory"), changePassword);
+router.put("/change-password/:id", restrictTo("Admin", "Inventory", "Viewer"), changePassword);
 router.put("/:id", upload.single("image"), updateUser);
 
 router.get("/", restrictTo("Admin"), getAllUsers);

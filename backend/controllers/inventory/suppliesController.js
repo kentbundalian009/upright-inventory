@@ -56,7 +56,7 @@ export const createSupplies = async (req, res) => {
 
     let finalImageUrl = "";
     if (req.file) {
-      finalImageUrl = `/uploads/${req.file.filename}`;
+      finalImageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
     }
 
     const newSupplies = await Supplies.create({
@@ -113,7 +113,7 @@ export const updateSupplies = async (req, res) => {
 
     let finalImageUrl = ImageUrl;
     if (req.file) {
-      finalImageUrl = `/uploads/${req.file.filename}`;
+      finalImageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
     }
 
     const updatedSupplies = await Supplies.findByIdAndUpdate(

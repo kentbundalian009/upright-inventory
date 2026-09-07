@@ -9,7 +9,8 @@ import {
     Eye,
     EyeOff,
     RefreshCw,
-    CheckCircle2
+    CheckCircle2,
+    User
 } from 'lucide-react';
 import axios from 'axios';
 import PageHeader from './PageHeader';
@@ -27,6 +28,15 @@ function AdminUserManagement() {
     const [showArchivedOnly, setShowArchivedOnly] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRole, setSelectedRole] = useState('All Roles');
+    const [previewImage, setPreviewImage] = useState(null);
+
+    // Profile Image URL Resolver
+    const getProfileImageUrl = (img) => {
+        if (!img) return null;
+        if (img.startsWith('blob:') || img.startsWith('http') || img.startsWith('data:')) return img;
+        if (import.meta.env.MODE === 'production') return img;
+        return `${window.location.protocol}//${window.location.hostname}:5000${img}`;
+    };
 
     // Custom UI Notification States
     const [successMessage, setSuccessMessage] = useState(null);
@@ -61,6 +71,7 @@ function AdminUserManagement() {
     const [editName, setEditName] = useState('');
     const [editEmail, setEditEmail] = useState('');
     const [editRole, setEditRole] = useState('Inventory');
+    const [editProfileImage, setEditProfileImage] = useState('');
 
     // Auto-dismiss Success Toast matapos ang 4 na segundo
     useEffect(() => {
@@ -105,6 +116,7 @@ function AdminUserManagement() {
         setEditName(user.Fullname);
         setEditEmail(user.Email);
         setEditRole(user.SystemRole || 'Inventory');
+        setEditProfileImage(user.ProfileImage || user.profileImage || '');
         setIsEditModalOpen(true);
     };
 
@@ -294,6 +306,7 @@ function AdminUserManagement() {
                             <option value="All Roles">All Roles</option>
                             <option value="Admin">Admin</option>
                             <option value="Inventory">Inventory</option>
+                            <option value="Viewer">Viewer</option>
                         </select>
 
                         <div className="relative w-full md:col-span-2">
@@ -317,6 +330,7 @@ function AdminUserManagement() {
                             <thead>
                                 <tr className="text-white font-bold bg-[#18174e] uppercase tracking-wide text-sm">
                                     <th className="py-3 px-4 whitespace-nowrap">Emp No.</th>
+                                    <th className="py-3 px-4 text-center whitespace-nowrap">Image</th>
                                     <th className="py-3 px-4 whitespace-nowrap">System Role</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Username</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Full Name</th>
@@ -327,7 +341,7 @@ function AdminUserManagement() {
                             <tbody className="divide-y divide-slate-100">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="6" className="text-center py-10 text-green-700 font-medium italic">
+                                        <td colSpan="7" className="text-center py-10 text-green-700 font-medium italic">
                                             <div className="flex items-center justify-center gap-2">
                                                 <span>Fetching secure users data from database...</span>
                                             </div>
@@ -335,57 +349,94 @@ function AdminUserManagement() {
                                     </tr>
                                 ) : error ? (
                                     <tr>
-                                        <td colSpan="6" className="text-center py-8 text-rose-600 font-semibold">
+                                        <td colSpan="7" className="text-center py-8 text-rose-600 font-semibold">
                                             {error}
                                         </td>
                                     </tr>
-                                ) : filteredUsers.map((user) => (
-                                    <tr
-                                        key={user._id || user.EmpNo}
-                                        className={`hover:bg-slate-50/80 transition-colors text-slate-600 font-medium whitespace-nowrap text-sm ${user.isArchived ? 'bg-rose-50/20' : ''}`}
-                                    >
-                                        <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{user.EmpNo}</td>
-                                        <td className="py-3 px-4">
-                                            <span className="bg-slate-100 px-2 py-1 rounded text-xs text-slate-700 font-semibold">
-                                                {user.SystemRole === 'Admin' ? 'Admin' : 'Inventory'}
-                                            </span>
-                                        </td>
-                                        <td className="py-3 px-4 text-slate-700 font-mono">{user.Username}</td>
-                                        <td className="py-3 px-4 text-slate-800 font-semibold">{user.Fullname}</td>
-                                        <td className="py-3 px-4 text-slate-500 bg-slate-50/30">{user.Email}</td>
-                                        <td className="py-3 px-4 bg-slate-50/40 text-center">
-                                            <div className="flex items-center justify-center gap-2">
-                                                {!showArchivedOnly ? (
-                                                    <>
-                                                        <button
-                                                            onClick={() => { setErrorMessage(null); openEditModal(user); }}
-                                                            className="p-1 bg-white border border-slate-200 rounded text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer"
-                                                        >
-                                                            <Edit2 className="w-3.5 h-3.5" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => triggerArchiveModal(user)}
-                                                            className="p-1 bg-white border border-slate-200 rounded text-rose-600 hover:bg-rose-600 hover:text-white transition-all cursor-pointer"
-                                                        >
-                                                            <Archive className="w-3.5 h-3.5" />
-                                                        </button>
-                                                    </>
+                                ) : filteredUsers.map((user) => {
+                                    const userImage = user.ProfileImage || user.profileImage;
+                                    const initial = (user.Fullname || user.Username || 'U').charAt(0).toUpperCase();
+
+                                    return (
+                                        <tr
+                                            key={user._id || user.EmpNo}
+                                            className={`hover:bg-slate-50/80 transition-colors text-slate-600 font-medium whitespace-nowrap text-sm ${user.isArchived ? 'bg-rose-50/20' : ''}`}
+                                        >
+                                            <td className="py-3 px-4 font-mono font-extrabold text-[#18174e]">{user.EmpNo}</td>
+                                            <td className="py-2 px-4 text-center">
+                                                {userImage ? (
+                                                    <div className="relative inline-block">
+                                                        <img
+                                                            src={getProfileImageUrl(userImage)}
+                                                            alt={user.Fullname || user.Username}
+                                                            onError={(e) => {
+                                                                e.target.style.display = 'none';
+                                                                if (e.target.nextElementSibling) {
+                                                                    e.target.nextElementSibling.style.display = 'flex';
+                                                                }
+                                                            }}
+                                                            onClick={() => setPreviewImage(getProfileImageUrl(userImage))}
+                                                            className="w-10 h-10 object-cover rounded-full border border-slate-200 shadow-sm mx-auto cursor-pointer hover:scale-110 hover:border-indigo-500 transition-all"
+                                                            title="Click to preview image"
+                                                        />
+                                                        <div style={{ display: 'none' }} className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-bold text-xs items-center justify-center mx-auto shadow-sm">
+                                                            {initial}
+                                                        </div>
+                                                    </div>
                                                 ) : (
-                                                    <button
-                                                        onClick={() => triggerRestoreModal(user)}
-                                                        className="p-1 bg-white border border-emerald-200 rounded text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs px-2 py-0.5 font-bold"
-                                                    >
-                                                        <RefreshCw className="w-3 h-3" /> Restore Account
-                                                    </button>
+                                                    <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-bold text-xs flex items-center justify-center mx-auto shadow-sm">
+                                                        {initial}
+                                                    </div>
                                                 )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                                    user.SystemRole === 'Admin' 
+                                                        ? 'bg-blue-100 text-blue-800' 
+                                                        : user.SystemRole === 'Viewer'
+                                                            ? 'bg-emerald-100 text-emerald-800'
+                                                            : 'bg-orange-100 text-orange-800'
+                                                }`}>
+                                                    {user.SystemRole || 'Inventory'}
+                                                </span>
+                                            </td>
+                                            <td className="py-3 px-4 text-slate-700 font-mono">{user.Username}</td>
+                                            <td className="py-3 px-4 text-slate-800 font-semibold">{user.Fullname}</td>
+                                            <td className="py-3 px-4 text-slate-500 bg-slate-50/30">{user.Email}</td>
+                                            <td className="py-3 px-4 bg-slate-50/40 text-center">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    {!showArchivedOnly ? (
+                                                        <>
+                                                            <button
+                                                                onClick={() => { setErrorMessage(null); openEditModal(user); }}
+                                                                className="p-1 bg-white border border-slate-200 rounded text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer"
+                                                            >
+                                                                <Edit2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => triggerArchiveModal(user)}
+                                                                className="p-1 bg-white border border-slate-200 rounded text-rose-600 hover:bg-rose-600 hover:text-white transition-all cursor-pointer"
+                                                            >
+                                                                <Archive className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => triggerRestoreModal(user)}
+                                                            className="p-1 bg-white border border-emerald-200 rounded text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs px-2 py-0.5 font-bold"
+                                                        >
+                                                            <RefreshCw className="w-3 h-3" /> Restore Account
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
 
                                 {filteredUsers.length === 0 && !loading && (
                                     <tr>
-                                        <td colSpan="6" className="text-center py-10 text-red-600 font-medium italic">
+                                        <td colSpan="7" className="text-center py-10 text-red-600 font-medium italic">
                                             No records match the selected filters or search queries.
                                         </td>
                                     </tr>
@@ -487,6 +538,7 @@ function AdminUserManagement() {
                                     >
                                         <option value="Inventory">Inventory</option>
                                         <option value="Admin">Admin</option>
+                                        <option value="Viewer">Viewer</option>
                                     </select>
                                 </div>
 
@@ -567,6 +619,38 @@ function AdminUserManagement() {
                             </p>
                         </div>
 
+                        {/* USER PROFILE INFO BANNER */}
+                        <div className="flex items-center gap-3.5 p-3 bg-slate-50 rounded-xl border border-slate-200/70 mt-3">
+                            {editProfileImage ? (
+                                <div className="relative inline-block shrink-0">
+                                    <img 
+                                        src={getProfileImageUrl(editProfileImage)} 
+                                        alt="User Profile" 
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            if (e.target.nextElementSibling) {
+                                                e.target.nextElementSibling.style.display = 'flex';
+                                            }
+                                        }}
+                                        onClick={() => setPreviewImage(getProfileImageUrl(editProfileImage))}
+                                        className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-sm cursor-pointer hover:scale-105 transition-transform"
+                                        title="Click to preview image"
+                                    />
+                                    <div style={{ display: 'none' }} className="w-12 h-12 rounded-full bg-[#18174e] text-white font-bold text-base items-center justify-center shadow-sm">
+                                        {editName ? editName.charAt(0).toUpperCase() : editUsername ? editUsername.charAt(0).toUpperCase() : <User className="w-6 h-6 text-white" />}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="w-12 h-12 rounded-full bg-[#18174e] text-white font-bold text-base flex items-center justify-center shadow-sm shrink-0">
+                                    {editName ? editName.charAt(0).toUpperCase() : editUsername ? editUsername.charAt(0).toUpperCase() : <User className="w-6 h-6 text-white" />}
+                                </div>
+                            )}
+                            <div className="min-w-0">
+                                <h4 className="text-sm font-bold text-slate-800 truncate">{editName || editUsername}</h4>
+                                <p className="text-xs text-slate-500 font-mono">{editEmployeeNo} • <span className="font-semibold text-indigo-600">{editRole}</span></p>
+                            </div>
+                        </div>
+
                         <form onSubmit={handleUpdateUser} className="space-y-4 mt-4">
                             {errorMessage && (
                                 <div className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 p-2.5 rounded-lg flex items-center gap-2">
@@ -628,6 +712,7 @@ function AdminUserManagement() {
                                     >
                                         <option value="Inventory">Inventory</option>
                                         <option value="Admin">Admin</option>
+                                        <option value="Viewer">Viewer</option>
                                     </select>
                                 </div>
                             </div>
@@ -692,6 +777,35 @@ function AdminUserManagement() {
                             >
                                 Confirm
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* USER PROFILE IMAGE PREVIEW MODAL */}
+            {previewImage && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex justify-center items-center z-[100] p-4 transition-all" onClick={() => setPreviewImage(null)}>
+                    <div className="relative max-w-sm max-h-[85vh] bg-white rounded-2xl p-3 shadow-2xl flex flex-col items-center animate-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+                        <button 
+                            onClick={() => setPreviewImage(null)} 
+                            className="absolute -top-3 -right-3 bg-white border border-slate-200 text-slate-700 hover:text-rose-600 shadow-md rounded-full p-1.5 transition-colors cursor-pointer z-10"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                        <img 
+                            src={previewImage} 
+                            alt="Profile Preview" 
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                                if (e.target.nextElementSibling) {
+                                    e.target.nextElementSibling.style.display = 'flex';
+                                }
+                            }}
+                            className="max-w-full max-h-[80vh] rounded-xl object-contain shadow-sm select-none" 
+                        />
+                        <div style={{ display: 'none' }} className="p-8 text-center flex flex-col items-center gap-3">
+                            <User className="w-16 h-16 text-slate-300" />
+                            <p className="text-xs font-semibold text-slate-500">Image file is missing or was uploaded to a different local machine.</p>
                         </div>
                     </div>
                 </div>

@@ -13,20 +13,7 @@ import {
 } from "../../controllers/inventory/rawMaterialController.js";
 import { protectRoute, restrictTo } from "../../middleware/authMiddleware.js";
 
-const uploadDir = "uploads/";
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith("image/")) {
@@ -36,24 +23,28 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ storage: storage, fileFilter: fileFilter });
+const upload = multer({ 
+  storage: storage, 
+  fileFilter: fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
 const router = express.Router();
 
-router.use(protectRoute, restrictTo("Inventory"));
+router.use(protectRoute);
 
 router.route("/")
-  .get(getAllRawMaterials)
-  .post(upload.single("image"), createRawMaterial);
+  .get(restrictTo("Inventory", "Viewer"), getAllRawMaterials)
+  .post(restrictTo("Inventory"), upload.single("image"), createRawMaterial);
 
 router.route("/:id/unarchive")
-  .put(unarchiveRawMaterial);
+  .put(restrictTo("Inventory"), unarchiveRawMaterial);
 
 router.route("/:id/permanent")
-  .delete(permanentDeleteRawMaterial);
+  .delete(restrictTo("Inventory"), permanentDeleteRawMaterial);
 
 router.route("/:id")
-  .get(getRawMaterialById)
-  .put(upload.single("image"), updateRawMaterial)
-  .delete(deleteRawMaterial);
+  .get(restrictTo("Inventory", "Viewer"), getRawMaterialById)
+  .put(restrictTo("Inventory"), upload.single("image"), updateRawMaterial)
+  .delete(restrictTo("Inventory"), deleteRawMaterial);
 
 export default router;
