@@ -443,7 +443,6 @@ function InventorySupplies() {
                   <th className="py-3 px-4 text-center">Image</th>
                   <th className="py-3 px-4">Code</th>
                   <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Segment</th>
                   <th className="py-3 px-4">Brand</th>
                   <th className="py-3 px-4">Dimension</th>
                   <th className="py-3 px-4">Serial No.</th>
@@ -460,19 +459,18 @@ function InventorySupplies() {
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                 {loading ? (
                   <tr>
-                    <td colSpan={isViewer ? "11" : "12"} className="text-center py-10 text-green-700 font-medium italic">
+                    <td colSpan={isViewer ? "10" : "11"} className="text-center py-10 text-green-700 font-medium italic">
                       Fetching secure rackings data from database...
                     </td>
                   </tr>
                 ) : filteredSupplies.length === 0 ? (
                   <tr>
-                    <td colSpan={isViewer ? "11" : "12"} className="text-center py-10 text-red-600 font-medium italic">
+                    <td colSpan={isViewer ? "10" : "11"} className="text-center py-10 text-red-600 font-medium italic">
                       No records match the selected filters or search queries.
                     </td>
                   </tr>) : (
                   filteredSupplies.map((supply) => {
                     const catStyle = getCategoryStyles(supply.Category);
-                    const segStyle = getSegmentStyles(supply.Segment);
                     return (
                       <tr key={supply._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
                         <td 
@@ -518,11 +516,6 @@ function InventorySupplies() {
                         <td className="py-3.5 px-4">
                           <span className={`text-xs font-bold px-2 py-0.5 rounded border text-nowrap ${catStyle.classes}`}>
                             {supply.Category || 'Uncategorized'}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded border text-nowrap flex items-center gap-1 w-fit ${segStyle.classes}`}>
-                            <span>{supply.Segment || 'No Segment'}</span>
                           </span>
                         </td>
                         <td className={`py-3.5 px-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{supply.Brand || '—'}</td>

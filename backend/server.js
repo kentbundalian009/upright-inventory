@@ -17,6 +17,8 @@ import activityLogRoutes from "./routes/admin/userActivityRoutes.js";
 import settingRoutes from "./routes/admin/settingRoutes.js";
 import paletteRoutes from "./routes/admin/paletteRoutes.js"; 
 import paletteSupRoutes from "./routes/admin/paletteSupRoutes.js"; 
+import systemRoutes from "./routes/admin/systemRoutes.js";
+import backupRoutes from "./routes/admin/backupRoutes.js";
 
 // API Routes Imports - Inventory
 import rawMaterialRoutes from "./routes/inventory/rawMaterialRoutes.js"; 
@@ -64,6 +66,8 @@ app.use("/api/purchase-orders", protectRoute, purchaseOrderRoutes);
 app.use("/api/settings/thresholds", protectRoute, settingRoutes);
 app.use("/api/settings", protectRoute, paletteRoutes); 
 app.use("/api/settings", protectRoute, paletteSupRoutes);
+app.use("/api/system", systemRoutes);
+app.use("/api/backup", backupRoutes);
 
 
 app.use('/uploads', express.static('uploads'));

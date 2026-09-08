@@ -18,7 +18,9 @@ import {
   ChevronRight,
   Settings,
   Menu,
-  X
+  X,
+  Database,
+  Power
 } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
@@ -112,6 +114,8 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
       
       { id: 'user-management', name: 'User Management', icon: Users, roles: ['Admin'], section: 'admin' },
       { id: 'user-activity', name: 'User Activity', icon: Activity, roles: ['Admin'], section: 'admin' },
+      { id: 'admin-backup', name: 'Data Backup', icon: Database, roles: ['Admin'], section: 'admin' },
+      { id: 'admin-settings', name: 'System Maintenance', icon: Power, roles: ['Admin'], section: 'admin' },
       
       { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, roles: ['Inventory'], section: 'rackings' },
       { id: 'inbound-raw-mat', name: 'Inbound (Additions)', icon: ArrowDownCircle, roles: ['Inventory'], section: 'rackings' },
@@ -148,7 +152,7 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
 
     switch (currentSection) {
       case 'admin':
-        return <div className="text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1">User Controls</div>;
+        return <div className="text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1">Admin Controls</div>;
       case 'records':
         return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Records</div>;
       case 'settings_section':
@@ -257,7 +261,7 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
                       setIsMobileOpen(false);
                     }}
                     title={isCollapsed ? `${item.name}${item.id === 'outbound-products' && pendingOutboundCount > 0 ? ` (${pendingOutboundCount} pending packed)` : ''}` : ''}
-                    className={`w-full flex items-center gap-3 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all relative cursor-pointer group ${isCollapsed ? 'md:justify-center' : ''} ${
+                    className={`w-full whitespace-nowrap flex items-center gap-3 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all relative cursor-pointer group ${isCollapsed ? 'md:justify-center' : ''} ${
                       isActive
                         ? isDark
                           ? 'bg-[#181a26] text-white font-bold shadow-sm border border-slate-700/60'
@@ -280,7 +284,7 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
                       )}
                     </div>
 
-                    <span className={`truncate flex-1 text-left ${isCollapsed ? 'md:hidden block' : 'block'}`}>{item.name}</span>
+                    <span className={`truncate whitespace-nowrap flex-1 text-left ${isCollapsed ? 'md:hidden block' : 'block'}`}>{item.name}</span>
 
                     {item.id === 'outbound-products' && pendingOutboundCount > 0 && (
                       <span className={`ml-auto items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black text-white bg-[#ff6600] rounded-full shadow-md shrink-0 ${isCollapsed ? 'md:hidden flex' : 'flex'}`}>

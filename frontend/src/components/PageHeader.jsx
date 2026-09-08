@@ -13,7 +13,9 @@ import {
   FileSpreadsheet,
   ArrowDownCircle,
   TrendingUp,
-  Calendar
+  Calendar,
+  Database,
+  Power
 } from "lucide-react";
 
 function PageHeader({ activeTab, title, description, icon, badge, actions, children }) {
@@ -49,6 +51,16 @@ function PageHeader({ activeTab, title, description, icon, badge, actions, child
       title: 'User Activity Logs',
       description: 'Monitor real-time user actions, system changes, and security audits.',
       icon: Activity
+    },
+    'admin-backup': {
+      title: 'Database Vault & Backup',
+      description: 'Generate complete database JSON exports, view collection metrics, and safely restore snapshots.',
+      icon: Database
+    },
+    'admin-settings': {
+      title: 'System Maintenance & Lockout',
+      description: 'Control live system availability, emergency shutdown, and broadcast advisory notices to users.',
+      icon: Power
     },
     'inventory': {
       title: 'Inventory Dashboard',
