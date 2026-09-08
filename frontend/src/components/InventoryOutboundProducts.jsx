@@ -476,24 +476,39 @@ function InventoryOutboundProducts() {
                       handleFastReturnCopy(b);
                       setQuickReserveSearch('');
                     }}
-                    className="bg-yellow-400 border border-slate-900 hover:border-slate-800 text-[#fff] rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 w-22 h-22 shrink-0"
+                    className="bg-yellow-400 border border-slate-900 hover:border-slate-800 text-[#000] rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 pt-3.5 w-22 h-22 shrink-0"
                   >
-                    <span className="font-bold text-[#000] text-[12px] tracking-tighter block mb-0.5 ">
+                    <span className="font-bold text-[#000] text-[12px] tracking-tighter block mb-0.5 line-clamp-2 break-words max-w-full leading-tight">
                       {b.customer}
                     </span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenVoidModal(b);
-                    }}
-                    className="absolute top-1 right-1 w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-rose-300 text-slate-900 hover:text-rose-600 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center z-20"
-                    title="Void and Cancel This Reservation Entry"
-                  >
-                    <X className="w-2.5 h-2.5 shrink-0" />
-                  </button>
+                  <div className="absolute top-1 right-1 flex items-center gap-1 z-20">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedSlip(b);
+                        setIsModalOpen(true);
+                      }}
+                      className="w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-indigo-400 text-slate-900 hover:text-indigo-700 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center"
+                      title="View Reservation Details"
+                    >
+                      <Eye className="w-2.5 h-2.5 shrink-0" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenVoidModal(b);
+                      }}
+                      className="w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-rose-300 text-slate-900 hover:text-rose-600 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center"
+                      title="Void and Cancel This Reservation Entry"
+                    >
+                      <X className="w-2.5 h-2.5 shrink-0" />
+                    </button>
+                  </div>
                 </div>
               ))}
 
@@ -879,24 +894,13 @@ function InventoryOutboundProducts() {
 
             <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
               <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-lg`}>
-                Outbound No: {selectedSlip.plNo}
+                {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? 'Reservation Slip' : 'Outbound No'}: {selectedSlip.plNo}
               </h3>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => handleOpenVoidModal(selectedSlip)}
-                  className="flex items-center gap-1 bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> Void Transaction
-                </button>
-                <button
-                  onClick={handleDownloadPDF}
-                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" /> Download PDF
-                </button>
-                <button
                   onClick={() => setIsModalOpen(false)}
                   className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer transition-colors`}
+                  title="Close"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -938,7 +942,9 @@ function InventoryOutboundProducts() {
                     <th className="p-3 text-left">Segment</th>
                     <th className="p-3 text-left">Item Description</th>
                     <th className="p-3 text-left">Dimension</th>
-                    <th className="p-3 text-right">Verified Shipped</th>
+                    <th className="p-3 text-right">
+                      {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? 'Reserved Qty' : 'Verified Shipped'}
+                    </th>
                     <th className="p-3 text-left pl-4">Remarks</th>
                   </tr>
                 </thead>
