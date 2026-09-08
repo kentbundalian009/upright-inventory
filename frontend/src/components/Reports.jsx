@@ -25,6 +25,7 @@ function Reports() {
 
     const [viewMode, setViewMode] = useState('detailed');
     const [hideZeroQty, setHideZeroQty] = useState(false);
+    const [showZeroOnly, setShowZeroOnly] = useState(false);
 
     const [rawMaterialsData, setRawMaterialsData] = useState([]);
     const [suppliesData, setSuppliesData] = useState([]);
@@ -90,19 +91,9 @@ function Reports() {
 
     const getConsolidatedSummary = () => {
         let masterList = [];
-        let targetInventory = [];
+        const baseInventory = activeModule === 'raw-materials' ? rawMaterialsData : suppliesData;
 
-        if (activeModule === 'raw-materials') {
-            targetInventory = rawMaterialsData.filter(item => !item.isArchived);
-        } else {
-            targetInventory = suppliesData.filter(item => !item.isArchived);
-        }
-
-        if (hideZeroQty) {
-            targetInventory = targetInventory.filter(item => (item.ActualCount ?? 0) !== 0);
-        }
-
-        targetInventory.forEach(item => {
+        baseInventory.forEach(item => {
             let inflows = [];
             let outflows = [];
 
@@ -274,6 +265,25 @@ function Reports() {
                 });
             }
 
+            const hasMovements = inflows.length > 0 || outflows.length > 0;
+
+            // If the item is archived:
+            // "pag wala syang ganan edi di sya kasama" -> omit if no movements this month
+            if (item.isArchived && !hasMovements) {
+                return;
+            }
+
+            // "di sya masasama sa bilang dito sa Reports & Analytics dito Export Audit Ledger (PDF) dito only ha"
+            // If archived, ActualCount is treated as 0 so it does not add to active stock count
+            const displayCount = item.isArchived ? 0 : Number(item.ActualCount ?? 0);
+
+            if (showZeroOnly && displayCount !== 0) {
+                return;
+            }
+            if (hideZeroQty && displayCount === 0) {
+                return;
+            }
+
             masterList.push({
                 _id: item._id,
                 Code: item.Code || 'N/A',
@@ -281,7 +291,8 @@ function Reports() {
                 Segment: item.Segment || 'N/A',
                 ItemDescription: item.ItemDescription || 'N/A',
                 Dimension: item.Dimension || 'N/A',
-                ActualCount: item.ActualCount ?? 0,
+                ActualCount: displayCount,
+                isArchived: !!item.isArchived,
                 UOM: item.UOM || 'PCS',
                 inflows: inflows,
                 outflows: outflows
@@ -374,6 +385,8 @@ function Reports() {
     };
 
     const consolidatedData = getConsolidatedSummary();
+    const currentInventory = activeModule === 'raw-materials' ? rawMaterialsData : suppliesData;
+    const zeroCount = currentInventory.filter(item => !item.isArchived && Number(item.ActualCount ?? 0) === 0).length;
 
     const handleDownloadPDF = () => {
         if (activeModule === 'discrepancy') {
@@ -494,7 +507,7 @@ function Reports() {
 
             doc.text("Module Registry:", 14, 42);
             doc.setFont("helvetica", "normal");
-            doc.text(`${titleModule} Inventory`, 45, 42);
+            doc.text(`${titleModule} ${showZeroOnly ? '(Zero Quantity Audit)' : 'Inventory'}`, 45, 42);
 
             doc.setFont("helvetica", "bold");
             doc.text("Date Generated:", 185, 42);
@@ -513,13 +526,14 @@ function Reports() {
             doc.setFont("helvetica", "normal");
             doc.text("Restricted Internal Ledger", 220, 49);
 
-            const columns = ["Code", "Item Description", "Category/Seg", "Dimension", "Count", "UOM", "Inflow History Summary", "Outflow History Summary"];
+            const categoryColHeader = activeModule === 'supplies' ? "Category" : "Category/Seg";
+            const columns = ["Code", "Item Description", categoryColHeader, "Dimension", "Count", "UOM", "Inflow History Summary", "Outflow History Summary"];
             const rows = consolidatedData.map(item => [
-                item.Code || '—',
+                item.isArchived ? `${item.Code || '—'} (Archived)` : (item.Code || '—'),
                 item.ItemDescription || '—',
-                `${item.Category || '—'} \n(${item.Segment || 'N/A'})`,
+                activeModule === 'supplies' ? (item.Category || '—') : `${item.Category || '—'} \n(${item.Segment || 'N/A'})`,
                 item.Dimension || '—',
-                item.ActualCount ? String(item.ActualCount) : '0',
+                item.isArchived ? '0' : (item.ActualCount ? String(item.ActualCount) : '0'),
                 item.UOM || '—',
                 item.inflows && item.inflows.length > 0
                     ? item.inflows.map(inf => `${inf.type === 'WIP_IN' ? 'WIP-IN' : inf.type === 'WIP_RET' ? 'WIP-RET' : 'IN'} | Qty: ${inf.qty || 0} | ${inf.label || ''} | ${inf.date || ''}`).join('\n')
@@ -553,12 +567,18 @@ function Reports() {
                     doc.setTextColor(255, 255, 255);
                     doc.setFont("helvetica", "bold");
                     doc.setFontSize(14);
-                    doc.text(`${titleModule.toUpperCase()} CONSOLIDATED REGISTRY REPORT`, centerX, 13, { align: 'center' });
+                    const reportHeaderTitle = showZeroOnly
+                        ? `${titleModule.toUpperCase()} ZERO QUANTITY (OUT OF STOCK) AUDIT REPORT`
+                        : `${titleModule.toUpperCase()} CONSOLIDATED REGISTRY REPORT`;
+                    doc.text(reportHeaderTitle, centerX, 13, { align: 'center' });
 
                     doc.setFontSize(8.5);
                     doc.setFont("helvetica", "normal");
                     doc.setTextColor(200, 200, 220);
-                    doc.text(`Material Flow Logistics & Audit Trail Control Registry  |  System Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
+                    const reportSubtitle = showZeroOnly
+                        ? `Zero Stock Inventory Verification & Replenishment Audit  |  System Generated: ${formattedDate}`
+                        : `Material Flow Logistics & Audit Trail Control Registry  |  System Generated: ${formattedDate}`;
+                    doc.text(reportSubtitle, centerX, 21, { align: 'center' });
                     doc.setFont("helvetica", "normal");
                     doc.setFontSize(8);
                     doc.setTextColor(120, 120, 120);
@@ -626,7 +646,10 @@ function Reports() {
                     7: { cellWidth: 66, fontSize: 7 }
                 }
             });
-            doc.save(`${activeModuleStr}_${viewMode.toUpperCase()}_CONSOLIDATED_${targetMonthLabel.toUpperCase()}_${currentYearStr}.pdf`);
+            const saveFileName = showZeroOnly
+                ? `${activeModuleStr}_ZERO_QTY_${viewMode.toUpperCase()}_${targetMonthLabel.toUpperCase()}_${currentYearStr}.pdf`
+                : `${activeModuleStr}_${viewMode.toUpperCase()}_CONSOLIDATED_${targetMonthLabel.toUpperCase()}_${currentYearStr}.pdf`;
+            doc.save(saveFileName);
         } catch (e) {
             console.error("🔴 PDF CRITICAL FAILURE REASON:", e);
             alert(`Failed to download Consolidated Registry: ${e.message}`);
@@ -1206,19 +1229,55 @@ function Reports() {
                     <div className={`flex items-center justify-between border-t pt-3 mt-1 gap-2 flex-wrap ${
                         isDark ? 'border-slate-800' : 'border-slate-100'
                     }`}>
-                        <label className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${
-                            isDark
-                                ? 'bg-[#141622] border-slate-700 text-slate-300 hover:bg-slate-800'
-                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                        }`}>
-                            <input
-                                type="checkbox"
-                                checked={hideZeroQty}
-                                onChange={(e) => setHideZeroQty(e.target.checked)}
-                                className={`w-3.5 h-3.5 rounded cursor-pointer ${isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]'}`}
-                            />
-                            <span>Hide 0 Quantity Items</span>
-                        </label>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <label className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${
+                                isDark
+                                    ? 'bg-[#141622] border-slate-700 text-slate-300 hover:bg-slate-800'
+                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                            }`}>
+                                <input
+                                    type="checkbox"
+                                    checked={hideZeroQty}
+                                    onChange={(e) => {
+                                        setHideZeroQty(e.target.checked);
+                                        if (e.target.checked) setShowZeroOnly(false);
+                                    }}
+                                    className={`w-3.5 h-3.5 rounded cursor-pointer ${isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]'}`}
+                                />
+                                <span>Hide 0 Quantity Items</span>
+                            </label>
+
+                            {activeModule !== 'discrepancy' && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowZeroOnly(prev => {
+                                            const next = !prev;
+                                            if (next) setHideZeroQty(false);
+                                            return next;
+                                        });
+                                    }}
+                                    title="Show only items with 0 stock quantity"
+                                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 shadow-sm ${
+                                        showZeroOnly
+                                            ? 'bg-red-500/10 border-red-500 text-red-500 ring-2 ring-red-500/40'
+                                            : (isDark
+                                                ? 'bg-[#141622] border-slate-700 text-slate-300 hover:bg-slate-800'
+                                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100')
+                                    }`}
+                                >
+                                    <span className={`w-2 h-2 rounded-full ${showZeroOnly ? 'bg-red-500 animate-pulse' : 'bg-slate-400'}`} />
+                                    <span>0 Only</span>
+                                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-semibold ${
+                                        showZeroOnly
+                                            ? 'bg-red-500 text-white'
+                                            : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
+                                    }`}>
+                                        {zeroCount}
+                                    </span>
+                                </button>
+                            )}
+                        </div>
 
                         <div className="flex items-center gap-2 ml-auto flex-wrap">
                             <button
@@ -1238,17 +1297,38 @@ function Reports() {
                             <button
                                 onClick={handleDownloadPDF}
                                 disabled={loading}
+                                title={showZeroOnly ? "Download PDF of all 0 quantity items" : "Export Consolidated Ledger PDF"}
                                 className={`flex items-center gap-1.5 text-xs font-bold text-white transition-all cursor-pointer shadow-md rounded-lg px-4 py-2 disabled:opacity-50 ${
-                                    isDark ? 'bg-[#ff6600] hover:bg-[#e05a00]' : 'bg-[#18174e] hover:bg-[#18174e]/90'
+                                    showZeroOnly
+                                        ? 'bg-red-500 hover:bg-red-600 ring-2 ring-red-500/40'
+                                        : (isDark ? 'bg-[#ff6600] hover:bg-[#e05a00]' : 'bg-[#18174e] hover:bg-[#18174e]/90')
                                 }`}
                             >
                                 <Download className="w-3.5 h-3.5" />
-                                <span>Export Audit Ledger (PDF)</span>
+                                <span>{showZeroOnly ? 'Export 0 Qty Ledger (PDF)' : 'Export Audit Ledger (PDF)'}</span>
                             </button>
                         </div>
                     </div>
 
                 </div>
+
+                {showZeroOnly && activeModule !== 'discrepancy' && (
+                    <div className="flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-medium mb-3 gap-3 flex-wrap bg-red-500/10 border-red-500/30 text-red-500">
+                        <div className="flex items-center gap-2">
+                            <span>
+                                Showing <strong>{consolidatedData.length} items</strong> with <strong>0 Quantity</strong> (Out of Stock / Depleted).
+                            </span>
+                        </div>
+                        <button
+                            onClick={handleDownloadPDF}
+                            disabled={loading || consolidatedData.length === 0}
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm transition-all cursor-pointer disabled:opacity-50 bg-red-500 hover:bg-red-600"
+                        >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Download 0 Qty as PDF</span>
+                        </button>
+                    </div>
+                )}
 
                 <div className="w-full">
                     <div className={`rounded-xl border shadow-sm overflow-hidden ${
@@ -1256,14 +1336,14 @@ function Reports() {
                     }`}>
                         {loading ? (
                             <div className="flex flex-col justify-center items-center min-h-[400px] text-slate-400 gap-3">
-                                <Loader2 className={`w-10 h-10 animate-spin ${isDark ? 'text-[#ff6600]' : 'text-green-700'}`} />
-                                <span className={`text-center font-medium italic ${isDark ? 'text-slate-400' : 'text-green-700'}`}>Compiling system transaction schemas...</span>
+                                <Loader2 className={`w-10 h-10 animate-spin ${isDark ? 'text-[#ff6600]' : 'text-green-500'}`} />
+                                <span className={`text-center font-medium italic ${isDark ? 'text-slate-400' : 'text-green-500'}`}>Compiling system transaction schemas...</span>
                             </div>
                         ) : activeModule === 'discrepancy' ? (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse text-sm">
                                     <thead>
-                                        <tr className="text-white font-bold bg-rose-900/80 uppercase text-xs">
+                                        <tr className="text-white font-bold bg-red-500 uppercase text-xs">
                                             <th className="py-3 px-4 whitespace-nowrap">Slip No</th>
                                             <th className="py-3 px-4 whitespace-nowrap">Type</th>
                                             <th className="py-3 px-4 whitespace-nowrap">Customer / Party</th>
@@ -1278,8 +1358,8 @@ function Reports() {
                                     }`}>
                                         {getDiscrepancyLogs().length > 0 ? (
                                             getDiscrepancyLogs().map((log) => (
-                                                <tr key={log._id} className={`transition-colors ${isDark ? 'hover:bg-rose-950/20' : 'hover:bg-rose-50/40'}`}>
-                                                    <td className={`px-4 py-3.5 whitespace-nowrap font-bold font-mono ${isDark ? 'text-rose-400' : 'text-rose-900'}`}>
+                                                <tr key={log._id} className={`transition-colors ${isDark ? 'hover:bg-red-500/10' : 'hover:bg-red-500/5'}`}>
+                                                    <td className="px-4 py-3.5 whitespace-nowrap font-bold font-mono text-red-500">
                                                         {log.slipNo}
                                                     </td>
                                                     <td className="px-4 py-3.5 whitespace-nowrap font-semibold">
@@ -1294,10 +1374,10 @@ function Reports() {
                                                     <td className="px-4 py-3.5 whitespace-nowrap font-bold">
                                                         {log.voidedBy}
                                                     </td>
-                                                    <td className={`px-4 py-3.5 italic font-medium max-w-[200px] ${isDark ? 'text-rose-300' : 'text-rose-700'}`}>
+                                                    <td className="px-4 py-3.5 italic font-medium max-w-[200px] text-red-500">
                                                         {log.voidReason}
                                                     </td>
-                                                    <td className={`px-4 py-3.5 font-semibold max-w-[250px] ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                                                    <td className="px-4 py-3.5 font-semibold max-w-[250px] text-green-500">
                                                         {log.itemsRestored}
                                                     </td>
                                                 </tr>
@@ -1321,7 +1401,9 @@ function Reports() {
                                         }`}>
                                             <th className="py-3 px-4 whitespace-nowrap">Code</th>
                                             <th className="py-3 px-4 whitespace-nowrap">Item Profile</th>
-                                            <th className="py-3 px-4 whitespace-nowrap">Category / Seg</th>
+                                            <th className="py-3 px-4 whitespace-nowrap">
+                                                {activeModule === 'supplies' ? 'Category' : 'Category / Seg'}
+                                            </th>
                                             <th className="py-3 px-4 whitespace-nowrap">Dimension</th>
                                             <th className="py-3 px-4 whitespace-nowrap">Qty</th>
                                             <th className="py-3 px-4 whitespace-nowrap">Inflows (This Month)</th>
@@ -1336,7 +1418,12 @@ function Reports() {
                                                 <td className={`px-4 py-3.5 whitespace-nowrap font-bold font-mono truncate ${
                                                     isDark ? 'text-[#ff6600]' : 'text-slate-900'
                                                 }`}>
-                                                    {row.Code}
+                                                    <span>{row.Code}</span>
+                                                    {row.isArchived && (
+                                                        <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/30 uppercase tracking-wide">
+                                                            Archived
+                                                        </span>
+                                                    )}
                                                 </td>
 
                                                 <td className={`px-4 py-3.5 font-medium ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
@@ -1345,7 +1432,9 @@ function Reports() {
 
                                                 <td className="px-4 py-3.5">
                                                     <div className={`font-semibold truncate ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{row.Category}</div>
-                                                    <div className={`text-[10px] font-mono truncate ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Seg: {row.Segment}</div>
+                                                    {activeModule !== 'supplies' && (
+                                                        <div className={`text-[10px] font-mono truncate ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Seg: {row.Segment}</div>
+                                                    )}
                                                 </td>
 
                                                 <td className={`px-4 py-3.5 whitespace-nowrap truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -1353,8 +1442,14 @@ function Reports() {
                                                 </td>
 
                                                 <td className="px-4 py-3.5 whitespace-nowrap text-center font-bold">
-                                                    <span className={`font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{row.ActualCount}</span>
-                                                    <span className={`text-[10px] font-normal ml-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{row.UOM}</span>
+                                                    <span className={`font-mono ${row.isArchived ? 'text-slate-400 line-through' : (isDark ? 'text-white' : 'text-slate-900')}`}>
+                                                        {row.ActualCount}
+                                                    </span>
+                                                    {row.isArchived ? (
+                                                        <span className="text-[9px] text-amber-500 font-semibold block uppercase">Archived</span>
+                                                    ) : (
+                                                        <span className={`text-[10px] font-normal ml-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{row.UOM}</span>
+                                                    )}
                                                 </td>
 
                                                 <td className="px-4 py-3.5">
@@ -1366,13 +1461,13 @@ function Reports() {
                                                                 return (
                                                                     <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium leading-tight border ${
                                                                         isDark
-                                                                            ? (isWip ? 'bg-amber-950/40 border-amber-800/60 text-amber-300' : 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300')
-                                                                            : (isWip ? 'bg-amber-50 border-amber-200/80 text-amber-900' : 'bg-emerald-50/60 border-emerald-100/70 text-emerald-800')
+                                                                            ? (isWip ? 'bg-amber-950/40 border-amber-800/60 text-amber-300' : 'bg-green-500/10 border-green-500/30 text-green-500')
+                                                                            : (isWip ? 'bg-amber-50 border-amber-200/80 text-amber-900' : 'bg-green-500/10 border-green-500/30 text-green-500')
                                                                     }`}>
                                                                         <span className={`font-bold font-mono ${
                                                                             isDark
-                                                                                ? (isWip ? 'text-amber-400' : 'text-emerald-400')
-                                                                                : (isWip ? 'text-amber-700' : 'text-emerald-700')
+                                                                                ? (isWip ? 'text-amber-400' : 'text-green-500')
+                                                                                : (isWip ? 'text-amber-700' : 'text-green-500')
                                                                         }`}>
                                                                             {typeTag}: +{inf.qty}
                                                                         </span>
@@ -1399,13 +1494,13 @@ function Reports() {
                                                                 return (
                                                                     <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium leading-tight border ${
                                                                         isDark
-                                                                            ? (isWip ? 'bg-orange-950/40 border-orange-800/60 text-orange-300' : isReserve ? 'bg-purple-950/40 border-purple-800/60 text-purple-300' : 'bg-rose-950/40 border-rose-800/60 text-rose-300')
-                                                                            : (isWip ? 'bg-orange-50 border-orange-200/80 text-orange-900' : isReserve ? 'bg-purple-50 border-purple-100/70 text-purple-800' : 'bg-rose-50/60 border-rose-100/70 text-rose-800')
+                                                                            ? (isWip ? 'bg-orange-950/40 border-orange-800/60 text-orange-300' : isReserve ? 'bg-purple-950/40 border-purple-800/60 text-purple-300' : 'bg-red-500/10 border-red-500/30 text-red-500')
+                                                                            : (isWip ? 'bg-orange-50 border-orange-200/80 text-orange-900' : isReserve ? 'bg-purple-50 border-purple-100/70 text-purple-800' : 'bg-red-500/10 border-red-500/30 text-red-500')
                                                                     }`}>
                                                                         <span className={`font-bold font-mono ${
                                                                             isDark
-                                                                                ? (isWip ? 'text-orange-400' : isReserve ? 'text-purple-400' : 'text-rose-400')
-                                                                                : (isWip ? 'text-orange-700' : isReserve ? 'text-purple-700' : 'text-rose-700')
+                                                                                ? (isWip ? 'text-orange-400' : isReserve ? 'text-purple-400' : 'text-red-500')
+                                                                                : (isWip ? 'text-orange-700' : isReserve ? 'text-purple-700' : 'text-red-500')
                                                                         }`}>
                                                                             {typeTag}: -{out.qty}
                                                                         </span>

@@ -342,7 +342,7 @@ function InventorySupplies() {
                   checked={hideZeroQty} 
                   onChange={(e) => setHideZeroQty(e.target.checked)} 
                   className={`w-3.5 h-3.5 rounded cursor-pointer transition-all ${
-                    hideZeroQty ? 'accent-red-600' : 'accent-[#ff6600]'
+                    hideZeroQty ? 'accent-red-500' : 'accent-[#ff6600]'
                   }`} 
                 />
                 <span className="hidden sm:inline">Hide 0 Qty</span>
@@ -367,7 +367,7 @@ function InventorySupplies() {
                   onClick={() => setShowArchivedOnly(!showArchivedOnly)}
                   title={showArchivedOnly ? "Show Active Supplies" : "View Archive Vault"}
                   className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${showArchivedOnly 
-                    ? (isDark ? 'bg-rose-950/40 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100') 
+                    ? 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20' 
                     : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
                   }`}
                 >
@@ -459,13 +459,13 @@ function InventorySupplies() {
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                 {loading ? (
                   <tr>
-                    <td colSpan={isViewer ? "10" : "11"} className="text-center py-10 text-green-700 font-medium italic">
+                    <td colSpan={isViewer ? "10" : "11"} className="text-center py-10 text-green-500 font-medium italic">
                       Fetching secure rackings data from database...
                     </td>
                   </tr>
                 ) : filteredSupplies.length === 0 ? (
                   <tr>
-                    <td colSpan={isViewer ? "10" : "11"} className="text-center py-10 text-red-600 font-medium italic">
+                    <td colSpan={isViewer ? "10" : "11"} className="text-center py-10 text-red-500 font-medium italic">
                       No records match the selected filters or search queries.
                     </td>
                   </tr>) : (
@@ -522,7 +522,7 @@ function InventorySupplies() {
                         <td className={`py-3.5 px-4 ${isDark ? 'text-slate-400 bg-slate-800/30' : 'text-slate-600 bg-slate-50/20'} text-xs font-mono`}>{supply.Dimension || '—'}</td>
                         <td className={`py-3.5 px-4 ${isDark ? 'text-slate-400' : 'text-slate-600'} text-xs font-mono`}>{supply.SerialNo || '—'}</td>
                         <td className={`py-3.5 px-4 text-center font-bold font-mono ${isDark ? 'text-white' : 'text-slate-700 bg-slate-50/40'}`}>{supply.ActualCount}</td>
-                        <td className="py-3.5 px-4 text-center font-semibold text-rose-500">{supply.DamagedCount || 0}</td>
+                        <td className="py-3.5 px-4 text-center font-semibold text-red-500">{supply.DamagedCount || 0}</td>
                         <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{supply.UOM || 'pcs'}</td>
                         {!isViewer && (
                           <td className="py-3.5 px-4 text-center">
@@ -530,12 +530,12 @@ function InventorySupplies() {
                               {!supply.isArchived ? (
                                 <>
                                   <button onClick={() => openEditModal(supply)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Edit2 className="w-3.5 h-3.5" /></button>
-                                  <button onClick={() => handleArchiveSupply(supply)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Archive className="w-3.5 h-3.5" /></button>
+                                  <button onClick={() => handleArchiveSupply(supply)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-red-500 hover:bg-red-500 hover:text-white'} border rounded transition-all cursor-pointer`}><Archive className="w-3.5 h-3.5" /></button>
                                 </>
                               ) : (
                                 <>
-                                  <button onClick={() => handleUnarchiveSupply(supply)} className={`flex items-center gap-1 text-xs font-bold ${isDark ? 'text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/60 border-emerald-800/60' : 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border-emerald-200'} px-2.5 py-1 rounded-lg border transition-colors cursor-pointer`}><RotateCcw className="w-3 h-3" /> Restore</button>
-                                  <button onClick={() => handlePermanentDeleteSupply(supply)} className={`flex items-center gap-1 text-xs font-bold ${isDark ? 'text-rose-400 bg-rose-950/40 hover:bg-rose-900/60 border-rose-800/60' : 'text-rose-600 bg-rose-50 hover:bg-rose-100 border-rose-200'} px-2.5 py-1 rounded-lg border transition-colors cursor-pointer`}><Trash2 className="w-3 h-3" /> Delete</button>
+                                  <button onClick={() => handleUnarchiveSupply(supply)} className="flex items-center gap-1 text-xs font-bold text-green-500 bg-green-500/10 hover:bg-green-500/20 border-green-500/30 px-2.5 py-1 rounded-lg border transition-colors cursor-pointer"><RotateCcw className="w-3 h-3" /> Restore</button>
+                                  <button onClick={() => handlePermanentDeleteSupply(supply)} className="flex items-center gap-1 text-xs font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 border-red-500/30 px-2.5 py-1 rounded-lg border transition-colors cursor-pointer"><Trash2 className="w-3 h-3" /> Delete</button>
                                 </>
                               )}
                             </div>
@@ -579,8 +579,8 @@ function InventorySupplies() {
 
             <form onSubmit={handleFormSubmit} className="space-y-4 mt-4">
               {error && (
-                <div className={`text-xs font-semibold ${isDark ? 'text-rose-400 bg-rose-950/40 border-rose-900/60' : 'text-rose-600 bg-rose-50 border-rose-100'} p-2.5 rounded-lg flex items-center gap-2 border`}>
-                  <span>⚠️ {error}</span>
+                <div className="text-xs font-semibold text-red-500 bg-red-500/10 border-red-500/30 p-2.5 rounded-lg flex items-center gap-2 border">
+                  <span>{error}</span>
                 </div>
               )}
 
@@ -597,7 +597,7 @@ function InventorySupplies() {
     />
   </div>
 
-  <div>
+  <div className="md:col-span-2">
     <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Category *</label>
     <input
       type="text"
@@ -610,22 +610,6 @@ function InventorySupplies() {
     />
     <datalist id="categories-dl">
       {uniqueCategoriesInDB.map(c => <option key={c} value={c} />)}
-    </datalist>
-  </div>
-
-  <div>
-    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Segment *</label>
-    <input
-      type="text"
-      required
-      list="segments-dl"
-      placeholder="e.g. Admin"
-      value={supplySegment}
-      onChange={(e) => setSupplySegment(e.target.value)}
-      className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
-    />
-    <datalist id="segments-dl">
-      {uniqueSegmentsInDB.map(s => <option key={s} value={s} />)}
     </datalist>
   </div>
 
