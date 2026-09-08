@@ -1,6 +1,15 @@
 import express from "express";
+import fs from "fs";
+import path from "path";
 import { protectRoute, restrictTo } from "../../middleware/authMiddleware.js";
 import ActivityLog from "../../models/ActivityLog.js";
+import { 
+  getScheduleSetting, 
+  computeNextRun, 
+  createServerSnapshot, 
+  listServerSnapshots, 
+  BACKUPS_DIR 
+} from "../../lib/backupScheduler.js";
 
 // Import all models
 import User from "../../models/User.js";
@@ -263,4 +272,258 @@ router.post("/restore", protectRoute, restrictTo("Admin"), async (req, res) => {
   }
 });
 
+// GET /api/backup/schedule - Fetch current backup schedule and server snapshots
+router.get("/schedule", protectRoute, restrictTo("Admin"), async (req, res) => {
+  try {
+    const setting = await getScheduleSetting();
+    const snapshots = listServerSnapshots();
+
+    return res.status(200).json({
+      frequency: setting.maintenanceMessage || "daily", // daily | weekly | monthly | disabled
+      enabled: setting.isMaintenanceActive !== false,
+      nextRun: setting.scheduledEndTime,
+      lastRun: setting.updatedAt,
+      updatedBy: setting.updatedBy || "System Admin",
+      snapshots
+    });
+  } catch (err) {
+    console.error("Error fetching backup schedule:", err);
+    return res.status(500).json({ message: "Failed to load backup schedule", error: err.message });
+  }
+});
+
+// PUT /api/backup/schedule - Update backup schedule (daily, weekly, monthly, disabled)
+router.put("/schedule", protectRoute, restrictTo("Admin"), async (req, res) => {
+  try {
+    const { frequency = "daily", enabled = true } = req.body;
+    const validFrequencies = ["daily", "weekly", "monthly", "disabled"];
+
+    if (!validFrequencies.includes(frequency.toLowerCase())) {
+      return res.status(400).json({ message: "Invalid frequency. Must be 'daily', 'weekly', 'monthly', or 'disabled'." });
+    }
+
+    const setting = await getScheduleSetting();
+    setting.maintenanceMessage = frequency.toLowerCase();
+    setting.isMaintenanceActive = enabled && frequency !== "disabled";
+    setting.updatedBy = req.user?.Fullname || req.user?.Username || "System Admin";
+
+    if (setting.isMaintenanceActive && frequency !== "disabled") {
+      setting.scheduledEndTime = computeNextRun(frequency.toLowerCase());
+    } else {
+      setting.scheduledEndTime = null;
+    }
+
+    await setting.save();
+
+    try {
+      await ActivityLog.create({
+        username: req.user?.Username || "Admin",
+        role: "Admin",
+        module: "Database Vault",
+        operation: "UPDATE",
+        action: `Configured automated backup schedule: ${frequency.toUpperCase()} (Enabled: ${setting.isMaintenanceActive})`
+      });
+    } catch (logErr) {
+      console.warn("Activity log failed for schedule change:", logErr.message);
+    }
+
+    return res.status(200).json({
+      message: `Automated backup schedule set to ${frequency.toUpperCase()}.`,
+      frequency: setting.maintenanceMessage,
+      enabled: setting.isMaintenanceActive,
+      nextRun: setting.scheduledEndTime,
+      snapshots: listServerSnapshots()
+    });
+  } catch (err) {
+    console.error("Error updating backup schedule:", err);
+    return res.status(500).json({ message: "Failed to update backup schedule", error: err.message });
+  }
+});
+
+// POST /api/backup/snapshots/generate - Run an immediate server snapshot
+router.post("/snapshots/generate", protectRoute, restrictTo("Admin"), async (req, res) => {
+  try {
+    const adminName = req.user?.Fullname || req.user?.Username || "System Admin";
+    const snapshot = await createServerSnapshot("manual", adminName);
+    const snapshots = listServerSnapshots();
+
+    return res.status(200).json({
+      message: "Server backup snapshot created successfully.",
+      snapshot,
+      snapshots
+    });
+  } catch (err) {
+    console.error("Error creating snapshot:", err);
+    return res.status(500).json({ message: "Failed to create server snapshot", error: err.message });
+  }
+});
+
+// GET /api/backup/snapshots/:filename/download - Download a snapshot file
+router.get("/snapshots/:filename/download", protectRoute, restrictTo("Admin"), async (req, res) => {
+  try {
+    const safeFilename = path.basename(req.params.filename);
+    const filePath = path.join(BACKUPS_DIR, safeFilename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Snapshot file not found on server." });
+    }
+
+    return res.download(filePath, safeFilename);
+  } catch (err) {
+    console.error("Error downloading snapshot:", err);
+    return res.status(500).json({ message: "Failed to download snapshot file", error: err.message });
+  }
+});
+
+// DELETE /api/backup/snapshots/:filename - Delete a server snapshot
+router.delete("/snapshots/:filename", protectRoute, restrictTo("Admin"), async (req, res) => {
+  try {
+    const safeFilename = path.basename(req.params.filename);
+    const filePath = path.join(BACKUPS_DIR, safeFilename);
+
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    try {
+      await ActivityLog.create({
+        username: req.user?.Username || "Admin",
+        role: "Admin",
+        module: "Database Vault",
+        operation: "DELETE",
+        action: `Deleted server backup snapshot: ${safeFilename}`
+      });
+    } catch (logErr) {
+      console.warn("Activity log failed for snapshot delete:", logErr.message);
+    }
+
+    return res.status(200).json({
+      message: "Snapshot deleted successfully.",
+      snapshots: listServerSnapshots()
+    });
+  } catch (err) {
+    console.error("Error deleting snapshot:", err);
+    return res.status(500).json({ message: "Failed to delete snapshot file", error: err.message });
+  }
+});
+
+// POST /api/backup/snapshots/:filename/restore - 1-Click Restore directly from a server snapshot file
+router.post("/snapshots/:filename/restore", protectRoute, restrictTo("Admin"), async (req, res) => {
+  try {
+    const { confirmationPasskey, restoreMode = "merge" } = req.body;
+
+    if (!confirmationPasskey || confirmationPasskey !== "RESTORE-CONFIRM-2026") {
+      return res.status(403).json({ message: "ACCESS DENIED: Invalid restore authorization passkey." });
+    }
+
+    const safeFilename = path.basename(req.params.filename);
+    const filePath = path.join(BACKUPS_DIR, safeFilename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Snapshot file not found on server." });
+    }
+
+    const rawData = fs.readFileSync(filePath, "utf8");
+    const backupData = JSON.parse(rawData);
+
+    if (!backupData || !backupData.collections) {
+      return res.status(400).json({ message: "Invalid snapshot structure. Missing 'collections' container." });
+    }
+
+    const restoredCounts = {};
+    const cols = backupData.collections;
+
+    // 1. Raw Materials
+    if (Array.isArray(cols.rawMaterials) && cols.rawMaterials.length > 0) {
+      if (restoreMode === "replace") await RawMaterial.deleteMany({});
+      for (const item of cols.rawMaterials) {
+        const { _id, ...doc } = item;
+        await RawMaterial.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
+      }
+      restoredCounts.rawMaterials = cols.rawMaterials.length;
+    }
+
+    // 2. Supplies
+    if (Array.isArray(cols.supplies) && cols.supplies.length > 0) {
+      if (restoreMode === "replace") await Supplies.deleteMany({});
+      for (const item of cols.supplies) {
+        const { _id, ...doc } = item;
+        await Supplies.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
+      }
+      restoredCounts.supplies = cols.supplies.length;
+    }
+
+    // 3. Products
+    if (Array.isArray(cols.products) && cols.products.length > 0) {
+      if (restoreMode === "replace") await Product.deleteMany({});
+      for (const item of cols.products) {
+        const { _id, ...doc } = item;
+        await Product.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
+      }
+      restoredCounts.products = cols.products.length;
+    }
+
+    // 4. Assets
+    if (Array.isArray(cols.assets) && cols.assets.length > 0) {
+      if (restoreMode === "replace") await Assets.deleteMany({});
+      for (const item of cols.assets) {
+        const { _id, ...doc } = item;
+        await Assets.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
+      }
+      restoredCounts.assets = cols.assets.length;
+    }
+
+    // 5. Packing Lists
+    if (Array.isArray(cols.packingLists) && cols.packingLists.length > 0) {
+      if (restoreMode === "replace") await PackingList.deleteMany({});
+      for (const item of cols.packingLists) {
+        const { _id, ...doc } = item;
+        await PackingList.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
+      }
+      restoredCounts.packingLists = cols.packingLists.length;
+    }
+
+    // 6. Conversions
+    if (Array.isArray(cols.conversions) && cols.conversions.length > 0) {
+      if (restoreMode === "replace") await Conversion.deleteMany({});
+      for (const item of cols.conversions) {
+        const { _id, ...doc } = item;
+        await Conversion.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
+      }
+      restoredCounts.conversions = cols.conversions.length;
+    }
+
+    // 7. Purchase Orders
+    if (Array.isArray(cols.purchaseOrders) && cols.purchaseOrders.length > 0) {
+      if (restoreMode === "replace") await PurchaseOrder.deleteMany({});
+      for (const item of cols.purchaseOrders) {
+        const { _id, ...doc } = item;
+        await PurchaseOrder.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
+      }
+      restoredCounts.purchaseOrders = cols.purchaseOrders.length;
+    }
+
+    try {
+      await ActivityLog.create({
+        username: req.user?.Username || "Admin",
+        role: "Admin",
+        module: "Database Restore",
+        operation: "UPDATE",
+        action: `Restored database directly from server snapshot "${safeFilename}" (${restoreMode} mode)`
+      });
+    } catch (logErr) {
+      console.warn("Activity log failed for snapshot restore:", logErr.message);
+    }
+
+    return res.status(200).json({
+      message: `Database successfully restored from snapshot ${safeFilename}!`,
+      restoredCounts
+    });
+  } catch (err) {
+    console.error("Error restoring from snapshot:", err);
+    return res.status(500).json({ message: "Failed to restore database from snapshot", error: err.message });
+  }
+});
+
 export default router;
+

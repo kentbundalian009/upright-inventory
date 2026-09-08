@@ -19,6 +19,7 @@ import paletteRoutes from "./routes/admin/paletteRoutes.js";
 import paletteSupRoutes from "./routes/admin/paletteSupRoutes.js"; 
 import systemRoutes from "./routes/admin/systemRoutes.js";
 import backupRoutes from "./routes/admin/backupRoutes.js";
+import { initBackupScheduler } from "./lib/backupScheduler.js";
 
 // API Routes Imports - Inventory
 import rawMaterialRoutes from "./routes/inventory/rawMaterialRoutes.js"; 
@@ -91,6 +92,7 @@ app.get(/^(?!\/api).*/, (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  initBackupScheduler();
 });
 
 // 🛠️ DATABASE FIXER: Awtomatikong lilinisin ang lumang sirang index...

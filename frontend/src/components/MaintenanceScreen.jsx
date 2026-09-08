@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { ShieldAlert, RefreshCw, LogOut, AlertTriangle, Lock, ServerOff, Terminal, Clock } from 'lucide-react';
+import { RefreshCw, LogOut, ArrowRight, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useTheme } from '../context/ThemeContext';
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
@@ -9,7 +8,6 @@ const API_BASE_URL = import.meta.env.MODE === 'production'
   : 'http://localhost:5000/api';
 
 function MaintenanceScreen({ maintenanceData, onCheckStatus }) {
-  const { isDark } = useTheme();
   const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
 
@@ -40,114 +38,105 @@ function MaintenanceScreen({ maintenanceData, onCheckStatus }) {
   const userFullname = localStorage.getItem("Fullname") || "User";
 
   return (
-    <div className={`min-h-screen flex items-center justify-center p-4 sm:p-6 select-none ${isDark ? 'bg-[#090b10] text-slate-100' : 'bg-slate-100 text-slate-800'}`}>
-      {/* Background ambient accents */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className={`absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-[140px] ${isDark ? 'bg-rose-950/40' : 'bg-rose-200/50'}`} />
-        <div className={`absolute bottom-1/4 left-1/3 w-80 h-80 rounded-full blur-[120px] ${isDark ? 'bg-amber-950/30' : 'bg-amber-100/60'}`} />
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-[#0b0a26] via-[#18174e] to-[#242270] text-white px-6 relative overflow-hidden pb-12 select-none font-sans">
+      
+      {/* Ambient background glow objects (Identical to Login.jsx) */}
+      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-[#ff6600]/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
+
+      {/* BRAND LOGO SECTION (Identical to Login.jsx) */}
+      <div className="flex flex-col items-center text-center mb-8 relative z-10 animate-fade-in">
+        <div className="bg-white/10 backdrop-blur-md p-3 rounded-full border border-white/20 shadow-2xl mb-2">
+          <div className="bg-white rounded-full p-2 flex items-center justify-center shadow-inner w-16 h-16">
+            <img
+              src="/cropped_circle_image.png"
+              alt="logo"
+              className="w-full h-full object-contain"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          </div>
+        </div>
+        <h1 className="font-black text-2xl uppercase text-white mt-3 drop-shadow-md">
+          USSP INVENTORY
+        </h1>
+        <h2 className="text-[11px] font-bold text-slate-300 uppercase opacity-90 mt-0.5">
+          Upright Storage Solutions PH
+        </h2>
       </div>
 
-      <div className={`relative w-full max-w-xl rounded-3xl border shadow-2xl p-6 sm:p-10 flex flex-col items-center text-center gap-6 backdrop-blur-xl ${
-        isDark ? 'bg-[#0f121d]/90 border-slate-800 shadow-rose-950/20' : 'bg-white/95 border-slate-200 shadow-slate-300'
-      }`}>
+      {/* MAIN CARD CONTAINER (Identical glass card to Login.jsx) */}
+      <div className="w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/15 rounded-3xl p-7 shadow-2xl relative z-10 flex flex-col gap-5">
         
-        {/* Top Glitch Status Badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider border border-rose-500/30 bg-rose-500/10 text-rose-500 animate-pulse">
-          <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-          <span>HTTP 404 &bull; Service Shutdown</span>
+        {/* Lockout / Status Pill Badge */}
+        <div className="flex items-center justify-center">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-500/20 border border-rose-500/40 text-rose-300">
+            <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
+            404 &bull; System Maintenance &amp; Shutdown
+          </span>
         </div>
 
-        {/* Big Stylized 404 / Lock Visual */}
-        <div className="relative">
-          <div className={`text-7xl sm:text-8xl font-black font-mono tracking-tighter select-none ${
-            isDark ? 'text-slate-800/80' : 'text-slate-200'
-          }`}>
-            404
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="p-4 rounded-2xl bg-rose-500 text-white shadow-xl shadow-rose-500/30 animate-bounce duration-1000">
-              <ServerOff className="w-8 h-8 sm:w-10 sm:h-10" />
-            </div>
-          </div>
-        </div>
-
-        {/* Headline & Explanation */}
-        <div className="flex flex-col gap-2">
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight">
-            Inventory & Viewer Access Suspended
-          </h1>
-          <p className={`text-xs sm:text-sm leading-relaxed max-w-md ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            Ang system ay kasalukuyang nasa <strong>Maintenance &amp; Shutdown Mode</strong> na itinakda ng pamunuan. Pansamantalang nakasara ang access para sa <span className="font-bold text-rose-500 underline underline-offset-2">{userRole}</span> role.
+        {/* Title & Subtitle */}
+        <div className="text-center">
+          <h2 className="text-lg font-black uppercase text-white tracking-tight">
+            Access Temporarily Suspended
+          </h2>
+          <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+            Ang system ay kasalukuyang nakasara para sa <span className="font-bold text-[#ff8533] uppercase">{userRole}</span> role dahil sa isinasagawang administrative maintenance o ledger sync.
           </p>
         </div>
 
-        {/* Admin Announcement Message Box */}
-        <div className={`w-full rounded-2xl p-4 border text-left flex flex-col gap-2 ${
-          isDark ? 'bg-[#141827] border-slate-800' : 'bg-slate-50 border-slate-200'
-        }`}>
-          <div className="flex items-center justify-between text-[11px] font-bold uppercase text-slate-400">
-            <span className="flex items-center gap-1.5">
-              <Terminal className="w-3.5 h-3.5 text-[#ff6600]" /> Admin Advisory
-            </span>
-            {maintenanceData?.updatedAt && (
-              <span className="font-mono text-[10px]">
-                {new Date(maintenanceData.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            )}
-          </div>
-          <p className={`text-xs sm:text-sm italic font-medium leading-relaxed ${
-            isDark ? 'text-amber-300' : 'text-amber-800'
-          }`}>
+        {/* Admin Advisory Announcement Box */}
+        <div className="rounded-2xl bg-white/10 border border-white/15 p-4 flex flex-col gap-1.5 text-left">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1">
+            <AlertTriangle className="w-3.5 h-3.5 text-[#ff6600]" />
+            Admin Advisory Notice
+          </span>
+          <p className="text-xs text-slate-200 italic leading-relaxed">
             &ldquo;{maintenanceData?.maintenanceMessage || "Scheduled system update and database ledger maintenance are underway. Transactions are temporarily frozen."}&rdquo;
           </p>
         </div>
 
-        {/* Real-time Subsystem Status Grid */}
-        <div className={`w-full grid grid-cols-3 gap-2 text-center text-[11px] font-mono p-3 rounded-xl border ${
-          isDark ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50/80 border-slate-200/70'
-        }`}>
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[9px] uppercase text-slate-400 font-sans font-bold">Inventory API</span>
-            <span className="text-rose-500 font-bold">OFFLINE</span>
-          </div>
-          <div className="flex flex-col gap-0.5 border-x border-slate-700/30 px-1">
-            <span className="text-[9px] uppercase text-slate-400 font-sans font-bold">Viewer Portal</span>
-            <span className="text-rose-500 font-bold">OFFLINE</span>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[9px] uppercase text-slate-400 font-sans font-bold">Admin Console</span>
-            <span className="text-emerald-500 font-bold">EXEMPTED</span>
-          </div>
+        {/* User Context Tag */}
+        <div className="rounded-xl bg-white/5 border border-white/10 p-2.5 text-center text-xs text-slate-300">
+          Account: <span className="font-semibold text-white">{userFullname}</span> &bull; Role: <span className="font-bold text-[#ff8533]">{userRole}</span>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+        {/* Action Buttons (Matches Login Gradient Button) */}
+        <div className="flex flex-col gap-2.5 pt-1">
           <button
             type="button"
             onClick={handleRefresh}
             disabled={checking}
-            className="flex-1 w-full flex items-center justify-center gap-2 bg-[#ff6600] hover:bg-[#e05a00] text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-md cursor-pointer disabled:opacity-50"
+            className="group inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#ff6600] to-[#ff8533] py-3.5 px-8 text-sm font-bold text-white shadow-lg hover:shadow-orange-500/25 active:scale-[0.98] transition-all cursor-pointer w-full disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${checking ? 'animate-spin' : ''}`} />
-            <span>{checking ? 'Checking Status...' : 'Check If System Is Back'}</span>
+            <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
+            <span>{checking ? 'Checking Status...' : 'Check If System Is Back Online'}</span>
           </button>
 
           <button
             type="button"
             onClick={handleLogout}
-            className={`w-full sm:w-auto flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-              isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-700'
-            }`}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 py-2.5 px-6 text-xs font-bold text-slate-200 hover:text-white transition-all cursor-pointer w-full"
           >
-            <LogOut className="w-3.5 h-3.5 text-rose-500" />
-            <span>Sign Out</span>
+            <LogOut className="w-3.5 h-3.5 text-rose-400" />
+            <span>Sign Out from Session</span>
           </button>
         </div>
 
-        <div className="text-[11px] text-slate-500">
-          Logged in as: <span className="font-semibold">{userFullname}</span> ({userRole})
-        </div>
       </div>
+
+      {/* SECURITY NOTICE FOOTER (Identical to Login.jsx) */}
+      <p className="mt-8 text-[12px] font-medium text-slate-400 text-center relative z-10">
+        Corporate Security Protocols Enforced &bull; Encrypted Session
+      </p>
+
+      {/* SYSTEM COPYRIGHT FOOTER (Identical to Login.jsx) */}
+      <div className="absolute bottom-4 left-0 right-0 text-center px-4 z-10">
+        <p className="text-[10px] font-semibold text-slate-400 tracking-wide">
+          Copyright &copy; 2026 Upright Storage Solutions PH. All Rights Reserved.
+        </p>
+      </div>
+
     </div>
   );
 }
