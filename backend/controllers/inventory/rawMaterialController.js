@@ -2,8 +2,57 @@ import RawMaterial from "../../models/RawMaterial.js";
 
 export const getAllRawMaterials = async (req, res) => {
   try {
-    const materials = await RawMaterial.find({}).sort({ createdAt: -1 });
+    const materials = await RawMaterial.aggregate([
+      { $sort: { createdAt: -1 } },
+      {
+        $project: {
+          Code: 1,
+          Category: 1,
+          Segment: 1,
+          ItemDescription: 1,
+          Dimension: 1,
+          ActualCount: 1,
+          UOM: 1,
+          Condition: 1,
+          AccountTo: 1,
+          isArchived: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          ImageUrl: {
+            $cond: {
+              if: { $and: [{ $ne: ["$ImageUrl", ""] }, { $ne: ["$ImageUrl", null] }] },
+              then: { $concat: ["/api/raw-materials/", { $toString: "$_id" }, "/image"] },
+              else: ""
+            }
+          }
+        }
+      }
+    ]);
     res.status(200).json(materials);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+export const getRawMaterialImage = async (req, res) => {
+  try {
+    const material = await RawMaterial.findById(req.params.id).select("ImageUrl");
+    if (!material || !material.ImageUrl) {
+      return res.status(404).send("Image not found");
+    }
+
+    if (material.ImageUrl.startsWith("data:")) {
+      const parts = material.ImageUrl.split(",");
+      const mimeMatch = parts[0].match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+      const imgBuffer = Buffer.from(parts[1], "base64");
+
+      res.set("Content-Type", mime);
+      res.set("Cache-Control", "public, max-age=86400, immutable");
+      return res.send(imgBuffer);
+    }
+
+    return res.redirect(material.ImageUrl);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
@@ -15,7 +64,11 @@ export const getRawMaterialById = async (req, res) => {
     if (!material) {
       return res.status(404).json({ message: "Raw material not found" });
     }
-    res.status(200).json(material);
+    const obj = material.toObject();
+    if (obj.ImageUrl && obj.ImageUrl.startsWith("data:")) {
+      obj.ImageUrl = `/api/raw-materials/${obj._id}/image`;
+    }
+    res.status(200).json(obj);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }

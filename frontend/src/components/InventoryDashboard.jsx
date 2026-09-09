@@ -12,10 +12,8 @@ import {
 import PageHeader from './PageHeader';
 import { useTheme } from '../context/ThemeContext';
 
-// Base URL para sa iyong backend API port (Dynamic: Render kapag live, Localhost kapag dev)
-const BASE_API_URL = import.meta.env.MODE === 'production'
-  ? 'https://one-inventory.onrender.com/api'
-  : 'http://localhost:5000/api';
+// Base URL para sa API (Gumagamit ng relative /api para parehong gumana sa Dev proxy at Production)
+const BASE_API_URL = '/api';
 
 function InventoryDashboard() {
     const { isDark } = useTheme();

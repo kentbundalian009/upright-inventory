@@ -63,5 +63,7 @@ const rawMaterialSchema = new mongoose.Schema(
   }
 );
 
+rawMaterialSchema.index({ createdAt: -1 });
+
 const RawMaterial = mongoose.model("RawMaterial", rawMaterialSchema);
 export default RawMaterial;

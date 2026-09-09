@@ -25,5 +25,7 @@ const suppliesSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+suppliesSchema.index({ createdAt: -1 });
+
 const Supplies = mongoose.model("Supplies", suppliesSchema);
 export default Supplies;

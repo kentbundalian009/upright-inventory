@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import {
   getAllRawMaterials,
+  getRawMaterialImage,
   getRawMaterialById,
   createRawMaterial,
   updateRawMaterial,
@@ -29,6 +30,9 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }
 });
 const router = express.Router();
+
+// 🖼️ Public & Browser-Cacheable Image Endpoint (walang Bearer header na kailangan ang <img> tags)
+router.get("/:id/image", getRawMaterialImage);
 
 router.use(protectRoute);
 

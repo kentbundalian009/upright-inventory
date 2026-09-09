@@ -3,6 +3,7 @@ import multer from "multer";
 import path from "path";
 import {
   getAllSupplies,
+  getSuppliesImage,
   getSuppliesById,
   createSupplies,
   updateSupplies,
@@ -29,6 +30,9 @@ const upload = multer({
   fileFilter: fileFilter,
   limits: { fileSize: 10 * 1024 * 1024 }
 });
+
+// 🖼️ Public & Browser-Cacheable Image Endpoint (walang Bearer header na kailangan ang <img> tags)
+router.get("/:id/image", getSuppliesImage);
 
 router.use(protectRoute);
 

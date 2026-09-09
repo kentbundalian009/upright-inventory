@@ -56,12 +56,12 @@ app.use("/api/auth", authRoutes);
 // 🔒 PROTECTED API ROUTES (Hinaharang at tsine-tsek muna kay Upstash Redis bago mag-load)
 app.use("/api/users", protectRoute, userRoutes);
 app.use("/api/assets", protectRoute, assetsRoutes);
-app.use("/api/supplies", protectRoute, suppliesRoutes); 
+app.use("/api/supplies", suppliesRoutes); 
 app.use("/api/supplies-movements", protectRoute, suppliesMovementRoutes); 
 app.use("/api/conversions", protectRoute, conversionRoutes);
 app.use("/api/products", protectRoute, productRoutes); 
 app.use("/api/packing-lists", protectRoute, packingListRoutes); 
-app.use("/api/raw-materials", protectRoute, rawMaterialRoutes); 
+app.use("/api/raw-materials", rawMaterialRoutes); 
 app.use("/api/activity-logs", protectRoute, activityLogRoutes);
 app.use("/api/purchase-orders", protectRoute, purchaseOrderRoutes);
 app.use("/api/settings/thresholds", protectRoute, settingRoutes);
