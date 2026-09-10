@@ -566,6 +566,53 @@ function InventoryOutboundProducts() {
           </div>
 
           <form onSubmit={handleInitiateConfirm} className="flex flex-col gap-5">
+
+            {/* COMPACT TRANSACTION TYPE CONTAINER */}
+            <div className={`px-3.5 py-2 rounded-xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 ${
+              isDark ? 'bg-[#141622]/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Transaction Type:
+                </span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
+                  transactionType === 'Outbound'
+                    ? (isDark ? 'bg-rose-950/60 text-rose-400 border-rose-800' : 'bg-rose-50 text-rose-700 border-rose-200')
+                    : (isDark ? 'bg-amber-950/60 text-amber-400 border-amber-800' : 'bg-amber-50 text-amber-700 border-amber-200')
+                }`}>
+                  {transactionType === 'Outbound' ? '🔴 Outbound (Deduct)' : '🟡 Reserve (Hold)'}
+                </span>
+              </div>
+
+              {/* ACTION TOGGLE BUTTONS */}
+              <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
+                <button
+                  type="button"
+                  onClick={() => setTransactionType('Reserve')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                    transactionType === 'Reserve'
+                      ? (isDark ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs' : 'bg-amber-500 text-white border-amber-600 shadow-xs')
+                      : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
+                  }`}
+                >
+                  🟡 Reserve
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTransactionType('Outbound')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                    transactionType === 'Outbound'
+                      ? (isDark ? 'bg-rose-600 text-white border-rose-500 shadow-xs' : 'bg-red-600 text-white border-red-700 shadow-xs')
+                      : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
+                  }`}
+                >
+                  🔴 Outbound
+                </button>
+              </div>
+            </div>
+
+            {/* FORM FIELDS GRID */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <div>
                 <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Slip Number</label>
@@ -576,22 +623,18 @@ function InventoryOutboundProducts() {
               </div>
 
               <div>
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Transaction Type</label>
-                <select
-                  value={transactionType}
-                  onChange={e => setTransactionType(e.target.value)}
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-[#18174e]'} border rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none cursor-pointer`}
-                >
-                  <option value="Reserve" className={isDark ? 'bg-[#141622] text-slate-200' : ''}>🟡 Reserve (Hold Stock)</option>
-                  <option value="Outbound" className={isDark ? 'bg-[#141622] text-slate-200' : ''}>🔴 Outbound (Deduct & Dispatch)</option>
-                </select>
-              </div>
-
-              <div>
                 <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Date Processed</label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                   <input type="date" value={shipmentDate} onChange={e => setShipmentDate(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} required />
+                </div>
+              </div>
+
+              <div>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Prepared Name</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input type="text" value={preparedBy} disabled className={`w-full ${isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'} border rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none`} />
                 </div>
               </div>
 
@@ -647,14 +690,6 @@ function InventoryOutboundProducts() {
                   placeholder="Awtomatikong magfe-fetch mula sa napiling Customer..."
                   className={`w-full ${isDark ? 'bg-slate-900/70 border-slate-800 text-slate-300 placeholder:text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-700 placeholder:text-slate-400'} border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none cursor-not-allowed select-none`}
                 />
-              </div>
-
-              <div className="col-span-1 sm:col-span-2 md:col-span-3">
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Prepared Name</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={preparedBy} disabled className={`w-full ${isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'} border rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none`} />
-                </div>
               </div>
             </div>
 

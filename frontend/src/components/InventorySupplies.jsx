@@ -39,7 +39,6 @@ function InventorySupplies() {
   ];
 
   const categories = ['All Categories', ...[...new Set(suppliesList.map(item => item.Category).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))];
-  const segments = ['All Segments', ...[...new Set(suppliesList.map(item => item.Segment).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))];
   const descriptions = ['All Item Descriptions', ...[...new Set(suppliesList.map(item => item.ItemDescription).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))];
 
   const uniqueCategoriesInDB = [...new Set(suppliesList.map(item => item.Category).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
@@ -51,7 +50,6 @@ function InventorySupplies() {
   const uniqueAccountsInDB = [...new Set(suppliesList.map(item => item.AccountTo).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
-  const [selectedSegment, setSelectedSegment] = useState('All Segments');
   const [selectedDescription, setSelectedDescription] = useState('All Item Descriptions');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -289,7 +287,6 @@ function InventorySupplies() {
   const currentDisplayList = suppliesList.filter(supply => showArchivedOnly ? supply.isArchived === true : !supply.isArchived);
   const filteredSupplies = currentDisplayList.filter(supply => {
     const matchesCategory = selectedCategory === 'All Categories' || supply.Category === selectedCategory;
-    const matchesSegment = selectedSegment === 'All Segments' || supply.Segment === selectedSegment;
     const matchesDescription = selectedDescription === 'All Item Descriptions' || supply.ItemDescription === selectedDescription;
     const matchesZeroQty = !hideZeroQty || supply.ActualCount > 0;
     const matchesSearch = !searchTerm || [
@@ -302,7 +299,7 @@ function InventorySupplies() {
       supply.SerialNo,
       supply.AccountTo
     ].some(v => v && v.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesCategory && matchesSegment && matchesDescription && matchesSearch && matchesZeroQty;
+    return matchesCategory && matchesDescription && matchesSearch && matchesZeroQty;
   });
 
   const activeCount = suppliesList.filter(s => !s.isArchived).length;
@@ -389,17 +386,11 @@ function InventorySupplies() {
             </div>
           </div>
 
-          <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isViewer ? 'md:grid-cols-4' : 'md:grid-cols-5'} md:pb-0`}>
+          <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isViewer ? 'md:grid-cols-3' : 'md:grid-cols-4'} md:pb-0`}>
 
             <div className="min-w-[150px] w-full lg:min-w-0">
               <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className={`${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer`}>
                 {(categories || []).map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
-            </div>
-
-            <div className="min-w-[150px] w-full lg:min-w-0">
-              <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className={`${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer`}>
-                {(segments || []).map(seg => <option key={seg} value={seg}>{seg}</option>)}
               </select>
             </div>
 
@@ -412,7 +403,7 @@ function InventorySupplies() {
             <div className="min-w-[180px] w-full lg:min-w-0">
               <div className="relative w-full">
                 <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                <input type="text" placeholder="Search Code, Category, Segment, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
+                <input type="text" placeholder="Search Code, Category, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
               </div>
             </div>
 

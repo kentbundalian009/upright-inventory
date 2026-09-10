@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { 
-  Building2, Users, Search, Plus, Edit2, Archive, EyeOff, RotateCcw, 
-  Trash2, Phone, Mail, MapPin, User, FileText, CheckCircle2, 
+import {
+  Building2, Users, Search, Plus, Edit2, Archive, EyeOff, RotateCcw,
+  Trash2, Phone, Mail, MapPin, User, FileText, CheckCircle2,
   AlertCircle, X, Filter, Sliders, Truck
 } from 'lucide-react';
 import PageHeader from './PageHeader';
@@ -102,15 +102,15 @@ function Client() {
   const activeLogistics = useMemo(() => clients.filter(c => c.type === 'Logistics' && !c.isArchived).length, [clients]);
   const archivedLogistics = useMemo(() => clients.filter(c => c.type === 'Logistics' && c.isArchived).length, [clients]);
 
-  const activeCurrentCount = 
-    activeType === 'Supplier' ? activeSuppliers : 
-    activeType === 'Customer' ? activeCustomers : 
-    activeLogistics;
+  const activeCurrentCount =
+    activeType === 'Supplier' ? activeSuppliers :
+      activeType === 'Customer' ? activeCustomers :
+        activeLogistics;
 
-  const archivedCurrentCount = 
-    activeType === 'Supplier' ? archivedSuppliers : 
-    activeType === 'Customer' ? archivedCustomers : 
-    archivedLogistics;
+  const archivedCurrentCount =
+    activeType === 'Supplier' ? archivedSuppliers :
+      activeType === 'Customer' ? archivedCustomers :
+        archivedLogistics;
 
   // Filtered and Sorted Client List
   const filteredClients = useMemo(() => {
@@ -293,25 +293,23 @@ function Client() {
 
           {/* TOP BAR */}
           <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-            
+
             {/* SUB-TABS: SUPPLIER vs CUSTOMER vs LOGISTICS */}
             <div className={`flex items-center p-1 rounded-xl border flex-wrap sm:flex-nowrap gap-1 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
               <button
                 type="button"
                 onClick={() => { setActiveType('Supplier'); setSearchTerm(''); }}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  activeType === 'Supplier'
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeType === 'Supplier'
                     ? (isDark ? 'bg-[#ff6600] text-white shadow-sm' : 'bg-[#18174e] text-white shadow-sm')
                     : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
-                }`}
+                  }`}
               >
                 <Building2 className="w-3.5 h-3.5" />
-                <span>Suppliers (Inbound)</span>
-                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${
-                  activeType === 'Supplier'
+                <span>Suppliers</span>
+                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${activeType === 'Supplier'
                     ? 'bg-black/20 text-white'
                     : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
-                }`}>
+                  }`}>
                   {showArchivedOnly ? archivedSuppliers : activeSuppliers}
                 </span>
               </button>
@@ -319,19 +317,17 @@ function Client() {
               <button
                 type="button"
                 onClick={() => { setActiveType('Customer'); setSearchTerm(''); }}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  activeType === 'Customer'
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeType === 'Customer'
                     ? (isDark ? 'bg-[#ff6600] text-white shadow-sm' : 'bg-[#18174e] text-white shadow-sm')
                     : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
-                }`}
+                  }`}
               >
                 <Users className="w-3.5 h-3.5" />
-                <span>Customers (Outbound)</span>
-                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${
-                  activeType === 'Customer'
+                <span>Customers</span>
+                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${activeType === 'Customer'
                     ? 'bg-black/20 text-white'
                     : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
-                }`}>
+                  }`}>
                   {showArchivedOnly ? archivedCustomers : activeCustomers}
                 </span>
               </button>
@@ -339,19 +335,17 @@ function Client() {
               <button
                 type="button"
                 onClick={() => { setActiveType('Logistics'); setSearchTerm(''); }}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  activeType === 'Logistics'
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeType === 'Logistics'
                     ? (isDark ? 'bg-[#ff6600] text-white shadow-sm' : 'bg-[#18174e] text-white shadow-sm')
                     : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
-                }`}
+                  }`}
               >
                 <Truck className="w-3.5 h-3.5" />
                 <span>Logistics</span>
-                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${
-                  activeType === 'Logistics'
+                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${activeType === 'Logistics'
                     ? 'bg-black/20 text-white'
                     : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
-                }`}>
+                  }`}>
                   {showArchivedOnly ? archivedLogistics : activeLogistics}
                 </span>
               </button>
@@ -364,9 +358,8 @@ function Client() {
                 <button
                   onClick={handleOpenAdd}
                   title={`Register new ${activeType}`}
-                  className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${
-                    isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90'
-                  }`}
+                  className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90'
+                    }`}
                 >
                   <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   <span className="hidden md:inline">Add New {activeType}</span>
@@ -378,11 +371,10 @@ function Client() {
                 <button
                   onClick={() => setShowArchivedOnly(!showArchivedOnly)}
                   title={showArchivedOnly ? `Show Active ${activeType} records` : `View Archive Vault`}
-                  className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${
-                    showArchivedOnly
+                  className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${showArchivedOnly
                       ? (isDark ? 'bg-rose-950/40 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100')
                       : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
-                  }`}
+                    }`}
                 >
                   {showArchivedOnly ? (
                     <>
@@ -404,7 +396,7 @@ function Client() {
 
           {/* SECOND ROW: SEARCH & SORT */}
           <div className="flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid md:grid-cols-4 md:pb-0">
-            
+
             <div className="min-w-[200px] w-full md:min-w-0 md:col-span-3">
               <div className="relative w-full">
                 <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
@@ -456,7 +448,7 @@ function Client() {
                 <tr className={`text-white font-bold uppercase text-sm ${isDark ? 'bg-[#0f111d] border-b border-slate-800' : 'bg-[#18174e]'}`}>
                   {activeType === 'Logistics' ? (
                     <>
-                      <th 
+                      <th
                         className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-0 z-20 ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
                         style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' }}
                       >
@@ -472,7 +464,7 @@ function Client() {
                     </>
                   ) : (
                     <>
-                      <th 
+                      <th
                         className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-0 z-20 ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
                         style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' }}
                       >
@@ -498,8 +490,8 @@ function Client() {
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                 {loading ? (
                   <tr>
-                    <td 
-                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 6 : 7)} 
+                    <td
+                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 6 : 7)}
                       className="text-center py-10 text-green-700 font-medium italic"
                     >
                       Fetching secure {activeType.toLowerCase()} records from database...
@@ -507,8 +499,8 @@ function Client() {
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td 
-                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 6 : 7)} 
+                    <td
+                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 6 : 7)}
                       className="text-center py-8 text-rose-600 font-semibold"
                     >
                       {error}
@@ -519,10 +511,9 @@ function Client() {
                     return (
                       <tr key={client._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
                         {/* STICKY LOGISTICS NAME ONLY */}
-                        <td 
-                          className={`py-3.5 px-4 font-semibold static md:sticky md:left-0 z-10 min-w-[200px] transition-colors ${
-                            isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
-                          }`}
+                        <td
+                          className={`py-3.5 px-4 font-semibold static md:sticky md:left-0 z-10 min-w-[200px] transition-colors ${isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
+                            }`}
                           style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
                           title={client.name}
                         >
@@ -592,12 +583,11 @@ function Client() {
 
                   return (
                     <tr key={client._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
-                      
+
                       {/* STICKY CLIENT NAME */}
-                      <td 
-                        className={`py-3 px-4 font-semibold static md:sticky md:left-0 z-10 min-w-[170px] sm:min-w-[210px] md:max-w-[300px] whitespace-normal md:whitespace-nowrap transition-colors ${
-                          isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
-                        }`}
+                      <td
+                        className={`py-3 px-4 font-semibold static md:sticky md:left-0 z-10 min-w-[170px] sm:min-w-[210px] md:max-w-[300px] whitespace-normal md:whitespace-nowrap transition-colors ${isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
+                          }`}
                         style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
                         title={client.name}
                       >
@@ -721,8 +711,8 @@ function Client() {
 
                 {filteredClients.length === 0 && !loading && (
                   <tr>
-                    <td 
-                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 6 : 7)} 
+                    <td
+                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 6 : 7)}
                       className="text-center py-10 text-red-600 font-medium italic"
                     >
                       No {activeType.toLowerCase()} records match the selected filters or search queries.
@@ -777,11 +767,11 @@ function Client() {
                   type="text"
                   required
                   placeholder={
-                    activeType === 'Supplier' 
-                      ? "e.g. SteelCorp Industrial Supplies" 
+                    activeType === 'Supplier'
+                      ? "e.g. SteelCorp Industrial Supplies"
                       : activeType === 'Customer'
-                      ? "e.g. Metro Builders & Contractors"
-                      : "e.g. Lalamove, Transportify, J&T Express, In-house Truck"
+                        ? "e.g. Metro Builders & Contractors"
+                        : "e.g. Lalamove, Transportify, J&T Express, In-house Truck"
                   }
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
