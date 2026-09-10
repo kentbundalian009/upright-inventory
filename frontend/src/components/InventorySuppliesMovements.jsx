@@ -7,9 +7,7 @@ import PageHeader from './PageHeader';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 
-const API_BASE_URL = import.meta.env.MODE === 'production'
-  ? 'https://one-inventory.onrender.com/api'
-  : 'http://localhost:5000/api';
+const API_BASE_URL = '/api';
 
 const SUPPLIES_URL = `${API_BASE_URL}/supplies`;
 const MOVEMENT_URL = `${API_BASE_URL}/supplies-movements`;
@@ -83,6 +81,7 @@ function InventorySuppliesMovements() {
         const locations = [...new Set(movementsRes.data.map(m => m.originAddress).filter(Boolean))];
         setExistingParties(parties);
         setExistingLocations(locations);
+        window.dispatchEvent(new Event('suppliesMovementUpdated'));
       }
     } catch (err) {
       console.error("Error loading registry data:", err);
@@ -448,25 +447,44 @@ function InventorySuppliesMovements() {
                 b.partyName?.toLowerCase().includes(quickReturnSearch.toLowerCase())
               )
               .map(b => (
-                <button
+                <div
                   key={b._id}
-                  type="button"
-                  onClick={() => {
-                    handleFastReturnCopy(b);
-                    setQuickReturnSearch('');
-                  }}
-                  className="bg-yellow-400 border border-slate-900 hover:border-slate-800 rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 w-22 h-22 shrink-0"
+                  className="relative inline-block shrink-0 overflow-visible group"
                 >
-                  <span className="font-bold text-[#000] text-[12px] tracking-tighter block mb-0.5 whitespace-nowrap">
-                    {b.slipNo}
-                  </span>
-                  {b.transactionType === "Reserved" && (
-                    <span className="text-[9px] bg-slate-100 text-[#18174e] font-bold px-1 rounded scale-90 mb-0.5">RESERVED</span>
-                  )}
-                  <span className="text-[9px] text-[#000] font-bold line-clamp-2 break-words max-w-full leading-none">
-                    {b.partyName}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleFastReturnCopy(b);
+                      setQuickReturnSearch('');
+                    }}
+                    className="bg-yellow-400 border border-slate-900 hover:border-slate-800 rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 pt-3.5 w-22 h-22 shrink-0"
+                  >
+                    <span className="font-bold text-[#000] text-[12px] tracking-tighter block mb-0.5 whitespace-nowrap">
+                      {b.slipNo}
+                    </span>
+                    {b.transactionType === "Reserved" && (
+                      <span className="text-[9px] bg-slate-100 text-[#18174e] font-bold px-1 rounded scale-90 mb-0.5">RESERVED</span>
+                    )}
+                    <span className="text-[9px] text-[#000] font-bold line-clamp-2 break-words max-w-full leading-none">
+                      {b.partyName}
+                    </span>
+                  </button>
+
+                  <div className="absolute top-1 right-1 flex items-center gap-1 z-20">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedSlip(b);
+                        setIsModalOpen(true);
+                      }}
+                      className="w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-indigo-400 text-slate-900 hover:text-indigo-700 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center"
+                      title="View Details"
+                    >
+                      <Eye className="w-2.5 h-2.5 shrink-0" />
+                    </button>
+                  </div>
+                </div>
               ))}
 
             {activeBorrows.filter(b =>

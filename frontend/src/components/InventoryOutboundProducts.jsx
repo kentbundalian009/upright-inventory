@@ -7,12 +7,11 @@ import PageHeader from './PageHeader';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 
-const API_BASE_URL = import.meta.env.MODE === 'production'
-  ? 'https://one-inventory.onrender.com/api'
-  : 'http://localhost:5000/api';
+const API_BASE_URL = '/api';
 
 const RAW_MAT_URL = `${API_BASE_URL}/raw-materials`;
 const PL_URL = `${API_BASE_URL}/packing-lists`;
+const CLIENT_URL = `${API_BASE_URL}/clients`;
 
 const MASTER_CANCELLATION_KEY = "VOID-CONFIRM-2026";
 
@@ -20,6 +19,7 @@ function InventoryOutboundProducts() {
   const { isDark } = useTheme();
   const [dbRawMaterials, setDbRawMaterials] = useState([]);
   const [plRecords, setPlRecords] = useState([]);
+  const [registeredCustomers, setRegisteredCustomers] = useState([]);
   const [rawMatSearchQuery, setRawMatSearchQuery] = useState('');
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [selectedSlip, setSelectedSlip] = useState(null);
@@ -72,13 +72,17 @@ function InventoryOutboundProducts() {
 
   const fetchData = async () => {
     try {
-      const [rawMatRes, plsRes] = await Promise.all([
+      const [rawMatRes, plsRes, customersRes] = await Promise.all([
         axios.get(RAW_MAT_URL),
-        axios.get(PL_URL)
+        axios.get(PL_URL),
+        axios.get(`${CLIENT_URL}?type=Customer`).catch(() => ({ data: [] }))
       ]);
 
       if (rawMatRes.data) {
         setDbRawMaterials(rawMatRes.data.filter(p => !p.isArchived));
+      }
+      if (customersRes?.data) {
+        setRegisteredCustomers(customersRes.data);
       }
       if (plsRes.data) {
         setPlRecords(plsRes.data);
@@ -111,6 +115,17 @@ function InventoryOutboundProducts() {
       }
     }
   }, []);
+
+  const handleCustomerChange = (e) => {
+    const selectedName = e.target.value;
+    setCustomer(selectedName);
+    const found = registeredCustomers.find(c => c.name === selectedName);
+    if (found && found.address) {
+      setDestinationAddress(found.address);
+    } else if (!selectedName) {
+      setDestinationAddress('');
+    }
+  };
 
   const handleSelectRawMaterial = (item) => {
     if (manifestItems.some(i => i.materialId === item._id || i.productId === item._id)) {
@@ -571,21 +586,23 @@ function InventoryOutboundProducts() {
               </div>
 
               <div>
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Customer Name</label>
-                <input
-                  type="text"
-                  list="customers-list"
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Customer Name *</label>
+                <select
                   value={customer}
-                  onChange={e => setCustomer(e.target.value)}
-                  placeholder="Enter customer name"
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                  onChange={handleCustomerChange}
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer font-medium`}
                   required
-                />
-                <datalist id="customers-list">
-                  {existingCustomers.map((cust, i) => (
-                    <option key={i} value={cust} />
+                >
+                  <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>-- Select Registered Customer --</option>
+                  {registeredCustomers.map((cust) => (
+                    <option key={cust._id} value={cust.name} className={isDark ? 'bg-[#141622] text-white' : ''}>
+                      {cust.name}
+                    </option>
                   ))}
-                </datalist>
+                  {registeredCustomers.length === 0 && (
+                    <option disabled value="">Walang registered customer (Pumunta sa Client Records)</option>
+                  )}
+                </select>
               </div>
 
               <div>
@@ -606,20 +623,14 @@ function InventoryOutboundProducts() {
               </div>
 
               <div>
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Destination Address</label>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Destination Address (Auto-filled)</label>
                 <input
                   type="text"
-                  list="destinations-list"
                   value={destinationAddress}
-                  onChange={e => setDestinationAddress(e.target.value)}
-                  placeholder="Enter destination address"
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                  readOnly
+                  placeholder="Awtomatikong magfe-fetch mula sa napiling Customer..."
+                  className={`w-full ${isDark ? 'bg-slate-900/70 border-slate-800 text-slate-300 placeholder:text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-700 placeholder:text-slate-400'} border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none cursor-not-allowed select-none`}
                 />
-                <datalist id="destinations-list">
-                  {existingDestinations.map((dest, i) => (
-                    <option key={i} value={dest} />
-                  ))}
-                </datalist>
               </div>
 
               <div className="col-span-1 sm:col-span-2 md:col-span-3">

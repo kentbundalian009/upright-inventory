@@ -20,6 +20,7 @@ import InventoryOutboundProducts from '../components/InventoryOutboundProducts';
 import InventorySupplies from '../components/InventorySupplies';
 import InventorySuppliesMovements from '../components/InventorySuppliesMovements';
 import InventoryAssets from '../components/InventoryAssets';
+import Client from '../components/Client';
 
 import Settings from '../components/Settings';
 import Reports from '../components/Reports';
@@ -97,6 +98,7 @@ function Dashboard() {
                 return userRole === 'Admin' ? <AdminSettings /> : <InventoryDashboard />;
                 
             case 'raw-materials': return <InventoryRawMaterials />;
+            case 'client-records': return <Client />;
             case 'products': return userRole === 'Viewer' ? <InventoryDashboard /> : <InventoryProducts />;
             case 'supplies': return <InventorySupplies />;
             case 'assets': return <InventoryAssets />;

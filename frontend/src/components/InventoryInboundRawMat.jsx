@@ -7,12 +7,11 @@ import PageHeader from './PageHeader';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 
-const API_BASE_URL = import.meta.env.MODE === 'production'
-  ? 'https://one-inventory.onrender.com/api'
-  : 'http://localhost:5000/api';
+const API_BASE_URL = '/api';
 
 const RAW_MAT_URL = `${API_BASE_URL}/raw-materials`;
 const PO_URL = `${API_BASE_URL}/purchase-orders`;
+const CLIENT_URL = `${API_BASE_URL}/clients`;
 
 const getTodayDateString = () => {
   const today = new Date();
@@ -25,6 +24,7 @@ function InventoryInboundRawMat() {
   const { isDark } = useTheme();
   const [dbMaterials, setDbMaterials] = useState([]);
   const [poRecords, setPoRecords] = useState([]);
+  const [registeredSuppliers, setRegisteredSuppliers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
   const [selectedPo, setSelectedPo] = useState(null);
@@ -88,16 +88,19 @@ function InventoryInboundRawMat() {
 
   const fetchData = async () => {
     try {
-      const [matsRes, posRes] = await axios.all([
+      const [matsRes, posRes, suppliersRes] = await axios.all([
         axios.get(RAW_MAT_URL),
-        axios.get(PO_URL)
+        axios.get(PO_URL),
+        axios.get(`${CLIENT_URL}?type=Supplier`).catch(() => ({ data: [] }))
       ]);
 
       const materials = matsRes.data || [];
       const pos = posRes.data || [];
+      const sups = suppliersRes.data || [];
 
       setDbMaterials(materials);
       setPoRecords(pos);
+      setRegisteredSuppliers(sups);
 
       const suppliers = [...new Set(pos.map(p => p.supplier).filter(Boolean))];
       const addresses = [...new Set(pos.map(p => p.originAddress).filter(Boolean))];
@@ -138,6 +141,17 @@ function InventoryInboundRawMat() {
       }
     }
   }, []);
+
+  const handleSupplierChange = (e) => {
+    const selectedName = e.target.value;
+    setSupplier(selectedName);
+    const found = registeredSuppliers.find(s => s.name === selectedName);
+    if (found && found.address) {
+      setOriginAddress(found.address);
+    } else if (!selectedName) {
+      setOriginAddress('');
+    }
+  };
 
   const handleSelectMaterial = (item) => {
     if (manifestItems.some(i => i.materialId === item._id)) {
@@ -440,20 +454,26 @@ function InventoryInboundRawMat() {
                 </div>
               </div>
               <div>
-                <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Supplier Origin *</label>
+                <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                  Supplier Origin *
+                </label>
                 <div className="relative">
-                  <input
-                    type="text"
+                  <select
                     value={supplier}
-                    onChange={e => setSupplier(e.target.value)}
-                    list="po-suppliers-list"
-                    placeholder="Enter supplier name"
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                    onChange={handleSupplierChange}
                     required
-                  />
-                  <datalist id="po-suppliers-list">
-                    {uniqueSuppliers.map((sup, idx) => <option key={idx} value={sup} />)}
-                  </datalist>
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none font-semibold cursor-pointer`}
+                  >
+                    <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>-- Select Supplier --</option>
+                    {registeredSuppliers.map((sup) => (
+                      <option key={sup._id} value={sup.name} className={isDark ? 'bg-[#141622] text-white' : ''}>
+                        {sup.name}
+                      </option>
+                    ))}
+                    {registeredSuppliers.length === 0 && (
+                      <option disabled value="">Walang registered supplier (Pumunta sa Client Records)</option>
+                    )}
+                  </select>
                 </div>
               </div>
               <div>
@@ -463,18 +483,16 @@ function InventoryInboundRawMat() {
                 </div>
               </div>
               <div className="sm:col-span-2">
-                <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Origin Location Address</label>
+                <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                  Supplier Address (Auto-filled)
+                </label>
                 <input
                   type="text"
                   value={originAddress}
-                  onChange={e => setOriginAddress(e.target.value)}
-                  list="po-addresses-list"
-                  placeholder="Enter origin address"
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                  readOnly
+                  placeholder="Awtomatikong magfe-fetch mula sa napiling Supplier..."
+                  className={`w-full ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'} border rounded-lg px-3 py-2 text-sm cursor-not-allowed select-none focus:outline-none font-medium`}
                 />
-                <datalist id="po-addresses-list">
-                  {uniqueAddresses.map((addr, idx) => <option key={idx} value={addr} />)}
-                </datalist>
               </div>
               <div>
                 <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Prepared Name</label>

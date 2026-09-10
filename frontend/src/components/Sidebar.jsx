@@ -19,19 +19,19 @@ import {
   Settings,
   Menu,
   X,
+  Building2,
   Database,
   Power
 } from "lucide-react";
 
-const API_BASE_URL = import.meta.env.MODE === 'production'
-  ? 'https://one-inventory.onrender.com/api'
-  : 'http://localhost:5000/api';
+const API_BASE_URL = '/api';
 
 function Sidebar({ activeTab, setActiveTab, userRole }) {
   const { isDark } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(true); 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [pendingOutboundCount, setPendingOutboundCount] = useState(0);
+  const [pendingSuppliesCount, setPendingSuppliesCount] = useState(0);
 
   // Close mobile drawer on ESC key
   useEffect(() => {
@@ -78,30 +78,59 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
     }
   }, []);
 
+  const fetchPendingSuppliesCount = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`${API_BASE_URL}/supplies-movements`, { headers });
+      if (res.data && Array.isArray(res.data)) {
+        const activeBorrows = res.data.filter(r =>
+          (r.transactionType === "Borrow" || r.transactionType === "Reserved") && r.isReturned === false
+        );
+        setPendingSuppliesCount(activeBorrows.length);
+      }
+    } catch (err) {
+      console.error("Error fetching pending supplies movements count for sidebar:", err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPendingOutboundCount();
+    fetchPendingSuppliesCount();
 
-    const handleUpdate = () => {
+    const handleOutboundUpdate = () => {
       fetchPendingOutboundCount();
     };
 
-    window.addEventListener('packingListUpdated', handleUpdate);
-    window.addEventListener('focus', handleUpdate);
+    const handleSuppliesUpdate = () => {
+      fetchPendingSuppliesCount();
+    };
 
-    const interval = setInterval(fetchPendingOutboundCount, 15000);
+    window.addEventListener('packingListUpdated', handleOutboundUpdate);
+    window.addEventListener('suppliesMovementUpdated', handleSuppliesUpdate);
+    window.addEventListener('focus', handleOutboundUpdate);
+    window.addEventListener('focus', handleSuppliesUpdate);
+
+    const interval = setInterval(() => {
+      fetchPendingOutboundCount();
+      fetchPendingSuppliesCount();
+    }, 15000);
 
     return () => {
-      window.removeEventListener('packingListUpdated', handleUpdate);
-      window.removeEventListener('focus', handleUpdate);
+      window.removeEventListener('packingListUpdated', handleOutboundUpdate);
+      window.removeEventListener('suppliesMovementUpdated', handleSuppliesUpdate);
+      window.removeEventListener('focus', handleOutboundUpdate);
+      window.removeEventListener('focus', handleSuppliesUpdate);
       clearInterval(interval);
     };
-  }, [fetchPendingOutboundCount]);
+  }, [fetchPendingOutboundCount, fetchPendingSuppliesCount]);
 
   const getMenuItems = () => {
     if (userRole === 'Viewer') {
       return [
         { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, section: 'main' },
         { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, section: 'records' },
+        { id: 'client-records', name: 'Client (Records)', icon: Building2, section: 'records' },
         { id: 'supplies', name: 'Supplies (Records)', icon: Package, section: 'records' },
         { id: 'assets', name: 'Assets (Records)', icon: Briefcase, section: 'records' },
         { id: 'reports', name: 'Reports', icon: FileSpreadsheet, section: 'settings_section' },
@@ -117,7 +146,8 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
       { id: 'admin-backup', name: 'Data Backup', icon: Database, roles: ['Admin'], section: 'admin' },
       { id: 'admin-settings', name: 'System Maintenance', icon: Power, roles: ['Admin'], section: 'admin' },
       
-      { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, roles: ['Inventory'], section: 'rackings' },
+      { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, roles: ['Inventory', 'Admin'], section: 'rackings' },
+      { id: 'client-records', name: 'Client (Records)', icon: Building2, roles: ['Inventory', 'Admin'], section: 'rackings' },
       { id: 'inbound-raw-mat', name: 'Inbound (Additions)', icon: ArrowDownCircle, roles: ['Inventory'], section: 'rackings' },
       { id: 'work-in-progress', name: 'WIP (Production)', icon: TrendingUp, roles: ['Inventory'], section: 'rackings' },
       { id: 'outbound-products', name: 'Outbound', icon: Truck, roles: ['Inventory'], section: 'rackings' },
@@ -260,7 +290,7 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
                       setActiveTab(item.id);
                       setIsMobileOpen(false);
                     }}
-                    title={isCollapsed ? `${item.name}${item.id === 'outbound-products' && pendingOutboundCount > 0 ? ` (${pendingOutboundCount} pending packed)` : ''}` : ''}
+                    title={isCollapsed ? `${item.name}${item.id === 'outbound-products' && pendingOutboundCount > 0 ? ` (${pendingOutboundCount} pending packed)` : ''}${item.id === 'supplies-movements' && pendingSuppliesCount > 0 ? ` (${pendingSuppliesCount} active borrow/reserved)` : ''}` : ''}
                     className={`w-full whitespace-nowrap flex items-center gap-3 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all relative cursor-pointer group ${isCollapsed ? 'md:justify-center' : ''} ${
                       isActive
                         ? isDark
@@ -282,6 +312,11 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
                           {pendingOutboundCount > 99 ? '99+' : pendingOutboundCount}
                         </span>
                       )}
+                      {item.id === 'supplies-movements' && pendingSuppliesCount > 0 && isCollapsed && (
+                        <span className={`hidden md:flex absolute -top-1.5 -right-2 items-center justify-center min-w-[17px] h-[17px] px-0.5 text-[9px] font-black text-white bg-[#ff6600] rounded-full ring-2 ${isDark ? 'ring-[#0a0b10]' : 'ring-[#18174e]'} shadow-sm`}>
+                          {pendingSuppliesCount > 99 ? '99+' : pendingSuppliesCount}
+                        </span>
+                      )}
                     </div>
 
                     <span className={`truncate whitespace-nowrap flex-1 text-left ${isCollapsed ? 'md:hidden block' : 'block'}`}>{item.name}</span>
@@ -289,6 +324,11 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
                     {item.id === 'outbound-products' && pendingOutboundCount > 0 && (
                       <span className={`ml-auto items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black text-white bg-[#ff6600] rounded-full shadow-md shrink-0 ${isCollapsed ? 'md:hidden flex' : 'flex'}`}>
                         {pendingOutboundCount > 99 ? '99+' : pendingOutboundCount}
+                      </span>
+                    )}
+                    {item.id === 'supplies-movements' && pendingSuppliesCount > 0 && (
+                      <span className={`ml-auto items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black text-white bg-[#ff6600] rounded-full shadow-md shrink-0 ${isCollapsed ? 'md:hidden flex' : 'flex'}`}>
+                        {pendingSuppliesCount > 99 ? '99+' : pendingSuppliesCount}
                       </span>
                     )}
                   </button>

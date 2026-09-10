@@ -15,7 +15,8 @@ import {
   TrendingUp,
   Calendar,
   Database,
-  Power
+  Power,
+  Building2
 } from "lucide-react";
 
 function PageHeader({ activeTab, title, description, icon, badge, actions, children }) {
@@ -71,6 +72,11 @@ function PageHeader({ activeTab, title, description, icon, badge, actions, child
       title: 'Rackings (Records)',
       description: 'Track and manage available rackings stock, raw materials, and components.',
       icon: Layers
+    },
+    'client-records': {
+      title: 'Client (Records)',
+      description: 'Track and manage official directory for Suppliers (Inbound) and Customers (Outbound).',
+      icon: Building2
     },
     'inbound-raw-mat': {
       title: 'Inbound (Additions)',
