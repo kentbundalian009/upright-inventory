@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   Building2, Users, Search, Plus, Edit2, Archive, EyeOff, RotateCcw, 
   Trash2, Phone, Mail, MapPin, User, FileText, CheckCircle2, 
-  AlertCircle, X, Filter, Sliders
+  AlertCircle, X, Filter, Sliders, Truck
 } from 'lucide-react';
 import PageHeader from './PageHeader';
 import { useTheme } from '../context/ThemeContext';
@@ -15,7 +15,7 @@ function Client() {
   const userRole = localStorage.getItem('SystemRole') || 'Inventory';
   const isViewer = userRole?.toLowerCase() === 'viewer';
 
-  // Active sub-tab: 'Supplier' | 'Customer'
+  // Active sub-tab: 'Supplier' | 'Customer' | 'Logistics'
   const [activeType, setActiveType] = useState('Supplier');
 
   // Client Data States
@@ -99,8 +99,18 @@ function Client() {
   const activeCustomers = useMemo(() => clients.filter(c => c.type === 'Customer' && !c.isArchived).length, [clients]);
   const archivedCustomers = useMemo(() => clients.filter(c => c.type === 'Customer' && c.isArchived).length, [clients]);
 
-  const activeCurrentCount = activeType === 'Supplier' ? activeSuppliers : activeCustomers;
-  const archivedCurrentCount = activeType === 'Supplier' ? archivedSuppliers : archivedCustomers;
+  const activeLogistics = useMemo(() => clients.filter(c => c.type === 'Logistics' && !c.isArchived).length, [clients]);
+  const archivedLogistics = useMemo(() => clients.filter(c => c.type === 'Logistics' && c.isArchived).length, [clients]);
+
+  const activeCurrentCount = 
+    activeType === 'Supplier' ? activeSuppliers : 
+    activeType === 'Customer' ? activeCustomers : 
+    activeLogistics;
+
+  const archivedCurrentCount = 
+    activeType === 'Supplier' ? archivedSuppliers : 
+    activeType === 'Customer' ? archivedCustomers : 
+    archivedLogistics;
 
   // Filtered and Sorted Client List
   const filteredClients = useMemo(() => {
@@ -202,7 +212,7 @@ function Client() {
   const openArchiveConfirmation = (item) => {
     setConfirmModalConfig({
       title: `Archive ${item.type}`,
-      message: `Are you sure you want to archive "${item.name}"? It will be safely hidden from Inbound and Outbound dropdown selections.`,
+      message: `Are you sure you want to archive "${item.name}"? It will be safely hidden from active dropdown selections.`,
       actionType: 'archive',
       selectedItem: item,
     });
@@ -284,8 +294,8 @@ function Client() {
           {/* TOP BAR */}
           <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
             
-            {/* SUB-TABS: SUPPLIER vs CUSTOMER */}
-            <div className={`flex items-center p-1 rounded-xl border ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+            {/* SUB-TABS: SUPPLIER vs CUSTOMER vs LOGISTICS */}
+            <div className={`flex items-center p-1 rounded-xl border flex-wrap sm:flex-nowrap gap-1 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
               <button
                 type="button"
                 onClick={() => { setActiveType('Supplier'); setSearchTerm(''); }}
@@ -325,6 +335,26 @@ function Client() {
                   {showArchivedOnly ? archivedCustomers : activeCustomers}
                 </span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveType('Logistics'); setSearchTerm(''); }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeType === 'Logistics'
+                    ? (isDark ? 'bg-[#ff6600] text-white shadow-sm' : 'bg-[#18174e] text-white shadow-sm')
+                    : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+                }`}
+              >
+                <Truck className="w-3.5 h-3.5" />
+                <span>Logistics</span>
+                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${
+                  activeType === 'Logistics'
+                    ? 'bg-black/20 text-white'
+                    : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
+                }`}>
+                  {showArchivedOnly ? archivedLogistics : activeLogistics}
+                </span>
+              </button>
             </div>
 
             {/* ACTION CONTROLS */}
@@ -347,7 +377,7 @@ function Client() {
               {!isViewer && (
                 <button
                   onClick={() => setShowArchivedOnly(!showArchivedOnly)}
-                  title={showArchivedOnly ? `Show Active ${activeType}s` : `View Archive Vault`}
+                  title={showArchivedOnly ? `Show Active ${activeType} records` : `View Archive Vault`}
                   className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${
                     showArchivedOnly
                       ? (isDark ? 'bg-rose-950/40 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100')
@@ -357,7 +387,7 @@ function Client() {
                   {showArchivedOnly ? (
                     <>
                       <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                      <span className="hidden md:inline">Show Active {activeType}s</span>
+                      <span className="hidden md:inline">Show Active {activeType}</span>
                       <span className="text-[11px] font-bold">({activeCurrentCount})</span>
                     </>
                   ) : (
@@ -380,7 +410,11 @@ function Client() {
                 <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                 <input
                   type="text"
-                  placeholder={`Search ${activeType} name, address, contact person, or phone number...`}
+                  placeholder={
+                    activeType === 'Logistics'
+                      ? "Search Logistics name..."
+                      : `Search ${activeType} name, address, contact person, or phone number...`
+                  }
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none`}
@@ -420,39 +454,142 @@ function Client() {
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className={`text-white font-bold uppercase text-sm ${isDark ? 'bg-[#0f111d] border-b border-slate-800' : 'bg-[#18174e]'}`}>
-                  <th 
-                    className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-0 z-20 ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
-                    style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' }}
-                  >
-                    <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
-                    {activeType} Name
-                  </th>
-                  <th className="py-3 px-4 whitespace-nowrap">
-                    {activeType === 'Supplier' ? 'Origin Location Address' : 'Destination Address'}
-                  </th>
-                  <th className="py-3 px-4 whitespace-nowrap">Contact Person</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Contact Number / Email</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Remarks / Notes</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Date Added</th>
-                  {!isViewer && (
-                    <th className="py-3 px-4 text-center whitespace-nowrap">
-                      Action
-                    </th>
+                  {activeType === 'Logistics' ? (
+                    <>
+                      <th 
+                        className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-0 z-20 ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
+                        style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' }}
+                      >
+                        <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
+                        Logistics Name
+                      </th>
+                      <th className="py-3 px-4 whitespace-nowrap">Date Added</th>
+                      {!isViewer && (
+                        <th className="py-3 px-4 text-center whitespace-nowrap w-28">
+                          Action
+                        </th>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <th 
+                        className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-0 z-20 ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
+                        style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' }}
+                      >
+                        <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
+                        {activeType} Name
+                      </th>
+                      <th className="py-3 px-4 whitespace-nowrap">
+                        {activeType === 'Supplier' ? 'Origin Location Address' : 'Destination Address'}
+                      </th>
+                      <th className="py-3 px-4 whitespace-nowrap">Contact Person</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Contact Number / Email</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Remarks / Notes</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Date Added</th>
+                      {!isViewer && (
+                        <th className="py-3 px-4 text-center whitespace-nowrap">
+                          Action
+                        </th>
+                      )}
+                    </>
                   )}
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                 {loading ? (
                   <tr>
-                    <td colSpan={isViewer ? "6" : "7"} className="text-center py-10 text-green-700 font-medium italic">
+                    <td 
+                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 6 : 7)} 
+                      className="text-center py-10 text-green-700 font-medium italic"
+                    >
                       Fetching secure {activeType.toLowerCase()} records from database...
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={isViewer ? "6" : "7"} className="text-center py-8 text-rose-600 font-semibold">{error}</td>
+                    <td 
+                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 6 : 7)} 
+                      className="text-center py-8 text-rose-600 font-semibold"
+                    >
+                      {error}
+                    </td>
                   </tr>
                 ) : filteredClients.map((client) => {
+                  if (activeType === 'Logistics') {
+                    return (
+                      <tr key={client._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
+                        {/* STICKY LOGISTICS NAME ONLY */}
+                        <td 
+                          className={`py-3.5 px-4 font-semibold static md:sticky md:left-0 z-10 min-w-[200px] transition-colors ${
+                            isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
+                          }`}
+                          style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
+                          title={client.name}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className={`w-2 h-2 rounded-full ${client.isArchived ? 'bg-amber-500' : 'bg-emerald-500'} shrink-0`} />
+                            <Truck className={`w-4 h-4 ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'} shrink-0`} />
+                            <span className="font-bold text-sm">{client.name}</span>
+                          </div>
+                        </td>
+
+                        {/* DATE ADDED */}
+                        <td className={`py-3.5 px-4 text-xs font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          {new Date(client.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </td>
+
+                        {/* ACTIONS */}
+                        {!isViewer && (
+                          <td className="py-3.5 px-4 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              {!showArchivedOnly ? (
+                                <>
+                                  <button
+                                    onClick={() => handleOpenEdit(client)}
+                                    title="Edit Details"
+                                    className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`}
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => openArchiveConfirmation(client)}
+                                    title="Archive"
+                                    className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}
+                                  >
+                                    <Archive className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => openUnarchiveConfirmation(client)}
+                                    title="Restore"
+                                    className={`p-1 ${isDark ? 'bg-[#181a26] border-emerald-800/80 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-white border-slate-200 text-emerald-600 hover:bg-emerald-600 hover:text-white'} border rounded transition-all cursor-pointer flex items-center gap-1 text-xs font-bold px-2 py-0.5`}
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" /> Restore
+                                  </button>
+                                  {userRole === 'Admin' && (
+                                    <button
+                                      onClick={() => openPermanentDeleteConfirmation(client)}
+                                      title="Delete Permanently"
+                                      className={`p-1 ${isDark ? 'bg-[#181a26] border-rose-800/80 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer flex items-center gap-1 text-xs font-bold px-2 py-0.5`}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  }
+
                   return (
                     <tr key={client._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
                       
@@ -584,7 +721,10 @@ function Client() {
 
                 {filteredClients.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={isViewer ? "6" : "7"} className="text-center py-10 text-red-600 font-medium italic">
+                    <td 
+                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 6 : 7)} 
+                      className="text-center py-10 text-red-600 font-medium italic"
+                    >
                       No {activeType.toLowerCase()} records match the selected filters or search queries.
                     </td>
                   </tr>
@@ -617,16 +757,18 @@ function Client() {
 
             <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-900/50' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3`}>
               <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
-                * Client Registry Protocol *
+                * {activeType} Registry Protocol *
               </span>
               <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
-                Ensure client details and location address are accurate. This address will auto-populate automatically when processing {activeType === 'Supplier' ? 'Inbound (Raw Materials)' : 'Outbound (Finished Products)'} transactions.
+                {activeType === 'Logistics'
+                  ? "Register transport carriers and couriers (e.g. Lalamove, J&T, Transportify, In-house Delivery). Once saved, it will be immediately available in the Outbound Logistics dropdown."
+                  : `Ensure client details and location address are accurate. This address will auto-populate automatically when processing ${activeType === 'Supplier' ? 'Inbound (Raw Materials)' : 'Outbound (Finished Products)'} transactions.`}
               </p>
             </div>
 
             <form onSubmit={handleSubmitForm} className="space-y-4 mt-4 flex-1 overflow-y-auto pr-1">
 
-              {/* CLIENT NAME */}
+              {/* NAME */}
               <div>
                 <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
                   {activeType} Name <span className="text-red-500">*</span>
@@ -634,79 +776,94 @@ function Client() {
                 <input
                   type="text"
                   required
-                  placeholder={activeType === 'Supplier' ? "e.g. SteelCorp Industrial Supplies" : "e.g. Metro Builders & Contractors"}
+                  placeholder={
+                    activeType === 'Supplier' 
+                      ? "e.g. SteelCorp Industrial Supplies" 
+                      : activeType === 'Customer'
+                      ? "e.g. Metro Builders & Contractors"
+                      : "e.g. Lalamove, Transportify, J&T Express, In-house Truck"
+                  }
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
                 />
               </div>
 
-              {/* ADDRESS */}
-              <div>
-                <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                  {activeType === 'Supplier' ? 'Origin Location Address' : 'Destination Address'} <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={activeType === 'Supplier' ? "e.g. Warehouse 4, Industrial Park, Biñan, Laguna" : "e.g. Project Site 2, BGC, Taguig City"}
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
-                />
-              </div>
+              {/* SHOW ADDRESS & CONTACT DETAILS ONLY FOR SUPPLIER AND CUSTOMER */}
+              {activeType !== 'Logistics' && (
+                <>
+                  {/* ADDRESS */}
+                  <div>
+                    <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
+                      {activeType === 'Supplier' ? 'Origin Location Address' : 'Destination Address'} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder={activeType === 'Supplier' ? "e.g. Warehouse 4, Industrial Park, Biñan, Laguna" : "e.g. Project Site 2, BGC, Taguig City"}
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                    />
+                  </div>
 
-              {/* CONTACT PERSON & PHONE */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                    Contact Person
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Juan Dela Cruz"
-                    value={formData.contactPerson}
-                    onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
-                  />
-                </div>
+                  {/* CONTACT PERSON & PHONE */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
+                        Contact Person
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Juan Dela Cruz"
+                        value={formData.contactPerson}
+                        onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+                        className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                      />
+                    </div>
 
-                <div>
-                  <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                    Contact Number
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 0917-123-4567"
-                    value={formData.contactNumber}
-                    onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
-                  />
-                </div>
-              </div>
+                    <div>
+                      <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
+                        Contact Number
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 0917-123-4567"
+                        value={formData.contactNumber}
+                        onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                        className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                      />
+                    </div>
+                  </div>
 
-              {/* EMAIL */}
-              <div>
-                <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  placeholder="e.g. sales@company.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
-                />
-              </div>
+                  {/* EMAIL */}
+                  <div>
+                    <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="e.g. sales@company.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                    />
+                  </div>
+                </>
+              )}
 
               {/* NOTES */}
               <div>
                 <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                  Notes / Remarks
+                  {activeType === 'Logistics' ? 'Notes / Vehicle Info' : 'Notes / Remarks'}
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="Additional logistics or delivery reminders..."
+                  placeholder={
+                    activeType === 'Logistics'
+                      ? "e.g. Plate numbers, vehicle types, or driver contact info..."
+                      : "Additional logistics or delivery reminders..."
+                  }
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none resize-none`}

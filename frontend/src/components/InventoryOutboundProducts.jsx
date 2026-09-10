@@ -20,6 +20,7 @@ function InventoryOutboundProducts() {
   const [dbRawMaterials, setDbRawMaterials] = useState([]);
   const [plRecords, setPlRecords] = useState([]);
   const [registeredCustomers, setRegisteredCustomers] = useState([]);
+  const [registeredLogistics, setRegisteredLogistics] = useState([]);
   const [rawMatSearchQuery, setRawMatSearchQuery] = useState('');
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [selectedSlip, setSelectedSlip] = useState(null);
@@ -72,10 +73,11 @@ function InventoryOutboundProducts() {
 
   const fetchData = async () => {
     try {
-      const [rawMatRes, plsRes, customersRes] = await Promise.all([
+      const [rawMatRes, plsRes, customersRes, logisticsRes] = await Promise.all([
         axios.get(RAW_MAT_URL),
         axios.get(PL_URL),
-        axios.get(`${CLIENT_URL}?type=Customer`).catch(() => ({ data: [] }))
+        axios.get(`${CLIENT_URL}?type=Customer`).catch(() => ({ data: [] })),
+        axios.get(`${CLIENT_URL}?type=Logistics`).catch(() => ({ data: [] }))
       ]);
 
       if (rawMatRes.data) {
@@ -83,6 +85,9 @@ function InventoryOutboundProducts() {
       }
       if (customersRes?.data) {
         setRegisteredCustomers(customersRes.data);
+      }
+      if (logisticsRes?.data) {
+        setRegisteredLogistics(logisticsRes.data);
       }
       if (plsRes.data) {
         setPlRecords(plsRes.data);
@@ -285,17 +290,17 @@ function InventoryOutboundProducts() {
       doc.text(`${selectedSlip.destinationAddress || 'N/A'}`, 45, 63);
 
       const tableColumns = ["Description", "Segment", "Dimension", "Requested QTY", "Shipped QTY Count", "Item Remarks"];
-      
+
       const tableRows = selectedSlip.items?.map(it => {
         const targetMaterial = it.materialId || it.productId;
         const targetId = targetMaterial?._id || targetMaterial;
         const fullMat = dbRawMaterials?.find(m => m._id === targetId);
 
         const descOnly = fullMat?.ItemDescription || targetMaterial?.ItemDescription || "-";
-        
-        const segment = fullMat?.Segment || fullMat?.segment || 
-                        targetMaterial?.Segment || targetMaterial?.segment || "N/A";
-                        
+
+        const segment = fullMat?.Segment || fullMat?.segment ||
+          targetMaterial?.Segment || targetMaterial?.segment || "N/A";
+
         let dimension = "N/A";
         if (fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions) {
           dimension = fullMat.Dimension || fullMat.dimension || fullMat.Dimensions || fullMat.dimensions;
@@ -354,13 +359,13 @@ function InventoryOutboundProducts() {
           const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
           doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
         },
-        headStyles: { 
-          fillColor: [32, 31, 85], 
-          textColor: [255, 255, 255], 
-          fontStyle: 'bold', 
-          fontSize: 8.5, 
+        headStyles: {
+          fillColor: [32, 31, 85],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8.5,
           valign: 'middle',
-          overflow: 'visible' 
+          overflow: 'visible'
         },
         bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
         alternateRowStyles: { fillColor: [248, 249, 250] },
@@ -370,7 +375,7 @@ function InventoryOutboundProducts() {
           1: { cellWidth: 22, halign: 'center' },
           2: { cellWidth: 22, halign: 'center' },
           3: { cellWidth: 25, halign: 'center' },
-          4: { cellWidth: 28, halign: 'center', fontStyle: 'bold' }, 
+          4: { cellWidth: 28, halign: 'center', fontStyle: 'bold' },
           5: { cellWidth: 35 }
         }
       });
@@ -606,24 +611,30 @@ function InventoryOutboundProducts() {
               </div>
 
               <div>
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Logistics</label>
-                <input
-                  type="text"
-                  list="carriers-list"
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Logistics Provider *</label>
+                <select
                   value={carrier}
                   onChange={e => setCarrier(e.target.value)}
-                  placeholder="Enter logistics name"
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
-                />
-                <datalist id="carriers-list">
-                  {existingCarriers.map((car, i) => (
-                    <option key={i} value={car} />
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer font-medium`}
+                  required
+                >
+                  <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>-- Select Registered Logistics --</option>
+                  {registeredLogistics.map((log) => (
+                    <option key={log._id} value={log.name} className={isDark ? 'bg-[#141622] text-white' : ''}>
+                      {log.name}
+                    </option>
                   ))}
-                </datalist>
+                  {carrier && !registeredLogistics.some(l => l.name === carrier) && (
+                    <option value={carrier} className={isDark ? 'bg-[#141622] text-white' : ''}>{carrier}</option>
+                  )}
+                  {registeredLogistics.length === 0 && (
+                    <option disabled value="">Walang registered logistics (Pumunta sa Client Records)</option>
+                  )}
+                </select>
               </div>
 
               <div>
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Destination Address (Auto-filled)</label>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Destination Address</label>
                 <input
                   type="text"
                   value={destinationAddress}
@@ -704,28 +715,28 @@ function InventoryOutboundProducts() {
                       manifestItems.map((item, index) => (
                         <tr key={index} className={`${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} text-xs`}>
                           <td className="py-2 px-4 w-28 min-w-[112px]">
-                            <input 
-                              type="number" 
-                              value={item.qtyRequested} 
-                              onChange={e => handleUpdateField(index, 'qtyRequested', Number(e.target.value))} 
+                            <input
+                              type="number"
+                              value={item.qtyRequested}
+                              onChange={e => handleUpdateField(index, 'qtyRequested', Number(e.target.value))}
                               onWheel={(e) => e.currentTarget.blur()}
-                              className={`w-full border ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'border-slate-200 text-slate-800'} text-center rounded py-1 text-sm focus:outline-none focus:border-[#ff6600] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} 
-                              min="1" 
-                              required 
+                              className={`w-full border ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'border-slate-200 text-slate-800'} text-center rounded py-1 text-sm focus:outline-none focus:border-[#ff6600] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                              min="1"
+                              required
                             />
                           </td>
                           <td className="py-2 px-4 text-center">
                             <span className={`${isDark ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-0.5 rounded text-xs`}>{item.UOM}</span>
                           </td>
                           <td className="py-2 px-4 w-28 min-w-[112px]">
-                            <input 
-                              type="number" 
-                              value={item.actualCountShipped} 
-                              onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))} 
+                            <input
+                              type="number"
+                              value={item.actualCountShipped}
+                              onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))}
                               onWheel={(e) => e.currentTarget.blur()}
-                              className={`w-full border ${isDark ? 'bg-[#141622] border-slate-700 text-rose-400' : 'border-slate-200 text-red-600'} text-center rounded py-1 text-sm font-bold focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} 
-                              min="1" 
-                              required 
+                              className={`w-full border ${isDark ? 'bg-[#141622] border-slate-700 text-rose-400' : 'border-slate-200 text-red-600'} text-center rounded py-1 text-sm font-bold focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                              min="1"
+                              required
                             />
                           </td>
                           <td className={`py-2 px-4 font-bold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'} whitespace-nowrap`}>{item.Code}</td>
@@ -735,21 +746,21 @@ function InventoryOutboundProducts() {
                           </td>
                           <td className={`py-2 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'} whitespace-nowrap`}>{item.Dimension}</td>
                           <td className="py-2 px-4">
-                            <input 
-                              type="text" 
-                              value={item.remarks} 
-                              onChange={e => handleUpdateField(index, 'remarks', e.target.value)} 
-                              placeholder="Provide context details..." 
-                              className={`w-full border ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'border-slate-200 text-slate-800'} rounded px-2 py-1 text-xs focus:outline-none focus:border-[#ff6600]`} 
+                            <input
+                              type="text"
+                              value={item.remarks}
+                              onChange={e => handleUpdateField(index, 'remarks', e.target.value)}
+                              placeholder="Provide context details..."
+                              className={`w-full border ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'border-slate-200 text-slate-800'} rounded px-2 py-1 text-xs focus:outline-none focus:border-[#ff6600]`}
                             />
                           </td>
                           <td className="py-2 px-4 text-center">
-                            <button 
-                              type="button" 
-                              onClick={() => { 
-                                setManifestItems(manifestItems.filter((_, i) => i !== index)); 
-                                showSuccessToast("Item removed from outbound manifest lines."); 
-                              }} 
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setManifestItems(manifestItems.filter((_, i) => i !== index));
+                                showSuccessToast("Item removed from outbound manifest lines.");
+                              }}
                               className="text-red-500 hover:text-red-700 cursor-pointer p-1 inline-block"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -776,49 +787,49 @@ function InventoryOutboundProducts() {
         </div>
 
         <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 rounded-2xl border flex flex-col gap-3 shadow-sm h-auto min-h-[400px]`}>
-  <div className={`flex flex-col gap-1 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-2`}>
-    <div className={`flex items-center gap-2 text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
-      <ClipboardList className="w-4 h-4 text-[#ff6600]" />
-      <span>History Logs</span>
-    </div>
-    <div className="relative mt-1">
-      <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-      <input
-        type="text"
-        value={historySearchQuery}
-        onChange={e => setHistorySearchQuery(e.target.value)}
-        placeholder="Search slip or customer..."
-        className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-800'} border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none`}
-      />
-    </div>
-  </div>
-
-  <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[420px] pr-1 custom-scrollbar">
-    {displayedHistoryLogs.length > 0 ? (
-      displayedHistoryLogs.map((rec) => (
-        <div
-          key={rec._id}
-          onClick={() => { setSelectedSlip(rec); setIsModalOpen(true); }}
-          className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
-        >
-          <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
-            <span className={`text-xs font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1`}>
-              {rec.plNo}
-              {rec.isVoided && <span className="text-[8px] bg-rose-950/60 text-rose-300 border border-rose-800 px-1 py-0.5 rounded font-black uppercase">VOIDED</span>}
-            </span>
-            <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${rec.isVoided ? 'bg-slate-800 text-slate-500 line-through' : rec.transactionType?.toLowerCase() === 'reserve' ? isDark ? 'bg-amber-950/60 text-amber-300 border border-amber-800' : 'bg-amber-50 text-amber-600' : isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-50 text-emerald-600'}`}>
-              {rec.transactionType}
-            </span>
+          <div className={`flex flex-col gap-1 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-2`}>
+            <div className={`flex items-center gap-2 text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
+              <ClipboardList className="w-4 h-4 text-[#ff6600]" />
+              <span>History Logs</span>
+            </div>
+            <div className="relative mt-1">
+              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={historySearchQuery}
+                onChange={e => setHistorySearchQuery(e.target.value)}
+                placeholder="Search slip or customer..."
+                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-800'} border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none`}
+              />
+            </div>
           </div>
-          <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`}>{rec.customer || 'N/A'}</span>
-          <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString() : 'No Date'}</span>
+
+          <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[420px] pr-1 custom-scrollbar">
+            {displayedHistoryLogs.length > 0 ? (
+              displayedHistoryLogs.map((rec) => (
+                <div
+                  key={rec._id}
+                  onClick={() => { setSelectedSlip(rec); setIsModalOpen(true); }}
+                  className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
+                >
+                  <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
+                    <span className={`text-xs font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1`}>
+                      {rec.plNo}
+                      {rec.isVoided && <span className="text-[8px] bg-rose-950/60 text-rose-300 border border-rose-800 px-1 py-0.5 rounded font-black uppercase">VOIDED</span>}
+                    </span>
+                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${rec.isVoided ? 'bg-slate-800 text-slate-500 line-through' : rec.transactionType?.toLowerCase() === 'reserve' ? isDark ? 'bg-amber-950/60 text-amber-300 border border-amber-800' : 'bg-amber-50 text-amber-600' : isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-50 text-emerald-600'}`}>
+                      {rec.transactionType}
+                    </span>
+                  </div>
+                  <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`}>{rec.customer || 'N/A'}</span>
+                  <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString() : 'No Date'}</span>
+                </div>
+              ))
+            ) : (
+              <span className="text-center pt-4 text-red-500 italic font-bold text-xs">No matching records found.</span>
+            )}
+          </div>
         </div>
-      ))
-    ) : (
-      <span className="text-center pt-4 text-red-500 italic font-bold text-xs">No matching records found.</span>
-    )}
-  </div>
-</div>
       </div>
 
       {isVoidModalOpen && selectedSlip && (
@@ -966,8 +977,8 @@ function InventoryOutboundProducts() {
                     const targetId = targetMaterial?._id || targetMaterial;
                     const fullMat = dbRawMaterials?.find(m => m._id === targetId);
 
-                    const segment = fullMat?.Segment || fullMat?.segment || 
-                                    targetMaterial?.Segment || targetMaterial?.segment || "N/A";
+                    const segment = fullMat?.Segment || fullMat?.segment ||
+                      targetMaterial?.Segment || targetMaterial?.segment || "N/A";
 
                     const description = fullMat?.ItemDescription || targetMaterial?.ItemDescription || "-";
 
@@ -1030,7 +1041,7 @@ function InventoryOutboundProducts() {
       {isConfirmModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto flex flex-col gap-5 animate-in zoom-in-95 duration-200`}>
-            
+
             {/* Header */}
             <div className={`flex justify-between items-start border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
               <div>
@@ -1138,9 +1149,8 @@ function InventoryOutboundProducts() {
                 type="button"
                 disabled={isSaving}
                 onClick={() => setIsConfirmModalOpen(false)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-                  isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                }`}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                  }`}
               >
                 Cancel / Edit
               </button>

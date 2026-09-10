@@ -1,12 +1,12 @@
 import Client from "../../models/Client.js";
 
-// 1. GET ALL CLIENTS (Filterable by type=Supplier o type=Customer, isArchived)
+// 1. GET ALL CLIENTS (Filterable by type=Supplier, Customer, o Logistics, isArchived)
 export const getAllClients = async (req, res) => {
   try {
     const { type, includeArchived } = req.query;
     const filter = {};
 
-    if (type && ["Supplier", "Customer"].includes(type)) {
+    if (type && ["Supplier", "Customer", "Logistics"].includes(type)) {
       filter.type = type;
     }
 
@@ -34,17 +34,17 @@ export const getClientById = async (req, res) => {
   }
 };
 
-// 3. CREATE CLIENT (Supplier or Customer)
+// 3. CREATE CLIENT (Supplier, Customer, or Logistics)
 export const createClient = async (req, res) => {
   try {
     const { name, type, address, contactPerson, contactNumber, email, notes } = req.body;
 
     if (!name || !name.trim()) {
-      return res.status(400).json({ message: "Pangalan ng Client/Supplier/Customer ay kailangan." });
+      return res.status(400).json({ message: "Pangalan ng Client/Supplier/Customer/Logistics ay kailangan." });
     }
 
-    if (!type || !["Supplier", "Customer"].includes(type)) {
-      return res.status(400).json({ message: "Pumili ng tamang Type (Supplier o Customer)." });
+    if (!type || !["Supplier", "Customer", "Logistics"].includes(type)) {
+      return res.status(400).json({ message: "Pumili ng tamang Type (Supplier, Customer, o Logistics)." });
     }
 
     // Check duplicate name for the same type (only active items)
