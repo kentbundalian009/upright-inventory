@@ -425,16 +425,25 @@ function InventorySupplies() {
               <thead>
                 <tr className={`text-white font-bold uppercase text-nowrap text-sm ${isDark ? 'bg-[#0f111d] border-b border-slate-800' : 'bg-[#18174e]'}`}>
                   <th 
-                    className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-0 z-20 ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
-                    style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' }}
+                    className={`py-3 px-3 text-center whitespace-nowrap sticky left-0 z-20 w-[72px] min-w-[72px] max-w-[72px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
+                    style={{ left: 0 }}
+                  >
+                    Image
+                  </th>
+                  <th 
+                    className={`py-3 px-4 whitespace-nowrap sticky z-20 min-w-[180px] sm:min-w-[220px] md:max-w-[300px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
+                    style={{ 
+                      left: 72,
+                      boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' 
+                    }}
                   >
                     <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
                     Item Description
                   </th>
-                  <th className="py-3 px-4 text-center">Image</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Segment</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Dimension</th>
                   <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4">Brand</th>
-                  <th className="py-3 px-4">Dimension</th>
                   <th className="py-3 px-4">Serial No.</th>
                   <th className="py-3 px-4 text-center">Actual Count</th>
                   <th className="py-3 px-4 text-center">Damaged</th>
@@ -449,34 +458,28 @@ function InventorySupplies() {
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                 {loading ? (
                   <tr>
-                    <td colSpan={isViewer ? "9" : "10"} className="text-center py-10 text-green-500 font-medium italic">
+                    <td colSpan={isViewer ? "10" : "11"} className="text-center py-10 text-green-500 font-medium italic">
                       Fetching secure rackings data from database...
                     </td>
                   </tr>
                 ) : filteredSupplies.length === 0 ? (
                   <tr>
-                    <td colSpan={isViewer ? "9" : "10"} className="text-center py-10 text-red-500 font-medium italic">
+                    <td colSpan={isViewer ? "10" : "11"} className="text-center py-10 text-red-500 font-medium italic">
                       No records match the selected filters or search queries.
                     </td>
                   </tr>) : (
                   filteredSupplies.map((supply) => {
                     const catStyle = getCategoryStyles(supply.Category);
+                    const segStyle = getSegmentStyles(supply.Segment);
                     return (
                       <tr key={supply._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
+                        {/* 1. Image (STICKY FIXED) */}
                         <td 
-                          className={`py-3.5 px-4 font-semibold static md:sticky md:left-0 z-10 min-w-[160px] sm:min-w-[190px] md:max-w-[280px] whitespace-normal md:whitespace-nowrap transition-colors ${
-                            isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
+                          className={`py-2 px-3 text-center whitespace-nowrap sticky left-0 z-10 w-[72px] min-w-[72px] max-w-[72px] transition-colors ${
+                            isDark ? 'bg-[#090b10] group-hover:bg-[#141622]' : 'bg-white group-hover:bg-[#f8fafc]'
                           }`}
-                          style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
-                          title={supply.ItemDescription}
+                          style={{ left: 0 }}
                         >
-                          <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
-                          <div className="line-clamp-2 md:truncate font-semibold" title={supply.ItemDescription}>
-                            {supply.ItemDescription}
-                          </div>
-                        </td>
-
-                        <td className="py-2 px-4 text-center">
                           {supply.ImageUrl ? (
                             <div className="relative inline-block">
                               <img
@@ -502,17 +505,63 @@ function InventorySupplies() {
                           )}
                         </td>
 
+                        {/* 2. Item Description (STICKY FIXED) */}
+                        <td 
+                          className={`py-3.5 px-4 font-semibold sticky z-10 min-w-[180px] sm:min-w-[220px] md:max-w-[300px] whitespace-normal md:whitespace-nowrap transition-colors ${
+                            isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
+                          }`}
+                          style={{ 
+                            left: 72,
+                            boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' 
+                          }}
+                          title={supply.ItemDescription}
+                        >
+                          <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
+                          <div className="line-clamp-2 md:truncate font-semibold" title={supply.ItemDescription}>
+                            {supply.ItemDescription}
+                          </div>
+                        </td>
+
+                        {/* 3. Segment */}
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          {supply.Segment ? (
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded border inline-flex items-center gap-1.5 ${segStyle.classes}`}>
+                              {segStyle.prefix && <span>{segStyle.prefix}</span>}
+                              <span>{supply.Segment}</span>
+                            </span>
+                          ) : (
+                            <span className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>—</span>
+                          )}
+                        </td>
+
+                        {/* 4. Dimension */}
+                        <td className={`py-3.5 px-4 ${isDark ? 'text-slate-400 bg-slate-800/30' : 'text-slate-600 bg-slate-50/20'} text-xs font-mono whitespace-nowrap`}>
+                          {supply.Dimension || '—'}
+                        </td>
+
+                        {/* 5. Category */}
                         <td className="py-3.5 px-4">
                           <span className={`text-xs font-bold px-2 py-0.5 rounded border text-nowrap ${catStyle.classes}`}>
                             {supply.Category || 'Uncategorized'}
                           </span>
                         </td>
+
+                        {/* 6. Brand */}
                         <td className={`py-3.5 px-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{supply.Brand || '—'}</td>
-                        <td className={`py-3.5 px-4 ${isDark ? 'text-slate-400 bg-slate-800/30' : 'text-slate-600 bg-slate-50/20'} text-xs font-mono`}>{supply.Dimension || '—'}</td>
+
+                        {/* 7. Serial No. */}
                         <td className={`py-3.5 px-4 ${isDark ? 'text-slate-400' : 'text-slate-600'} text-xs font-mono`}>{supply.SerialNo || '—'}</td>
+
+                        {/* 8. Actual Count */}
                         <td className={`py-3.5 px-4 text-center font-bold font-mono ${isDark ? 'text-white' : 'text-slate-700 bg-slate-50/40'}`}>{supply.ActualCount}</td>
+
+                        {/* 9. Damaged */}
                         <td className="py-3.5 px-4 text-center font-semibold text-red-500">{supply.DamagedCount || 0}</td>
+
+                        {/* 10. UOM */}
                         <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{supply.UOM || 'pcs'}</td>
+
+                        {/* 11. Actions */}
                         {!isViewer && (
                           <td className="py-3.5 px-4 text-center">
                             <div className="flex items-center justify-center gap-1.5">
@@ -608,17 +657,17 @@ function InventorySupplies() {
   </div>
 
   <div>
-    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Brand</label>
+    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Segment</label>
     <input
       type="text"
-      list="brands-dl"
-      placeholder="Brand name"
-      value={supplyBrand}
-      onChange={(e) => setSupplyBrand(e.target.value)}
+      list="segments-dl"
+      placeholder="e.g. Tools, Consumables"
+      value={supplySegment}
+      onChange={(e) => setSupplySegment(e.target.value)}
       className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
     />
-    <datalist id="brands-dl">
-      {uniqueBrandsInDB.map(b => <option key={b} value={b} />)}
+    <datalist id="segments-dl">
+      {uniqueSegmentsInDB.map(s => <option key={s} value={s} />)}
     </datalist>
   </div>
 
@@ -634,6 +683,21 @@ function InventorySupplies() {
     />
     <datalist id="dimensions-dl">
       {uniqueDimensionsInDB.map(d => <option key={d} value={d} />)}
+    </datalist>
+  </div>
+
+  <div>
+    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Brand</label>
+    <input
+      type="text"
+      list="brands-dl"
+      placeholder="Brand name"
+      value={supplyBrand}
+      onChange={(e) => setSupplyBrand(e.target.value)}
+      className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+    />
+    <datalist id="brands-dl">
+      {uniqueBrandsInDB.map(b => <option key={b} value={b} />)}
     </datalist>
   </div>
 
