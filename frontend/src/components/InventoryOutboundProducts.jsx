@@ -285,6 +285,11 @@ function InventoryOutboundProducts() {
       doc.text(`${selectedSlip.customer || 'N/A'}`, 45, 56);
 
       doc.setFont("helvetica", "bold");
+      doc.text("Logistics / Carrier:", 120, 56);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${selectedSlip.carrier || 'N/A'}`, 155, 56);
+
+      doc.setFont("helvetica", "bold");
       doc.text("Destination:", 14, 63);
       doc.setFont("helvetica", "normal");
       doc.text(`${selectedSlip.destinationAddress || 'N/A'}`, 45, 63);
@@ -822,7 +827,10 @@ function InventoryOutboundProducts() {
                     </span>
                   </div>
                   <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`}>{rec.customer || 'N/A'}</span>
-                  <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString() : 'No Date'}</span>
+                  <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
+                    <span>{rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString() : 'No Date'}</span>
+                    {rec.carrier && <span className="font-bold text-[#ff8533] truncate max-w-[120px]">🚚 {rec.carrier}</span>}
+                  </div>
                 </div>
               ))
             ) : (
@@ -948,7 +956,8 @@ function InventoryOutboundProducts() {
               <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Log Type:</span> <span className={`font-bold ${isDark ? 'text-indigo-400' : 'text-indigo-700'} uppercase`}>{selectedSlip.transactionType}</span></div>
               <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Prepared By:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.preparedBy || preparedBy}</span></div>
               <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Customer:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.customer || 'N/A'}</span></div>
-              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Destination:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.destinationAddress || 'N/A'}</span></div>
+              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Logistics:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.carrier || 'N/A'}</span></div>
+              <div className="col-span-2"><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Destination:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.destinationAddress || 'N/A'}</span></div>
               {selectedSlip.referencePlNo && (
                 <div className={`col-span-2 text-xs ${isDark ? 'text-amber-300 bg-amber-950/40 border-amber-800' : 'text-amber-700 bg-amber-50 border-amber-200'} font-bold px-2 py-1 rounded border`}>
                   Linked Reference: {selectedSlip.referencePlNo}
