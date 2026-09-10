@@ -364,23 +364,9 @@ function InventoryProducts() {
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className={`text-white font-bold ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'} uppercase tracking-wide text-sm`}>
-                  <th 
-                    className={`py-3 px-2 text-center whitespace-nowrap static md:sticky md:left-0 z-20 w-[70px] min-w-[70px] max-w-[70px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
-                  >
-                    Image
-                  </th>
-                  <th 
-                    className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-[70px] z-20 w-[240px] min-w-[240px] max-w-[240px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
-                  >
-                    Item Description
-                  </th>
-                  <th 
-                    className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-[310px] z-20 w-[130px] min-w-[130px] max-w-[130px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
-                    style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' }}
-                  >
-                    <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
-                    Dimension
-                  </th>
+                  <th className="py-3 px-3 text-center whitespace-nowrap">Image</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Item Description</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Dimension</th>
                   <th className="py-3 px-4 whitespace-nowrap">Category</th>
                   <th className="py-3 px-4 whitespace-nowrap">Segment</th>
                   <th className="py-3 px-4 whitespace-nowrap text-center">Actual Count</th>
@@ -400,11 +386,7 @@ function InventoryProducts() {
                   </tr>
                 ) : filteredProducts.map((product) => (
                   <tr key={product._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
-                    <td 
-                      className={`py-2 px-2 text-center static md:sticky md:left-0 z-10 w-[70px] min-w-[70px] max-w-[70px] transition-colors ${
-                        isDark ? 'bg-[#090b10] group-hover:bg-[#141622]' : 'bg-white group-hover:bg-[#f8fafc]'
-                      }`}
-                    >
+                    <td className="py-2 px-3 text-center whitespace-nowrap">
                       {product.ImageUrl ? (
                         <img
                           src={product.ImageUrl}
@@ -418,23 +400,17 @@ function InventoryProducts() {
                       )}
                     </td>
                     <td 
-                      className={`py-3 px-4 font-semibold static md:sticky md:left-[70px] z-10 w-[240px] min-w-[240px] max-w-[240px] whitespace-normal md:whitespace-nowrap transition-colors ${
-                        isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
+                      className={`py-3 px-4 font-semibold whitespace-nowrap transition-colors ${
+                        isDark ? 'text-slate-100' : 'text-slate-800'
                       }`}
-                      title={product.ItemDescription}
                     >
-                      <div className="line-clamp-2 md:truncate font-semibold" title={product.ItemDescription}>
-                        {product.ItemDescription}
-                      </div>
+                      {product.ItemDescription}
                     </td>
                     <td 
-                      className={`py-3 px-4 font-mono text-xs static md:sticky md:left-[310px] z-10 w-[130px] min-w-[130px] max-w-[130px] truncate transition-colors ${
-                        isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-300' : 'bg-white group-hover:bg-[#f8fafc] text-slate-600'
+                      className={`py-3 px-4 font-mono text-xs whitespace-nowrap transition-colors ${
+                        isDark ? 'text-slate-300' : 'text-slate-600'
                       }`}
-                      style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
-                      title={product.Dimension || '—'}
                     >
-                      <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
                       {product.Dimension || '—'}
                     </td>
                     <td className="py-3 px-4"><span className={`${isDark ? 'bg-slate-800/80 text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-1 rounded text-xs`}>{product.Category}</span></td>
