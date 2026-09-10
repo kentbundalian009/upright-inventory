@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Archive, X, Filter, AlertCircle, ArchiveRestore, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { Search, Plus, Edit2, Archive, X, Filter, AlertCircle, ArchiveRestore, RotateCcw, CheckCircle2, Image as ImageIcon } from 'lucide-react';
 import axios from 'axios';
 import PageHeader from './PageHeader';
 import { useTheme } from '../context/ThemeContext';
@@ -123,7 +123,7 @@ function InventoryProducts() {
     e.preventDefault();
     
     const payload = {
-      Code: productCode.trim(),
+      Code: productCode.trim() || `PRD-USSP-${Date.now()}`,
       Category: productCategory.trim(),
       Segment: productSegment.trim(),
       ItemDescription: itemDescription.trim(),
@@ -339,7 +339,7 @@ function InventoryProducts() {
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Search Code, Category, Segment..." 
+                placeholder="Search Category, Segment..." 
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)} 
                 className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-200 placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-700'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} 
@@ -365,16 +365,24 @@ function InventoryProducts() {
               <thead>
                 <tr className={`text-white font-bold ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'} uppercase tracking-wide text-sm`}>
                   <th 
-                    className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-0 z-20 ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
+                    className={`py-3 px-2 text-center whitespace-nowrap static md:sticky md:left-0 z-20 w-[70px] min-w-[70px] max-w-[70px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
+                  >
+                    Image
+                  </th>
+                  <th 
+                    className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-[70px] z-20 w-[240px] min-w-[240px] max-w-[240px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
+                  >
+                    Item Description
+                  </th>
+                  <th 
+                    className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-[310px] z-20 w-[130px] min-w-[130px] max-w-[130px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
                     style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' }}
                   >
                     <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
-                    Item Description
+                    Dimension
                   </th>
-                  <th className="py-3 px-4 whitespace-nowrap">Code</th>
                   <th className="py-3 px-4 whitespace-nowrap">Category</th>
                   <th className="py-3 px-4 whitespace-nowrap">Segment</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Dimension</th>
                   <th className="py-3 px-4 whitespace-nowrap text-center">Actual Count</th>
                   <th className="py-3 px-4 whitespace-nowrap">UOM</th>
                   <th className={`py-3 px-4 whitespace-nowrap ${isDark ? 'bg-[#141626]' : 'bg-indigo-950'}`}>Account To</th>
@@ -388,26 +396,49 @@ function InventoryProducts() {
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10]' : 'divide-slate-100'}`}>
                 {loading ? (
                   <tr>
-                    <td colSpan={isViewer ? "8" : "9"} className={`text-center py-8 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Kinukuha ang masterlist items...</td>
+                    <td colSpan={isViewer ? "7" : "8"} className={`text-center py-8 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Kinukuha ang masterlist items...</td>
                   </tr>
                 ) : filteredProducts.map((product) => (
                   <tr key={product._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
                     <td 
-                      className={`py-3 px-4 font-semibold static md:sticky md:left-0 z-10 min-w-[160px] sm:min-w-[190px] md:max-w-[280px] whitespace-normal md:whitespace-nowrap transition-colors ${
+                      className={`py-2 px-2 text-center static md:sticky md:left-0 z-10 w-[70px] min-w-[70px] max-w-[70px] transition-colors ${
+                        isDark ? 'bg-[#090b10] group-hover:bg-[#141622]' : 'bg-white group-hover:bg-[#f8fafc]'
+                      }`}
+                    >
+                      {product.ImageUrl ? (
+                        <img
+                          src={product.ImageUrl}
+                          alt={product.ItemDescription}
+                          className="w-10 h-10 object-cover rounded-lg mx-auto shadow-sm"
+                        />
+                      ) : (
+                        <div className={`w-10 h-10 rounded-lg ${isDark ? 'bg-slate-800 text-slate-500 border-slate-700' : 'bg-slate-100 text-slate-400 border-slate-200'} flex items-center justify-center border border-dashed mx-auto`}>
+                          <ImageIcon className="w-4 h-4" />
+                        </div>
+                      )}
+                    </td>
+                    <td 
+                      className={`py-3 px-4 font-semibold static md:sticky md:left-[70px] z-10 w-[240px] min-w-[240px] max-w-[240px] whitespace-normal md:whitespace-nowrap transition-colors ${
                         isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
                       }`}
-                      style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
                       title={product.ItemDescription}
                     >
-                      <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
                       <div className="line-clamp-2 md:truncate font-semibold" title={product.ItemDescription}>
                         {product.ItemDescription}
                       </div>
                     </td>
-                    <td className={`py-3 px-4 font-mono font-extrabold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`}>{product.Code}</td>
+                    <td 
+                      className={`py-3 px-4 font-mono text-xs static md:sticky md:left-[310px] z-10 w-[130px] min-w-[130px] max-w-[130px] truncate transition-colors ${
+                        isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-300' : 'bg-white group-hover:bg-[#f8fafc] text-slate-600'
+                      }`}
+                      style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
+                      title={product.Dimension || '—'}
+                    >
+                      <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
+                      {product.Dimension || '—'}
+                    </td>
                     <td className="py-3 px-4"><span className={`${isDark ? 'bg-slate-800/80 text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-1 rounded text-xs`}>{product.Category}</span></td>
                     <td className={`py-3 px-4 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{product.Segment || '—'}</td>
-                    <td className="py-3 px-4 font-medium">{product.Dimension || '—'}</td>
                     <td className={`py-3 px-4 text-center font-bold font-mono ${isDark ? 'bg-slate-800/30 text-white' : 'bg-slate-50/30 text-slate-900'}`}>{product.ActualCount ?? 0}</td>
                     <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{product.UOM}</td>
                     <td className={`py-3 px-4 font-semibold ${isDark ? 'text-slate-300 bg-slate-800/20' : 'text-slate-700 bg-slate-50/20'}`}>{product.AccountTo || '—'}</td>
@@ -472,19 +503,6 @@ function InventoryProducts() {
             )}
 
             <form onSubmit={handleFormSubmit} className="space-y-3 mt-3">
-              <div>
-                <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Product Code *</label>
-                <input 
-                  type="text" 
-                  required 
-                  disabled={isEditing} 
-                  placeholder="Enter product code" 
-                  value={productCode} 
-                  onChange={(e) => setProductCode(e.target.value)} 
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white disabled:bg-slate-900 disabled:text-slate-500' : 'bg-white disabled:bg-slate-100 border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`} 
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Category *</label>

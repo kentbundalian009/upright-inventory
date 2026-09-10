@@ -397,7 +397,7 @@ function InventoryRawMaterials() {
                         <div className="min-w-[180px] w-full md:min-w-0">
                             <div className="relative w-full">
                                 <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                                <input type="text" placeholder="Search Code, Segment, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
+                                <input type="text" placeholder="Search Segment, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
                             </div>
                         </div>
 
@@ -439,16 +439,23 @@ function InventoryRawMaterials() {
                             <thead>
                                 <tr className={`text-white font-bold uppercase text-sm ${isDark ? 'bg-[#0f111d] border-b border-slate-800' : 'bg-[#18174e]'}`}>
                                     <th 
-                                        className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-0 z-20 ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
+                                        className={`py-3 px-2 text-center whitespace-nowrap static md:sticky md:left-0 z-20 w-[70px] min-w-[70px] max-w-[70px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
+                                    >
+                                        Image
+                                    </th>
+                                    <th 
+                                        className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-[70px] z-20 w-[240px] min-w-[240px] max-w-[240px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
+                                    >
+                                        Item Description
+                                    </th>
+                                    <th 
+                                        className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-[310px] z-20 w-[130px] min-w-[130px] max-w-[130px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
                                         style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' }}
                                     >
                                         <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
-                                        Item Description
+                                        Dimension
                                     </th>
-                                    <th className="py-3 px-4 whitespace-nowrap text-center">Image</th>
-                                    <th className="py-3 px-4 whitespace-nowrap">Code</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Segment</th>
-                                    <th className="py-3 px-4 whitespace-nowrap">Dimension</th>
                                     <th className="py-3 px-4 whitespace-nowrap text-center">Actual Count</th>
                                     <th className="py-3 px-4 whitespace-nowrap">UOM</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Condition</th>
@@ -461,30 +468,21 @@ function InventoryRawMaterials() {
                             </thead>
                             <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                                 {loading ? (
-                                    <tr><td colSpan={isViewer ? "8" : "9"} className="text-center py-10 text-green-700 font-medium italic">
+                                    <tr><td colSpan={isViewer ? "7" : "8"} className="text-center py-10 text-green-700 font-medium italic">
                                         Fetching secure rackings data from database...
                                     </td></tr>
                                 ) : error ? (
-                                    <tr><td colSpan={isViewer ? "8" : "9"} className="text-center py-8 text-rose-600 font-semibold">{error}</td></tr>
+                                    <tr><td colSpan={isViewer ? "7" : "8"} className="text-center py-8 text-rose-600 font-semibold">{error}</td></tr>
                                 ) : filteredRawMaterials.map((rawMat) => {
                                     const currentSegConfig = getSegmentStyles(rawMat.Segment);
 
                                     return (
                                         <tr key={rawMat._id || rawMat.Code} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
                                             <td 
-                                                className={`py-3 px-4 font-semibold static md:sticky md:left-0 z-10 min-w-[160px] sm:min-w-[190px] md:max-w-[280px] whitespace-normal md:whitespace-nowrap transition-colors ${
-                                                    isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
+                                                className={`py-2 px-2 text-center static md:sticky md:left-0 z-10 w-[70px] min-w-[70px] max-w-[70px] transition-colors ${
+                                                    isDark ? 'bg-[#090b10] group-hover:bg-[#141622]' : 'bg-white group-hover:bg-[#f8fafc]'
                                                 }`}
-                                                style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
-                                                title={rawMat.ItemDescription}
                                             >
-                                                <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
-                                                <div className="line-clamp-2 md:truncate font-semibold" title={rawMat.ItemDescription}>
-                                                    {rawMat.ItemDescription}
-                                                </div>
-                                            </td>
-
-                                            <td className="py-2 px-4 text-center">
                                                 {rawMat.ImageUrl ? (
                                                     <div className="relative inline-block">
                                                         <img
@@ -515,13 +513,33 @@ function InventoryRawMaterials() {
                                                 )}
                                             </td>
 
-                                            <td className={`py-3 px-4 font-mono font-extrabold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`}>{rawMat.Code}</td>
+                                            <td 
+                                                className={`py-3 px-4 font-semibold static md:sticky md:left-[70px] z-10 w-[240px] min-w-[240px] max-w-[240px] whitespace-normal md:whitespace-nowrap transition-colors ${
+                                                    isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
+                                                }`}
+                                                title={rawMat.ItemDescription}
+                                            >
+                                                <div className="line-clamp-2 md:truncate font-semibold" title={rawMat.ItemDescription}>
+                                                    {rawMat.ItemDescription}
+                                                </div>
+                                            </td>
+
+                                            <td 
+                                                className={`py-3 px-4 font-mono text-xs static md:sticky md:left-[310px] z-10 w-[130px] min-w-[130px] max-w-[130px] truncate transition-colors ${
+                                                    isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-300' : 'bg-white group-hover:bg-[#f8fafc] text-slate-600'
+                                                }`}
+                                                style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
+                                                title={rawMat.Dimension || '—'}
+                                            >
+                                                <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
+                                                {rawMat.Dimension || '—'}
+                                            </td>
+
                                             <td className="py-3 px-4">
                                                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded border flex items-center gap-1.5 w-fit ${currentSegConfig.classes}`}>
                                                     <span>{rawMat.Segment || '—'}</span>
                                                 </span>
                                             </td>
-                                            <td className={`py-3 px-4 font-mono text-xs ${isDark ? 'text-slate-400 bg-slate-800/30' : 'text-slate-600 bg-slate-50/30'}`}>{rawMat.Dimension || '—'}</td>
                                             <td className={`py-3 px-4 text-center font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{rawMat.ActualCount}</td>
                                             <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{rawMat.UOM}</td>
                                             <td className="py-3 px-4">{getRawMaterialHealthBadge(rawMat.ActualCount)}</td>
@@ -547,7 +565,7 @@ function InventoryRawMaterials() {
                                 })}
                                 {filteredRawMaterials.length === 0 && !loading && (
                                     <tr>
-                                        <td colSpan={isViewer ? "8" : "9"} className="text-center py-10 text-red-600 font-medium italic">
+                                        <td colSpan={isViewer ? "7" : "8"} className="text-center py-10 text-red-600 font-medium italic">
                                             No records match the selected filters or search queries.
                                         </td>
                                     </tr>
@@ -677,18 +695,6 @@ function InventoryRawMaterials() {
                         <form onSubmit={handleEditFormSubmit} className="space-y-4 mt-4">
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                                <div className="md:col-span-2">
-                                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Material Code *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={materialCode}
-                                        onChange={(e) => setMaterialCode(e.target.value)}
-                                        placeholder="Enter Material Code (e.g. RCK-USSP00112)"
-                                        className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none`}
-                                    />
-                                </div>
 
                                 <div className="md:col-span-2">
                                     <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Item Image Upload</label>

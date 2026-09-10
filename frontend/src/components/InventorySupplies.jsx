@@ -236,7 +236,7 @@ function InventorySupplies() {
   const handleArchiveSupply = (supply) => {
     setConfirmModalConfig({
       title: 'Archive Supply Record',
-      message: `Are you sure you want to archive "${supply.ItemDescription}" (${supply.Code})?`,
+      message: `Are you sure you want to archive "${supply.ItemDescription}"?`,
       actionType: 'archive',
       onConfirm: async () => {
         try {
@@ -253,7 +253,7 @@ function InventorySupplies() {
   const handleUnarchiveSupply = (supply) => {
     setConfirmModalConfig({
       title: 'Restore Supply Record',
-      message: `Are you sure you want to restore "${supply.ItemDescription}" (${supply.Code})?`,
+      message: `Are you sure you want to restore "${supply.ItemDescription}"?`,
       actionType: 'restore',
       onConfirm: async () => {
         try {
@@ -270,7 +270,7 @@ function InventorySupplies() {
   const handlePermanentDeleteSupply = (supply) => {
     setConfirmModalConfig({
       title: 'Delete Supply Record Permanently',
-      message: `Are you sure you want to PERMANENTLY delete "${supply.ItemDescription}" (${supply.Code})? This action cannot be undone.`,
+      message: `Are you sure you want to PERMANENTLY delete "${supply.ItemDescription}"? This action cannot be undone.`,
       actionType: 'delete',
       onConfirm: async () => {
         try {
@@ -403,7 +403,7 @@ function InventorySupplies() {
             <div className="min-w-[180px] w-full lg:min-w-0">
               <div className="relative w-full">
                 <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                <input type="text" placeholder="Search Code, Category, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
+                <input type="text" placeholder="Search Category, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
               </div>
             </div>
 
@@ -432,7 +432,6 @@ function InventorySupplies() {
                     Item Description
                   </th>
                   <th className="py-3 px-4 text-center">Image</th>
-                  <th className="py-3 px-4">Code</th>
                   <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4">Brand</th>
                   <th className="py-3 px-4">Dimension</th>
@@ -450,13 +449,13 @@ function InventorySupplies() {
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                 {loading ? (
                   <tr>
-                    <td colSpan={isViewer ? "10" : "11"} className="text-center py-10 text-green-500 font-medium italic">
+                    <td colSpan={isViewer ? "9" : "10"} className="text-center py-10 text-green-500 font-medium italic">
                       Fetching secure rackings data from database...
                     </td>
                   </tr>
                 ) : filteredSupplies.length === 0 ? (
                   <tr>
-                    <td colSpan={isViewer ? "10" : "11"} className="text-center py-10 text-red-500 font-medium italic">
+                    <td colSpan={isViewer ? "9" : "10"} className="text-center py-10 text-red-500 font-medium italic">
                       No records match the selected filters or search queries.
                     </td>
                   </tr>) : (
@@ -503,7 +502,6 @@ function InventorySupplies() {
                           )}
                         </td>
 
-                        <td className={`py-3 px-4 font-mono font-extrabold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`}>{supply.Code || '—'}</td>
                         <td className="py-3.5 px-4">
                           <span className={`text-xs font-bold px-2 py-0.5 rounded border text-nowrap ${catStyle.classes}`}>
                             {supply.Category || 'Uncategorized'}
@@ -576,17 +574,6 @@ function InventorySupplies() {
               )}
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-  <div className="md:col-span-2">
-    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Supply Code *</label>
-    <input
-      type="text"
-      required
-      value={supplyCode}
-      onChange={(e) => setSupplyCode(e.target.value)}
-      className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none`}
-    />
-  </div>
 
   <div className="md:col-span-2">
     <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Category *</label>

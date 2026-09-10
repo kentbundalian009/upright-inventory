@@ -521,9 +521,6 @@ function InventoryInboundRawMat() {
                       >
                         <div className={`flex justify-between items-center font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm`}>
                           <div className="flex items-center gap-2">
-                            <span className={`${isDark ? 'bg-slate-800 text-slate-200 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-0.5 rounded text-xs font-mono`}>
-                              {item.Code}
-                            </span>
                             <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-400'} lowercase italic`}>
                               {item.UOM || 'pcs'}
                             </span>
@@ -570,7 +567,6 @@ function InventoryInboundRawMat() {
       <th className="py-3 px-4 text-center">UOM</th>
       <th className="py-3 px-4 text-center w-28 min-w-[112px]">Actual</th>
 
-      <th className="py-3 px-4">Item Code</th>
       <th className="py-3 px-4">Segment</th>
       <th className="py-3 px-4">Description</th>
       <th className="py-3 px-4">Dimension</th>
@@ -609,8 +605,6 @@ function InventoryInboundRawMat() {
               className={`w-full border ${isDark ? 'bg-[#141622] border-slate-700 text-emerald-400' : 'border-slate-200 text-emerald-600'} text-center rounded py-1 text-sm font-bold focus:outline-none focus:border-emerald-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
             />
           </td>
-
-          <td className={`py-2 px-4 font-bold text-sm ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'} whitespace-nowrap`}>{item.Code}</td>
 
           <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.Segment}</td>
 
@@ -746,8 +740,7 @@ function InventoryInboundRawMat() {
       {selectedPo.items?.map((it, idx) => (
         <tr key={it._id || idx} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
           <td className="p-3 w-1/4 align-middle">
-            <div className={`font-bold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`}>{it.materialId?.Code || "N/A"}</div>
-            <div className={`text-[11px] max-w-xs truncate font-medium ${isDark ? 'text-slate-400' : 'text-slate-400'}`} title={it.materialId?.ItemDescription}>
+            <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'} max-w-xs truncate`} title={it.materialId?.ItemDescription}>
               {it.materialId?.ItemDescription || "-"}
             </div>
           </td>
@@ -812,19 +805,6 @@ function InventoryInboundRawMat() {
             <form onSubmit={handleCreateMaterialProfile} className="space-y-4 mt-4">
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                <div className="md:col-span-2">
-                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Material Code *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Generating code..."
-                    value={newMatCode}
-                    onChange={e => setNewMatCode(e.target.value)}
-                    readOnly
-                    className={`w-full ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'} border font-mono rounded-lg px-3 py-2 text-sm cursor-not-allowed focus:outline-none`}
-                  />
-                </div>
 
                 <div className="md:col-span-2">
                   <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Segment *</label>

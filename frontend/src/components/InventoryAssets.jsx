@@ -178,7 +178,7 @@ function InventoryAssets() {
     }
 
     const payload = {
-      Code: assetCode.trim(),
+      Code: assetCode.trim() || `AST-USSP-${Date.now().toString().slice(-6)}`,
       Category: assetCategory.trim(),
       Segment: assetSegment.trim(),
       ItemDescription: itemDescription.trim(),
@@ -324,9 +324,8 @@ function InventoryAssets() {
       doc.setFont("helvetica", "normal");
       doc.text(`${showArchivedOnly ? 'Archived Assets Only' : 'Active Registry Only'}`, 215, 49);
 
-      const tableColumns = ["Code", "Category", "Description", "Model", "Brand", "Serial No.", "Qty", "UOM", "Condition Breakdown", "Account To", "Location", "Acq. Date"];
+      const tableColumns = ["Category", "Description", "Model", "Brand", "Serial No.", "Qty", "UOM", "Condition Breakdown", "Account To", "Location", "Acq. Date"];
       const tableRows = filteredAssets.map(asset => [
-        asset.Code || '—',
         asset.Category || '—',
         asset.ItemDescription || '—',
         asset.Model || '—',
@@ -494,7 +493,7 @@ function InventoryAssets() {
             <div className="min-w-[200px] w-full lg:min-w-0">
               <div className="relative w-full">
                 <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                <input type="text" placeholder="Search Code, Category, Segment, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
+                <input type="text" placeholder="Search Category, Segment, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
               </div>
             </div>
 
@@ -530,7 +529,6 @@ function InventoryAssets() {
                     <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
                     Item Description
                   </th>
-                  <th className="py-3 px-4">Code</th>
                   <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4">Model</th>
                   <th className="py-3 px-4">Brand</th>
@@ -551,13 +549,13 @@ function InventoryAssets() {
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                 {loading ? (
                   <tr>
-                    <td colSpan={isViewer ? "12" : "13"} className="text-center py-10 text-green-700 font-medium italic">
+                    <td colSpan={isViewer ? "11" : "12"} className="text-center py-10 text-green-700 font-medium italic">
                       Fetching secure asset data from database...
                     </td>
                   </tr>
                 ) : filteredAssets.length === 0 ? (
                   <tr>
-                    <td colSpan={isViewer ? "12" : "13"} className="text-center py-10 text-red-600 font-medium italic">
+                    <td colSpan={isViewer ? "11" : "12"} className="text-center py-10 text-red-600 font-medium italic">
                       No records match the selected filters or search queries.
                     </td>
                   </tr>
@@ -576,7 +574,6 @@ function InventoryAssets() {
                           {asset.ItemDescription}
                         </div>
                       </td>
-                      <td className={`py-3 px-4 font-mono font-extrabold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`}>{asset.Code}</td>
                       <td className="py-3 px-4"><span className={`${isDark ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-1 rounded text-xs`}>{asset.Category}</span></td>
                       <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>{asset.Model || '—'}</td>
                       <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>{asset.Brand || '—'}</td>
@@ -654,19 +651,6 @@ function InventoryAssets() {
             <form onSubmit={handleFormSubmit} className="space-y-4 mt-4">
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Asset Code *</label>
-                  <input
-                    type="text"
-                    disabled
-                    readOnly
-                    placeholder="AST-USSP-[Auto]"
-                    value={assetCode || ''}
-                    onChange={(e) => setAssetCode(e.target.value)}
-                    className="w-full bg-slate-100 text-slate-500 border border-slate-200 rounded-lg px-3 py-2 text-sm cursor-not-allowed font-mono focus:outline-none"
-                  />
-                </div>
 
                 <div>
                   <label className="block text-sm font-bold text-slate-600 uppercase mb-1.5">Category *</label>

@@ -706,7 +706,6 @@ function InventoryOutboundProducts() {
                       <div key={item._id} onClick={() => handleSelectRawMaterial(item)} className={`p-3 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex flex-col gap-1 rounded-lg transition-colors`}>
                         <div className={`flex justify-between items-center font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm gap-2`}>
                           <div className="flex items-center gap-2 truncate">
-                            <span className={`${isDark ? 'bg-slate-800 text-slate-200 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-0.5 rounded text-xs font-mono`}>{item.Code}</span>
                             <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-400'} lowercase italic truncate`}>{item.UOM || 'pcs'}</span>
                           </div>
                           <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'} flex-shrink-0`}>
@@ -742,7 +741,6 @@ function InventoryOutboundProducts() {
                       <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
                       <th className="py-3 px-4 text-center">UOM</th>
                       <th className="py-3 px-4 text-center w-28 min-w-[112px]">Verified Shipped</th>
-                      <th className="py-3 px-4">Material Code</th>
                       <th className="py-3 px-4">Segment</th>
                       <th className="py-3 px-4">Description</th>
                       <th className="py-3 px-4">Dimension</th>
@@ -779,7 +777,6 @@ function InventoryOutboundProducts() {
                               required
                             />
                           </td>
-                          <td className={`py-2 px-4 font-bold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'} whitespace-nowrap`}>{item.Code}</td>
                           <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.Segment}</td>
                           <td className={`py-2 px-4 max-w-[150px] ${isDark ? 'text-slate-200' : 'text-slate-800'}`} title={item.ItemDescription}>
                             {item.ItemDescription}

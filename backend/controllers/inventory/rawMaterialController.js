@@ -78,15 +78,26 @@ export const createRawMaterial = async (req, res) => {
   try {
     const { Code, Category, Segment, ItemDescription, Dimension, UOM, AccountTo } = req.body;
 
-    if (!Code || !ItemDescription || !UOM) {
+    if (!ItemDescription || !UOM) {
       return res.status(400).json({ 
-        message: "Please fill in all required fields (Code, Description, UOM)" 
+        message: "Please fill in all required fields (Description, UOM)" 
       });
     }
 
-    const codeExists = await RawMaterial.findOne({ Code: Code.trim().toUpperCase() });
+    let finalCode = Code ? Code.trim().toUpperCase() : "";
+    if (!finalCode) {
+      const lastMat = await RawMaterial.findOne({ Code: /^RCK-USSP-\d+$/ }).sort({ Code: -1 });
+      let nextNum = 1;
+      if (lastMat && lastMat.Code) {
+        const parts = lastMat.Code.split('-');
+        nextNum = parseInt(parts[parts.length - 1], 10) + 1;
+      }
+      finalCode = `RCK-USSP-${String(nextNum).padStart(5, '0')}`;
+    }
+
+    const codeExists = await RawMaterial.findOne({ Code: finalCode });
     if (codeExists) {
-      return res.status(400).json({ message: "Material Code already exists" });
+      finalCode = `RCK-USSP-${Date.now().toString().slice(-6)}`;
     }
 
     let finalImagePath = "";
@@ -95,7 +106,7 @@ export const createRawMaterial = async (req, res) => {
     }
 
     const newMaterial = await RawMaterial.create({
-      Code: Code.trim().toUpperCase(),
+      Code: finalCode,
       ImageUrl: finalImagePath,
       Category: Category?.trim() || "",
       Segment: Segment?.trim() || "N/A",

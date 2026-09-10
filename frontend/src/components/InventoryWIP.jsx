@@ -493,7 +493,6 @@ function InventoryWIP() {
                       <div key={item._id} onClick={() => handleSelectRawMaterial(item)} className={`p-3 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex flex-col gap-1 rounded-lg transition-colors`}>
                         <div className={`flex justify-between items-center font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm gap-2`}>
                           <div className="flex items-center gap-2 truncate">
-                            <span className={`${isDark ? 'bg-slate-800 text-slate-200 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-0.5 rounded text-xs font-mono`}>{item.Code}</span>
                             <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-400'} lowercase italic truncate`}>{item.UOM || 'pcs'}</span>
                           </div>
                           <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'} flex-shrink-0`}>
@@ -530,7 +529,6 @@ function InventoryWIP() {
                       <th className="py-3 px-4 text-center">UOM</th>
                       <th className="py-3 px-4 text-center w-28 min-w-[112px]">Stock Balance</th>
 
-                      <th className="py-3 px-4">Material Code</th>
                       <th className="py-3 px-4">Segment</th>
                       <th className="py-3 px-4">Description</th>
                       <th className="py-3 px-4">Dimension</th>
@@ -562,10 +560,6 @@ function InventoryWIP() {
 
                           <td className={`py-2 px-4 w-28 min-w-[112px] text-center font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                             {item.Available}
-                          </td>
-
-                          <td className={`py-2 px-4 font-bold text-sm ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`}>
-                            {item.Code}
                           </td>
 
                           <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -620,7 +614,6 @@ function InventoryWIP() {
                       <div key={`${item.type}-${item._id}`} onClick={() => handleSelectOutputItem(item, item.type)} className={`p-3 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex flex-col gap-1 rounded-lg transition-colors`}>
                         <div className={`flex justify-between items-center font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm gap-2`}>
                           <div className="flex items-center gap-2 truncate">
-                            <span className={`${isDark ? 'bg-slate-800 text-slate-200 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-0.5 rounded text-xs font-mono`}>{item.Code}</span>
                             <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-400'} lowercase italic truncate`}>{item.UOM || 'pcs'}</span>
                           </div>
                           <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${isDark ? 'bg-amber-950/60 text-amber-400 border border-amber-800' : 'bg-amber-100 text-amber-800 border border-amber-200'} flex-shrink-0`}>
@@ -657,7 +650,6 @@ function InventoryWIP() {
                       <th className="py-3 px-4 text-center w-28 min-w-[112px]">Qty Produced</th>
                       <th className="py-3 px-4 text-center">UOM</th>
 
-                      <th className="py-3 px-4">Material Code</th>
                       <th className="py-3 px-4">Segment</th>
                       <th className="py-3 px-4">Description</th>
                       <th className="py-3 px-4">Dimension</th>
@@ -685,10 +677,6 @@ function InventoryWIP() {
                             <span className={`${isDark ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-0.5 rounded text-xs`}>
                               {item.UOM}
                             </span>
-                          </td>
-
-                          <td className={`py-2 px-4 font-bold text-sm ${isDark ? 'text-emerald-400' : 'text-[#18174e]'}`}>
-                            {item.Code}
                           </td>
 
                           <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -809,7 +797,6 @@ function InventoryWIP() {
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className={`${isDark ? 'bg-[#141622] text-slate-300 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} font-bold border-b text-[11px]`}>
-              <th className="p-2">Item Code</th>
               <th className="p-2">Segment</th>
               <th className="p-2">Item Description</th>
               <th className="p-2">Dimension</th>
@@ -821,7 +808,6 @@ function InventoryWIP() {
               const targetId = it.materialId?._id || it.materialId;
               const fullMat = dbMaterials?.find(m => m._id === targetId);
               
-              const code = fullMat?.Code || it.materialId?.Code || 'N/A';
               const segment = fullMat?.Segment || fullMat?.segment || it.materialId?.Segment || it.materialId?.segment || 'N/A';
               const desc = fullMat?.ItemDescription || it.materialId?.ItemDescription || '-';
               const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.materialId?.Dimension || it.materialId?.dimension || 'N/A';
@@ -829,7 +815,6 @@ function InventoryWIP() {
 
               return (
                 <tr key={`in-${idx}`} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
-                  <td className={`p-2.5 font-bold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`}>{code}</td>
                   <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{segment}</td>
                   <td className={`p-2.5 ${isDark ? 'text-slate-200' : 'text-slate-700'} font-medium truncate max-w-xs`} title={desc}>{desc}</td>
                   <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'} font-mono text-[11px]`}>{dimension}</td>
@@ -839,7 +824,7 @@ function InventoryWIP() {
             })}
             {(!selectedConversion.inputs || selectedConversion.inputs.length === 0) && (
               <tr>
-                <td colSpan="5" className="p-4 text-center text-slate-400 italic">No inputs recorded.</td>
+                <td colSpan="4" className="p-4 text-center text-slate-400 italic">No inputs recorded.</td>
               </tr>
             )}
           </tbody>
@@ -851,7 +836,6 @@ function InventoryWIP() {
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className={`${isDark ? 'bg-[#141622] text-slate-300 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} font-bold border-b text-[11px]`}>
-              <th className="p-2">Item Code</th>
               <th className="p-2">Segment</th>
               <th className="p-2">Item Description</th>
               <th className="p-2">Dimension</th>
@@ -863,7 +847,6 @@ function InventoryWIP() {
               const targetId = it.itemId?._id || it.itemId;
               const fullMat = dbMaterials?.find(m => m._id === targetId);
 
-              const code = fullMat?.Code || it.itemId?.Code || 'N/A';
               const segment = fullMat?.Segment || fullMat?.segment || it.itemId?.Segment || it.itemId?.segment || 'N/A';
               const desc = fullMat?.ItemDescription || it.itemId?.ItemDescription || '-';
               const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.itemId?.Dimension || it.itemId?.dimension || 'N/A';
@@ -871,12 +854,6 @@ function InventoryWIP() {
 
               return (
                 <tr key={`out-${idx}`} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
-                  <td className="p-2.5 font-bold text-emerald-400">
-                    {code}
-                    <span className="text-[9px] text-slate-400 block font-normal">
-                      ({it.itemType === 'RawMaterial' ? 'Raw Mat' : 'Product'})
-                    </span>
-                  </td>
                   <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{segment}</td>
                   <td className={`p-2.5 ${isDark ? 'text-slate-200' : 'text-slate-700'} font-medium truncate max-w-xs`} title={desc}>{desc}</td>
                   <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'} font-mono text-[11px]`}>{dimension}</td>
@@ -886,7 +863,7 @@ function InventoryWIP() {
             })}
             {(!selectedConversion.outputs || selectedConversion.outputs.length === 0) && (
               <tr>
-                <td colSpan="5" className="p-4 text-center text-slate-400 italic">No outputs recorded.</td>
+                <td colSpan="4" className="p-4 text-center text-slate-400 italic">No outputs recorded.</td>
               </tr>
             )}
           </tbody>

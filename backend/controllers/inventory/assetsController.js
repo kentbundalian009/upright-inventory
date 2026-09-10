@@ -39,13 +39,24 @@ export const createAssets = async (req, res) => {
       AcquisitionDate
     } = req.body;
 
-    if (!Code || !Category || !ItemDescription || !UOM) {
-      return res.status(400).json({ message: "Please fill in all required fields (Code, Category, Description, UOM)" });
+    if (!Category || !ItemDescription || !UOM) {
+      return res.status(400).json({ message: "Please fill in all required fields (Category, Description, UOM)" });
     }
 
-    const codeExists = await Assets.findOne({ Code: Code.trim() });
+    let finalCode = Code ? Code.trim() : "";
+    if (!finalCode) {
+      const lastAsset = await Assets.findOne({ Code: /^AST-USSP-\d+$/ }).sort({ Code: -1 });
+      let nextNum = 1;
+      if (lastAsset && lastAsset.Code) {
+        const parts = lastAsset.Code.split('-');
+        nextNum = parseInt(parts[parts.length - 1], 10) + 1;
+      }
+      finalCode = `AST-USSP-${String(nextNum).padStart(5, '0')}`;
+    }
+
+    const codeExists = await Assets.findOne({ Code: finalCode });
     if (codeExists) {
-      return res.status(400).json({ message: "Assets Code already exists" });
+      finalCode = `AST-USSP-${Date.now().toString().slice(-6)}`;
     }
 
     const finalCount = Number(ActualCount || 0);
@@ -54,7 +65,7 @@ export const createAssets = async (req, res) => {
     }
 
     const newAssets = await Assets.create({
-      Code: Code.trim(),
+      Code: finalCode,
       Category: Category.trim(),
       Segment: Segment?.trim(),
       ItemDescription: ItemDescription.trim(),

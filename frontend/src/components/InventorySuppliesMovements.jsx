@@ -665,7 +665,6 @@ function InventorySuppliesMovements() {
                       >
                         <div className={`flex justify-between items-center font-bold text-sm gap-2 ${isDark ? 'text-white' : 'text-slate-800'}`}>
                           <div className="flex items-center gap-2 truncate">
-                            <span className={`px-2 py-0.5 rounded text-xs font-mono ${isDark ? 'bg-[#1a1d2d] text-[#ff6600]' : 'bg-slate-100 text-slate-700'}`}>{item.Code}</span>
                             <span className={`text-xs font-medium lowercase italic truncate ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{item.UOM || 'pcs'}</span>
                           </div>
 
@@ -714,7 +713,6 @@ function InventorySuppliesMovements() {
                       <th className="py-3 px-4 text-center w-28 text-emerald-400">Good Cond.</th>
                       <th className="py-3 px-4 text-center w-28 text-rose-400">Damaged</th>
 
-                      <th className="py-3 px-4 w-28 whitespace-nowrap">Supply Code</th>
                       <th className="py-3 px-4">Category</th>
                       <th className="py-3 px-4">Segment</th>
                       <th className="py-3 px-4 w-44 whitespace-nowrap">Item Description</th>
@@ -784,8 +782,6 @@ function InventorySuppliesMovements() {
                               onWheel={(e) => e.currentTarget.blur()}
                             />
                           </td>
-
-                          <td className={`py-2 px-4 font-bold whitespace-nowrap font-mono ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}`}>{item.Code}</td>
 
                           <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.Category}</td>
 
@@ -977,8 +973,7 @@ function InventorySuppliesMovements() {
                   {selectedSlip.items?.map((it, idx) => (
                     <tr key={it._id || idx} className={`transition-colors ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'}`}>
                       <td className="p-3 w-1/4 align-middle">
-                        <div className={`font-bold font-mono ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}`}>{it.supplyId?.Code || 'N/A'}</div>
-                        <div className={`text-[11px] max-w-xs truncate font-medium ${isDark ? 'text-slate-400' : 'text-slate-400'}`} title={it.supplyId?.ItemDescription}>
+                        <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'} max-w-xs truncate`} title={it.supplyId?.ItemDescription}>
                           {it.supplyId?.ItemDescription || '-'}
                         </div>
                       </td>

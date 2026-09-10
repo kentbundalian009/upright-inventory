@@ -527,10 +527,9 @@ function Reports() {
             doc.text("Restricted Internal Ledger", 220, 49);
 
             const categoryColHeader = activeModule === 'supplies' ? "Category" : "Category/Seg";
-            const columns = ["Code", "Item Description", categoryColHeader, "Dimension", "Count", "UOM", "Inflow History Summary", "Outflow History Summary"];
+            const columns = ["Item Description", categoryColHeader, "Dimension", "Count", "UOM", "Inflow History Summary", "Outflow History Summary"];
             const rows = consolidatedData.map(item => [
-                item.isArchived ? `${item.Code || '—'} (Archived)` : (item.Code || '—'),
-                item.ItemDescription || '—',
+                item.isArchived ? `${item.ItemDescription || '—'} (Archived)` : (item.ItemDescription || '—'),
                 activeModule === 'supplies' ? (item.Category || '—') : `${item.Category || '—'} \n(${item.Segment || 'N/A'})`,
                 item.Dimension || '—',
                 item.isArchived ? '0' : (item.ActualCount ? String(item.ActualCount) : '0'),
@@ -1399,7 +1398,6 @@ function Reports() {
                                         <tr className={`font-bold uppercase text-xs whitespace-nowrap ${
                                             isDark ? 'bg-[#0f111d] text-slate-200' : 'bg-[#18174e] text-white'
                                         }`}>
-                                            <th className="py-3 px-4 whitespace-nowrap">Code</th>
                                             <th className="py-3 px-4 whitespace-nowrap">Item Profile</th>
                                             <th className="py-3 px-4 whitespace-nowrap">
                                                 {activeModule === 'supplies' ? 'Category' : 'Category / Seg'}
@@ -1415,19 +1413,15 @@ function Reports() {
                                     }`}>
                                         {consolidatedData.map((row) => (
                                             <tr key={row._id} className={`transition-colors ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/80'}`}>
-                                                <td className={`px-4 py-3.5 whitespace-nowrap font-bold font-mono truncate ${
-                                                    isDark ? 'text-[#ff6600]' : 'text-slate-900'
-                                                }`}>
-                                                    <span>{row.Code}</span>
-                                                    {row.isArchived && (
-                                                        <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/30 uppercase tracking-wide">
-                                                            Archived
-                                                        </span>
-                                                    )}
-                                                </td>
-
                                                 <td className={`px-4 py-3.5 font-medium ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
-                                                    <div className="line-clamp-2 leading-relaxed">{row.ItemDescription}</div>
+                                                    <div className="line-clamp-2 leading-relaxed flex items-center gap-1.5">
+                                                        <span>{row.ItemDescription}</span>
+                                                        {row.isArchived && (
+                                                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/30 uppercase tracking-wide flex-shrink-0">
+                                                                Archived
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
 
                                                 <td className="px-4 py-3.5">
