@@ -306,7 +306,6 @@ function AdminUserManagement() {
                             <option value="All Roles">All Roles</option>
                             <option value="Admin">Admin</option>
                             <option value="Inventory">Inventory</option>
-                            <option value="Viewer">Viewer</option>
                         </select>
 
                         <div className="relative w-full md:col-span-2">
@@ -393,9 +392,7 @@ function AdminUserManagement() {
                                                 <span className={`px-2 py-1 rounded text-xs font-bold ${
                                                     user.SystemRole === 'Admin' 
                                                         ? 'bg-blue-100 text-blue-800' 
-                                                        : user.SystemRole === 'Viewer'
-                                                            ? 'bg-emerald-100 text-emerald-800'
-                                                            : 'bg-orange-100 text-orange-800'
+                                                        : 'bg-orange-100 text-orange-800'
                                                 }`}>
                                                     {user.SystemRole || 'Inventory'}
                                                 </span>
@@ -712,7 +709,6 @@ function AdminUserManagement() {
                                     >
                                         <option value="Inventory">Inventory</option>
                                         <option value="Admin">Admin</option>
-                                        <option value="Viewer">Viewer</option>
                                     </select>
                                 </div>
                             </div>

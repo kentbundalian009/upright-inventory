@@ -9,6 +9,7 @@ import AdminUserManagement from '../components/AdminUserManagement';
 import AdminUserActivity from '../components/AdminUserActivity';
 import AdminBackup from '../components/AdminBackup';
 import AdminSettings from '../components/AdminSettings';
+import AdminSharedViewers from '../components/AdminSharedViewers';
 import MaintenanceScreen from '../components/MaintenanceScreen';
 
 import InventoryDashboard from '../components/InventoryDashboard';
@@ -24,6 +25,8 @@ import Client from '../components/Client';
 
 import Settings from '../components/Settings';
 import Reports from '../components/Reports';
+import SharedRackingsView from './SharedRackingsView';
+import { trackSharedLinkClick } from '../utils/linkTracker';
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
   ? 'https://one-inventory.onrender.com/api'
@@ -37,7 +40,17 @@ function Dashboard() {
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
 
-    const [activeTab, setActiveTab] = useState('dashboard');
+    const [activeTab, setActiveTab] = useState(() => {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const view = params.get('view');
+            const tab = params.get('tab');
+            if (view === 'rackings' || tab === 'raw-materials') {
+                return 'raw-materials';
+            }
+        } catch (e) {}
+        return 'dashboard';
+    });
     const [maintenanceData, setMaintenanceData] = useState({
         isMaintenanceActive: false,
         maintenanceMessage: '',
@@ -56,6 +69,7 @@ function Dashboard() {
     };
 
     useEffect(() => {
+        trackSharedLinkClick();
         checkMaintenanceStatus();
 
         const handleStatusChange = () => {
@@ -77,10 +91,15 @@ function Dashboard() {
     const { isDark } = useTheme();
 
     // 🔒 SYSTEM SHUTDOWN / MAINTENANCE INTERCEPTOR:
-    // Kung naka-ON ang maintenance mode, i-lockout ang Inventory at Viewer roles
-    // at ipakita ang 404 / System Shutdown Screen. Ang Admin lamang ang makakatuloy.
+    // If maintenance mode is active, lock out non-admin users and display the 404 / System Shutdown screen
     if (userRole !== 'Admin' && maintenanceData.isMaintenanceActive) {
         return <MaintenanceScreen maintenanceData={maintenanceData} onCheckStatus={checkMaintenanceStatus} />;
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const isSharedLink = Boolean(searchParams.get('sharedBy')) && (searchParams.get('view') === 'rackings' || searchParams.get('tab') === 'raw-materials');
+    if (isSharedLink) {
+        return <SharedRackingsView />;
     }
 
     const renderContent = () => {
@@ -96,16 +115,18 @@ function Dashboard() {
                 return userRole === 'Admin' ? <AdminBackup /> : <InventoryDashboard />;
             case 'admin-settings':
                 return userRole === 'Admin' ? <AdminSettings /> : <InventoryDashboard />;
+            case 'shared-viewers':
+                return userRole === 'Admin' ? <AdminSharedViewers /> : <InventoryDashboard />;
                 
             case 'raw-materials': return <InventoryRawMaterials />;
             case 'client-records': return <Client />;
-            case 'products': return userRole === 'Viewer' ? <InventoryDashboard /> : <InventoryProducts />;
+            case 'products': return <InventoryProducts />;
             case 'supplies': return <InventorySupplies />;
             case 'assets': return <InventoryAssets />;
-            case 'inbound-raw-mat': return userRole === 'Viewer' ? <InventoryDashboard /> : <InventoryInboundRawMat />;
-            case 'work-in-progress': return userRole === 'Viewer' ? <InventoryDashboard /> : <InventoryWIP />;
-            case 'outbound-products': return userRole === 'Viewer' ? <InventoryDashboard /> : <InventoryOutboundProducts />;
-            case 'supplies-movements': return userRole === 'Viewer' ? <InventoryDashboard /> : <InventorySuppliesMovements />;
+            case 'inbound-raw-mat': return <InventoryInboundRawMat />;
+            case 'work-in-progress': return <InventoryWIP />;
+            case 'outbound-products': return <InventoryOutboundProducts />;
+            case 'supplies-movements': return <InventorySuppliesMovements />;
             
             case 'settings': return <Settings />;
 

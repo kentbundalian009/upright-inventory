@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, AlertCircle, Filter, X, Edit2, Archive, EyeOff, Sliders, RotateCcw, CheckCircle2, Palette, Image as ImageIcon, Upload, Trash2 } from 'lucide-react';
+import { Search, AlertCircle, Filter, X, Edit2, Archive, EyeOff, Sliders, RotateCcw, CheckCircle2, Palette, Image as ImageIcon, Upload, Trash2, Share2, Copy, Coins, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from 'axios';
 import PageHeader from './PageHeader';
 import ThresholdModal from './ThresholdModal';
@@ -7,20 +7,20 @@ import { useTheme } from '../context/ThemeContext';
 
 // Lahat ng pagpipiliang kulay na gagamitin sa system globally
 const COLOR_OPTIONS = [
-    { name: 'Emerald / Green', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800', prefix: '🟢' },
-    { name: 'Blue / Indigo', classes: 'bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800', prefix: '🔵' },
-    { name: 'Amber / Orange', classes: 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800', prefix: '🟡' },
-    { name: 'Rose / Red', classes: 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800', prefix: '🔴' },
-    { name: 'Orange', classes: 'bg-orange-50 text-orange-700 border-orange-200/60 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-800', prefix: '🟠' },
-    { name: 'Purple / Violet', classes: 'bg-purple-50 text-purple-700 border-purple-200/60 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800', prefix: '🟣' },
-    { name: 'Slate / Muted Gray', classes: 'bg-slate-50 text-slate-700 border-slate-200/60 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', prefix: '⚪' },
-    { name: 'Cyan / Teal', classes: 'bg-cyan-50 text-cyan-700 border-cyan-200/60 dark:bg-cyan-950/60 dark:text-cyan-300 dark:border-cyan-800', prefix: '🌐' }
+    { name: 'Emerald / Green', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800', rowBg: 'bg-emerald-500/[0.08] hover:bg-emerald-500/[0.16] dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 border-l-4 border-l-emerald-500', prefix: '🟢' },
+    { name: 'Blue / Indigo', classes: 'bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800', rowBg: 'bg-blue-500/[0.08] hover:bg-blue-500/[0.16] dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border-l-4 border-l-blue-500', prefix: '🔵' },
+    { name: 'Amber / Orange', classes: 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800', rowBg: 'bg-amber-500/[0.08] hover:bg-amber-500/[0.16] dark:bg-amber-950/30 dark:hover:bg-amber-950/50 border-l-4 border-l-amber-500', prefix: '🟡' },
+    { name: 'Rose / Red', classes: 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800', rowBg: 'bg-rose-500/[0.08] hover:bg-rose-500/[0.16] dark:bg-rose-950/30 dark:hover:bg-rose-950/50 border-l-4 border-l-rose-500', prefix: '🔴' },
+    { name: 'Orange', classes: 'bg-orange-50 text-orange-700 border-orange-200/60 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-800', rowBg: 'bg-orange-500/[0.08] hover:bg-orange-500/[0.16] dark:bg-orange-950/30 dark:hover:bg-orange-950/50 border-l-4 border-l-orange-500', prefix: '🟠' },
+    { name: 'Purple / Violet', classes: 'bg-purple-50 text-purple-700 border-purple-200/60 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800', rowBg: 'bg-purple-500/[0.08] hover:bg-purple-500/[0.16] dark:bg-purple-950/30 dark:hover:bg-purple-950/50 border-l-4 border-l-purple-500', prefix: '🟣' },
+    { name: 'Slate / Muted Gray', classes: 'bg-slate-50 text-slate-700 border-slate-200/60 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', rowBg: 'bg-slate-500/[0.08] hover:bg-slate-500/[0.16] dark:bg-slate-900/40 dark:hover:bg-slate-900/60 border-l-4 border-l-slate-400', prefix: '⚪' },
+    { name: 'Cyan / Teal', classes: 'bg-cyan-50 text-cyan-700 border-cyan-200/60 dark:bg-cyan-950/60 dark:text-cyan-300 dark:border-cyan-800', rowBg: 'bg-cyan-500/[0.08] hover:bg-cyan-500/[0.16] dark:bg-cyan-950/30 dark:hover:bg-cyan-950/50 border-l-4 border-l-cyan-500', prefix: '🌐' }
 ];
 
 function InventoryRawMaterials() {
     const { isDark } = useTheme();
     const userRole = localStorage.getItem("SystemRole") || "Inventory";
-    const isViewer = userRole?.toLowerCase() === 'viewer';
+    const isViewer = false;
 
     // 1. DATABASE AT LIFECYCLE STATES
     const [rawMaterialsList, setRawMaterialsList] = useState([]);
@@ -41,11 +41,22 @@ function InventoryRawMaterials() {
     const [selectedDescription, setSelectedDescription] = useState('All Item Descriptions');
     const [selectedHealth, setSelectedHealth] = useState('All Health Status');
 
+    // Pagination States
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+
     // Modals visibility states
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isThresholdModalOpen, setIsThresholdModalOpen] = useState(false);
     const [isPaletteModalOpen, setIsPaletteModalOpen] = useState(false);
     const [currentId, setCurrentId] = useState(null);
+
+    // Share Link Modal States
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [viewerFullname, setViewerFullname] = useState('');
+    const [generatedShareLink, setGeneratedShareLink] = useState(null);
+    const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+    const [isLinkCopied, setIsLinkCopied] = useState(false);
 
     // 🌟 IMAGE PREVIEW LIGHTBOX STATE
     const [previewImage, setPreviewImage] = useState(null);
@@ -64,6 +75,7 @@ function InventoryRawMaterials() {
     const [materialUom, setMaterialUom] = useState('');
     const [accountTo, setAccountTo] = useState('');
     const [modalActualCount, setModalActualCount] = useState(0);
+    const [materialAcquisitionCost, setMaterialAcquisitionCost] = useState('');
 
     // 🌟 FILE UPLOAD STATES
     const [selectedFile, setSelectedFile] = useState(null);
@@ -93,6 +105,97 @@ function InventoryRawMaterials() {
         setErrorMessage(message);
         setSuccessMessage(null);
         setTimeout(() => setErrorMessage(null), 4000);
+    };
+
+    const openShareModal = () => {
+        setViewerFullname('');
+        setGeneratedShareLink(null);
+        setIsLinkCopied(false);
+        setIsShareModalOpen(true);
+    };
+
+    const handleSaveAndGenerateLink = async (e) => {
+        if (e) e.preventDefault();
+        if (!viewerFullname.trim()) {
+            triggerError("Please enter the Fullname of viewer.");
+            return;
+        }
+
+        try {
+            setIsGeneratingLink(true);
+            let currentUserName = 'Inventory';
+            try {
+                const stored = localStorage.getItem('user');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    currentUserName = parsed.Username || parsed.username || parsed.Fullname || 'Inventory';
+                } else if (localStorage.getItem('Fullname')) {
+                    currentUserName = localStorage.getItem('Fullname');
+                }
+            } catch (err) {}
+
+            const token = localStorage.getItem('token');
+            const res = await axios.post('/api/shared-links', {
+                viewerName: viewerFullname.trim(),
+                sharedBy: currentUserName,
+                page: 'Rackings (Records)'
+            }, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+
+            const linkPath = res.data.linkUrl || `/shared/rackings?linkId=${res.data.data?._id}&viewer=${encodeURIComponent(viewerFullname.trim())}&sharedBy=${encodeURIComponent(currentUserName)}`;
+            const fullUrl = `${window.location.origin}${linkPath}`;
+            setGeneratedShareLink(fullUrl);
+            triggerSuccess("Viewer link saved! You can now copy the link.");
+        } catch (err) {
+            console.error("Error generating viewer link:", err);
+            triggerError(err.response?.data?.message || "Failed to generate viewer link.");
+        } finally {
+            setIsGeneratingLink(false);
+        }
+    };
+
+    const handleCopyGeneratedLink = () => {
+        if (!generatedShareLink) return;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(generatedShareLink)
+                .then(() => {
+                    setIsLinkCopied(true);
+                    triggerSuccess("Link copied to clipboard!");
+                    setTimeout(() => setIsLinkCopied(false), 2500);
+                })
+                .catch(() => {
+                    fallbackCopyText(generatedShareLink);
+                });
+        } else {
+            fallbackCopyText(generatedShareLink);
+        }
+    };
+
+    const fallbackCopyText = (text) => {
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            const successful = document.execCommand("copy");
+            document.body.removeChild(textArea);
+            if (successful) {
+                setIsLinkCopied(true);
+                triggerSuccess("Link copied to clipboard!");
+                setTimeout(() => setIsLinkCopied(false), 2500);
+            } else {
+                triggerError("Failed to copy link.");
+            }
+        } catch (err) {
+            console.error("Fallback copy failed:", err);
+            triggerError("Could not copy link to clipboard.");
+        }
     };
 
     // 2. READ & FETCH SCHEMAS MULA SA SERVER (API CALLS)
@@ -125,7 +228,9 @@ function InventoryRawMaterials() {
     const fetchRawMaterials = async () => {
         try {
             setLoading(true);
-            const response = await axios.get('/api/raw-materials');
+            const token = localStorage.getItem('token');
+            const endpoint = token ? '/api/raw-materials' : '/api/raw-materials/shared';
+            const response = await axios.get(endpoint).catch(() => axios.get('/api/raw-materials/shared'));
             if (Array.isArray(response.data)) setRawMaterialsList(response.data);
             else if (response.data && Array.isArray(response.data.data)) setRawMaterialsList(response.data.data);
             else setRawMaterialsList([]);
@@ -165,7 +270,7 @@ function InventoryRawMaterials() {
     const filterDescriptions = ['All Item Descriptions', ...descriptionsInDB];
 
     const getSegmentStyles = (segment) => {
-        if (!segment) return { classes: "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", prefix: "⚪" };
+        if (!segment) return { classes: "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", rowBg: "hover:bg-slate-50/80 dark:hover:bg-[#141622] border-l-4 border-l-transparent", prefix: "⚪" };
         const cleaned = segment.trim().toUpperCase();
         if (segmentColors[cleaned] !== undefined && COLOR_OPTIONS[segmentColors[cleaned]]) return COLOR_OPTIONS[segmentColors[cleaned]];
         const index = segmentsInDB.findIndex(seg => seg.trim().toUpperCase() === cleaned);
@@ -188,6 +293,7 @@ function InventoryRawMaterials() {
         setMaterialUom(item.UOM || '');
         setAccountTo(item.AccountTo || '');
         setModalActualCount(item.ActualCount ?? 0);
+        setMaterialAcquisitionCost(item.AcquisitionCost !== undefined ? String(item.AcquisitionCost) : '0');
 
         setExistingImgPreview(item.ImageUrl || '');
         setSelectedFile(null);
@@ -211,6 +317,7 @@ function InventoryRawMaterials() {
             formData.append("Dimension", materialDimension.trim());
             formData.append("UOM", materialUom.trim());
             formData.append("AccountTo", accountTo.trim());
+            formData.append("AcquisitionCost", Number(materialAcquisitionCost) || 0);
 
             if (selectedFile) {
                 formData.append("image", selectedFile);
@@ -286,6 +393,27 @@ function InventoryRawMaterials() {
     const activeCount = rawMaterialsList.filter(item => !item.isArchived).length;
     const archivedCount = rawMaterialsList.filter(item => item.isArchived).length;
 
+    const totalAcquisitionCost = filteredRawMaterials.reduce(
+        (sum, item) => sum + ((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)), 
+        0
+    );
+    const totalActualCount = filteredRawMaterials.reduce(
+        (sum, item) => sum + (Number(item.ActualCount) || 0), 
+        0
+    );
+
+    // Reset pagination to page 1 on filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, selectedSegment, selectedDescription, selectedHealth, hideZeroQty, showArchivedOnly]);
+
+    // Pagination calculations
+    const totalRows = filteredRawMaterials.length;
+    const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+    const indexOfLastRow = currentPage * rowsPerPage;
+    const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+    const paginatedRawMaterials = filteredRawMaterials.slice(indexOfFirstRow, indexOfLastRow);
+
     return (
         <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased relative">
             <PageHeader activeTab="raw-materials" />
@@ -312,13 +440,25 @@ function InventoryRawMaterials() {
                 <div className="flex flex-col gap-1.5">
 
                     {/* TOP BAR */}
-                    <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-                        <div className={`flex items-center gap-2 text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-500'} flex-shrink-0`}>
-                            <Filter className={`w-4 h-4 ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`} />
-                            <span>{showArchivedOnly ? 'Archive' : 'Filter'}</span>
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                            <div className={`flex items-center gap-2 text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-500'} flex-shrink-0`}>
+                                <Filter className={`w-4 h-4 ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`} />
+                                <span>{showArchivedOnly ? 'Archive' : 'Filter'}</span>
+                            </div>
+
+                            {/* TOTAL ACQUISITION COST BADGE IN TOOLBAR */}
+                            <div className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border select-none flex-shrink-0 transition-all ${
+                                isDark ? 'bg-[#141622] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'
+                            }`}>
+                                <span>Total Acquisition Cost:</span>
+                                <span className="font-mono font-black text-red-600 dark:text-red-400">
+                                    ₱{totalAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                            </div>
                         </div>
 
-                        <div className="flex items-center gap-2.5 ml-auto">
+                        <div className="flex items-center gap-2 flex-wrap">
 
                             <label 
                                 className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${
@@ -338,6 +478,22 @@ function InventoryRawMaterials() {
                                 <span className="hidden sm:inline">Hide 0 Qty</span>
                                 <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
                             </label>
+
+                            {/* SHARE LINK BUTTON (Opens Modal for Viewer Name) */}
+                            {!isViewer && (
+                                <button
+                                    onClick={openShareModal}
+                                    title="Generate Shareable Link for Viewer"
+                                    className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 shadow-sm ${
+                                        isDark 
+                                            ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80 hover:bg-indigo-900/60' 
+                                            : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                                    }`}
+                                >
+                                    <Share2 className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-indigo-500" />
+                                    <span className="hidden sm:inline">Share Link</span>
+                                </button>
+                            )}
 
                             {!isViewer && (
                                 <button
@@ -441,9 +597,10 @@ function InventoryRawMaterials() {
                                     <th className="py-3 px-3 text-center whitespace-nowrap">Image</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Item Description</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Dimension</th>
-                                    <th className="py-3 px-4 whitespace-nowrap">Segment</th>
                                     <th className="py-3 px-4 whitespace-nowrap text-center">Actual Count</th>
                                     <th className="py-3 px-4 whitespace-nowrap">UOM</th>
+                                    <th className="py-3 px-4 whitespace-nowrap text-right">Acquisition Cost</th>
+                                    <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Condition</th>
                                     {!isViewer && (
                                         <th className="py-3 px-4 text-center whitespace-nowrap">
@@ -454,16 +611,16 @@ function InventoryRawMaterials() {
                             </thead>
                             <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                                 {loading ? (
-                                    <tr><td colSpan={isViewer ? "7" : "8"} className="text-center py-10 text-green-700 font-medium italic">
+                                    <tr><td colSpan={isViewer ? "8" : "9"} className="text-center py-10 text-green-700 font-medium italic">
                                         Fetching secure rackings data from database...
                                     </td></tr>
                                 ) : error ? (
-                                    <tr><td colSpan={isViewer ? "7" : "8"} className="text-center py-8 text-rose-600 font-semibold">{error}</td></tr>
-                                ) : filteredRawMaterials.map((rawMat) => {
+                                    <tr><td colSpan={isViewer ? "8" : "9"} className="text-center py-8 text-rose-600 font-semibold">{error}</td></tr>
+                                ) : paginatedRawMaterials.map((rawMat) => {
                                     const currentSegConfig = getSegmentStyles(rawMat.Segment);
 
                                     return (
-                                        <tr key={rawMat._id || rawMat.Code} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
+                                        <tr key={rawMat._id || rawMat.Code} className={`group ${currentSegConfig.rowBg || (isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600')} transition-colors font-medium whitespace-nowrap text-sm`}>
                                             <td className="py-2 px-3 text-center whitespace-nowrap">
                                                 {rawMat.ImageUrl ? (
                                                     <div className="relative inline-block">
@@ -495,12 +652,16 @@ function InventoryRawMaterials() {
                                                 )}
                                             </td>
 
-                                            <td 
-                                                className={`py-3 px-4 font-semibold whitespace-nowrap transition-colors ${
-                                                    isDark ? 'text-slate-100' : 'text-slate-800'
-                                                }`}
-                                            >
-                                                {rawMat.ItemDescription}
+                                            <td className="py-3 px-4 whitespace-nowrap">
+                                                <div className={`font-semibold transition-colors ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
+                                                    {rawMat.ItemDescription}
+                                                </div>
+                                                {rawMat.Segment && rawMat.Segment !== 'N/A' && (
+                                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+                                                        <span>{currentSegConfig.prefix}</span>
+                                                        <span>{rawMat.Segment}</span>
+                                                    </span>
+                                                )}
                                             </td>
 
                                             <td 
@@ -511,13 +672,14 @@ function InventoryRawMaterials() {
                                                 {rawMat.Dimension || '—'}
                                             </td>
 
-                                            <td className="py-3 px-4">
-                                                <span className={`text-[11px] font-bold px-2 py-0.5 rounded border flex items-center gap-1.5 w-fit ${currentSegConfig.classes}`}>
-                                                    <span>{rawMat.Segment || '—'}</span>
-                                                </span>
-                                            </td>
                                             <td className={`py-3 px-4 text-center font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{rawMat.ActualCount}</td>
                                             <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{rawMat.UOM}</td>
+                                            <td className={`py-3 px-4 text-right font-mono text-xs whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                                ₱{(Number(rawMat.AcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="py-3 px-4 text-right font-mono text-xs font-bold whitespace-nowrap text-red-600 dark:text-red-400">
+                                                ₱{((Number(rawMat.ActualCount) || 0) * (Number(rawMat.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
                                             <td className="py-3 px-4">{getRawMaterialHealthBadge(rawMat.ActualCount)}</td>
                                             {!isViewer && (
                                                 <td className="py-3 px-4 text-center">
@@ -541,13 +703,77 @@ function InventoryRawMaterials() {
                                 })}
                                 {filteredRawMaterials.length === 0 && !loading && (
                                     <tr>
-                                        <td colSpan={isViewer ? "7" : "8"} className="text-center py-10 text-red-600 font-medium italic">
+                                        <td colSpan={isViewer ? "8" : "9"} className="text-center py-10 text-red-600 font-medium italic">
                                             No records match the selected filters or search queries.
                                         </td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* TABLE PAGINATION FOOTER */}
+                    <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
+                        isDark ? 'bg-[#0f111d] border-slate-800/80 text-slate-300' : 'bg-slate-50/80 border-slate-100 text-slate-600'
+                    } text-xs font-semibold select-none`}>
+                        <div className="flex items-center gap-2">
+                            <span>Rows per page:</span>
+                            <select
+                                value={rowsPerPage}
+                                onChange={(e) => {
+                                    setRowsPerPage(Number(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                className={`border rounded-lg px-2.5 py-1 text-xs font-bold cursor-pointer outline-none transition-colors ${
+                                    isDark 
+                                        ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' 
+                                        : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
+                                }`}
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                            <span className="text-slate-400 dark:text-slate-500 ml-1">
+                                {totalRows > 0 ? `(${indexOfFirstRow + 1}-${Math.min(indexOfLastRow, totalRows)} of ${totalRows})` : '(0 items)'}
+                            </span>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <span className="font-bold text-slate-700 dark:text-slate-200">
+                                Page {currentPage} of {totalPages}
+                            </span>
+
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage <= 1}
+                                    title="Previous Page"
+                                    className={`p-1.5 rounded-lg border transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                                        isDark 
+                                            ? 'border-slate-700 bg-[#141622] text-slate-300 hover:bg-slate-800' 
+                                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </button>
+
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage >= totalPages}
+                                    title="Next Page"
+                                    className={`p-1.5 rounded-lg border transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                                        isDark 
+                                            ? 'border-slate-700 bg-[#141622] text-slate-300 hover:bg-slate-800' 
+                                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -764,6 +990,30 @@ function InventoryRawMaterials() {
                                     </div>
                                 </div>
 
+                                <div className="md:col-span-2">
+                                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                                        Acquisition Cost (Price)
+                                    </label>
+                                    <div className="relative">
+                                        <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-bold text-base select-none pointer-events-none ${isDark ? 'text-amber-400' : 'text-[#18174e]'}`}>
+                                            ₱
+                                        </span>
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            placeholder="0.00"
+                                            value={materialAcquisitionCost}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                                    setMaterialAcquisitionCost(val);
+                                                }
+                                            }}
+                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-8 pr-3 py-2 text-sm font-mono focus:outline-none`}
+                                        />
+                                    </div>
+                                </div>
+
                             </div>
 
                             <div className={`flex items-center justify-end gap-2 mt-6 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
@@ -833,6 +1083,111 @@ function InventoryRawMaterials() {
                             </button>
                         </div>
 
+                    </div>
+                </div>
+            )}
+
+            {/* SHARE LINK MODAL (Fullname of viewer input -> Save -> Copy link revealed) */}
+            {isShareModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className={`w-full max-w-md ${isDark ? 'bg-[#10121a] border-slate-800 text-slate-200' : 'bg-white border-slate-100 text-slate-700'} border rounded-2xl shadow-2xl p-6 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200`}>
+                        <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                            <h3 className="font-bold text-base flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                                <Share2 className="w-5 h-5" />
+                                <span>Share Rackings Link</span>
+                            </h3>
+                            <button onClick={() => setIsShareModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {!generatedShareLink ? (
+                            <form onSubmit={handleSaveAndGenerateLink} className="flex flex-col gap-4">
+                                <p className="text-xs text-slate-500 leading-relaxed">
+                                    Generate a personalized, read-only link for a specific viewer. Please enter the recipient's full name to generate the link.
+                                </p>
+
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                                        Fullname of viewer
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="Fullname of viewer"
+                                        value={viewerFullname}
+                                        onChange={(e) => setViewerFullname(e.target.value)}
+                                        className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-700'} border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#ff6600]`}
+                                        autoFocus
+                                        required
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsShareModalOpen(false)}
+                                        className="px-4 py-2 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isGeneratingLink || !viewerFullname.trim()}
+                                        className="px-5 py-2 text-xs font-bold rounded-lg bg-[#18174e] dark:bg-[#ff6600] text-white hover:opacity-90 cursor-pointer disabled:opacity-50 transition-all shadow-md"
+                                    >
+                                        {isGeneratingLink ? 'Saving...' : 'Save'}
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <div className="flex flex-col gap-4">
+                                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center gap-2.5">
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                                            Viewer link saved for: {viewerFullname}
+                                        </p>
+                                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                                            You can now copy and share this link.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Shareable URL</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            value={generatedShareLink}
+                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'} border rounded-lg px-3 py-2 text-xs font-mono select-all`}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleCopyGeneratedLink}
+                                            className={`px-3.5 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                                                isLinkCopied
+                                                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                                                    : (isDark ? 'bg-indigo-900/60 text-indigo-300 border-indigo-700 hover:bg-indigo-800' : 'bg-[#18174e] text-white border-[#18174e] hover:bg-[#23216d]')
+                                            }`}
+                                        >
+                                            {isLinkCopied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                            <span>{isLinkCopied ? 'Copied!' : 'Copy Link'}</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsShareModalOpen(false)}
+                                        className="px-5 py-2 text-xs font-bold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:opacity-90 cursor-pointer"
+                                    >
+                                        Done
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

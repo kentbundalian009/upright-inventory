@@ -16,7 +16,8 @@ import {
   Calendar,
   Database,
   Power,
-  Building2
+  Building2,
+  Share2
 } from "lucide-react";
 
 function PageHeader({ activeTab, title, description, icon, badge, actions, children }) {
@@ -52,6 +53,11 @@ function PageHeader({ activeTab, title, description, icon, badge, actions, child
       title: 'User Activity Logs',
       description: 'Monitor real-time user actions, system changes, and security audits.',
       icon: Activity
+    },
+    'shared-viewers': {
+      title: 'Viewer Link Management',
+      description: 'Track generated viewer links, edit viewer details, monitor access counts, and revoke active links.',
+      icon: Share2
     },
     'admin-backup': {
       title: 'Database Vault & Backup',

@@ -5,6 +5,7 @@ const ConversionSchema = new mongoose.Schema({
   conversionNo: { type: String, required: true, unique: true },
   productionType: { type: String, required: true },
   dateProcessed: { type: Date, required: true },
+  customer: { type: String },
   remarks: { type: String },
   preparedBy: { type: String },
   inputs: [{

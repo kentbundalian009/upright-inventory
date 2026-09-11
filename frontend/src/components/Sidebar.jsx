@@ -21,14 +21,15 @@ import {
   X,
   Building2,
   Database,
-  Power
+  Power,
+  Share2
 } from "lucide-react";
 
 const API_BASE_URL = '/api';
 
 function Sidebar({ activeTab, setActiveTab, userRole }) {
   const { isDark } = useTheme();
-  const [isCollapsed, setIsCollapsed] = useState(true); 
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [pendingOutboundCount, setPendingOutboundCount] = useState(0);
   const [pendingSuppliesCount, setPendingSuppliesCount] = useState(0);
@@ -126,38 +127,27 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
   }, [fetchPendingOutboundCount, fetchPendingSuppliesCount]);
 
   const getMenuItems = () => {
-    if (userRole === 'Viewer') {
-      return [
-        { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-        { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, section: 'records' },
-        { id: 'client-records', name: 'Client (Records)', icon: Building2, section: 'records' },
-        { id: 'supplies', name: 'Supplies (Records)', icon: Package, section: 'records' },
-        { id: 'assets', name: 'Assets (Records)', icon: Briefcase, section: 'records' },
-        { id: 'reports', name: 'Reports', icon: FileSpreadsheet, section: 'settings_section' },
-        { id: 'settings', name: 'Settings', icon: Settings, section: 'settings_section' },
-      ];
-    }
-
     const defaultMenuItems = [
       { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Inventory'], section: 'main' },
-      
+
       { id: 'user-management', name: 'User Management', icon: Users, roles: ['Admin'], section: 'admin' },
       { id: 'user-activity', name: 'User Activity', icon: Activity, roles: ['Admin'], section: 'admin' },
+      { id: 'shared-viewers', name: 'Viewer Links', icon: Share2, roles: ['Admin'], section: 'admin' },
       { id: 'admin-backup', name: 'Data Backup', icon: Database, roles: ['Admin'], section: 'admin' },
       { id: 'admin-settings', name: 'System Maintenance', icon: Power, roles: ['Admin'], section: 'admin' },
-      
+
       { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, roles: ['Inventory', 'Admin'], section: 'rackings' },
       { id: 'client-records', name: 'Client (Records)', icon: Building2, roles: ['Inventory', 'Admin'], section: 'rackings' },
-      { id: 'inbound-raw-mat', name: 'Inbound (Additions)', icon: ArrowDownCircle, roles: ['Inventory'], section: 'rackings' },
+      { id: 'inbound-raw-mat', name: 'Inbound', icon: ArrowDownCircle, roles: ['Inventory'], section: 'rackings' },
       { id: 'work-in-progress', name: 'WIP (Production)', icon: TrendingUp, roles: ['Inventory'], section: 'rackings' },
       { id: 'outbound-products', name: 'Outbound', icon: Truck, roles: ['Inventory'], section: 'rackings' },
-      
+
       { id: 'supplies', name: 'Supplies (Records)', icon: Package, roles: ['Inventory'], section: 'supplies' },
       { id: 'supplies-movements', name: 'Supplies Movements', icon: History, roles: ['Inventory'], section: 'supplies' },
-      
+
       { id: 'assets', name: 'Assets (Records)', icon: Briefcase, roles: ['Inventory'], section: 'others' },
       { id: 'reports', name: 'Reports', icon: FileSpreadsheet, roles: ['Inventory'], section: 'others' },
-      
+
       { id: 'settings', name: 'Settings', icon: Settings, roles: ['Admin', 'Inventory'], section: 'main' },
     ];
 
@@ -291,20 +281,19 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
                       setIsMobileOpen(false);
                     }}
                     title={isCollapsed ? `${item.name}${item.id === 'outbound-products' && pendingOutboundCount > 0 ? ` (${pendingOutboundCount} pending packed)` : ''}${item.id === 'supplies-movements' && pendingSuppliesCount > 0 ? ` (${pendingSuppliesCount} active borrow/reserved)` : ''}` : ''}
-                    className={`w-full whitespace-nowrap flex items-center gap-3 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all relative cursor-pointer group ${isCollapsed ? 'md:justify-center' : ''} ${
-                      isActive
+                    className={`w-full whitespace-nowrap flex items-center gap-3 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all relative cursor-pointer group ${isCollapsed ? 'md:justify-center' : ''} ${isActive
                         ? isDark
                           ? 'bg-[#181a26] text-white font-bold shadow-sm border border-slate-700/60'
                           : 'bg-[#28267a] text-white font-bold shadow-sm border border-white/10'
                         : isDark
                           ? 'text-slate-400 hover:bg-white/5 hover:text-white'
                           : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                    }`}
+                      }`}
                   >
                     {isActive && (
                       <div className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#ff6600] rounded-r-full shadow-sm" />
                     )}
-                    
+
                     <div className="relative flex-shrink-0 flex items-center justify-center">
                       <IconComponent size={17} className={`transition-transform ${isActive ? 'text-[#ff8533] scale-105' : 'group-hover:scale-105'}`} />
                       {item.id === 'outbound-products' && pendingOutboundCount > 0 && isCollapsed && (

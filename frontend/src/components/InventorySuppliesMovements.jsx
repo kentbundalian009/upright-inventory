@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, CheckCircle2, AlertCircle, Loader2, Layers } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
@@ -30,6 +30,19 @@ function InventorySuppliesMovements() {
   const [manifestItems, setManifestItems] = useState([]);
   const [referenceSlipNo, setReferenceSlipNo] = useState('');
   const [preparedBy, setPreparedBy] = useState('System User');
+
+  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const [isBrowseModalOpen, setIsBrowseModalOpen] = useState(false);
+  const [modalSearchQuery, setModalSearchQuery] = useState('');
+  const [modalCategoryFilter, setModalCategoryFilter] = useState('All Categories');
+
+  const uniqueCategories = Array.from(
+    new Set(
+      dbSupplies
+        .map(item => item.Category || item.category)
+        .filter(Boolean)
+    )
+  ).sort();
 
   const [existingParties, setExistingParties] = useState([]);
   const [existingLocations, setExistingLocations] = useState([]);
@@ -381,14 +394,49 @@ function InventorySuppliesMovements() {
       doc.save(`SUPPLIES_SLIP_${selectedSlip.slipNo}.pdf`);
       showSuccessToast("PDF Slip downloaded successfully.");
     } catch (e) {
-      showErrorToast("Nagka-problema sa pag-download ng PDF.");
+      showErrorToast("Failed to download PDF slip.");
     }
   };
 
-  const filteredSuggestions = dbSupplies.filter(item =>
-    item.Code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.ItemDescription?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredSuggestions = dbSupplies.filter(item => {
+    const itemCat = item.Category || item.category || '';
+    const matchesCat = selectedCategory === 'All Categories' ||
+      itemCat.toLowerCase() === selectedCategory.toLowerCase();
+    if (!matchesCat) return false;
+
+    if (!searchQuery.trim()) return false;
+
+    const words = searchQuery.toLowerCase().trim().split(/\s+/);
+    const desc = (item.ItemDescription || '').toLowerCase();
+    const dim = (item.Dimension || item.Dimensions || item.dimension || item.dimensions || '').toLowerCase();
+    const seg = (item.Segment || item.segment || '').toLowerCase();
+    const cat = itemCat.toLowerCase();
+    const code = (item.Code || '').toLowerCase();
+
+    return words.every(word =>
+      desc.includes(word) || dim.includes(word) || seg.includes(word) || cat.includes(word) || code.includes(word)
+    );
+  });
+
+  const modalFilteredSupplies = dbSupplies.filter(item => {
+    const itemCat = item.Category || item.category || '';
+    const matchesCat = modalCategoryFilter === 'All Categories' ||
+      itemCat.toLowerCase() === modalCategoryFilter.toLowerCase();
+    if (!matchesCat) return false;
+
+    if (!modalSearchQuery.trim()) return true;
+
+    const words = modalSearchQuery.toLowerCase().trim().split(/\s+/);
+    const desc = (item.ItemDescription || '').toLowerCase();
+    const dim = (item.Dimension || item.Dimensions || item.dimension || item.dimensions || '').toLowerCase();
+    const seg = (item.Segment || item.segment || '').toLowerCase();
+    const cat = itemCat.toLowerCase();
+    const code = (item.Code || '').toLowerCase();
+
+    return words.every(word =>
+      desc.includes(word) || dim.includes(word) || seg.includes(word) || cat.includes(word) || code.includes(word)
+    );
+  });
 
   const activeBorrows = movementRecords.filter(r =>
     (r.transactionType === "Borrow" || r.transactionType === "Reserved") && r.isReturned === false
@@ -632,66 +680,148 @@ function InventorySuppliesMovements() {
               </div>
             </div>
 
-            <div className={`p-4 rounded-xl border flex flex-col gap-1.5 relative ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
-              <label className={`block text-xs sm:text-sm font-bold uppercase leading-snug ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>Step 1: Type / Select Supplies (Optional)</label>
-              <div className="relative">
-                <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Search item code or details..."
-                  className={`w-full rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none transition-colors ${
-                    isDark
-                      ? 'bg-[#0e1017] border border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
-                      : 'bg-white border border-slate-200 text-slate-800 focus:border-[#18174e]'
-                  }`}
-                />
+            <div className={`p-4 rounded-xl border flex flex-col gap-2.5 relative ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <label className={`block text-xs sm:text-sm font-bold uppercase leading-snug ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                    Step 1: Type / Select Supplies for Movement
+                  </label>
+                  <p className="text-[11px] text-slate-400">
+                    Filter by category or search by item description and dimension.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsBrowseModalOpen(true)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-sm ${
+                      isDark ? 'bg-[#141622] border-slate-700 text-indigo-400 hover:bg-indigo-950/60' : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50'
+                    }`}
+                    title="Browse all supplies in a table view"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Browse Table</span>
+                  </button>
+                </div>
               </div>
+
+              {/* DUAL SEARCH & CATEGORY CONTROLS */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {/* 1. CATEGORY FILTER */}
+                <div className="sm:col-span-1">
+                  <select
+                    value={selectedCategory}
+                    onChange={e => setSelectedCategory(e.target.value)}
+                    className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none font-semibold cursor-pointer`}
+                  >
+                    <option value="All Categories">All Categories ({uniqueCategories.length})</option>
+                    {uniqueCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 2. SMART MULTI-ATTRIBUTE SEARCH */}
+                <div className="sm:col-span-2 relative">
+                  <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Search description, dimension, category, or code..."
+                    className={`w-full rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none transition-colors ${
+                      isDark
+                        ? 'bg-[#0e1017] border border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
+                        : 'bg-white border border-slate-200 text-slate-800 focus:border-[#18174e]'
+                    }`}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* SEARCH SUGGESTIONS DROPDOWN WITH PROMINENT DIMENSIONS */}
               {searchQuery && (
-                <div className={`absolute left-0 right-0 top-[102%] border rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 p-1 divide-y ${
+                <div className={`absolute left-0 right-0 top-[102%] border rounded-xl shadow-xl max-h-72 overflow-y-auto z-50 p-1 divide-y ${
                   isDark
                     ? 'bg-[#0e1017] border-slate-700 divide-slate-800 text-slate-200'
                     : 'bg-white border-slate-200 divide-slate-100 text-slate-800'
                 }`}>
                   {filteredSuggestions.length > 0 ? (
-                    filteredSuggestions.map(item => (
-                      <div
-                        key={item._id}
-                        onClick={() => handleSelectSupply(item)}
-                        className={`p-3 cursor-pointer flex flex-col gap-1 rounded-lg transition-colors ${
-                          isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className={`flex justify-between items-center font-bold text-sm gap-2 ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                          <div className="flex items-center gap-2 truncate">
-                            <span className={`text-xs font-medium lowercase italic truncate ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{item.UOM || 'pcs'}</span>
+                    filteredSuggestions.map(item => {
+                      const dimension = item.Dimension || item.Dimensions || item.dimension || item.dimensions;
+                      const segment = item.Segment || item.segment;
+                      const isAdded = manifestItems.some(i => i.supplyId === item._id);
+
+                      return (
+                        <div
+                          key={item._id}
+                          onClick={() => handleSelectSupply(item)}
+                          className={`p-2.5 cursor-pointer flex items-center justify-between gap-3 rounded-lg transition-colors ${
+                            isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'
+                          } ${isAdded ? 'opacity-60 bg-emerald-50/20' : ''}`}
+                        >
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} truncate`}>
+                                {item.ItemDescription}
+                              </span>
+                              {dimension && (
+                                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
+                                  isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                }`}>
+                                  {dimension}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                              }`}>
+                                {item.Category || item.category || 'Supply'}
+                              </span>
+                              {segment && (
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                                  isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                                }`}>
+                                  {segment}
+                                </span>
+                              )}
+                              <span className="font-mono text-[10px] text-slate-400">{item.Code}</span>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase flex-shrink-0">
-                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                              Good: {item.ConditionBreakdown?.Good ?? item.ActualCount ?? 0}
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                              Damaged: {item.ConditionBreakdown?.Damaged ?? item.DamagedCount ?? 0}
-                            </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex items-center gap-1 text-[10px] font-bold uppercase">
+                              <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                                Good: {item.ConditionBreakdown?.Good ?? item.ActualCount ?? 0}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                                Damaged: {item.ConditionBreakdown?.Damaged ?? item.DamagedCount ?? 0}
+                              </span>
+                            </div>
+                            {isAdded && (
+                              <span className="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                              </span>
+                            )}
                           </div>
                         </div>
-
-                        <span className={`font-semibold text-sm truncate ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{item.ItemDescription}</span>
-
-                        <div className={`flex flex-wrap items-center gap-1.5 text-[10px] font-medium pt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                          <span className={`px-1.5 py-0.5 rounded border ${isDark ? 'bg-[#141622] border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>Cat: {item.Category || item.category || 'Supply'}</span>
-                          {(item.Segment || item.segment) && <span className={`px-1.5 py-0.5 rounded border ${isDark ? 'bg-[#141622] border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>Seg: {item.Segment || item.segment}</span>}
-                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-                            <span className={`px-1.5 py-0.5 rounded font-mono border ${isDark ? 'bg-[#18174e]/40 border-indigo-500/30 text-indigo-300' : 'bg-indigo-50 text-indigo-700 border-indigo-100'}`}>Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
-                    <div className="text-center py-4 text-red-500 italic font-bold text-xs">
-                      No records found matching.
+                    <div className="p-4 text-center">
+                      <p className="text-rose-500 italic font-medium text-xs">
+                        No supplies found matching &ldquo;{searchQuery}&rdquo; {selectedCategory !== 'All Categories' ? `in ${selectedCategory}` : ''}.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1144,6 +1274,152 @@ function InventorySuppliesMovements() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+      {/* BROWSE ALL SUPPLIES MODAL */}
+      {isBrowseModalOpen && (
+        <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-4xl p-6 shadow-xl relative max-h-[90vh] flex flex-col gap-4 overflow-y-auto`}>
+            {/* Header */}
+            <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
+              <div className="flex items-center gap-2">
+                <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-base`}>
+                  Browse Supplies
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBrowseModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                  Filter by Category
+                </label>
+                <select
+                  value={modalCategoryFilter}
+                  onChange={e => setModalCategoryFilter(e.target.value)}
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600] cursor-pointer`}
+                >
+                  <option value="All Categories">All Categories ({uniqueCategories.length})</option>
+                  {uniqueCategories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                  Search Description, Dimension or Code
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={modalSearchQuery}
+                    onChange={e => setModalSearchQuery(e.target.value)}
+                    placeholder="Search description, dimension, category, or code..."
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className={`rounded-xl border overflow-x-auto overflow-y-auto flex-1 max-h-96 ${isDark ? 'border-slate-800 bg-[#090b10]' : 'border-slate-100 bg-white'}`}>
+              <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
+                <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#141622] text-slate-200' : 'bg-[#18174e] text-white'} font-bold uppercase text-[11px] whitespace-nowrap`}>
+                  <tr>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Item Description & Code</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Dimension</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Category / Segment</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Available Stock</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Action</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-100'}`}>
+                  {modalFilteredSupplies.length > 0 ? (
+                    modalFilteredSupplies.map(item => {
+                      const isAdded = manifestItems.some(i => i.supplyId === item._id);
+                      const dimension = item.Dimension || item.Dimensions || item.dimension || item.dimensions || '—';
+                      const category = item.Category || item.category || '—';
+                      const count = item.ActualCount || item.actualCount || item.AvailableStock || 0;
+
+                      return (
+                        <tr key={item._id} className={`${isDark ? 'hover:bg-slate-800/40 text-slate-300' : 'hover:bg-slate-50 text-slate-700'} transition-colors whitespace-nowrap`}>
+                          <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
+                            <div className="flex items-center gap-2 whitespace-nowrap">
+                              <span className="whitespace-nowrap">{item.ItemDescription}</span>
+                              <span className="font-mono text-[10px] text-slate-400 whitespace-nowrap">({item.Code})</span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
+                              isDark ? 'bg-amber-950/60 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'
+                            }`}>
+                              {dimension}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
+                              isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                            }`}>
+                              {category}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold font-mono whitespace-nowrap">
+                            {count} {item.UOM || 'pcs'}
+                          </td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            {isAdded ? (
+                              <span className="text-[11px] font-bold text-emerald-500 inline-flex items-center gap-1 whitespace-nowrap">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSelectSupply(item)}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
+                                  isDark ? 'bg-amber-950/60 border-amber-800 text-amber-400 hover:bg-amber-900/60' : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                                }`}
+                              >
+                                + Add
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-rose-500 italic whitespace-nowrap">
+                        No supplies found matching criteria.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
+            <div className={`flex items-center justify-between mt-2 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <span className="text-xs text-slate-400 whitespace-nowrap">
+                Showing {modalFilteredSupplies.length} of {dbSupplies.length} supplies
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsBrowseModalOpen(false)}
+                className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer whitespace-nowrap`}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

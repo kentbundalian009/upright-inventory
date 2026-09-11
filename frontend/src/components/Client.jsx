@@ -518,7 +518,6 @@ function Client() {
                           title={client.name}
                         >
                           <div className="flex items-center gap-2.5">
-                            <span className={`w-2 h-2 rounded-full ${client.isArchived ? 'bg-amber-500' : 'bg-emerald-500'} shrink-0`} />
                             <Truck className={`w-4 h-4 ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'} shrink-0`} />
                             <span className="font-bold text-sm">{client.name}</span>
                           </div>
@@ -592,7 +591,6 @@ function Client() {
                         title={client.name}
                       >
                         <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${client.isArchived ? 'bg-amber-500' : 'bg-emerald-500'} shrink-0`} />
                           <span className="font-bold">{client.name}</span>
                         </div>
                       </td>
@@ -600,10 +598,7 @@ function Client() {
                       {/* ADDRESS */}
                       <td className="py-3 px-4 whitespace-normal max-w-xs text-xs">
                         {client.address ? (
-                          <div className="flex items-start gap-1.5">
-                            <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
-                            <span className="font-medium">{client.address}</span>
-                          </div>
+                          <span className="font-medium">{client.address}</span>
                         ) : (
                           <span className="text-slate-400 italic">No address specified</span>
                         )}

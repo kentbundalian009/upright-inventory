@@ -13,11 +13,11 @@ const router = express.Router();
 router.use(protectRoute);
 
 router.route("/")
-  .get(restrictTo("Inventory", "Viewer"), getAllAssets)
+  .get(restrictTo("Inventory"), getAllAssets)
   .post(restrictTo("Inventory"), createAssets);
 
 router.route("/:id")
-  .get(restrictTo("Inventory", "Viewer"), getAssetsById)
+  .get(restrictTo("Inventory"), getAssetsById)
   .put(restrictTo("Inventory"), updateAssets)
   .delete(restrictTo("Inventory"), deleteAssets);
 

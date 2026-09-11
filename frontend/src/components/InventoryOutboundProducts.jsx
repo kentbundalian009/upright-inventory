@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2, Layers } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
@@ -40,6 +40,19 @@ function InventoryOutboundProducts() {
   const [manifestItems, setManifestItems] = useState([]);
   const [referencePlNo, setReferencePlNo] = useState('');
   const [preparedBy, setPreparedBy] = useState('System User');
+
+  const [selectedMaterialSegment, setSelectedMaterialSegment] = useState('All Segments');
+  const [isBrowseModalOpen, setIsBrowseModalOpen] = useState(false);
+  const [modalSearchQuery, setModalSearchQuery] = useState('');
+  const [modalSegmentFilter, setModalSegmentFilter] = useState('All Segments');
+
+  const uniqueSegments = Array.from(
+    new Set(
+      dbRawMaterials
+        .map(item => item.Segment || item.segment)
+        .filter(Boolean)
+    )
+  ).sort();
 
   const [existingCustomers, setExistingCustomers] = useState([]);
   const [existingCarriers, setExistingCarriers] = useState([]);
@@ -426,10 +439,41 @@ function InventoryOutboundProducts() {
     }
   };
 
-  const filteredRawMatSuggestions = dbRawMaterials.filter(item =>
-    item.Code?.toLowerCase().includes(rawMatSearchQuery.toLowerCase()) ||
-    item.ItemDescription?.toLowerCase().includes(rawMatSearchQuery.toLowerCase())
-  );
+  const filteredRawMatSuggestions = dbRawMaterials.filter(item => {
+    const matchesSegment = selectedMaterialSegment === 'All Segments' ||
+      (item.Segment && item.Segment.toLowerCase() === selectedMaterialSegment.toLowerCase());
+    if (!matchesSegment) return false;
+
+    if (!rawMatSearchQuery.trim()) return false;
+
+    const words = rawMatSearchQuery.toLowerCase().trim().split(/\s+/);
+    const desc = (item.ItemDescription || '').toLowerCase();
+    const dim = (item.Dimension || item.Dimensions || item.dimension || item.dimensions || '').toLowerCase();
+    const seg = (item.Segment || item.segment || '').toLowerCase();
+    const code = (item.Code || '').toLowerCase();
+
+    return words.every(word =>
+      desc.includes(word) || dim.includes(word) || seg.includes(word) || code.includes(word)
+    );
+  });
+
+  const modalFilteredMaterials = dbRawMaterials.filter(item => {
+    const matchesSegment = modalSegmentFilter === 'All Segments' ||
+      (item.Segment && item.Segment.toLowerCase() === modalSegmentFilter.toLowerCase());
+    if (!matchesSegment) return false;
+
+    if (!modalSearchQuery.trim()) return true;
+
+    const words = modalSearchQuery.toLowerCase().trim().split(/\s+/);
+    const desc = (item.ItemDescription || '').toLowerCase();
+    const dim = (item.Dimension || item.Dimensions || item.dimension || item.dimensions || '').toLowerCase();
+    const seg = (item.Segment || item.segment || '').toLowerCase();
+    const code = (item.Code || '').toLowerCase();
+
+    return words.every(word =>
+      desc.includes(word) || dim.includes(word) || seg.includes(word) || code.includes(word)
+    );
+  });
 
   const completedPlNumbers = plRecords
     .filter(r => r.transactionType?.toLowerCase() === "outbound" && r.referencePlNo)
@@ -615,30 +659,6 @@ function InventoryOutboundProducts() {
             {/* FORM FIELDS GRID */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <div>
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Slip Number</label>
-                <div className="relative">
-                  <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={referencePlNo ? `REF: ${referencePlNo}` : "[ AUTO-GENERATED ]"} disabled className={`w-full ${isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'} border rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none`} />
-                </div>
-              </div>
-
-              <div>
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Date Processed</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="date" value={shipmentDate} onChange={e => setShipmentDate(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} required />
-                </div>
-              </div>
-
-              <div>
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Prepared Name</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={preparedBy} disabled className={`w-full ${isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'} border rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none`} />
-                </div>
-              </div>
-
-              <div>
                 <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Customer Name *</label>
                 <select
                   value={customer}
@@ -653,7 +673,7 @@ function InventoryOutboundProducts() {
                     </option>
                   ))}
                   {registeredCustomers.length === 0 && (
-                    <option disabled value="">Walang registered customer (Pumunta sa Client Records)</option>
+                    <option disabled value="">No registered customer found (Go to Client Records)</option>
                   )}
                 </select>
               </div>
@@ -676,9 +696,17 @@ function InventoryOutboundProducts() {
                     <option value={carrier} className={isDark ? 'bg-[#141622] text-white' : ''}>{carrier}</option>
                   )}
                   {registeredLogistics.length === 0 && (
-                    <option disabled value="">Walang registered logistics (Pumunta sa Client Records)</option>
+                    <option disabled value="">No registered logistics found (Go to Client Records)</option>
                   )}
                 </select>
+              </div>
+
+              <div>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Date Processed</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input type="date" value={shipmentDate} onChange={e => setShipmentDate(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} required />
+                </div>
               </div>
 
               <div>
@@ -687,43 +715,154 @@ function InventoryOutboundProducts() {
                   type="text"
                   value={destinationAddress}
                   readOnly
-                  placeholder="Awtomatikong magfe-fetch mula sa napiling Customer..."
+                  placeholder="Automatically fetched from selected Customer..."
                   className={`w-full ${isDark ? 'bg-slate-900/70 border-slate-800 text-slate-300 placeholder:text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-700 placeholder:text-slate-400'} border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none cursor-not-allowed select-none`}
                 />
               </div>
+
+              <div>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Slip Number</label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input type="text" value={referencePlNo ? `REF: ${referencePlNo}` : "[ AUTO-GENERATED ]"} disabled className={`w-full ${isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'} border rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none`} />
+                </div>
+              </div>
+
+              <div>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Prepared Name</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input type="text" value={preparedBy} disabled className={`w-full ${isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'} border rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none`} />
+                </div>
+              </div>
             </div>
 
-            <div className={`${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border flex flex-col gap-1.5 relative`}>
-              <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-rose-400' : 'text-red-800'} uppercase leading-snug`}>Step 1: Type / Select Materials for Stock Deduction</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" value={rawMatSearchQuery} onChange={e => setRawMatSearchQuery(e.target.value)} placeholder="Search raw material code or description..." className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
+            <div className={`${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border flex flex-col gap-2.5 relative`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-rose-400' : 'text-red-800'} uppercase leading-snug`}>
+                    Step 1: Type / Select Materials for Stock Deduction
+                  </label>
+                  <p className="text-[11px] text-slate-400">
+                    Filter by segment or search by item description and dimension (e.g. beam 2700).
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsBrowseModalOpen(true)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-sm ${
+                      isDark ? 'bg-[#141622] border-slate-700 text-indigo-400 hover:bg-indigo-950/60' : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50'
+                    }`}
+                    title="Browse all materials in a table view"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Browse Table</span>
+                  </button>
+                </div>
               </div>
+
+              {/* DUAL SEARCH & SEGMENT CONTROLS */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {/* 1. SEGMENT FILTER */}
+                <div className="sm:col-span-1">
+                  <select
+                    value={selectedMaterialSegment}
+                    onChange={e => setSelectedMaterialSegment(e.target.value)}
+                    className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none font-semibold cursor-pointer`}
+                  >
+                    <option value="All Segments">All Segments ({uniqueSegments.length})</option>
+                    {uniqueSegments.map(seg => (
+                      <option key={seg} value={seg}>{seg}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 2. SMART MULTI-ATTRIBUTE SEARCH */}
+                <div className="sm:col-span-2 relative">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={rawMatSearchQuery}
+                    onChange={e => setRawMatSearchQuery(e.target.value)}
+                    placeholder="Search description, dimension (e.g. 2700, 50x50), or code..."
+                    className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none`}
+                  />
+                  {rawMatSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setRawMatSearchQuery('')}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* SEARCH SUGGESTIONS DROPDOWN WITH PROMINENT DIMENSIONS */}
               {rawMatSearchQuery && (
-                <div className={`absolute left-0 right-0 top-[102%] ${isDark ? 'bg-[#0e1017] border-slate-700 divide-slate-800 shadow-2xl' : 'bg-white border-slate-200 divide-slate-100 shadow-xl'} border rounded-xl max-h-64 overflow-y-auto z-50 divide-y p-1`}>
+                <div className={`absolute left-0 right-0 top-[102%] ${isDark ? 'bg-[#0e1017] border-slate-700 divide-slate-800 shadow-2xl' : 'bg-white border-slate-200 divide-slate-100 shadow-xl'} border rounded-xl max-h-72 overflow-y-auto z-50 divide-y p-1`}>
                   {filteredRawMatSuggestions.length > 0 ? (
-                    filteredRawMatSuggestions.map(item => (
-                      <div key={item._id} onClick={() => handleSelectRawMaterial(item)} className={`p-3 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex flex-col gap-1 rounded-lg transition-colors`}>
-                        <div className={`flex justify-between items-center font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm gap-2`}>
-                          <div className="flex items-center gap-2 truncate">
-                            <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-400'} lowercase italic truncate`}>{item.UOM || 'pcs'}</span>
+                    filteredRawMatSuggestions.map(item => {
+                      const dimension = item.Dimension || item.Dimensions || item.dimension || item.dimensions;
+                      const segment = item.Segment || item.segment;
+                      const count = item.ActualCount || item.actualCount || item.AvailableStock || 0;
+                      const isAdded = manifestItems.some(i => i.materialId === item._id || i.productId === item._id);
+
+                      return (
+                        <div
+                          key={item._id}
+                          onClick={() => handleSelectRawMaterial(item)}
+                          className={`p-2.5 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex items-center justify-between gap-3 rounded-lg transition-colors ${
+                            isAdded ? 'opacity-60 bg-emerald-50/20' : ''
+                          }`}
+                        >
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} truncate`}>
+                                {item.ItemDescription}
+                              </span>
+                              {dimension && (
+                                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
+                                  isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                }`}>
+                                  {dimension}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
+                              {segment && (
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                                  isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                                }`}>
+                                  {segment}
+                                </span>
+                              )}
+                              <span className="font-mono text-[10px] text-slate-400">{item.Code}</span>
+                            </div>
                           </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'} flex-shrink-0`}>
-                            Avail: {item.ActualCount || 0}
-                          </span>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-md font-bold uppercase ${
+                              isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            }`}>
+                              Avail: {count} {item.UOM || 'pcs'}
+                            </span>
+                            {isAdded && (
+                              <span className="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <span className={`${isDark ? 'text-slate-200' : 'text-slate-800'} font-semibold text-sm truncate`}>{item.ItemDescription}</span>
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-                          {(item.Segment || item.segment) && <span className={`${isDark ? 'bg-slate-800/60 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'} border px-1.5 py-0.5 rounded`}>Seg: {item.Segment || item.segment}</span>}
-                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-                            <span className={`${isDark ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/60' : 'bg-indigo-50 text-indigo-700 border-indigo-100'} border px-1.5 py-0.5 rounded font-mono`}>Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
-                    <div className="text-center py-4 text-red-500 italic font-bold text-xs">
-                      No records found matching.
+                    <div className="p-4 text-center">
+                      <p className="text-rose-500 italic font-medium text-xs">
+                        No materials found matching &ldquo;{rawMatSearchQuery}&rdquo; {selectedMaterialSegment !== 'All Segments' ? `in ${selectedMaterialSegment}` : ''}.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1090,7 +1229,7 @@ function InventoryOutboundProducts() {
                   Confirm Material {transactionType} Slip
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Paki-review ang mga detalye ng outbound shipment bago i-save sa registry.
+                  Please review the outbound shipment details before saving to the registry.
                 </p>
               </div>
               <button
@@ -1212,6 +1351,153 @@ function InventoryOutboundProducts() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* BROWSE ALL MATERIALS MODAL */}
+      {isBrowseModalOpen && (
+        <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-4xl p-6 shadow-xl relative max-h-[90vh] flex flex-col gap-4 overflow-y-auto`}>
+            {/* Header */}
+            <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
+              <div className="flex items-center gap-2">
+                <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-base`}>
+                  Browse Raw Materials
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBrowseModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                  Filter by Segment
+                </label>
+                <select
+                  value={modalSegmentFilter}
+                  onChange={e => setModalSegmentFilter(e.target.value)}
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600] cursor-pointer`}
+                >
+                  <option value="All Segments">All Segments ({uniqueSegments.length})</option>
+                  {uniqueSegments.map(seg => (
+                    <option key={seg} value={seg}>{seg}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                  Search Description, Dimension or Code
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={modalSearchQuery}
+                    onChange={e => setModalSearchQuery(e.target.value)}
+                    placeholder="Search description, dimension, segment, or code..."
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className={`rounded-xl border overflow-x-auto overflow-y-auto flex-1 max-h-96 ${isDark ? 'border-slate-800 bg-[#090b10]' : 'border-slate-100 bg-white'}`}>
+              <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
+                <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#141622] text-slate-200' : 'bg-[#18174e] text-white'} font-bold uppercase text-[11px] whitespace-nowrap`}>
+                  <tr>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Item Description & Code</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Dimension</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Segment</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Available Stock</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Action</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-100'}`}>
+                  {modalFilteredMaterials.length > 0 ? (
+                    modalFilteredMaterials.map(item => {
+                      const isAdded = manifestItems.some(i => i.materialId === item._id || i.productId === item._id);
+                      const dimension = item.Dimension || item.Dimensions || item.dimension || item.dimensions || '—';
+                      const segment = item.Segment || item.segment || '—';
+                      const count = item.ActualCount || item.actualCount || item.AvailableStock || 0;
+
+                      return (
+                        <tr key={item._id} className={`${isDark ? 'hover:bg-slate-800/40 text-slate-300' : 'hover:bg-slate-50 text-slate-700'} transition-colors whitespace-nowrap`}>
+                          <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
+                            <div className="flex items-center gap-2 whitespace-nowrap">
+                              <span className="whitespace-nowrap">{item.ItemDescription}</span>
+                              <span className="font-mono text-[10px] text-slate-400 whitespace-nowrap">({item.Code})</span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
+                              isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                            }`}>
+                              {dimension}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
+                              isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                            }`}>
+                              {segment}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold font-mono whitespace-nowrap">
+                            {count} {item.UOM || 'pcs'}
+                          </td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            {isAdded ? (
+                              <span className="text-[11px] font-bold text-emerald-500 inline-flex items-center gap-1 whitespace-nowrap">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSelectRawMaterial(item)}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
+                                  isDark ? 'bg-rose-950/60 border-rose-800 text-rose-400 hover:bg-rose-900/60' : 'bg-rose-50 border-rose-200 text-red-700 hover:bg-rose-100'
+                                }`}
+                              >
+                                + Add
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-rose-500 italic whitespace-nowrap">
+                        No materials found matching criteria.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
+            <div className={`flex items-center justify-between mt-2 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <span className="text-xs text-slate-400 whitespace-nowrap">
+                Showing {modalFilteredMaterials.length} of {dbRawMaterials.length} materials
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsBrowseModalOpen(false)}
+                className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer whitespace-nowrap`}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

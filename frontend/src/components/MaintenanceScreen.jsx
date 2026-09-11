@@ -81,7 +81,7 @@ function MaintenanceScreen({ maintenanceData, onCheckStatus }) {
             Access Temporarily Suspended
           </h2>
           <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-            Ang system ay kasalukuyang nakasara para sa <span className="font-bold text-[#ff8533] uppercase">{userRole}</span> role dahil sa isinasagawang administrative maintenance o ledger sync.
+            The system is currently unavailable for the <span className="font-bold text-[#ff8533] uppercase">{userRole}</span> role due to ongoing administrative maintenance or ledger synchronization.
           </p>
         </div>
 

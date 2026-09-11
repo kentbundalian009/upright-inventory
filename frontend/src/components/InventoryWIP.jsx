@@ -13,6 +13,7 @@ const API_BASE_URL = import.meta.env.MODE === 'production'
 const RAW_MAT_URL = `${API_BASE_URL}/raw-materials`;
 const PRODUCTS_URL = `${API_BASE_URL}/products`;
 const CONVERSION_URL = `${API_BASE_URL}/conversions`;
+const CLIENT_URL = `${API_BASE_URL}/clients`;
 
 function InventoryWIP() {
   const { isDark } = useTheme();
@@ -29,8 +30,10 @@ function InventoryWIP() {
   const [isSaving, setIsSaving] = useState(false);
 
   // WIP / Conversion Form States
-  const [productionType, setProductionType] = useState('Cutting');
+  const [productionType, setProductionType] = useState('Fabricated');
   const [dateProcessed, setDateProcessed] = useState(new Date().toISOString().split('T')[0]);
+  const [customer, setCustomer] = useState('');
+  const [registeredCustomers, setRegisteredCustomers] = useState([]);
   const [remarks, setRemarks] = useState('');
   const [preparedBy, setPreparedBy] = useState('System User');
 
@@ -41,6 +44,25 @@ function InventoryWIP() {
   // Custom Inline Toast Message States
   const [successMessage, setSuccessMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
+
+  // Segment and Browse Modals State
+  const [selectedInputSegment, setSelectedInputSegment] = useState('All Segments');
+  const [isInputBrowseModalOpen, setIsInputBrowseModalOpen] = useState(false);
+  const [inputModalSearchQuery, setInputModalSearchQuery] = useState('');
+  const [inputModalSegmentFilter, setInputModalSegmentFilter] = useState('All Segments');
+
+  const [selectedOutputSegment, setSelectedOutputSegment] = useState('All Segments');
+  const [isOutputBrowseModalOpen, setIsOutputBrowseModalOpen] = useState(false);
+  const [outputModalSearchQuery, setOutputModalSearchQuery] = useState('');
+  const [outputModalSegmentFilter, setOutputModalSegmentFilter] = useState('All Segments');
+
+  const uniqueSegments = Array.from(
+    new Set(
+      dbMaterials
+        .map(item => item.Segment || item.segment)
+        .filter(Boolean)
+    )
+  ).sort();
 
   // Auto-dismiss utility para sa mga custom toast alerts
   useEffect(() => {
@@ -59,14 +81,18 @@ function InventoryWIP() {
 
   const fetchData = async () => {
     try {
-      const [matsRes, prodsRes, convsRes] = await Promise.all([
+      const [matsRes, prodsRes, convsRes, clientsRes] = await Promise.all([
         axios.get(RAW_MAT_URL),
         axios.get(PRODUCTS_URL),
-        axios.get(CONVERSION_URL)
+        axios.get(CONVERSION_URL),
+        axios.get(`${CLIENT_URL}?type=Customer`).catch(() => ({ data: [] }))
       ]);
       setDbMaterials(matsRes.data || []);
       setDbProducts(prodsRes.data?.filter(p => !p.isArchived) || prodsRes.data || []);
       setConversionRecords(convsRes.data || []);
+      if (clientsRes?.data) {
+        setRegisteredCustomers(clientsRes.data);
+      }
     } catch (err) {
       console.error("Error loading registry data:", err);
       setErrorMessage("Failed to load data from the server.");
@@ -150,6 +176,11 @@ function InventoryWIP() {
     setSuccessMessage(null);
     setErrorMessage(null);
 
+    if (!customer) {
+      setErrorMessage("Please select a registered customer.");
+      return;
+    }
+
     if (inputMaterials.length === 0) {
       setErrorMessage("Please add at least one Raw Material input.");
       return;
@@ -182,7 +213,8 @@ function InventoryWIP() {
       productionType,
       dateProcessed,
       preparedBy,
-      remarks,
+      customer,
+      remarks: customer,
       inputs: inputMaterials.map(i => ({
         materialId: i.materialId,
         qtyUsed: Number(i.qtyUsed)
@@ -200,8 +232,9 @@ function InventoryWIP() {
         setSuccessMessage("WIP/Conversion executed successfully! Inventories realigned.");
         setInputMaterials([]);
         setOutputItems([]);
+        setCustomer('');
         setRemarks('');
-        setProductionType('Cutting');
+        setProductionType('Fabricated');
         setIsConfirmModalOpen(false);
         fetchData();
       }
@@ -242,8 +275,8 @@ function InventoryWIP() {
       doc.setFont("helvetica", "bold");
       doc.text("Process Mode:", 14, 49);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(79, 70, 229);
-      doc.text(`${selectedConversion.productionType}`, 45, 49);
+      doc.setTextColor(37, 99, 235);
+      doc.text(`${selectedConversion.productionType || 'Fabricated'}`, 45, 49);
 
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
@@ -252,9 +285,9 @@ function InventoryWIP() {
       doc.text(`${selectedConversion.preparedBy || preparedBy}`, 155, 49);
 
       doc.setFont("helvetica", "bold");
-      doc.text("Remarks/Notes:", 14, 56);
+      doc.text("Customer:", 14, 56);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedConversion.remarks || "No supplementary remarks recorded."}`, 45, 56);
+      doc.text(`${selectedConversion.customer || selectedConversion.remarks || "No customer recorded."}`, 45, 56);
 
       const tableColumns = ["Flow Direction", "Description", "Segment", "Dimension", "Quantity Shift", "UOM"];
       const tableRows = [];
@@ -371,26 +404,91 @@ function InventoryWIP() {
       });
 
       doc.save(`PRODUCTION_LOG_${selectedConversion.conversionNo}.pdf`);
-      setSuccessMessage("🎉 PDF Slip downloaded successfully.");
+      setSuccessMessage("PDF Slip downloaded successfully.");
     } catch (e) {
-      setErrorMessage("🚨 Nagka-problema sa pag-download ng PDF.");
+      setErrorMessage("Failed to download PDF slip.");
     }
   };
 
-  const filteredRawMatSuggestions = dbMaterials.filter(item =>
-    item.Code?.toLowerCase().includes(rawMatSearchQuery.toLowerCase()) ||
-    item.ItemDescription?.toLowerCase().includes(rawMatSearchQuery.toLowerCase())
-  );
+  const filteredRawMatSuggestions = dbMaterials.filter(item => {
+    const matchesSegment = selectedInputSegment === 'All Segments' ||
+      (item.Segment && item.Segment.toLowerCase() === selectedInputSegment.toLowerCase());
+    if (!matchesSegment) return false;
+
+    if (!rawMatSearchQuery.trim()) return false;
+
+    const words = rawMatSearchQuery.toLowerCase().trim().split(/\s+/);
+    const desc = (item.ItemDescription || '').toLowerCase();
+    const dim = (item.Dimension || item.Dimensions || item.dimension || item.dimensions || '').toLowerCase();
+    const seg = (item.Segment || item.segment || '').toLowerCase();
+    const code = (item.Code || '').toLowerCase();
+
+    return words.every(word =>
+      desc.includes(word) || dim.includes(word) || seg.includes(word) || code.includes(word)
+    );
+  });
+
+  const inputModalFilteredMaterials = dbMaterials.filter(item => {
+    const matchesSegment = inputModalSegmentFilter === 'All Segments' ||
+      (item.Segment && item.Segment.toLowerCase() === inputModalSegmentFilter.toLowerCase());
+    if (!matchesSegment) return false;
+
+    if (!inputModalSearchQuery.trim()) return true;
+
+    const words = inputModalSearchQuery.toLowerCase().trim().split(/\s+/);
+    const desc = (item.ItemDescription || '').toLowerCase();
+    const dim = (item.Dimension || item.Dimensions || item.dimension || item.dimensions || '').toLowerCase();
+    const seg = (item.Segment || item.segment || '').toLowerCase();
+    const code = (item.Code || '').toLowerCase();
+
+    return words.every(word =>
+      desc.includes(word) || dim.includes(word) || seg.includes(word) || code.includes(word)
+    );
+  });
 
   const filteredOutputSuggestions = dbMaterials.map(m => ({ ...m, type: 'RawMaterial' }))
-    .filter(item =>
-      item.Code?.toLowerCase().includes(outputSearchQuery.toLowerCase()) ||
-      item.ItemDescription?.toLowerCase().includes(outputSearchQuery.toLowerCase())
-    );
+    .filter(item => {
+      const matchesSegment = selectedOutputSegment === 'All Segments' ||
+        (item.Segment && item.Segment.toLowerCase() === selectedOutputSegment.toLowerCase());
+      if (!matchesSegment) return false;
+
+      if (!outputSearchQuery.trim()) return false;
+
+      const words = outputSearchQuery.toLowerCase().trim().split(/\s+/);
+      const desc = (item.ItemDescription || '').toLowerCase();
+      const dim = (item.Dimension || item.Dimensions || item.dimension || item.dimensions || '').toLowerCase();
+      const seg = (item.Segment || item.segment || '').toLowerCase();
+      const code = (item.Code || '').toLowerCase();
+
+      return words.every(word =>
+        desc.includes(word) || dim.includes(word) || seg.includes(word) || code.includes(word)
+      );
+    });
+
+  const outputModalFilteredMaterials = dbMaterials.map(m => ({ ...m, type: 'RawMaterial' }))
+    .filter(item => {
+      const matchesSegment = outputModalSegmentFilter === 'All Segments' ||
+        (item.Segment && item.Segment.toLowerCase() === outputModalSegmentFilter.toLowerCase());
+      if (!matchesSegment) return false;
+
+      if (!outputModalSearchQuery.trim()) return true;
+
+      const words = outputModalSearchQuery.toLowerCase().trim().split(/\s+/);
+      const desc = (item.ItemDescription || '').toLowerCase();
+      const dim = (item.Dimension || item.Dimensions || item.dimension || item.dimensions || '').toLowerCase();
+      const seg = (item.Segment || item.segment || '').toLowerCase();
+      const code = (item.Code || '').toLowerCase();
+
+      return words.every(word =>
+        desc.includes(word) || dim.includes(word) || seg.includes(word) || code.includes(word)
+      );
+    });
 
   const filteredConversionRecords = conversionRecords.filter(rec =>
     rec.conversionNo?.toLowerCase().includes(sidebarSearchQuery.toLowerCase()) ||
-    rec.productionType?.toLowerCase().includes(sidebarSearchQuery.toLowerCase())
+    rec.productionType?.toLowerCase().includes(sidebarSearchQuery.toLowerCase()) ||
+    rec.customer?.toLowerCase().includes(sidebarSearchQuery.toLowerCase()) ||
+    rec.remarks?.toLowerCase().includes(sidebarSearchQuery.toLowerCase())
   );
 
   return (
@@ -437,7 +535,40 @@ function InventoryWIP() {
           </div>
 
           <form onSubmit={handleInitiateConfirm} className="flex flex-col gap-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+
+            {/* COMPACT PRODUCTION TYPE CONTAINER */}
+            <div className={`px-3.5 py-2 rounded-xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 ${
+              isDark ? 'bg-[#141622]/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Production Type:
+                </span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
+                  isDark ? 'bg-blue-950/60 text-blue-400 border-blue-800' : 'bg-blue-50 text-blue-700 border-blue-200'
+                }`}>
+                  🔵 Fabricated
+                </span>
+              </div>
+
+              {/* ACTION TOGGLE BUTTONS */}
+              <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
+                <button
+                  type="button"
+                  onClick={() => setProductionType('Fabricated')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                    productionType === 'Fabricated'
+                      ? (isDark ? 'bg-blue-600 text-white border-blue-500 shadow-xs' : 'bg-blue-600 text-white border-blue-700 shadow-xs')
+                      : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
+                  }`}
+                >
+                  🔵 Fabricated
+                </button>
+              </div>
+            </div>
+
+            {/* FORM FIELDS GRID */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Control Number</label>
                 <div className="relative">
@@ -447,13 +578,22 @@ function InventoryWIP() {
               </div>
 
               <div>
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Production Type</label>
-                <select value={productionType} onChange={e => setProductionType(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-[#18174e]'} border rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none cursor-pointer`}>
-                  <option value="Cutting" className={isDark ? 'bg-[#141622] text-slate-200' : ''}>🟡 Cutting</option>
-                  <option value="Assembly" className={isDark ? 'bg-[#141622] text-slate-200' : ''}>🟢 Assembly</option>
-                  <option value="Fabrication" className={isDark ? 'bg-[#141622] text-slate-200' : ''}>🔵 Fabrication</option>
-                  <option value="Customization" className={isDark ? 'bg-[#141622] text-slate-200' : ''}>🟣 Customization</option>
-                  <option value="Repair" className={isDark ? 'bg-[#141622] text-slate-200' : ''}>🔴 Repair / Rework</option>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Customer Name *</label>
+                <select
+                  value={customer}
+                  onChange={e => setCustomer(e.target.value)}
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer font-medium`}
+                  required
+                >
+                  <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>-- Select Registered Customer --</option>
+                  {registeredCustomers.map((cust) => (
+                    <option key={cust._id} value={cust.name} className={isDark ? 'bg-[#141622] text-white' : ''}>
+                      {cust.name}
+                    </option>
+                  ))}
+                  {registeredCustomers.length === 0 && (
+                    <option disabled value="">No registered customer found (Go to Client Records)</option>
+                  )}
                 </select>
               </div>
 
@@ -463,11 +603,6 @@ function InventoryWIP() {
                   <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                   <input type="date" value={dateProcessed} onChange={e => setDateProcessed(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} required />
                 </div>
-              </div>
-
-              <div className="col-span-1 sm:col-span-2">
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Process Remarks</label>
-                <input type="text" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Enter any supplementary remarks or notes..." className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`} />
               </div>
 
               <div>
@@ -480,37 +615,132 @@ function InventoryWIP() {
             </div>
 
             {/* --- STEP 1: ALLOCATE RAW MATERIAL (INPUT) --- */}
-            <div className={`${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border flex flex-col gap-1.5 relative`}>
-              <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-rose-400' : 'text-red-800'} uppercase leading-snug`}>Step 1: Type / Select Materials for Stock Deduction</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" value={rawMatSearchQuery} onChange={e => setRawMatSearchQuery(e.target.value)} placeholder="Search raw material code or description..." className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
+            <div className={`${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border flex flex-col gap-2.5 relative`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-rose-400' : 'text-red-800'} uppercase leading-snug`}>
+                    Step 1: Type / Select Materials for Stock Deduction
+                  </label>
+                  <p className="text-[11px] text-slate-400">
+                    Filter by segment or search by item description and dimension (e.g. beam 2700).
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsInputBrowseModalOpen(true)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-sm ${
+                      isDark ? 'bg-[#141622] border-slate-700 text-indigo-400 hover:bg-indigo-950/60' : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50'
+                    }`}
+                    title="Browse all materials in a table view"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Browse Table</span>
+                  </button>
+                </div>
               </div>
+
+              {/* DUAL SEARCH & SEGMENT CONTROLS */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {/* 1. SEGMENT FILTER */}
+                <div className="sm:col-span-1">
+                  <select
+                    value={selectedInputSegment}
+                    onChange={e => setSelectedInputSegment(e.target.value)}
+                    className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none font-semibold cursor-pointer`}
+                  >
+                    <option value="All Segments">All Segments ({uniqueSegments.length})</option>
+                    {uniqueSegments.map(seg => (
+                      <option key={seg} value={seg}>{seg}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 2. SMART MULTI-ATTRIBUTE SEARCH */}
+                <div className="sm:col-span-2 relative">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={rawMatSearchQuery}
+                    onChange={e => setRawMatSearchQuery(e.target.value)}
+                    placeholder="Search description, dimension (e.g. 2700, 50x50), or code..."
+                    className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none`}
+                  />
+                  {rawMatSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setRawMatSearchQuery('')}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* SEARCH SUGGESTIONS DROPDOWN WITH PROMINENT DIMENSIONS */}
               {rawMatSearchQuery && (
-                <div className={`absolute left-0 right-0 top-[102%] ${isDark ? 'bg-[#0e1017] border-slate-700 divide-slate-800 shadow-2xl' : 'bg-white border-slate-200 divide-slate-100 shadow-xl'} border rounded-xl max-h-64 overflow-y-auto z-50 divide-y p-1`}>
+                <div className={`absolute left-0 right-0 top-[102%] ${isDark ? 'bg-[#0e1017] border-slate-700 divide-slate-800 shadow-2xl' : 'bg-white border-slate-200 divide-slate-100 shadow-xl'} border rounded-xl max-h-72 overflow-y-auto z-50 divide-y p-1`}>
                   {filteredRawMatSuggestions.length > 0 ? (
-                    filteredRawMatSuggestions.map(item => (
-                      <div key={item._id} onClick={() => handleSelectRawMaterial(item)} className={`p-3 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex flex-col gap-1 rounded-lg transition-colors`}>
-                        <div className={`flex justify-between items-center font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm gap-2`}>
-                          <div className="flex items-center gap-2 truncate">
-                            <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-400'} lowercase italic truncate`}>{item.UOM || 'pcs'}</span>
+                    filteredRawMatSuggestions.map(item => {
+                      const dimension = item.Dimension || item.Dimensions || item.dimension || item.dimensions;
+                      const segment = item.Segment || item.segment;
+                      const count = item.ActualCount || item.actualCount || item.AvailableStock || 0;
+                      const isAdded = inputMaterials.some(i => i.materialId === item._id);
+
+                      return (
+                        <div
+                          key={item._id}
+                          onClick={() => handleSelectRawMaterial(item)}
+                          className={`p-2.5 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex items-center justify-between gap-3 rounded-lg transition-colors ${
+                            isAdded ? 'opacity-60 bg-emerald-50/20' : ''
+                          }`}
+                        >
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} truncate`}>
+                                {item.ItemDescription}
+                              </span>
+                              {dimension && (
+                                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
+                                  isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                }`}>
+                                  {dimension}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
+                              {segment && (
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                                  isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                                }`}>
+                                  {segment}
+                                </span>
+                              )}
+                              <span className="font-mono text-[10px] text-slate-400">{item.Code}</span>
+                            </div>
                           </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'} flex-shrink-0`}>
-                            Avail: {item.ActualCount || 0}
-                          </span>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-md font-bold uppercase ${
+                              isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            }`}>
+                              Avail: {count} {item.UOM || 'pcs'}
+                            </span>
+                            {isAdded && (
+                              <span className="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <span className={`${isDark ? 'text-slate-200' : 'text-slate-800'} font-semibold text-sm truncate`}>{item.ItemDescription}</span>
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-                          {(item.Segment || item.segment) && <span className={`${isDark ? 'bg-slate-800/60 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'} border px-1.5 py-0.5 rounded`}>Seg: {item.Segment || item.segment}</span>}
-                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-                            <span className={`${isDark ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/60' : 'bg-indigo-50 text-indigo-700 border-indigo-100'} border px-1.5 py-0.5 rounded font-mono`}>Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
-                    <div className="text-center py-4 text-red-500 italic font-bold text-xs">
-                      No records found matching.
+                    <div className="p-4 text-center">
+                      <p className="text-rose-500 italic font-medium text-xs">
+                        No materials found matching &ldquo;{rawMatSearchQuery}&rdquo; {selectedInputSegment !== 'All Segments' ? `in ${selectedInputSegment}` : ''}.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -601,37 +831,131 @@ function InventoryWIP() {
             </div>
 
             {/* --- STEP 2: CONVERSION TARGET (RAW MATERIALS ONLY) --- */}
-            <div className={`${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border flex flex-col gap-1.5 relative`}>
-              <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-800'} uppercase leading-snug`}>Step 2: Type / Select Materials for Stock Addition</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input type="text" value={outputSearchQuery} onChange={e => setOutputSearchQuery(e.target.value)} placeholder="Search profile code (returns raw materials details)..." className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
+            <div className={`${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border flex flex-col gap-2.5 relative`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-800'} uppercase leading-snug`}>
+                    Step 2: Type / Select Materials for Stock Addition
+                  </label>
+                  <p className="text-[11px] text-slate-400">
+                    Filter by segment or search by item description and dimension (e.g. beam 2700).
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsOutputBrowseModalOpen(true)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-sm ${
+                      isDark ? 'bg-[#141622] border-slate-700 text-emerald-400 hover:bg-emerald-950/60' : 'bg-white border-slate-200 text-emerald-700 hover:bg-emerald-50'
+                    }`}
+                    title="Browse all materials in a table view"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Browse Table</span>
+                  </button>
+                </div>
               </div>
+
+              {/* DUAL SEARCH & SEGMENT CONTROLS */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {/* 1. SEGMENT FILTER */}
+                <div className="sm:col-span-1">
+                  <select
+                    value={selectedOutputSegment}
+                    onChange={e => setSelectedOutputSegment(e.target.value)}
+                    className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none font-semibold cursor-pointer`}
+                  >
+                    <option value="All Segments">All Segments ({uniqueSegments.length})</option>
+                    {uniqueSegments.map(seg => (
+                      <option key={seg} value={seg}>{seg}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 2. SMART MULTI-ATTRIBUTE SEARCH */}
+                <div className="sm:col-span-2 relative">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={outputSearchQuery}
+                    onChange={e => setOutputSearchQuery(e.target.value)}
+                    placeholder="Search description, dimension (e.g. 2700, 50x50), or code..."
+                    className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none`}
+                  />
+                  {outputSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setOutputSearchQuery('')}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* SEARCH SUGGESTIONS DROPDOWN WITH PROMINENT DIMENSIONS */}
               {outputSearchQuery && (
-                <div className={`absolute left-0 right-0 top-[102%] ${isDark ? 'bg-[#0e1017] border-slate-700 divide-slate-800 shadow-2xl' : 'bg-white border-slate-200 divide-slate-100 shadow-xl'} border rounded-xl max-h-64 overflow-y-auto z-50 divide-y p-1`}>
+                <div className={`absolute left-0 right-0 top-[102%] ${isDark ? 'bg-[#0e1017] border-slate-700 divide-slate-800 shadow-2xl' : 'bg-white border-slate-200 divide-slate-100 shadow-xl'} border rounded-xl max-h-72 overflow-y-auto z-50 divide-y p-1`}>
                   {filteredOutputSuggestions.length > 0 ? (
-                    filteredOutputSuggestions.map(item => (
-                      <div key={`${item.type}-${item._id}`} onClick={() => handleSelectOutputItem(item, item.type)} className={`p-3 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex flex-col gap-1 rounded-lg transition-colors`}>
-                        <div className={`flex justify-between items-center font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm gap-2`}>
-                          <div className="flex items-center gap-2 truncate">
-                            <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-400'} lowercase italic truncate`}>{item.UOM || 'pcs'}</span>
+                    filteredOutputSuggestions.map(item => {
+                      const dimension = item.Dimension || item.Dimensions || item.dimension || item.dimensions;
+                      const segment = item.Segment || item.segment;
+                      const isAdded = outputItems.some(o => o.itemId === item._id);
+
+                      return (
+                        <div
+                          key={`${item.type}-${item._id}`}
+                          onClick={() => handleSelectOutputItem(item, item.type)}
+                          className={`p-2.5 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex items-center justify-between gap-3 rounded-lg transition-colors ${
+                            isAdded ? 'opacity-60 bg-emerald-50/20' : ''
+                          }`}
+                        >
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} truncate`}>
+                                {item.ItemDescription}
+                              </span>
+                              {dimension && (
+                                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
+                                  isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                }`}>
+                                  {dimension}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
+                              {segment && (
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                                  isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                                }`}>
+                                  {segment}
+                                </span>
+                              )}
+                              <span className="font-mono text-[10px] text-slate-400">{item.Code}</span>
+                            </div>
                           </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${isDark ? 'bg-amber-950/60 text-amber-400 border border-amber-800' : 'bg-amber-100 text-amber-800 border border-amber-200'} flex-shrink-0`}>
-                            Raw Mat Return
-                          </span>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${
+                              isDark ? 'bg-amber-950/60 text-amber-400 border border-amber-800' : 'bg-amber-100 text-amber-800 border border-amber-200'
+                            }`}>
+                              Return
+                            </span>
+                            {isAdded && (
+                              <span className="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <span className={`${isDark ? 'text-slate-200' : 'text-slate-800'} font-semibold text-sm truncate`}>{item.ItemDescription}</span>
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-medium pt-0.5">
-                          {(item.Segment || item.segment) && <span className={`${isDark ? 'bg-slate-800/60 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'} border px-1.5 py-0.5 rounded`}>Seg: {item.Segment || item.segment}</span>}
-                          {(item.Dimensions || item.dimensions || item.Dimension || item.dimension) && (
-                            <span className={`${isDark ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/60' : 'bg-indigo-50 text-indigo-700 border-indigo-100'} border px-1.5 py-0.5 rounded font-mono`}>Dim: {item.Dimensions || item.dimensions || item.Dimension || item.dimension}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
-                    <div className="text-center py-4 text-red-500 italic font-bold text-xs">
-                      No records found matching.
+                    <div className="p-4 text-center">
+                      <p className="text-rose-500 italic font-medium text-xs">
+                        No materials found matching &ldquo;{outputSearchQuery}&rdquo; {selectedOutputSegment !== 'All Segments' ? `in ${selectedOutputSegment}` : ''}.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -743,9 +1067,9 @@ function InventoryWIP() {
                 <div key={rec._id} onClick={() => { setSelectedConversion(rec); setIsModalOpen(true); }} className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}>
                   <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
                     <span className={`text-xs font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'}`}>{rec.conversionNo}</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${isDark ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-800' : 'bg-indigo-50 text-indigo-600'}`}>{rec.productionType}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${isDark ? 'bg-blue-950/60 text-blue-300 border border-blue-800' : 'bg-blue-50 text-blue-600'}`}>{rec.productionType}</span>
                   </div>
-                  <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`}>{rec.remarks || 'No Tracking Notes'}</span>
+                  <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`}>{rec.customer || rec.remarks || 'No Customer Specified'}</span>
                   <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{rec.dateProcessed ? new Date(rec.dateProcessed).toLocaleDateString() : 'No Date'}</span>
                 </div>
               ))
@@ -784,9 +1108,9 @@ function InventoryWIP() {
       <div className={`grid grid-cols-2 text-sm gap-2 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border`}>
         <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Control Tracking No:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.conversionNo}</span></div>
         <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Execution Date:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.dateProcessed ? new Date(selectedConversion.dateProcessed).toLocaleDateString() : '-'}</span></div>
-        <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Production Type:</span> <span className={`font-bold ${isDark ? 'text-indigo-400 bg-indigo-950/60 border-indigo-800' : 'text-indigo-600 bg-indigo-50 border-indigo-100'} uppercase text-xs px-2 py-0.5 rounded-md border inline-block`}>{selectedConversion.productionType}</span></div>
+        <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Production Type:</span> <span className={`font-bold ${isDark ? 'text-blue-400 bg-blue-950/60 border-blue-800' : 'text-blue-600 bg-blue-50 border-blue-100'} uppercase text-xs px-2 py-0.5 rounded-md border inline-block`}>{selectedConversion.productionType}</span></div>
         <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Prepared By:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.preparedBy || 'N/A'}</span></div>
-        <div className="col-span-2"><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Remarks:</span> <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{selectedConversion.remarks || 'N/A'}</span></div>
+        <div className="col-span-2"><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Customer:</span> <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{selectedConversion.customer || selectedConversion.remarks || 'N/A'}</span></div>
       </div>
 
       <div className={`max-h-80 overflow-y-auto border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm flex flex-col overflow-x-auto`}>
@@ -902,8 +1226,8 @@ function InventoryWIP() {
             <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border text-xs ${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Production Mode</span>
-                <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block ${isDark ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-800' : 'bg-indigo-50 text-indigo-600 border border-indigo-200'}`}>
-                  {productionType}
+                <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block ${isDark ? 'bg-blue-950/60 text-blue-300 border border-blue-800' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+                  🔵 {productionType}
                 </span>
               </div>
               <div>
@@ -915,8 +1239,8 @@ function InventoryWIP() {
                 <span className="font-semibold">{preparedBy}</span>
               </div>
               <div className="sm:col-span-3">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Remarks / Tracking Notes</span>
-                <span className="font-semibold">{remarks || 'No notes specified.'}</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Customer Name</span>
+                <span className="font-semibold">{customer || '—'}</span>
               </div>
             </div>
 
@@ -1029,6 +1353,287 @@ function InventoryWIP() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* STEP 1 BROWSE MODAL (INPUT DEDUCTION) */}
+      {isInputBrowseModalOpen && (
+        <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-4xl p-6 shadow-xl relative max-h-[90vh] flex flex-col gap-4 overflow-y-auto`}>
+            <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
+              <div className="flex items-center gap-2">
+                <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-base`}>
+                  Browse Raw Materials (Step 1: Stock Deduction)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsInputBrowseModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                  Filter by Segment
+                </label>
+                <select
+                  value={inputModalSegmentFilter}
+                  onChange={e => setInputModalSegmentFilter(e.target.value)}
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600] cursor-pointer`}
+                >
+                  <option value="All Segments">All Segments ({uniqueSegments.length})</option>
+                  {uniqueSegments.map(seg => (
+                    <option key={seg} value={seg}>{seg}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                  Search Description, Dimension or Code
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={inputModalSearchQuery}
+                    onChange={e => setInputModalSearchQuery(e.target.value)}
+                    placeholder="Search description, dimension, segment, or code..."
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={`rounded-xl border overflow-x-auto overflow-y-auto flex-1 max-h-96 ${isDark ? 'border-slate-800 bg-[#090b10]' : 'border-slate-100 bg-white'}`}>
+              <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
+                <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#141622] text-slate-200' : 'bg-[#18174e] text-white'} font-bold uppercase text-[11px] whitespace-nowrap`}>
+                  <tr>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Item Description & Code</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Dimension</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Segment</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Available Stock</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Action</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-100'}`}>
+                  {inputModalFilteredMaterials.length > 0 ? (
+                    inputModalFilteredMaterials.map(item => {
+                      const isAdded = inputMaterials.some(i => i.materialId === item._id);
+                      const dimension = item.Dimension || item.Dimensions || item.dimension || item.dimensions || '—';
+                      const segment = item.Segment || item.segment || '—';
+                      const count = item.ActualCount || item.actualCount || item.AvailableStock || 0;
+
+                      return (
+                        <tr key={item._id} className={`${isDark ? 'hover:bg-slate-800/40 text-slate-300' : 'hover:bg-slate-50 text-slate-700'} transition-colors whitespace-nowrap`}>
+                          <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
+                            <div className="flex items-center gap-2 whitespace-nowrap">
+                              <span className="whitespace-nowrap">{item.ItemDescription}</span>
+                              <span className="font-mono text-[10px] text-slate-400 whitespace-nowrap">({item.Code})</span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
+                              isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                            }`}>
+                              {dimension}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
+                              isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                            }`}>
+                              {segment}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold font-mono whitespace-nowrap">
+                            {count} {item.UOM || 'pcs'}
+                          </td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            {isAdded ? (
+                              <span className="text-[11px] font-bold text-emerald-500 inline-flex items-center gap-1 whitespace-nowrap">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSelectRawMaterial(item)}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
+                                  isDark ? 'bg-rose-950/60 border-rose-800 text-rose-400 hover:bg-rose-900/60' : 'bg-rose-50 border-rose-200 text-red-700 hover:bg-rose-100'
+                                }`}
+                              >
+                                + Add
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-rose-500 italic whitespace-nowrap">
+                        No materials found matching criteria.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className={`flex items-center justify-between mt-2 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <span className="text-xs text-slate-400 whitespace-nowrap">
+                Showing {inputModalFilteredMaterials.length} of {dbMaterials.length} materials
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsInputBrowseModalOpen(false)}
+                className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer whitespace-nowrap`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 2 BROWSE MODAL (OUTPUT RETURN / ADDITION) */}
+      {isOutputBrowseModalOpen && (
+        <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-4xl p-6 shadow-xl relative max-h-[90vh] flex flex-col gap-4 overflow-y-auto`}>
+            <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
+              <div className="flex items-center gap-2">
+                <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-base`}>
+                  Browse Raw Materials (Step 2: Stock Addition)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOutputBrowseModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                  Filter by Segment
+                </label>
+                <select
+                  value={outputModalSegmentFilter}
+                  onChange={e => setOutputModalSegmentFilter(e.target.value)}
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600] cursor-pointer`}
+                >
+                  <option value="All Segments">All Segments ({uniqueSegments.length})</option>
+                  {uniqueSegments.map(seg => (
+                    <option key={seg} value={seg}>{seg}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                  Search Description, Dimension or Code
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={outputModalSearchQuery}
+                    onChange={e => setOutputModalSearchQuery(e.target.value)}
+                    placeholder="Search description, dimension, segment, or code..."
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={`rounded-xl border overflow-x-auto overflow-y-auto flex-1 max-h-96 ${isDark ? 'border-slate-800 bg-[#090b10]' : 'border-slate-100 bg-white'}`}>
+              <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
+                <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#141622] text-slate-200' : 'bg-[#18174e] text-white'} font-bold uppercase text-[11px] whitespace-nowrap`}>
+                  <tr>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Item Description & Code</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Dimension</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Segment</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Action</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-100'}`}>
+                  {outputModalFilteredMaterials.length > 0 ? (
+                    outputModalFilteredMaterials.map(item => {
+                      const isAdded = outputItems.some(o => o.itemId === item._id);
+                      const dimension = item.Dimension || item.Dimensions || item.dimension || item.dimensions || '—';
+                      const segment = item.Segment || item.segment || '—';
+
+                      return (
+                        <tr key={item._id} className={`${isDark ? 'hover:bg-slate-800/40 text-slate-300' : 'hover:bg-slate-50 text-slate-700'} transition-colors whitespace-nowrap`}>
+                          <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
+                            <div className="flex items-center gap-2 whitespace-nowrap">
+                              <span className="whitespace-nowrap">{item.ItemDescription}</span>
+                              <span className="font-mono text-[10px] text-slate-400 whitespace-nowrap">({item.Code})</span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
+                              isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                            }`}>
+                              {dimension}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
+                              isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                            }`}>
+                              {segment}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            {isAdded ? (
+                              <span className="text-[11px] font-bold text-emerald-500 inline-flex items-center gap-1 whitespace-nowrap">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSelectOutputItem(item, item.type)}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
+                                  isDark ? 'bg-emerald-950/60 border-emerald-800 text-emerald-400 hover:bg-emerald-900/60' : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                                }`}
+                              >
+                                + Add
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="py-8 text-center text-rose-500 italic whitespace-nowrap">
+                        No materials found matching criteria.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className={`flex items-center justify-between mt-2 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <span className="text-xs text-slate-400 whitespace-nowrap">
+                Showing {outputModalFilteredMaterials.length} of {dbMaterials.length} materials
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsOutputBrowseModalOpen(false)}
+                className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer whitespace-nowrap`}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

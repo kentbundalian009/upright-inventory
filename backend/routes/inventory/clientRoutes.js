@@ -16,7 +16,7 @@ router.use(protectRoute);
 
 router
   .route("/")
-  .get(restrictTo("Admin", "Inventory", "Viewer"), getAllClients)
+  .get(restrictTo("Admin", "Inventory"), getAllClients)
   .post(restrictTo("Admin", "Inventory"), createClient);
 
 router
@@ -29,7 +29,7 @@ router
 
 router
   .route("/:id")
-  .get(restrictTo("Admin", "Inventory", "Viewer"), getClientById)
+  .get(restrictTo("Admin", "Inventory"), getClientById)
   .put(restrictTo("Admin", "Inventory"), updateClient)
   .delete(restrictTo("Admin", "Inventory"), deleteClient);
 

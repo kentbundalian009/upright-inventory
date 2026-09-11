@@ -34,6 +34,9 @@ const router = express.Router();
 // 🖼️ Public & Browser-Cacheable Image Endpoint (walang Bearer header na kailangan ang <img> tags)
 router.get("/:id/image", getRawMaterialImage);
 
+// 🔗 Public Read-Only Endpoint for Shared Link Viewers
+router.get("/shared", getAllRawMaterials);
+
 router.use(protectRoute);
 
 router.route("/")

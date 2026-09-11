@@ -24,10 +24,10 @@ export const createConversion = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { productionType, dateProcessed, preparedBy, remarks, inputs, outputs } = req.body;
+    const { productionType, dateProcessed, preparedBy, remarks, customer, inputs, outputs } = req.body;
 
     if (!inputs || inputs.length === 0 || !outputs || outputs.length === 0) {
-      throw new Error("Kailangan may laman ang Inputs (Raw Materials) at Outputs (Finished Goods / Returns).");
+      throw new Error("Inputs (Raw Materials) and Outputs (Finished Goods / Returns) cannot be empty.");
     }
 
     const currentYear = new Date().getFullYear();
@@ -46,11 +46,11 @@ export const createConversion = async (req, res) => {
       const material = await RawMaterial.findById(input.materialId).session(session);
       
       if (!material) {
-        throw new Error(`Raw Material Registry ID [${input.materialId}] hindi matagpuan sa imbentaryo.`);
+        throw new Error(`Raw Material Registry ID [${input.materialId}] not found in inventory.`);
       }
       
       if (material.ActualCount < input.qtyUsed) {
-        throw new Error(`Kulang ang stock para sa ${material.Code}. Kasalukuyan: ${material.ActualCount}, Kailangan: ${input.qtyUsed}`);
+        throw new Error(`Insufficient stock for ${material.Code}. Available: ${material.ActualCount}, Required: ${input.qtyUsed}`);
       }
 
       material.ActualCount -= Number(input.qtyUsed);
@@ -67,18 +67,21 @@ export const createConversion = async (req, res) => {
       }
       
       if (!targetItem) {
-        throw new Error(`Target ${output.itemType} ID [${output.itemId}] hindi rehistrado sa system records.`);
+        throw new Error(`Target ${output.itemType} ID [${output.itemId}] not found in system records.`);
       }
 
       targetItem.ActualCount = (targetItem.ActualCount || 0) + Number(output.qtyProduced);
       await targetItem.save({ session });
     }
 
+    const customerVal = customer?.trim() || remarks?.trim() || '';
+
     const newConversionLog = new Conversion({
       conversionNo,
       productionType,
       dateProcessed: dateProcessed || new Date(),
-      remarks: remarks?.trim(),
+      customer: customerVal,
+      remarks: customerVal,
       preparedBy: preparedBy?.trim(),
       inputs,
       outputs
@@ -91,7 +94,7 @@ export const createConversion = async (req, res) => {
 
     res.status(201).json({ 
       success: true, 
-      message: `Production Transaksyon (${conversionNo}) ay matagumpay na naitala!`, 
+      message: `Production transaction (${conversionNo}) recorded successfully!`, 
       data: newConversionLog 
     });
 

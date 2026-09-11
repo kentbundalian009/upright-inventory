@@ -53,6 +53,11 @@ const rawMaterialSchema = new mongoose.Schema(
       trim: true,
       default: "N/A"
     },
+    AcquisitionCost: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
     isArchived: {
       type: Boolean,
       default: false

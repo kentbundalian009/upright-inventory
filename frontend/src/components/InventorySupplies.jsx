@@ -7,7 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 function InventorySupplies() {
   const { isDark } = useTheme();
   const userRole = localStorage.getItem("SystemRole") || "Inventory";
-  const isViewer = userRole?.toLowerCase() === 'viewer';
+  const isViewer = false;
 
   const [suppliesList, setSuppliesList] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -15,6 +15,7 @@ export const getAllRawMaterials = async (req, res) => {
           UOM: 1,
           Condition: 1,
           AccountTo: 1,
+          AcquisitionCost: 1,
           isArchived: 1,
           createdAt: 1,
           updatedAt: 1,
@@ -76,7 +77,7 @@ export const getRawMaterialById = async (req, res) => {
 
 export const createRawMaterial = async (req, res) => {
   try {
-    const { Code, Category, Segment, ItemDescription, Dimension, UOM, AccountTo } = req.body;
+    const { Code, Category, Segment, ItemDescription, Dimension, UOM, AccountTo, AcquisitionCost } = req.body;
 
     if (!ItemDescription || !UOM) {
       return res.status(400).json({ 
@@ -116,6 +117,7 @@ export const createRawMaterial = async (req, res) => {
       UOM: UOM.trim(),
       Condition: "Good",
       AccountTo: AccountTo?.trim() || "N/A",
+      AcquisitionCost: Number(AcquisitionCost) >= 0 ? Number(AcquisitionCost) : 0,
       isArchived: false
     });
 
@@ -128,7 +130,7 @@ export const createRawMaterial = async (req, res) => {
 export const updateRawMaterial = async (req, res) => {
   try {
     const { id } = req.params;
-    const { Code, Category, Segment, ItemDescription, Dimension, ActualCount, UOM, Condition, AccountTo } = req.body;
+    const { Code, Category, Segment, ItemDescription, Dimension, ActualCount, UOM, Condition, AccountTo, AcquisitionCost } = req.body;
 
     if (Code) {
       const duplicateCheck = await RawMaterial.findOne({
@@ -163,6 +165,7 @@ export const updateRawMaterial = async (req, res) => {
         UOM: UOM?.trim(),
         Condition,
         AccountTo: AccountTo?.trim(),
+        ...(AcquisitionCost !== undefined && { AcquisitionCost: Number(AcquisitionCost) >= 0 ? Number(AcquisitionCost) : 0 })
       },
       { new: true, runValidators: true }
     );
