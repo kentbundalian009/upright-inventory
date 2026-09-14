@@ -594,204 +594,67 @@ function InventorySuppliesMovements() {
         }}
       />
 
-      {/* HEADER WITH ACTION BUTTONS */}
+      {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <PageHeader activeTab="supplies-movements" />
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setIsBrowseModalOpen(true)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm border transition-all cursor-pointer shadow-sm shrink-0 ${
-              isDark
-                ? 'bg-[#141622] border-slate-700 text-amber-400 hover:border-amber-500 hover:bg-amber-950/20'
-                : 'bg-white border-slate-200 text-[#18174e] hover:bg-slate-50 hover:border-[#18174e]'
-            }`}
-          >
-            <Layers className="w-4 h-4 text-amber-500" />
-            <span>Browse All Supplies</span>
-            <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
-              isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-            }`}>
-              {dbSupplies.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsHistoryModalOpen(true)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm border transition-all cursor-pointer shadow-sm shrink-0 ${
-              isDark
-                ? 'bg-[#141622] border-slate-700 text-slate-200 hover:border-[#ff6600] hover:text-[#ff6600]'
-                : 'bg-white border-slate-200 text-[#18174e] hover:bg-slate-50 hover:border-[#18174e]'
-            }`}
-          >
-            <ClipboardList className="w-4 h-4 text-[#ff6600]" />
-            <span>History Logs</span>
-            <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
-              isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-            }`}>
-              {movementRecords.length}
-            </span>
-          </button>
-        </div>
       </div>
-
-      {/* ACTIVE BORROW & RESERVED RECORDS TABLE */}
-      {activeBorrows.length > 0 && (
-        <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200'} border rounded-2xl p-4 sm:p-5 flex flex-col gap-3.5 shadow-sm`}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 dark:border-slate-800 border-slate-100">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500">
-                <ArrowLeftRight className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className={`text-xs sm:text-sm font-bold uppercase tracking-wide ${isDark ? 'text-white' : 'text-[#18174e]'}`}>
-                  Active Borrow & Reserved Records ({activeBorrows.length})
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  Select an active borrow or reserved record to fulfill return or deploy transaction
-                </p>
-              </div>
-            </div>
-
-            <div className="relative w-full sm:w-72">
-              <Search className={`absolute left-3 top-2.5 w-3.5 h-3.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-              <input
-                type="text"
-                placeholder="Filter by Slip No or Personnel..."
-                value={quickReturnSearch}
-                onChange={(e) => setQuickReturnSearch(e.target.value)}
-                className={`w-full rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none transition-colors ${
-                  isDark
-                    ? 'bg-[#141622] border border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
-                    : 'bg-slate-50 border border-slate-200 text-slate-800 focus:border-[#18174e] placeholder-slate-400'
-                }`}
-              />
-            </div>
-          </div>
-
-          <div className="overflow-x-auto rounded-xl border dark:border-slate-800 border-slate-200 max-h-72 overflow-y-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#141622] text-slate-300' : 'bg-slate-100 text-slate-700'} font-bold uppercase text-[11px] whitespace-nowrap`}>
-                <tr>
-                  <th className="py-2.5 px-3">Slip No</th>
-                  <th className="py-2.5 px-3">Date Borrow</th>
-                  <th className="py-2.5 px-3">Time</th>
-                  <th className="py-2.5 px-3">Personnel</th>
-                  <th className="py-2.5 px-3">Supplies Items</th>
-                  <th className="py-2.5 px-3">Reason / Purpose</th>
-                  <th className="py-2.5 px-3 text-center">Qty</th>
-                  <th className="py-2.5 px-3 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
-                {activeBorrows
-                  .filter(b =>
-                    b.slipNo?.toLowerCase().includes(quickReturnSearch.toLowerCase()) ||
-                    b.partyName?.toLowerCase().includes(quickReturnSearch.toLowerCase())
-                  )
-                  .map(b => {
-                    const totalQty = b.items?.reduce((acc, it) => acc + (it.qty || 0), 0) || 0;
-                    const itemsSummary = b.items?.map(it => `${it.supplyId?.ItemDescription || 'Supply'} (${it.qty})`).join(', ') || 'None';
-                    const dateFormatted = b.transactionDate ? new Date(b.transactionDate).toLocaleDateString() : '-';
-
-                    return (
-                      <tr key={b._id} className={`${isDark ? 'hover:bg-slate-800/40 text-slate-300' : 'hover:bg-amber-50/40 text-slate-700'} transition-colors`}>
-                        <td className="py-2.5 px-3 whitespace-nowrap font-mono font-bold">
-                          <div className="flex items-center gap-1.5">
-                            <span className={isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}>{b.slipNo}</span>
-                            {b.transactionType === "Reserved" && (
-                              <span className="text-[9px] px-1.5 py-0.2 rounded font-bold uppercase bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
-                                Reserved
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap font-medium">
-                          {dateFormatted}
-                        </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap font-mono text-[11px] text-slate-400">
-                          {b.transactionTime || '-'}
-                        </td>
-                        <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
-                          {b.partyName || 'N/A'}
-                        </td>
-                        <td className="py-2.5 px-3 max-w-xs truncate" title={itemsSummary}>
-                          <span className="font-medium text-xs">{itemsSummary}</span>
-                        </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                            isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'
-                          }`}>
-                            {b.purpose || b.originAddress || 'Production'}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-center font-mono font-bold whitespace-nowrap">
-                          {totalQty}
-                        </td>
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handleFastReturnCopy(b);
-                                setQuickReturnSearch('');
-                              }}
-                              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#ff6600] hover:bg-[#e05a00] text-white transition-all cursor-pointer shadow-xs"
-                              title={b.transactionType === "Reserved" ? "Deploy Reserved Slip" : "Fulfill Return for this Slip"}
-                            >
-                              {b.transactionType === "Reserved" ? "Deploy" : "Fulfill Return"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedSlip(b);
-                                setIsModalOpen(true);
-                              }}
-                              className={`p-1 rounded-lg border transition-colors cursor-pointer ${
-                                isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
-                              }`}
-                              title="View Slip Details"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                {activeBorrows.filter(b =>
-                  b.slipNo?.toLowerCase().includes(quickReturnSearch.toLowerCase()) ||
-                  b.partyName?.toLowerCase().includes(quickReturnSearch.toLowerCase())
-                ).length === 0 && (
-                  <tr>
-                    <td colSpan="8" className="py-6 text-center text-slate-400 italic">
-                      No matching active borrow/reserved records found for "{quickReturnSearch}".
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       <div className="w-full">
         <div className={`w-full p-4 sm:p-6 rounded-2xl border flex flex-col gap-6 shadow-sm ${isDark ? 'bg-[#0e1017] border-slate-800' : 'bg-white border-slate-100'}`}>
-          <div className={`border-b pb-3 flex items-center justify-between gap-2 text-sm font-bold ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'}`}>
+          <div className={`border-b pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm font-bold ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'}`}>
             <div className="flex items-center gap-2 min-w-0">
               <ArrowLeftRight className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}`} />
               <span className="truncate">Supplies Movement & Transaction Slip</span>
             </div>
-            {manifestItems.length > 0 && (
+
+            {/* ACTION BUTTONS: BROWSE ALL SUPPLIES & HISTORY LOGS & CLEAR */}
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
-                onClick={() => { setManifestItems([]); setReferenceSlipNo(''); setTransactionType('Borrow'); showSuccessToast("Form grid cleared."); }}
-                className="text-xs font-bold text-rose-500 hover:underline cursor-pointer flex-shrink-0"
+                onClick={() => setIsBrowseModalOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs border transition-all cursor-pointer shadow-xs ${
+                  isDark
+                    ? 'bg-[#141622] border-slate-700 text-amber-400 hover:border-amber-500 hover:bg-amber-950/20'
+                    : 'bg-white border-slate-200 text-[#18174e] hover:bg-slate-50 hover:border-[#18174e]'
+                }`}
               >
-                Clear Form Grid
+                <Layers className="w-3.5 h-3.5 text-amber-500" />
+                <span>Browse All Supplies</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
+                }`}>
+                  {dbSupplies.length}
+                </span>
               </button>
-            )}
+
+              <button
+                type="button"
+                onClick={() => setIsHistoryModalOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs border transition-all cursor-pointer shadow-xs ${
+                  isDark
+                    ? 'bg-[#141622] border-slate-700 text-slate-200 hover:border-[#ff6600] hover:text-[#ff6600]'
+                    : 'bg-white border-slate-200 text-[#18174e] hover:bg-slate-50 hover:border-[#18174e]'
+                }`}
+              >
+                <ClipboardList className="w-3.5 h-3.5 text-[#ff6600]" />
+                <span>History Logs</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
+                }`}>
+                  {movementRecords.length}
+                </span>
+              </button>
+
+              {manifestItems.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setManifestItems([]); setReferenceSlipNo(''); setTransactionType('Borrow'); showSuccessToast("Form grid cleared."); }}
+                  className="text-xs font-bold text-rose-500 hover:underline cursor-pointer flex-shrink-0 ml-1"
+                >
+                  Clear Form Grid
+                </button>
+              )}
+            </div>
           </div>
 
           <form onSubmit={handleInitiateConfirm} className="flex flex-col gap-5">
@@ -872,8 +735,8 @@ function InventorySuppliesMovements() {
               </div>
             </div>
 
-            {/* FORM FIELDS: PERSONNEL, PURPOSE, DATE, SUPPLIES */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {/* 1. TOP ROW: 3 GRID COLUMNS (PERSONNEL, PURPOSE, DATE BORROW) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               
               {/* 1. PERSONNEL (TYPE + DROPDOWN) */}
               <div ref={personnelDropdownRef} className="relative">
@@ -1033,7 +896,7 @@ function InventorySuppliesMovements() {
                 </div>
               </div>
 
-              {/* 3. DATE */}
+              {/* 3. DATE BORROW */}
               <div>
                 <label className={`block text-xs font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   {transactionType === 'Borrow' ? 'Date Borrow *' : `Date ${transactionType} *`}
@@ -1054,306 +917,262 @@ function InventorySuppliesMovements() {
                 </div>
               </div>
 
-              {/* 4. SUPPLIES (TYPE + DROPDOWN) */}
-              <div ref={suppliesDropdownRef} className="relative">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className={`block text-xs font-bold uppercase ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                    Supplies *
-                  </label>
-                  <span className="text-[10px] text-amber-500 font-semibold">
-                    Type or pick item
-                  </span>
-                </div>
-
-                <div className="relative">
-                  <Package className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'} z-10`} />
-                  <input
-                    type="text"
-                    value={suppliesSearchInput}
-                    onChange={(e) => {
-                      setSuppliesSearchInput(e.target.value);
-                      setIsSuppliesDropdownOpen(true);
-                    }}
-                    onFocus={() => setIsSuppliesDropdownOpen(true)}
-                    placeholder="Search or pick supply..."
-                    className={`w-full border rounded-lg pl-9 pr-16 py-2 text-sm focus:outline-none font-semibold transition-all ${
-                      isDark
-                        ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
-                        : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
-                    }`}
-                  />
-
-                  <div className="absolute right-2 top-2 flex items-center gap-1 z-10">
-                    {suppliesSearchInput && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSuppliesSearchInput('');
-                          setIsSuppliesDropdownOpen(true);
-                        }}
-                        title="Clear supply search"
-                        className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded cursor-pointer"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setIsSuppliesDropdownOpen(!isSuppliesDropdownOpen)}
-                      title="Toggle supplies dropdown"
-                      className={`p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-transform duration-200 ${
-                        isSuppliesDropdownOpen ? 'rotate-180 text-[#ff6600]' : ''
-                      }`}
-                    >
-                      <ChevronDown className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* FLOATING TYPE + DROPDOWN MENU FOR SUPPLIES */}
-                  {isSuppliesDropdownOpen && (
-                    <div
-                      className={`absolute left-0 sm:-left-32 right-0 top-[102%] mt-1 border rounded-xl max-h-64 overflow-y-auto z-50 divide-y p-1 shadow-2xl ${
-                        isDark
-                          ? 'bg-[#0e1017] border-slate-700 divide-slate-800 text-slate-200'
-                          : 'bg-white border-slate-200 divide-slate-100 text-slate-800'
-                      }`}
-                    >
-                      <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-t-lg flex items-center justify-between ${
-                        isDark ? 'text-slate-400 bg-slate-900/60' : 'text-slate-500 bg-slate-50'
-                      }`}>
-                        <span>Supplies List ({filteredSuppliesForDropdown.length})</span>
-                        <span className="text-[9px] font-normal lowercase">click to add to table</span>
-                      </div>
-
-                      {filteredSuppliesForDropdown.length > 0 ? (
-                        filteredSuppliesForDropdown.map((s) => {
-                          const goodCount = s.ConditionBreakdown?.Good ?? s.ActualCount ?? 0;
-                          const isAdded = manifestItems.some(i => i.supplyId === s._id);
-                          const dimension = s.Dimension || s.Dimensions || s.dimension || s.dimensions;
-
-                          return (
-                            <button
-                              key={s._id}
-                              type="button"
-                              disabled={isDeductingType && goodCount <= 0}
-                              onClick={() => {
-                                handleSelectSupply(s);
-                                setSuppliesSearchInput('');
-                                setIsSuppliesDropdownOpen(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between gap-2 rounded-lg transition-colors cursor-pointer ${
-                                isDeductingType && goodCount <= 0
-                                  ? 'opacity-40 cursor-not-allowed bg-slate-900/20'
-                                  : isAdded
-                                  ? (isDark ? 'bg-emerald-950/20 text-emerald-300 hover:bg-emerald-950/40' : 'bg-emerald-50/50 text-emerald-800 hover:bg-emerald-100/50')
-                                  : (isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50')
-                              }`}
-                            >
-                              <div className="flex flex-col min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-bold text-sm truncate">{s.ItemDescription}</span>
-                                  {dimension && dimension !== 'N/A' && (
-                                    <span className={`font-mono text-[10px] font-bold px-1.5 py-0.2 rounded border ${
-                                      isDark ? 'bg-amber-950/60 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'
-                                    }`}>
-                                      {dimension}
-                                    </span>
-                                  )}
-                                  <span className="font-mono text-[10px] text-slate-400">({s.Code})</span>
-                                </div>
-                                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                                  <span>{s.Category || s.category || 'Supply'}</span>
-                                  <span>•</span>
-                                  <span className="font-bold text-emerald-500">Stock: {goodCount} {s.UOM || 'pcs'}</span>
-                                </div>
-                              </div>
-                              {isAdded ? (
-                                <span className="text-[10px] font-bold text-emerald-500 flex items-center gap-0.5 shrink-0">
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> Added
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#ff6600]/10 text-[#ff6600] shrink-0">
-                                  + Add
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })
-                      ) : (
-                        <div className="p-3 text-center text-xs text-slate-400">
-                          No supplies matching &ldquo;{suppliesSearchInput}&rdquo;.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
             </div>
 
-            <div className="flex flex-col gap-2">
-              <span className={`text-[10px] sm:text-xs font-bold px-2 py-1 rounded w-fit uppercase ${
-                transactionType === 'Borrow'
-                  ? (isDark ? 'bg-amber-950/40 text-amber-300 border border-amber-800/40' : 'text-amber-700 bg-amber-50')
-                  : transactionType === 'Return'
-                  ? (isDark ? 'bg-blue-950/40 text-blue-300 border border-blue-800/40' : 'text-blue-700 bg-blue-50')
-                  : transactionType === 'Restock'
-                  ? (isDark ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/40' : 'text-emerald-700 bg-emerald-50')
-                  : (isDark ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' : 'text-rose-700 bg-rose-50')
-              }`}>
-                {transactionType === 'Borrow' && '🟡 Quantities will be issued / deducted for borrowing'}
-                {transactionType === 'Return' && '🔵 Quantities will be returned / added to available stock'}
-                {transactionType === 'Restock' && '🟢 Quantities will be added to available stock'}
-                {transactionType === 'Out' && '🔴 Quantities will be automatically deducted'}
-              </span>
-              <div className={`rounded-xl border shadow-sm overflow-x-auto ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'}`}>
-                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-                  <thead>
-                    <tr className={`uppercase text-xs whitespace-nowrap font-bold ${
-                      transactionType === 'Borrow'
-                        ? (isDark ? 'bg-[#1c1811] text-amber-300' : 'bg-amber-700 text-white')
-                        : transactionType === 'Return'
-                        ? (isDark ? 'bg-[#0f172a] text-blue-300' : 'bg-blue-700 text-white')
-                        : transactionType === 'Restock'
-                        ? (isDark ? 'bg-[#0c1a16] text-emerald-300' : 'bg-emerald-700 text-white')
-                        : (isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700 text-white')
+            {/* 2. SUPPLIES * (SA BABA - FULL WIDTH TYPE + DROPDOWN) */}
+            <div ref={suppliesDropdownRef} className="relative w-full">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={`block text-xs font-bold uppercase ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Supplies *
+                </label>
+                <span className="text-[10px] text-amber-500 font-semibold">
+                  Type or pick item
+                </span>
+              </div>
+
+              <div className="relative">
+                <Package className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'} z-10`} />
+                <input
+                  type="text"
+                  value={suppliesSearchInput}
+                  onChange={(e) => {
+                    setSuppliesSearchInput(e.target.value);
+                    setIsSuppliesDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsSuppliesDropdownOpen(true)}
+                  placeholder="Search supply description, dimension, category or code..."
+                  className={`w-full border rounded-lg pl-9 pr-16 py-2 text-sm focus:outline-none font-semibold transition-all ${
+                    isDark
+                      ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
+                      : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
+                  }`}
+                />
+
+                <div className="absolute right-2 top-2 flex items-center gap-1 z-10">
+                  {suppliesSearchInput && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSuppliesSearchInput('');
+                        setIsSuppliesDropdownOpen(true);
+                      }}
+                      title="Clear supply search"
+                      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsSuppliesDropdownOpen(!isSuppliesDropdownOpen)}
+                    title="Toggle supplies dropdown list"
+                    className={`p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-transform duration-200 ${
+                      isSuppliesDropdownOpen ? 'rotate-180 text-[#ff6600]' : ''
+                    }`}
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* FLOATING TYPE + DROPDOWN MENU FOR SUPPLIES */}
+                {isSuppliesDropdownOpen && (
+                  <div
+                    className={`absolute left-0 right-0 top-[102%] mt-1 border rounded-xl max-h-72 overflow-y-auto z-50 divide-y p-1 shadow-2xl ${
+                      isDark
+                        ? 'bg-[#0e1017] border-slate-700 divide-slate-800 text-slate-200'
+                        : 'bg-white border-slate-200 divide-slate-100 text-slate-800'
+                    }`}
+                  >
+                    <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-t-lg flex items-center justify-between ${
+                      isDark ? 'text-slate-400 bg-slate-900/60' : 'text-slate-500 bg-slate-50'
                     }`}>
-                      <th className="py-3 px-3 text-center whitespace-nowrap w-28">
-                        {transactionType === 'Borrow' ? 'Date Borrow' : `Date ${transactionType}`}
-                      </th>
-                      <th className="py-3 px-3 text-center whitespace-nowrap w-24">Time</th>
-                      <th className="py-3 px-3 whitespace-nowrap min-w-[140px]">Personnel</th>
-                      <th className="py-3 px-4 min-w-[240px]">Supplies</th>
-                      <th className="py-3 px-4 min-w-[180px]">Reason</th>
-                      <th className="py-3 px-3 text-center whitespace-nowrap w-28">Quantity</th>
-                      {transactionType === 'Return' && (
-                        <>
-                          <th className="py-3 px-3 text-center w-24 text-emerald-300">Good</th>
-                          <th className="py-3 px-3 text-center w-24 text-rose-300">Damaged</th>
-                        </>
-                      )}
-                      <th className="py-3 px-3 text-center w-14">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y text-xs ${isDark ? 'divide-slate-800/60 bg-[#090b10] text-slate-300' : 'divide-slate-100 bg-white text-slate-700'}`}>
-                    {manifestItems.length > 0 ? (
-                      manifestItems.map((item, index) => (
-                        <tr key={index} className={`transition-colors ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/80'}`}>
-                          
-                          {/* 1. DATE BORROW */}
-                          <td className="py-2.5 px-3 text-center whitespace-nowrap font-mono text-xs">
-                            <span className={`px-2 py-0.5 rounded font-semibold ${isDark ? 'bg-slate-900 text-slate-300 border border-slate-800' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
-                              {transactionDate}
-                            </span>
-                          </td>
+                      <span>Supplies List ({filteredSuppliesForDropdown.length})</span>
+                      <span className="text-[9px] font-normal lowercase">click to add to table</span>
+                    </div>
 
-                          {/* 2. TIME */}
-                          <td className="py-2.5 px-3 text-center whitespace-nowrap font-mono text-xs">
-                            <span className={`px-2 py-0.5 rounded font-semibold ${isDark ? 'bg-slate-900 text-slate-300 border border-slate-800' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
-                              {transactionTime || '02:30 PM'}
-                            </span>
-                          </td>
+                    {filteredSuppliesForDropdown.length > 0 ? (
+                      filteredSuppliesForDropdown.map((s) => {
+                        const goodCount = s.ConditionBreakdown?.Good ?? s.ActualCount ?? 0;
+                        const isAdded = manifestItems.some(i => i.supplyId === s._id);
+                        const dimension = s.Dimension || s.Dimensions || s.dimension || s.dimensions;
 
-                          {/* 3. PERSONNEL */}
-                          <td className="py-2.5 px-3 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
-                              <User className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                              <span className={`font-bold text-xs truncate max-w-[140px] ${partyName ? (isDark ? 'text-white' : 'text-slate-800') : 'text-amber-500 italic'}`}>
-                                {partyName || 'Select Personnel'}
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* 4. SUPPLIES */}
-                          <td className="py-2.5 px-4 min-w-[240px]">
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-2">
-                                <span className={`font-bold text-xs ${isDark ? 'text-white' : 'text-slate-800'} truncate max-w-[220px]`} title={item.ItemDescription}>
-                                  {item.ItemDescription}
-                                </span>
-                                {item.Dimension && item.Dimension !== 'N/A' && (
-                                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-indigo-500/30 text-indigo-400">
-                                    {item.Dimension}
+                        return (
+                          <button
+                            key={s._id}
+                            type="button"
+                            disabled={isDeductingType && goodCount <= 0}
+                            onClick={() => {
+                              handleSelectSupply(s);
+                              setSuppliesSearchInput('');
+                              setIsSuppliesDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between gap-2 rounded-lg transition-colors cursor-pointer ${
+                              isDeductingType && goodCount <= 0
+                                ? 'opacity-40 cursor-not-allowed bg-slate-900/20'
+                                : isAdded
+                                ? (isDark ? 'bg-emerald-950/20 text-emerald-300 hover:bg-emerald-950/40' : 'bg-emerald-50/50 text-emerald-800 hover:bg-emerald-100/50')
+                                : (isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50')
+                            }`}
+                          >
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-sm truncate">{s.ItemDescription}</span>
+                                {dimension && dimension !== 'N/A' && (
+                                  <span className={`font-mono text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                                    isDark ? 'bg-amber-950/60 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'
+                                  }`}>
+                                    {dimension}
                                   </span>
                                 )}
+                                <span className="font-mono text-[10px] text-slate-400">({s.Code})</span>
                               </div>
                               <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                                <span className="font-mono text-slate-400">{item.Code}</span>
+                                <span>{s.Category || s.category || 'Supply'}</span>
                                 <span>•</span>
-                                <span>{item.Category}</span>
-                                {item.Segment && item.Segment !== 'N/A' && (
+                                <span className="font-bold text-emerald-500">Stock: {goodCount} {s.UOM || 'pcs'}</span>
+                              </div>
+                            </div>
+                            {isAdded ? (
+                              <span className="text-[10px] font-bold text-emerald-500 flex items-center gap-0.5 shrink-0">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#ff6600]/10 text-[#ff6600] shrink-0">
+                                + Add
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="p-3 text-center text-xs text-slate-400">
+                        No supplies matching &ldquo;{suppliesSearchInput}&rdquo;.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* HIDE TABLE AND NOTICE UNTIL ITEMS ARE SELECTED */}
+            {manifestItems.length > 0 && (
+              <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+                <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${
+                  transactionType === 'Borrow'
+                    ? (isDark ? 'bg-amber-950/40 text-amber-300 border border-amber-800/40' : 'text-amber-700 bg-amber-50')
+                    : transactionType === 'Return'
+                    ? (isDark ? 'bg-blue-950/40 text-blue-300 border border-blue-800/40' : 'text-blue-700 bg-blue-50')
+                    : transactionType === 'Restock'
+                    ? (isDark ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/40' : 'text-emerald-700 bg-emerald-50')
+                    : (isDark ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' : 'text-rose-700 bg-rose-50')
+                }`}>
+                  {transactionType === 'Borrow' && '🟡 Quantities will be issued / deducted for borrowing'}
+                  {transactionType === 'Return' && '🔵 Quantities will be returned / added to available stock'}
+                  {transactionType === 'Restock' && '🟢 Quantities will be added to available stock'}
+                  {transactionType === 'Out' && '🔴 Quantities will be automatically deducted'}
+                </span>
+
+                <div className={`rounded-xl border shadow-sm overflow-x-auto ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'}`}>
+                  <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
+                    <thead>
+                      <tr className={`uppercase text-xs whitespace-nowrap font-bold ${
+                        transactionType === 'Borrow'
+                          ? (isDark ? 'bg-[#0f111d] text-amber-300 border-b border-slate-800' : 'bg-[#18174e] text-white')
+                          : transactionType === 'Return'
+                          ? (isDark ? 'bg-[#0f111d] text-blue-300 border-b border-slate-800' : 'bg-[#18174e] text-white')
+                          : transactionType === 'Restock'
+                          ? (isDark ? 'bg-[#0f111d] text-emerald-300 border-b border-slate-800' : 'bg-[#18174e] text-white')
+                          : (isDark ? 'bg-[#0f111d] text-rose-300 border-b border-slate-800' : 'bg-[#18174e] text-white')
+                      }`}>
+                        <th className="py-2.5 px-3 text-center w-28">Date Borrow</th>
+                        <th className="py-2.5 px-3 text-center w-24">Time</th>
+                        <th className="py-2.5 px-3 w-44">Personnel</th>
+                        <th className="py-2.5 px-3 min-w-[200px]">Supplies</th>
+                        <th className="py-2.5 px-3 min-w-[150px]">Reason / Purpose</th>
+                        <th className="py-2.5 px-3 text-center w-36">Quantity</th>
+                        <th className="py-2.5 px-3 text-center w-14">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
+                      {manifestItems.map((item, index) => (
+                        <tr key={item.supplyId || index} className={`${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-700'} transition-colors`}>
+                          
+                          {/* 1. Date Borrow */}
+                          <td className="py-2.5 px-3 text-center font-mono text-xs whitespace-nowrap">
+                            <span className="font-semibold">{transactionDate || '09/14/2026'}</span>
+                          </td>
+
+                          {/* 2. Time */}
+                          <td className="py-2.5 px-3 text-center font-mono text-xs text-slate-400 whitespace-nowrap">
+                            {transactionTime || '02:30 PM'}
+                          </td>
+
+                          {/* 3. Personnel */}
+                          <td className="py-2.5 px-3 font-bold whitespace-nowrap text-sm">
+                            <span className={isDark ? 'text-amber-400' : 'text-[#18174e]'}>
+                              {partyName || 'N/A'}
+                            </span>
+                          </td>
+
+                          {/* 4. Supplies */}
+                          <td className="py-2.5 px-3">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-sm">{item.ItemDescription}</span>
+                              <div className="flex items-center gap-1.5 mt-0.5 text-slate-400 font-mono text-[10px]">
+                                <span>{item.Code}</span>
+                                {item.Dimension && item.Dimension !== 'N/A' && (
                                   <>
                                     <span>•</span>
-                                    <span className="uppercase">{item.Segment}</span>
+                                    <span>{item.Dimension}</span>
                                   </>
                                 )}
                               </div>
                             </div>
                           </td>
 
-                          {/* 5. REASON */}
-                          <td className="py-2.5 px-4 min-w-[180px]">
-                            <input 
-                              type="text" 
-                              value={item.remarks} 
-                              onChange={e => handleUpdateField(index, 'remarks', e.target.value)} 
-                              placeholder={purpose ? `Reason: ${purpose}...` : "Reason / Purpose..."} 
-                              className={`w-full border rounded-lg px-2.5 py-1 text-xs focus:outline-none ${
+                          {/* 5. Reason / Purpose */}
+                          <td className="py-2.5 px-3">
+                            <input
+                              type="text"
+                              value={item.remarks || ''}
+                              onChange={e => handleUpdateField(index, 'remarks', e.target.value)}
+                              placeholder="Reason / Purpose..."
+                              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none ${
                                 isDark
                                   ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
-                                  : 'border-slate-200 text-slate-700 focus:border-[#18174e]'
-                              }`} 
+                                  : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
+                              }`}
                             />
                           </td>
 
-                          {/* 6. QUANTITY */}
-                          <td className="py-2.5 px-3 text-center w-28 whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1">
+                          {/* 6. Quantity */}
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1.5">
                               <input
                                 type="number"
-                                value={item.qty}
-                                onChange={e => handleUpdateField(index, 'qty', e.target.value)}
-                                className={`w-16 border text-center rounded-lg py-1 text-xs font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
-                                  isDark
-                                    ? 'bg-[#141622] border-slate-700 text-white disabled:bg-[#0e1017] disabled:text-slate-600 focus:border-[#ff6600]'
-                                    : 'border-slate-200 text-slate-700 disabled:bg-slate-50 focus:border-slate-400'
-                                }`}
                                 min="1"
                                 max={item.maxLimit}
-                                disabled={!isDeductingType && transactionType !== 'Borrow'}
+                                value={item.qty}
+                                onChange={e => handleUpdateField(index, 'qty', e.target.value)}
+                                className={`w-20 text-center border rounded-lg px-2 py-1.5 text-sm font-bold font-mono focus:outline-none ${
+                                  isDark
+                                    ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]'
+                                    : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
+                                }`}
                                 required
-                                onWheel={(e) => e.currentTarget.blur()}
                               />
-                              <span className="text-[11px] font-medium text-slate-400">{item.UOM}</span>
+                              <span className="text-xs font-semibold text-slate-400">
+                                {item.UOM || 'pcs'}
+                              </span>
                             </div>
-                            <div className="text-[10px] text-slate-500 mt-0.5">Avail: {item.maxLimit}</div>
+                            {item.maxLimit !== undefined && item.maxLimit < 9999 && (
+                              <div className="text-[10px] text-slate-400 mt-0.5">
+                                Avail: {item.maxLimit}
+                              </div>
+                            )}
                           </td>
 
-                          {/* OPTIONAL RETURN BREAKDOWN */}
-                          {transactionType === 'Return' && (
-                            <>
-                              <td className="py-2.5 px-3 text-center w-24">
-                                <input
-                                  type="number"
-                                  value={item.goodConditionQty}
-                                  onChange={e => handleUpdateField(index, 'goodConditionQty', e.target.value)}
-                                  className="w-16 border text-center rounded-lg py-1 text-xs font-bold text-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none"
-                                  min="0"
-                                />
-                              </td>
-                              <td className="py-2.5 px-3 text-center w-24">
-                                <input
-                                  type="number"
-                                  value={item.damagedQty}
-                                  onChange={e => handleUpdateField(index, 'damagedQty', e.target.value)}
-                                  className="w-16 border text-center rounded-lg py-1 text-xs font-bold text-rose-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none"
-                                  min="0"
-                                />
-                              </td>
-                            </>
-                          )}
-
-                          {/* 7. ACTION */}
+                          {/* 7. Action */}
                           <td className="py-2.5 px-3 text-center w-14">
                             <button 
                               type="button" 
@@ -1361,7 +1180,7 @@ function InventorySuppliesMovements() {
                                 setManifestItems(manifestItems.filter((_, i) => i !== index)); 
                                 showSuccessToast("Item removed."); 
                               }} 
-                              className="text-red-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer inline-block"
+                              className="text-red-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-rose-500/15 transition-colors cursor-pointer inline-block"
                               title="Remove item from manifest"
                             >
                               <Trash2 className="w-4 h-4 mx-auto" />
@@ -1369,28 +1188,178 @@ function InventorySuppliesMovements() {
                           </td>
 
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={transactionType === 'Return' ? 9 : 7} className="text-center py-8 text-amber-500 italic font-medium text-xs">
-                          No items added yet. Select a supply above to add borrowing rows.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-            <button
-              type="submit"
-              className="w-full bg-[#ff6600] hover:bg-[#e05a00] text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer uppercase shadow-sm"
-            >
-              Confirm Supplies {transactionType} Slip
-            </button>
+                <button
+                  type="submit"
+                  className="w-full bg-[#ff6600] hover:bg-[#e05a00] text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer uppercase shadow-sm"
+                >
+                  Confirm Supplies {transactionType} Slip
+                </button>
+              </div>
+            )}
           </form>
         </div>
       </div>
+
+      {/* ACTIVE BORROW & RESERVED RECORDS CONTAINER (BELOW SUPPLIES MOVEMENT & TRANSACTION SLIP) */}
+      {activeBorrows.length > 0 && (
+        <div className={`w-full rounded-2xl border flex flex-col gap-3.5 p-4 sm:p-5 shadow-sm transition-all ${
+          isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
+        }`}>
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 dark:border-slate-800 border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500">
+                <ArrowLeftRight className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className={`text-xs sm:text-sm font-bold uppercase tracking-wide flex items-center gap-2 ${
+                  isDark ? 'text-white' : 'text-[#18174e]'
+                }`}>
+                  <span>Active Borrow & Reserved Records</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-bold font-mono ${
+                    isDark ? 'bg-amber-950/60 text-amber-400 border border-amber-800/60' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  }`}>
+                    {activeBorrows.length}
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Select an active borrow or reserved record to fulfill return or deploy transaction
+                </p>
+              </div>
+            </div>
+
+            {/* Filter Search */}
+            <div className="relative w-full sm:w-72">
+              <Search className={`absolute left-3 top-2.5 w-3.5 h-3.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+              <input
+                type="text"
+                placeholder="Filter by Slip No or Personnel..."
+                value={quickReturnSearch}
+                onChange={(e) => setQuickReturnSearch(e.target.value)}
+                className={`w-full rounded-lg pl-9 pr-3 py-1.5 text-xs focus:outline-none transition-colors border ${
+                  isDark
+                    ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
+                    : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e] placeholder-slate-400'
+                }`}
+              />
+            </div>
+          </div>
+
+          {/* Table matched to InventoryRawMaterials style */}
+          <div className={`overflow-x-auto rounded-xl border shadow-sm max-h-72 overflow-y-auto ${
+            isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'
+          }`}>
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className={`sticky top-0 z-10 uppercase text-[11px] font-bold whitespace-nowrap ${
+                isDark ? 'bg-[#0f111d] text-slate-200 border-b border-slate-800' : 'bg-[#18174e] text-white'
+              }`}>
+                <tr>
+                  <th className="py-2.5 px-3">Slip No</th>
+                  <th className="py-2.5 px-3">Date Borrow</th>
+                  <th className="py-2.5 px-3">Time</th>
+                  <th className="py-2.5 px-3">Personnel</th>
+                  <th className="py-2.5 px-3">Supplies Items</th>
+                  <th className="py-2.5 px-3">Reason / Purpose</th>
+                  <th className="py-2.5 px-3 text-center">Qty</th>
+                  <th className="py-2.5 px-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
+                {activeBorrows
+                  .filter(b =>
+                    b.slipNo?.toLowerCase().includes(quickReturnSearch.toLowerCase()) ||
+                    b.partyName?.toLowerCase().includes(quickReturnSearch.toLowerCase())
+                  )
+                  .map(b => {
+                    const totalQty = b.items?.reduce((acc, it) => acc + (it.qty || 0), 0) || 0;
+                    const itemsSummary = b.items?.map(it => `${it.supplyId?.ItemDescription || 'Supply'} (${it.qty})`).join(', ') || 'None';
+                    const dateFormatted = b.transactionDate ? new Date(b.transactionDate).toLocaleDateString() : '-';
+
+                    return (
+                      <tr key={b._id} className={`${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-700'} transition-colors`}>
+                        <td className="py-2.5 px-3 whitespace-nowrap font-mono font-bold">
+                          <div className="flex items-center gap-1.5">
+                            <span className={isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}>{b.slipNo}</span>
+                            {b.transactionType === "Reserved" && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded font-bold uppercase bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
+                                Reserved
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 whitespace-nowrap font-medium">
+                          {dateFormatted}
+                        </td>
+                        <td className="py-2.5 px-3 whitespace-nowrap font-mono text-[11px] text-slate-400">
+                          {b.transactionTime || '-'}
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
+                          {b.partyName || 'N/A'}
+                        </td>
+                        <td className="py-2.5 px-3 max-w-xs truncate" title={itemsSummary}>
+                          <span className="font-medium text-xs">{itemsSummary}</span>
+                        </td>
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                            isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'
+                          }`}>
+                            {b.purpose || b.originAddress || 'Production'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-mono font-bold whitespace-nowrap">
+                          {totalQty}
+                        </td>
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleFastReturnCopy(b);
+                                setQuickReturnSearch('');
+                              }}
+                              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#ff6600] hover:bg-[#e05a00] text-white transition-all cursor-pointer shadow-xs"
+                              title={b.transactionType === "Reserved" ? "Deploy Reserved Slip" : "Fulfill Return for this Slip"}
+                            >
+                              {b.transactionType === "Reserved" ? "Deploy" : "Fulfill Return"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSlip(b);
+                                setIsModalOpen(true);
+                              }}
+                              className={`p-1 rounded-lg border transition-colors cursor-pointer ${
+                                isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                              }`}
+                              title="View Slip Details"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                {activeBorrows.filter(b =>
+                  b.slipNo?.toLowerCase().includes(quickReturnSearch.toLowerCase()) ||
+                  b.partyName?.toLowerCase().includes(quickReturnSearch.toLowerCase())
+                ).length === 0 && (
+                  <tr>
+                    <td colSpan="8" className="py-6 text-center text-slate-400 italic">
+                      No matching active borrow/reserved records found for "{quickReturnSearch}".
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && selectedSlip && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
