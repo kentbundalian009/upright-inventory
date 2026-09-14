@@ -114,6 +114,11 @@ function PageHeader({ activeTab, title, description, icon, badge, actions, child
       description: 'Track outgoing orders, packing lists, and customer fulfillments.',
       icon: Truck
     },
+    'consumables': {
+      title: 'Consumable Materials Management',
+      description: 'Manage consumable stocks, addition (IN), and release (OUT) transactions.',
+      icon: ShoppingBag
+    },
     'supplies': {
       title: 'Supplies (Records)',
       description: 'Manage internal maintenance, operating, and office supplies.',

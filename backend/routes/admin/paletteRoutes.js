@@ -3,18 +3,27 @@ import Palette from '../../models/Palette.js';
 
 const router = express.Router();
 
+let cachedPalette = null;
+let paletteExpiresAt = 0;
+
 router.get('/palette', async (req, res) => {
     try {
-        let config = await Palette.findOne({ key: 'global_palette' });
-        
-        if (!config) {
-            return res.json({ categoryColors: {}, segmentColors: {} });
+        const now = Date.now();
+        if (cachedPalette && paletteExpiresAt > now) {
+            return res.json(cachedPalette);
         }
+
+        let config = await Palette.findOne({ key: 'global_palette' }).lean();
         
-        res.json({
-            categoryColors: config.categoryColors || {},
-            segmentColors: config.segmentColors || {}
-        });
+        const result = {
+            categoryColors: config?.categoryColors || {},
+            segmentColors: config?.segmentColors || {}
+        };
+
+        cachedPalette = result;
+        paletteExpiresAt = now + 60 * 1000; // Cache 60 seconds
+        
+        res.json(result);
     } catch (error) {
         console.error('Error fetching palette:', error);
         res.status(500).json({ message: 'Server Error sa pagkuha ng palette.' });
@@ -32,7 +41,13 @@ router.post('/palette', async (req, res) => {
                 segmentColors: segmentColors || {} 
             },
             { new: true, upsert: true }
-        );
+        ).lean();
+
+        cachedPalette = {
+            categoryColors: savedConfig.categoryColors || {},
+            segmentColors: savedConfig.segmentColors || {}
+        };
+        paletteExpiresAt = Date.now() + 60 * 1000;
 
         res.json({
             message: 'Global palette configuration synchronized successfully!',

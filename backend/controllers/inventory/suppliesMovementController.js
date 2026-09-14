@@ -148,9 +148,11 @@ export const getAllMovements = async (req, res) => {
   try {
     const movements = await SuppliesMovement.find()
       .populate("items.supplyId", "Code ItemDescription UOM ActualCount UsedCount DamagedCount ConditionBreakdown")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
     return res.status(200).json(movements);
   } catch (error) {
+    console.error("Error in getAllMovements:", error);
     return res.status(500).json({ message: "Failed to fetch history logs." });
   }
 };

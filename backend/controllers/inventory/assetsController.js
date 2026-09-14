@@ -1,8 +1,9 @@
 import Assets from "../../models/Assets.js";
+import { uploadImageBuffer } from "../../lib/cloudinary.js";
 
 export const getAllAssets = async (req, res) => {
   try {
-    const assetsList = await Assets.find({}).sort({ createdAt: -1 });
+    const assetsList = await Assets.find({}).sort({ createdAt: -1 }).lean();
     res.status(200).json(assetsList);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
@@ -64,8 +65,14 @@ export const createAssets = async (req, res) => {
       return res.status(400).json({ message: "Dapat may laman na quantity ang Actual Count." });
     }
 
+    let finalImageUrl = req.body.ImageUrl || "";
+    if (req.file) {
+      finalImageUrl = await uploadImageBuffer(req.file.buffer, req.file.mimetype, "oneinventory/assets");
+    }
+
     const newAssets = await Assets.create({
       Code: finalCode,
+      ImageUrl: finalImageUrl,
       Category: Category.trim(),
       Segment: Segment?.trim(),
       ItemDescription: ItemDescription.trim(),
@@ -143,6 +150,12 @@ export const updateAssets = async (req, res) => {
         Used: Number(ConditionBreakdown.Used || 0),
         Damaged: Number(ConditionBreakdown.Damaged || 0)
       };
+    }
+
+    if (req.file) {
+      updatedPayload.ImageUrl = await uploadImageBuffer(req.file.buffer, req.file.mimetype, "oneinventory/assets");
+    } else if (req.body.ImageUrl !== undefined) {
+      updatedPayload.ImageUrl = req.body.ImageUrl;
     }
 
     const updatedAssets = await Assets.findByIdAndUpdate(

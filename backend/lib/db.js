@@ -16,6 +16,25 @@ const connectDB = async () => {
     });
 
     console.log("✅ MongoDB Connected Successfully");
+
+    // ⚡ Automatic Index Optimization for fast queries & sorting
+    try {
+      const db = mongoose.connection.db;
+      Promise.allSettled([
+        db.collection("activitylogs").createIndex({ createdAt: -1 }),
+        db.collection("suppliesmovements").createIndex({ createdAt: -1 }),
+        db.collection("suppliesmovements").createIndex({ isReturned: 1, transactionType: 1 }),
+        db.collection("packinglists").createIndex({ createdAt: -1 }),
+        db.collection("packinglists").createIndex({ transactionType: 1, isVoided: 1 }),
+        db.collection("assets").createIndex({ createdAt: -1 }),
+        db.collection("assets").createIndex({ isArchived: 1 }),
+        db.collection("supplies").createIndex({ isArchived: 1 }),
+        db.collection("rawmaterials").createIndex({ isArchived: 1 }),
+        db.collection("consumables").createIndex({ isArchived: 1 }),
+      ]).catch(() => {});
+    } catch {
+      // Non-blocking background index check
+    }
   } catch (error) {
     console.error("❌ MongoDB Connection Error:", error.message);
     console.log("🔄 Retrying database connection in 5 seconds...");

@@ -1,4 +1,5 @@
 import RawMaterial from "../../models/RawMaterial.js";
+import { uploadImageBuffer } from "../../lib/cloudinary.js";
 
 export const getAllRawMaterials = async (req, res) => {
   try {
@@ -22,7 +23,13 @@ export const getAllRawMaterials = async (req, res) => {
           ImageUrl: {
             $cond: {
               if: { $and: [{ $ne: ["$ImageUrl", ""] }, { $ne: ["$ImageUrl", null] }] },
-              then: { $concat: ["/api/raw-materials/", { $toString: "$_id" }, "/image"] },
+              then: {
+                $cond: {
+                  if: { $regexMatch: { input: "$ImageUrl", regex: "^https?://" } },
+                  then: "$ImageUrl",
+                  else: { $concat: ["/api/raw-materials/", { $toString: "$_id" }, "/image"] }
+                }
+              },
               else: ""
             }
           }
@@ -103,7 +110,7 @@ export const createRawMaterial = async (req, res) => {
 
     let finalImagePath = "";
     if (req.file) {
-      finalImagePath = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+      finalImagePath = await uploadImageBuffer(req.file.buffer, req.file.mimetype, "oneinventory/raw_materials");
     }
 
     const newMaterial = await RawMaterial.create({
@@ -149,7 +156,7 @@ export const updateRawMaterial = async (req, res) => {
 
     let finalImagePath = existingMaterial.ImageUrl;
     if (req.file) {
-      finalImagePath = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+      finalImagePath = await uploadImageBuffer(req.file.buffer, req.file.mimetype, "oneinventory/raw_materials");
     }
 
     const updatedMaterial = await RawMaterial.findByIdAndUpdate(

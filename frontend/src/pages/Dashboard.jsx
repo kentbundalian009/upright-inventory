@@ -19,6 +19,7 @@ import InventoryWIP from '../components/InventoryWIP';
 import InventoryProducts from '../components/InventoryProducts';
 import InventoryOutboundProducts from '../components/InventoryOutboundProducts';
 import InventorySupplies from '../components/InventorySupplies';
+import Consumable from '../components/Consumable';
 import InventorySuppliesMovements from '../components/InventorySuppliesMovements';
 import InventoryAssets from '../components/InventoryAssets';
 import Client from '../components/Client';
@@ -121,6 +122,8 @@ function Dashboard() {
             case 'raw-materials': return <InventoryRawMaterials />;
             case 'client-records': return <Client />;
             case 'products': return <InventoryProducts />;
+            case 'consumables': 
+            case 'consumable': return <Consumable />;
             case 'supplies': return <InventorySupplies />;
             case 'assets': return <InventoryAssets />;
             case 'inbound-raw-mat': return <InventoryInboundRawMat />;

@@ -57,6 +57,11 @@ const assetsSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    ImageUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     AcquisitionDate: {
       type: Date,
     },

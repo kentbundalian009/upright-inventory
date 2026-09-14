@@ -33,6 +33,7 @@ import productRoutes from "./routes/inventory/productRoutes.js";
 import packingListRoutes from "./routes/inventory/packingListRoutes.js"; 
 import purchaseOrderRoutes from "./routes/inventory/purchaseOrderRoutes.js"; 
 import clientRoutes from "./routes/inventory/clientRoutes.js"; 
+import consumableRoutes from "./routes/inventory/consumableRoutes.js"; 
 
 
 // 🌟 I-import ang protectRoute middleware para sa backend filtering
@@ -56,21 +57,22 @@ app.use(express.urlencoded({ limit: "25mb", extended: true }));
 // 🔓 PUBLIC API ROUTES
 app.use("/api/auth", authRoutes);
 
-// 🔒 PROTECTED API ROUTES (Hinaharang at tsine-tsek muna kay Upstash Redis bago mag-load)
-app.use("/api/users", protectRoute, userRoutes);
-app.use("/api/assets", protectRoute, assetsRoutes);
+// 🔒 API ROUTES (Individually secured with role-based auth inside route files)
+app.use("/api/users", userRoutes);
+app.use("/api/assets", assetsRoutes);
+app.use("/api/consumables", consumableRoutes);
 app.use("/api/supplies", suppliesRoutes); 
-app.use("/api/supplies-movements", protectRoute, suppliesMovementRoutes); 
-app.use("/api/conversions", protectRoute, conversionRoutes);
-app.use("/api/products", protectRoute, productRoutes); 
-app.use("/api/packing-lists", protectRoute, packingListRoutes); 
+app.use("/api/supplies-movements", suppliesMovementRoutes); 
+app.use("/api/conversions", conversionRoutes);
+app.use("/api/products", productRoutes); 
+app.use("/api/packing-lists", packingListRoutes); 
 app.use("/api/raw-materials", rawMaterialRoutes); 
 app.use("/api/clients", clientRoutes);
-app.use("/api/activity-logs", protectRoute, activityLogRoutes);
-app.use("/api/purchase-orders", protectRoute, purchaseOrderRoutes);
-app.use("/api/settings/thresholds", protectRoute, settingRoutes);
-app.use("/api/settings", protectRoute, paletteRoutes); 
-app.use("/api/settings", protectRoute, paletteSupRoutes);
+app.use("/api/activity-logs", activityLogRoutes);
+app.use("/api/purchase-orders", purchaseOrderRoutes);
+app.use("/api/settings/thresholds", settingRoutes);
+app.use("/api/settings", paletteRoutes); 
+app.use("/api/settings", paletteSupRoutes);
 app.use("/api/system", systemRoutes);
 app.use("/api/backup", backupRoutes);
 app.use("/api/logs", linkClickRoutes);

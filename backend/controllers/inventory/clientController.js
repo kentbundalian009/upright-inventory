@@ -6,7 +6,7 @@ export const getAllClients = async (req, res) => {
     const { type, includeArchived } = req.query;
     const filter = {};
 
-    if (type && ["Supplier", "Customer", "Logistics"].includes(type)) {
+    if (type && ["Supplier", "Customer", "Logistics", "Employee"].includes(type)) {
       filter.type = type;
     }
 
@@ -34,17 +34,17 @@ export const getClientById = async (req, res) => {
   }
 };
 
-// 3. CREATE CLIENT (Supplier, Customer, or Logistics)
+// 3. CREATE CLIENT (Supplier, Customer, Logistics, or Employee)
 export const createClient = async (req, res) => {
   try {
     const { name, type, address, contactPerson, contactNumber, email, notes } = req.body;
 
     if (!name || !name.trim()) {
-      return res.status(400).json({ message: "Pangalan ng Client/Supplier/Customer/Logistics ay kailangan." });
+      return res.status(400).json({ message: "Pangalan ay kailangan." });
     }
 
-    if (!type || !["Supplier", "Customer", "Logistics"].includes(type)) {
-      return res.status(400).json({ message: "Pumili ng tamang Type (Supplier, Customer, o Logistics)." });
+    if (!type || !["Supplier", "Customer", "Logistics", "Employee"].includes(type)) {
+      return res.status(400).json({ message: "Pumili ng tamang Type (Supplier, Customer, Logistics, o Employee)." });
     }
 
     // Check duplicate name for the same type (only active items)

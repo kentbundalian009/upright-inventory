@@ -1,4 +1,5 @@
 import Supplies from "../../models/Supplies.js";
+import { uploadImageBuffer } from "../../lib/cloudinary.js";
 
 export const getAllSupplies = async (req, res) => {
   try {
@@ -26,7 +27,13 @@ export const getAllSupplies = async (req, res) => {
           ImageUrl: {
             $cond: {
               if: { $and: [{ $ne: ["$ImageUrl", ""] }, { $ne: ["$ImageUrl", null] }] },
-              then: { $concat: ["/api/supplies/", { $toString: "$_id" }, "/image"] },
+              then: {
+                $cond: {
+                  if: { $regexMatch: { input: "$ImageUrl", regex: "^https?://" } },
+                  then: "$ImageUrl",
+                  else: { $concat: ["/api/supplies/", { $toString: "$_id" }, "/image"] }
+                }
+              },
               else: ""
             }
           }
@@ -114,7 +121,7 @@ export const createSupplies = async (req, res) => {
 
     let finalImageUrl = "";
     if (req.file) {
-      finalImageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+      finalImageUrl = await uploadImageBuffer(req.file.buffer, req.file.mimetype, "oneinventory/supplies");
     }
 
     const newSupplies = await Supplies.create({
@@ -176,7 +183,7 @@ export const updateSupplies = async (req, res) => {
 
     let finalImageUrl = existingSupply.ImageUrl || "";
     if (req.file) {
-      finalImageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+      finalImageUrl = await uploadImageBuffer(req.file.buffer, req.file.mimetype, "oneinventory/supplies");
     } else if (ImageUrl && !ImageUrl.startsWith("/api/")) {
       finalImageUrl = ImageUrl;
     }

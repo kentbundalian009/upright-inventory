@@ -9,8 +9,8 @@ const clientSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["Supplier", "Customer", "Logistics"],
-      required: [true, "Client type (Supplier, Customer, or Logistics) is required"],
+      enum: ["Supplier", "Customer", "Logistics", "Employee"],
+      required: [true, "Client type is required"],
       trim: true,
     },
     address: {

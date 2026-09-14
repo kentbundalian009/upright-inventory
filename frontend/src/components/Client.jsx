@@ -102,15 +102,20 @@ function Client() {
   const activeLogistics = useMemo(() => clients.filter(c => c.type === 'Logistics' && !c.isArchived).length, [clients]);
   const archivedLogistics = useMemo(() => clients.filter(c => c.type === 'Logistics' && c.isArchived).length, [clients]);
 
+  const activeEmployees = useMemo(() => clients.filter(c => c.type === 'Employee' && !c.isArchived).length, [clients]);
+  const archivedEmployees = useMemo(() => clients.filter(c => c.type === 'Employee' && c.isArchived).length, [clients]);
+
   const activeCurrentCount =
     activeType === 'Supplier' ? activeSuppliers :
       activeType === 'Customer' ? activeCustomers :
-        activeLogistics;
+        activeType === 'Logistics' ? activeLogistics :
+          activeEmployees;
 
   const archivedCurrentCount =
     activeType === 'Supplier' ? archivedSuppliers :
       activeType === 'Customer' ? archivedCustomers :
-        archivedLogistics;
+        activeType === 'Logistics' ? archivedLogistics :
+          archivedEmployees;
 
   // Filtered and Sorted Client List
   const filteredClients = useMemo(() => {
@@ -300,15 +305,15 @@ function Client() {
                 type="button"
                 onClick={() => { setActiveType('Supplier'); setSearchTerm(''); }}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeType === 'Supplier'
-                    ? (isDark ? 'bg-[#ff6600] text-white shadow-sm' : 'bg-[#18174e] text-white shadow-sm')
-                    : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+                  ? (isDark ? 'bg-[#ff6600] text-white shadow-sm' : 'bg-[#18174e] text-white shadow-sm')
+                  : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
                   }`}
               >
                 <Building2 className="w-3.5 h-3.5" />
                 <span>Suppliers</span>
                 <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${activeType === 'Supplier'
-                    ? 'bg-black/20 text-white'
-                    : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
+                  ? 'bg-black/20 text-white'
+                  : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
                   }`}>
                   {showArchivedOnly ? archivedSuppliers : activeSuppliers}
                 </span>
@@ -318,15 +323,15 @@ function Client() {
                 type="button"
                 onClick={() => { setActiveType('Customer'); setSearchTerm(''); }}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeType === 'Customer'
-                    ? (isDark ? 'bg-[#ff6600] text-white shadow-sm' : 'bg-[#18174e] text-white shadow-sm')
-                    : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+                  ? (isDark ? 'bg-[#ff6600] text-white shadow-sm' : 'bg-[#18174e] text-white shadow-sm')
+                  : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
                   }`}
               >
                 <Users className="w-3.5 h-3.5" />
                 <span>Customers</span>
                 <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${activeType === 'Customer'
-                    ? 'bg-black/20 text-white'
-                    : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
+                  ? 'bg-black/20 text-white'
+                  : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
                   }`}>
                   {showArchivedOnly ? archivedCustomers : activeCustomers}
                 </span>
@@ -336,17 +341,35 @@ function Client() {
                 type="button"
                 onClick={() => { setActiveType('Logistics'); setSearchTerm(''); }}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeType === 'Logistics'
-                    ? (isDark ? 'bg-[#ff6600] text-white shadow-sm' : 'bg-[#18174e] text-white shadow-sm')
-                    : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+                  ? (isDark ? 'bg-[#ff6600] text-white shadow-sm' : 'bg-[#18174e] text-white shadow-sm')
+                  : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
                   }`}
               >
                 <Truck className="w-3.5 h-3.5" />
                 <span>Logistics</span>
                 <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${activeType === 'Logistics'
-                    ? 'bg-black/20 text-white'
-                    : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
+                  ? 'bg-black/20 text-white'
+                  : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
                   }`}>
                   {showArchivedOnly ? archivedLogistics : activeLogistics}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveType('Employee'); setSearchTerm(''); }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeType === 'Employee'
+                  ? (isDark ? 'bg-[#ff6600] text-white shadow-sm' : 'bg-[#18174e] text-white shadow-sm')
+                  : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
+                  }`}
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Personnel</span>
+                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${activeType === 'Employee'
+                  ? 'bg-black/20 text-white'
+                  : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
+                  }`}>
+                  {showArchivedOnly ? archivedEmployees : activeEmployees}
                 </span>
               </button>
             </div>
@@ -370,10 +393,10 @@ function Client() {
               {!isViewer && (
                 <button
                   onClick={() => setShowArchivedOnly(!showArchivedOnly)}
-                  title={showArchivedOnly ? `Show Active ${activeType} records` : `View Archive Vault`}
+                  title={showArchivedOnly ? `Show Active ${activeType} records` : `Archive Vault`}
                   className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${showArchivedOnly
-                      ? (isDark ? 'bg-rose-950/40 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100')
-                      : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
+                    ? (isDark ? 'bg-rose-950/40 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100')
+                    : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
                     }`}
                 >
                   {showArchivedOnly ? (
@@ -385,7 +408,7 @@ function Client() {
                   ) : (
                     <>
                       <Archive className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                      <span className="hidden md:inline">View Archive Vault</span>
+                      <span className="hidden md:inline">Archive Vault</span>
                       <span className="text-[11px] font-bold">({archivedCurrentCount})</span>
                     </>
                   )}
@@ -469,12 +492,14 @@ function Client() {
                         style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' }}
                       >
                         <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
-                        {activeType} Name
+                        {activeType === 'Employee' ? 'Full Name' : `${activeType} Name`}
                       </th>
                       <th className="py-3 px-4 whitespace-nowrap">
-                        {activeType === 'Supplier' ? 'Origin Location Address' : 'Destination Address'}
+                        {activeType === 'Employee' ? 'Department / Area' : activeType === 'Supplier' ? 'Origin Location Address' : 'Destination Address'}
                       </th>
-                      <th className="py-3 px-4 whitespace-nowrap">Contact Person</th>
+                      <th className="py-3 px-4 whitespace-nowrap">
+                        {activeType === 'Employee' ? 'Position / Role' : 'Contact Person'}
+                      </th>
                       <th className="py-3 px-4 whitespace-nowrap">Contact Number / Email</th>
                       <th className="py-3 px-4 whitespace-nowrap">Remarks / Notes</th>
                       <th className="py-3 px-4 whitespace-nowrap">Date Added</th>
@@ -747,7 +772,9 @@ function Client() {
               <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
                 {activeType === 'Logistics'
                   ? "Register transport carriers and couriers (e.g. Lalamove, J&T, Transportify, In-house Delivery). Once saved, it will be immediately available in the Outbound Logistics dropdown."
-                  : `Ensure client details and location address are accurate. This address will auto-populate automatically when processing ${activeType === 'Supplier' ? 'Inbound (Raw Materials)' : 'Outbound (Finished Products)'} transactions.`}
+                  : activeType === 'Employee'
+                    ? "Register company workers and personnel. Once saved, their names will automatically be available for selection in Consumables transactions."
+                    : `Ensure client details and location address are accurate. This address will auto-populate automatically when processing ${activeType === 'Supplier' ? 'Inbound (Raw Materials)' : 'Outbound (Finished Products)'} transactions.`}
               </p>
             </div>
 
@@ -756,7 +783,7 @@ function Client() {
               {/* NAME */}
               <div>
                 <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                  {activeType} Name <span className="text-red-500">*</span>
+                  {activeType === 'Employee' ? 'Worker / Personnel Full Name' : `${activeType} Name`} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -766,7 +793,9 @@ function Client() {
                       ? "e.g. SteelCorp Industrial Supplies"
                       : activeType === 'Customer'
                         ? "e.g. Metro Builders & Contractors"
-                        : "e.g. Lalamove, Transportify, J&T Express, In-house Truck"
+                        : activeType === 'Employee'
+                          ? "e.g. Juan Dela Cruz, Maria Santos"
+                          : "e.g. Lalamove, Transportify, J&T Express, In-house Truck"
                   }
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -774,18 +803,24 @@ function Client() {
                 />
               </div>
 
-              {/* SHOW ADDRESS & CONTACT DETAILS ONLY FOR SUPPLIER AND CUSTOMER */}
+              {/* SHOW ADDRESS & CONTACT DETAILS ONLY FOR SUPPLIER, CUSTOMER AND EMPLOYEE */}
               {activeType !== 'Logistics' && (
                 <>
                   {/* ADDRESS */}
                   <div>
                     <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                      {activeType === 'Supplier' ? 'Origin Location Address' : 'Destination Address'} <span className="text-red-500">*</span>
+                      {activeType === 'Employee' ? 'Department / Assigned Area' : activeType === 'Supplier' ? 'Origin Location Address' : 'Destination Address'} {activeType !== 'Employee' && <span className="text-red-500">*</span>}
                     </label>
                     <input
                       type="text"
-                      required
-                      placeholder={activeType === 'Supplier' ? "e.g. Warehouse 4, Industrial Park, Biñan, Laguna" : "e.g. Project Site 2, BGC, Taguig City"}
+                      required={activeType !== 'Employee'}
+                      placeholder={
+                        activeType === 'Supplier'
+                          ? "e.g. Warehouse 4, Industrial Park, Biñan, Laguna"
+                          : activeType === 'Customer'
+                            ? "e.g. Project Site 2, BGC, Taguig City"
+                            : "e.g. Fabrication, Warehouse, Assembly, Production"
+                      }
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                       className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
@@ -796,11 +831,11 @@ function Client() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                        Contact Person
+                        {activeType === 'Employee' ? 'Position / Role / Designation' : 'Contact Person'}
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. Juan Dela Cruz"
+                        placeholder={activeType === 'Employee' ? "e.g. Welder, Fabricator, Machine Operator" : "e.g. Juan Dela Cruz"}
                         value={formData.contactPerson}
                         onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
                         className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}

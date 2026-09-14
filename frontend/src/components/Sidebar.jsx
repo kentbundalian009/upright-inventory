@@ -136,17 +136,18 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
       { id: 'admin-backup', name: 'Data Backup', icon: Database, roles: ['Admin'], section: 'admin' },
       { id: 'admin-settings', name: 'System Maintenance', icon: Power, roles: ['Admin'], section: 'admin' },
 
-      { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, roles: ['Inventory', 'Admin'], section: 'rackings' },
-      { id: 'client-records', name: 'Client (Records)', icon: Building2, roles: ['Inventory', 'Admin'], section: 'rackings' },
       { id: 'inbound-raw-mat', name: 'Inbound', icon: ArrowDownCircle, roles: ['Inventory'], section: 'rackings' },
       { id: 'work-in-progress', name: 'WIP (Production)', icon: TrendingUp, roles: ['Inventory'], section: 'rackings' },
       { id: 'outbound-products', name: 'Outbound', icon: Truck, roles: ['Inventory'], section: 'rackings' },
 
-      { id: 'supplies', name: 'Supplies (Records)', icon: Package, roles: ['Inventory'], section: 'supplies' },
-      { id: 'supplies-movements', name: 'Supplies Movements', icon: History, roles: ['Inventory'], section: 'supplies' },
+      { id: 'consumables', name: 'Consumables', icon: ShoppingBag, roles: ['Inventory', 'Admin'], section: 'supplies' },
+      { id: 'supplies-movements', name: 'Supplies Movements', icon: History, roles: ['Inventory', 'Admin'], section: 'supplies' },
 
-      { id: 'assets', name: 'Assets (Records)', icon: Briefcase, roles: ['Inventory'], section: 'others' },
-      { id: 'reports', name: 'Reports', icon: FileSpreadsheet, roles: ['Inventory'], section: 'others' },
+      { id: 'raw-materials', name: 'Rackings (Records)', icon: Layers, roles: ['Inventory', 'Admin'], section: 'records' },
+      { id: 'supplies', name: 'Supplies (Records)', icon: Package, roles: ['Inventory', 'Admin'], section: 'records' },
+      { id: 'client-records', name: 'Client (Records)', icon: Building2, roles: ['Inventory', 'Admin'], section: 'records' },
+
+      { id: 'reports', name: 'Reports', icon: FileSpreadsheet, roles: ['Inventory'], section: 'reports' },
 
       { id: 'settings', name: 'Settings', icon: Settings, roles: ['Admin', 'Inventory'], section: 'main' },
     ];
@@ -173,16 +174,14 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
     switch (currentSection) {
       case 'admin':
         return <div className="text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1">Admin Controls</div>;
-      case 'records':
-        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Records</div>;
-      case 'settings_section':
-        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Settings</div>;
       case 'rackings':
         return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Rackings Process</div>;
       case 'supplies':
         return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Supplies Process</div>;
-      case 'others':
-        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Assets Management</div>;
+      case 'records':
+        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Records Management</div>;
+      case 'settings_section':
+        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Settings</div>;
       default:
         return null;
     }
@@ -282,12 +281,12 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
                     }}
                     title={isCollapsed ? `${item.name}${item.id === 'outbound-products' && pendingOutboundCount > 0 ? ` (${pendingOutboundCount} pending packed)` : ''}${item.id === 'supplies-movements' && pendingSuppliesCount > 0 ? ` (${pendingSuppliesCount} active borrow/reserved)` : ''}` : ''}
                     className={`w-full whitespace-nowrap flex items-center gap-3 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all relative cursor-pointer group ${isCollapsed ? 'md:justify-center' : ''} ${isActive
-                        ? isDark
-                          ? 'bg-[#181a26] text-white font-bold shadow-sm border border-slate-700/60'
-                          : 'bg-[#28267a] text-white font-bold shadow-sm border border-white/10'
-                        : isDark
-                          ? 'text-slate-400 hover:bg-white/5 hover:text-white'
-                          : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                      ? isDark
+                        ? 'bg-[#181a26] text-white font-bold shadow-sm border border-slate-700/60'
+                        : 'bg-[#28267a] text-white font-bold shadow-sm border border-white/10'
+                      : isDark
+                        ? 'text-slate-400 hover:bg-white/5 hover:text-white'
+                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
                       }`}
                   >
                     {isActive && (

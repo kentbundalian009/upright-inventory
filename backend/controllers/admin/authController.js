@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { redis } from "../../lib/redis.js";
 import { logActivity } from "../../utils/logger.js"; 
+import { clearSessionCache } from "../../middleware/authMiddleware.js"; 
 
 export const signupUser = async (req, res) => {
   try {
@@ -160,6 +161,7 @@ export const logoutUser = async (req, res) => {
       );
 
       await redis.del(redisKey);
+      clearSessionCache(userId);
       
       console.log(`🗑️ Session deleted from Upstash Redis for user ID: ${userId}`);
       console.log(`📝 Audit Log Created: [Auth LOGOUT] ni ${userPayload.username}`);

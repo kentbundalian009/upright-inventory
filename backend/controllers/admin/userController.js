@@ -1,5 +1,6 @@
 import User from "../../models/User.js";
 import bcrypt from "bcryptjs";
+import { uploadImageBuffer } from "../../lib/cloudinary.js";
 
 export const getAllUsers = async (req, res) => {
   try {
@@ -37,7 +38,7 @@ export const createUser = async (req, res) => {
 
     let finalImagePath = "";
     if (req.file) {
-      finalImagePath = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+      finalImagePath = await uploadImageBuffer(req.file.buffer, req.file.mimetype, "oneinventory/users");
     }
 
     const newUser = await User.create({
@@ -88,7 +89,7 @@ export const updateUser = async (req, res) => {
 
     let finalImagePath = undefined;
     if (req.file) {
-      finalImagePath = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+      finalImagePath = await uploadImageBuffer(req.file.buffer, req.file.mimetype, "oneinventory/users");
     }
 
     const updateFields = { 
