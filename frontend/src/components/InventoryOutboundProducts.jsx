@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2, Layers, Pencil, Copy } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -59,6 +59,63 @@ function InventoryOutboundProducts() {
   const [existingDestinations, setExistingDestinations] = useState([]);
 
   const [quickReserveSearch, setQuickReserveSearch] = useState('');
+
+  // Drag-and-drop reordering for Quick-Assistant packed rack cards
+  const [cardOrderIds, setCardOrderIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('quick_assistant_box_order');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [draggedCardIndex, setDraggedCardIndex] = useState(null);
+  const [dragOverCardIndex, setDragOverCardIndex] = useState(null);
+  const [isDraggingCard, setIsDraggingCard] = useState(false);
+
+  const handleCardDragStart = (e, index) => {
+    setDraggedCardIndex(index);
+    setIsDraggingCard(true);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
+  };
+
+  const handleCardDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverCardIndex !== index) {
+      setDragOverCardIndex(index);
+    }
+  };
+
+  const handleCardDragEnd = () => {
+    setDraggedCardIndex(null);
+    setDragOverCardIndex(null);
+    setTimeout(() => setIsDraggingCard(false), 120);
+  };
+
+  const handleCardDrop = (e, dropIndex, currentList) => {
+    e.preventDefault();
+    if (draggedCardIndex === null || draggedCardIndex === dropIndex) {
+      handleCardDragEnd();
+      return;
+    }
+
+    const updated = [...currentList];
+    const [movedItem] = updated.splice(draggedCardIndex, 1);
+    updated.splice(dropIndex, 0, movedItem);
+
+    const newOrderIds = updated.map(item => item._id);
+    setCardOrderIds(newOrderIds);
+    try {
+      localStorage.setItem('quick_assistant_box_order', JSON.stringify(newOrderIds));
+    } catch (err) {
+      console.error("Error saving card order:", err);
+    }
+
+    handleCardDragEnd();
+    showSuccessToast("Packed rack arrangement updated!");
+  };
 
   const showSuccessToast = (message) => {
     toast.custom((t) => (
@@ -552,6 +609,23 @@ function InventoryOutboundProducts() {
     !completedPlNumbers.includes(r.plNo?.toString().trim().toLowerCase())
   );
 
+  // Preserve user custom order of packed rack boxes
+  const orderedActiveReserves = useMemo(() => {
+    if (!cardOrderIds || cardOrderIds.length === 0) return activeReserves;
+    const map = new Map(activeReserves.map(item => [item._id, item]));
+    const ordered = [];
+    for (const id of cardOrderIds) {
+      if (map.has(id)) {
+        ordered.push(map.get(id));
+        map.delete(id);
+      }
+    }
+    for (const item of map.values()) {
+      ordered.push(item);
+    }
+    return ordered;
+  }, [activeReserves, cardOrderIds]);
+
   const filteredHistoryLogs = plRecords.filter(rec =>
     rec.plNo?.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
     rec.customer?.toLowerCase().includes(historySearchQuery.toLowerCase())
@@ -581,6 +655,7 @@ function InventoryOutboundProducts() {
             <div className={`flex items-center gap-2 text-xs font-bold ${isDark ? 'text-slate-200' : 'text-[#18174e]'} uppercase`}>
               <Eye className="w-3.5 h-3.5 text-[#ff6600]" />
               <span>Quick-Assistant: Select a packed rack below to fulfill transaction</span>
+
             </div>
 
             <div className="relative w-full sm:w-64">
@@ -595,74 +670,96 @@ function InventoryOutboundProducts() {
             </div>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
-            {activeReserves
+          <div className="flex gap-2.5 overflow-x-auto pb-2 text-xs select-none">
+            {orderedActiveReserves
               .filter(b =>
                 b.plNo?.toLowerCase().includes(quickReserveSearch.toLowerCase()) ||
                 b.customer?.toLowerCase().includes(quickReserveSearch.toLowerCase())
               )
-              .map(b => (
-                <div
-                  key={b._id}
-                  className="relative inline-block shrink-0 overflow-visible group"
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleFastReturnCopy(b, "Outbound");
-                      setQuickReserveSearch('');
-                    }}
-                    className="bg-yellow-400 border border-slate-900 hover:border-slate-800 text-[#000] rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 pt-4 w-28 h-22 shrink-0"
-                    title="Click to fulfill as Outbound (remaining balance will stay reserved)"
+              .map((b, index, filteredList) => {
+                const isDraggingThis = draggedCardIndex === index;
+                const isOverThis = dragOverCardIndex === index;
+
+                return (
+                  <div
+                    key={b._id}
+                    draggable
+                    onDragStart={(e) => handleCardDragStart(e, index)}
+                    onDragOver={(e) => handleCardDragOver(e, index)}
+                    onDragEnd={handleCardDragEnd}
+                    onDrop={(e) => handleCardDrop(e, index, filteredList)}
+                    className={`relative inline-block shrink-0 overflow-visible group transition-all duration-200 cursor-grab active:cursor-grabbing select-none ${isDraggingThis
+                        ? 'opacity-35 scale-90 rotate-2 border-2 border-dashed border-[#ff6600] rounded-xl'
+                        : isOverThis
+                          ? 'scale-105 ring-2 ring-[#ff6600] ring-offset-2 shadow-xl -translate-y-1'
+                          : 'hover:scale-[1.02]'
+                      }`}
+                    title="Drag and drop to rearrange order, or click to fulfill"
                   >
-                    <span className="font-bold text-[#000] text-[12px] tracking-tighter block mb-0.5 line-clamp-2 break-words max-w-full leading-tight">
-                      {b.customer}
-                    </span>
-                    <span className="text-[10px] font-semibold text-slate-800 opacity-75">{b.plNo}</span>
-                  </button>
-
-                  <div className="absolute top-1 right-1 flex items-center gap-1 z-20">
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedSlip(b);
-                        setIsModalOpen(true);
-                      }}
-                      className="w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-indigo-400 text-slate-900 hover:text-indigo-700 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center"
-                      title="View Reservation Details"
-                    >
-                      <Eye className="w-2.5 h-2.5 shrink-0" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFastReturnCopy(b, "Reserve");
+                      onClick={() => {
+                        if (isDraggingCard) return;
+                        handleFastReturnCopy(b, "Outbound");
                         setQuickReserveSearch('');
                       }}
-                      className="w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-amber-400 text-slate-900 hover:text-amber-800 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center"
-                      title="Edit Reservation (Items & Quantities)"
+                      className="bg-yellow-400 border border-slate-900 hover:border-slate-800 text-[#000] rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 pt-4 w-28 h-22 shrink-0 select-none pointer-events-auto"
                     >
-                      <Pencil className="w-2.5 h-2.5 shrink-0" />
+                      <span className="font-bold text-[#000] text-[12px] tracking-tighter block mb-0.5 line-clamp-2 break-words max-w-full leading-tight pointer-events-none">
+                        {b.customer}
+                      </span>
+                      <span className="text-[10px] font-semibold text-slate-800 opacity-75 pointer-events-none">{b.plNo}</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDuplicatePackedRack(b);
-                        setQuickReserveSearch('');
-                      }}
-                      className="w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-emerald-600 text-slate-900 hover:text-emerald-800 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center"
-                      title="Duplicate as New Reservation"
+                    <div
+                      className="absolute top-1 right-1 flex items-center gap-1 z-20"
+                      onMouseDown={(e) => e.stopPropagation()}
                     >
-                      <Copy className="w-2.5 h-2.5 shrink-0" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isDraggingCard) return;
+                          setSelectedSlip(b);
+                          setIsModalOpen(true);
+                        }}
+                        className="w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-indigo-400 text-slate-900 hover:text-indigo-700 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center"
+                        title="View Reservation Details"
+                      >
+                        <Eye className="w-2.5 h-2.5 shrink-0" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isDraggingCard) return;
+                          handleFastReturnCopy(b, "Reserve");
+                          setQuickReserveSearch('');
+                        }}
+                        className="w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-amber-400 text-slate-900 hover:text-amber-800 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center"
+                        title="Edit Reservation (Items & Quantities)"
+                      >
+                        <Pencil className="w-2.5 h-2.5 shrink-0" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isDraggingCard) return;
+                          handleDuplicatePackedRack(b);
+                          setQuickReserveSearch('');
+                        }}
+                        className="w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-emerald-600 text-slate-900 hover:text-emerald-800 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center"
+                        title="Duplicate as New Reservation"
+                      >
+                        <Copy className="w-2.5 h-2.5 shrink-0" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
             {activeReserves.filter(b =>
               b.plNo?.toLowerCase().includes(quickReserveSearch.toLowerCase()) ||
@@ -697,13 +794,13 @@ function InventoryOutboundProducts() {
             {/* CONTEXTUAL PACKED RACK BANNER */}
             {referencePlNo && (
               <div className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-in fade-in duration-200 ${transactionType === 'Reserve'
-                  ? (isDark ? 'bg-amber-950/40 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-800')
-                  : (isDark ? 'bg-indigo-950/40 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-800')
+                ? (isDark ? 'bg-amber-950/40 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-800')
+                : (isDark ? 'bg-indigo-950/40 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-800')
                 }`}>
                 <div className="flex items-center gap-2 text-xs font-semibold">
                   <span className={`font-bold uppercase px-2 py-0.5 rounded text-[10px] tracking-wider border shadow-2xs shrink-0 ${transactionType === 'Reserve'
-                      ? (isDark ? 'bg-amber-900/60 border-amber-700 text-amber-200' : 'bg-amber-100 border-amber-300 text-amber-800')
-                      : (isDark ? 'bg-indigo-900/60 border-indigo-700 text-indigo-200' : 'bg-indigo-100 border-indigo-300 text-indigo-800')
+                    ? (isDark ? 'bg-amber-900/60 border-amber-700 text-amber-200' : 'bg-amber-100 border-amber-300 text-amber-800')
+                    : (isDark ? 'bg-indigo-900/60 border-indigo-700 text-indigo-200' : 'bg-indigo-100 border-indigo-300 text-indigo-800')
                     }`}>
                     {transactionType === 'Reserve' ? '🟡 Editing Packed Rack' : '🔴 Fulfilling Packed Rack'}
                   </span>
@@ -726,11 +823,10 @@ function InventoryOutboundProducts() {
                       })));
                       showSuccessToast(`Duplicated ${oldRef}! Ready to save as a new packed rack reservation.`);
                     }}
-                    className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer shadow-xs ${
-                      transactionType === 'Reserve'
+                    className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer shadow-xs ${transactionType === 'Reserve'
                         ? (isDark ? 'bg-amber-900/60 border-amber-700 text-amber-200 hover:bg-amber-800' : 'bg-amber-100 border-amber-300 text-amber-900 hover:bg-amber-200')
                         : (isDark ? 'bg-indigo-900/60 border-indigo-700 text-indigo-200 hover:bg-indigo-800' : 'bg-indigo-100 border-indigo-300 text-indigo-900 hover:bg-indigo-200')
-                    }`}
+                      }`}
                     title="Duplicate this packed rack as a new reservation"
                   >
                     <Copy className="w-3.5 h-3.5" />
@@ -990,8 +1086,8 @@ function InventoryOutboundProducts() {
             {manifestItems.length > 0 && (
               <div className="flex flex-col gap-3 animate-in fade-in duration-200">
                 <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${transactionType === 'Reserve'
-                    ? (isDark ? 'bg-amber-950/40 text-amber-300 border border-amber-800/40' : 'text-amber-700 bg-amber-50 border border-amber-200/60')
-                    : (isDark ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' : 'text-rose-700 bg-rose-50 border border-rose-200/60')
+                  ? (isDark ? 'bg-amber-950/40 text-amber-300 border border-amber-800/40' : 'text-amber-700 bg-amber-50 border border-amber-200/60')
+                  : (isDark ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' : 'text-rose-700 bg-rose-50 border border-rose-200/60')
                   }`}>
                   {transactionType === 'Reserve' ? '🟡 Quantities will be reserved / held' : '🔴 Quantities will be automatically deducted'}
                 </span>
