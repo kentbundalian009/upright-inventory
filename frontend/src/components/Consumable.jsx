@@ -997,56 +997,68 @@ function Consumable() {
               )}
             </div>
 
-            {/* MANIFEST TABLE */}
-            <div className="flex flex-col gap-2">
-              <span
-                className={`text-xs font-bold px-2 py-1 rounded w-fit uppercase ${transactionType === 'IN'
-                  ? isDark
-                    ? 'text-emerald-400 bg-emerald-950/40 border border-emerald-800'
-                    : 'text-emerald-700 bg-emerald-50'
-                  : isDark
-                    ? 'text-rose-400 bg-rose-950/40 border border-rose-800'
-                    : 'text-rose-700 bg-rose-50'
-                  }`}
-              >
-                {transactionType === 'IN'
-                  ? 'Quantities will be added to inventory stock'
-                  : 'Quantities will be deducted from inventory stock'}
-              </span>
+            {/* MANIFEST TABLE (SHOW ONLY WHEN ITEMS ARE SELECTED) */}
+            {manifestItems.length > 0 && (
+              <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${transactionType === 'IN'
+                      ? isDark
+                        ? 'text-emerald-400 bg-emerald-950/40 border border-emerald-800'
+                        : 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                      : isDark
+                        ? 'text-rose-400 bg-rose-950/40 border border-rose-800'
+                        : 'text-rose-700 bg-rose-50 border border-rose-200'
+                      }`}
+                  >
+                    {transactionType === 'IN'
+                      ? '🟢 Quantities will be automatically added'
+                      : '🔴 Quantities will be automatically deducted'}
+                  </span>
 
-              <div
-                className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'
-                  } rounded-xl border shadow-sm overflow-x-auto`}
-              >
-                <table className="w-full text-left border-collapse text-sm min-w-[950px]">
-                  <thead>
-                    <tr
-                      className={`text-white font-bold uppercase text-xs whitespace-nowrap ${transactionType === 'IN'
-                        ? isDark
-                          ? 'bg-[#0f111d]'
-                          : 'bg-emerald-700'
-                        : isDark
-                          ? 'bg-[#180a0e]'
-                          : 'bg-rose-700'
-                        }`}
-                    >
-                      <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
-                      <th className="py-3 px-4 text-center">UOM</th>
-                      <th className="py-3 px-4">Item Description</th>
-                      <th className="py-3 px-4">Segment</th>
-                      <th className="py-3 px-4">Dimension</th>
-                      <th className="py-3 px-4">Category</th>
-                      <th className="py-3 px-4">Brand</th>
-                      <th className="py-3 px-4">Serial No.</th>
-                      <th className="py-3 px-4 text-center">Stock</th>
-                      <th className="py-3 px-4">Remarks</th>
-                      <th className="py-3 px-4 text-center">Action</th>
-                    </tr>
-                  </thead>
+                  <button
+                    type="button"
+                    onClick={() => setManifestItems([])}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${
+                      isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Clear Form Grid
+                  </button>
+                </div>
 
-                  <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10]' : 'divide-slate-100'}`}>
-                    {manifestItems.length > 0 ? (
-                      manifestItems.map((item, index) => (
+                <div
+                  className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'
+                    } rounded-xl border shadow-sm overflow-x-auto`}
+                >
+                  <table className="w-full text-left border-collapse text-sm min-w-[950px]">
+                    <thead>
+                      <tr
+                        className={`text-white font-bold uppercase text-xs whitespace-nowrap ${transactionType === 'IN'
+                          ? isDark
+                            ? 'bg-[#0f111d]'
+                            : 'bg-emerald-700'
+                          : isDark
+                            ? 'bg-[#180a0e]'
+                            : 'bg-rose-700'
+                          }`}
+                      >
+                        <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
+                        <th className="py-3 px-4 text-center">UOM</th>
+                        <th className="py-3 px-4">Item Description</th>
+                        <th className="py-3 px-4">Segment</th>
+                        <th className="py-3 px-4">Dimension</th>
+                        <th className="py-3 px-4">Category</th>
+                        <th className="py-3 px-4">Brand</th>
+                        <th className="py-3 px-4">Serial No.</th>
+                        <th className="py-3 px-4 text-center">Stock</th>
+                        <th className="py-3 px-4">Remarks</th>
+                        <th className="py-3 px-4 text-center">Action</th>
+                      </tr>
+                    </thead>
+
+                    <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10]' : 'divide-slate-100'}`}>
+                      {manifestItems.map((item, index) => (
                         <tr
                           key={item.consumableId || index}
                           className={`${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'
@@ -1139,54 +1151,34 @@ function Consumable() {
                             </button>
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="11" className="text-center py-8">
-                          <div className="flex flex-col items-center justify-center gap-2">
-                            <p className="text-slate-400 font-medium text-xs">
-                              No items in manifest yet. Click &ldquo;Browse Table&rdquo; above to select consumables.
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => setIsBrowseModalOpen(true)}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-sm"
-                            >
-                              <Layers className="w-3.5 h-3.5" />
-                              <span>Browse Table</span>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-            {/* CONFIRM BUTTON */}
-            <button
-              type="submit"
-              disabled={manifestItems.length === 0}
-              className={`w-full font-bold py-2.5 px-4 rounded-xl text-sm transition-all cursor-pointer uppercase shadow-sm flex items-center justify-center gap-2 ${manifestItems.length === 0
-                ? 'bg-slate-400 text-white opacity-50 cursor-not-allowed'
-                : transactionType === 'IN'
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                  : 'bg-rose-600 hover:bg-rose-700 text-white'
-                }`}
-            >
-              {transactionType === 'IN' ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Confirm Stock IN (Addition)</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Confirm Stock OUT (Release)</span>
-                </>
-              )}
-            </button>
+                {/* CONFIRM BUTTON */}
+                <button
+                  type="submit"
+                  className={`w-full font-bold py-2.5 px-4 rounded-xl text-sm transition-all cursor-pointer uppercase shadow-sm flex items-center justify-center gap-2 ${
+                    transactionType === 'IN'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : 'bg-rose-600 hover:bg-rose-700 text-white'
+                  }`}
+                >
+                  {transactionType === 'IN' ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Confirm Stock IN (Addition)</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Confirm Stock OUT (Release)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </form>
         </div>
 

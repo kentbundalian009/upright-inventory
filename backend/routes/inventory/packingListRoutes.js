@@ -2,6 +2,7 @@ import express from "express";
 import { 
   createPackingList, 
   getPackingLists, 
+  updatePackingList,
   cancelPackingList 
 } from "../../controllers/inventory/packingListController.js";
 import { protectRoute, restrictTo } from "../../middleware/authMiddleware.js";
@@ -15,6 +16,7 @@ router.route("/")
   .post(createPackingList);
 
 router.route("/:id")
+  .put(updatePackingList)
   .delete(cancelPackingList);
 
 export default router;

@@ -202,27 +202,15 @@ function Reports() {
                             it.materialId?.Code === item.Code
                         );
 
-                        if (matchedPLItem) {
-                            const qty = pl.transactionType === "Outbound"
-                                ? (matchedPLItem.actualCountShipped || 0)
-                                : (matchedPLItem.qtyRequested || 0);
-
+                        if (matchedPLItem && pl.transactionType === "Outbound") {
+                            const qty = matchedPLItem.actualCountShipped || 0;
                             if (qty > 0) {
-                                if (pl.transactionType === "Outbound") {
-                                    outflows.push({
-                                        type: 'OUT',
-                                        qty: qty,
-                                        label: pl.customer || 'Outbound',
-                                        date: formatDate(txDate)
-                                    });
-                                } else if (pl.transactionType === "Reserve") {
-                                    outflows.push({
-                                        type: 'RESERVE',
-                                        qty: qty,
-                                        label: pl.customer || 'Reserved',
-                                        date: formatDate(txDate)
-                                    });
-                                }
+                                outflows.push({
+                                    type: 'OUT',
+                                    qty: qty,
+                                    label: pl.customer || 'Outbound',
+                                    date: formatDate(txDate)
+                                });
                             }
                         }
                     }
@@ -690,7 +678,7 @@ function Reports() {
                 // Filter WIP Conversions
                 const monthWIP = wipConversions.filter(wip => matchSelectedDate(wip.conversionDate || wip.dateProcessed || wip.createdAt));
                 // Filter Outbound (Packing Lists)
-                const monthPLs = packingLists.filter(pl => !pl.isVoided && matchSelectedDate(pl.shipmentDate || pl.createdAt));
+                const monthPLs = packingLists.filter(pl => !pl.isVoided && pl.transactionType === "Outbound" && matchSelectedDate(pl.shipmentDate || pl.createdAt));
 
                 if (monthPOs.length === 0 && monthWIP.length === 0 && monthPLs.length === 0) {
                     alert(`No Rackings activities (Inbound, WIP, or Outbound) logged for ${targetMonthLabel} ${currentYearStr}.`);
@@ -712,7 +700,7 @@ function Reports() {
 
                 const totalOutboundQty = monthPLs.reduce((acc, pl) => {
                     const plTotal = (pl.items || []).reduce((sum, it) => {
-                        return sum + (pl.transactionType === "Outbound" ? (it.actualCountShipped || 0) : (it.qtyRequested || 0));
+                        return sum + (it.actualCountShipped || 0);
                     }, 0);
                     return acc + plTotal;
                 }, 0);
@@ -723,7 +711,7 @@ function Reports() {
                 const kpiRows = [[
                     `INBOUND POs: ${monthPOs.length} Deliveries\nTotal Received: ${totalInboundQty.toLocaleString()} Units`,
                     `WIP CONVERSIONS: ${monthWIP.length} Batches\nConsumed: ${totalConsumedQty.toLocaleString()} | Yield: ${totalProducedQty.toLocaleString()} Units`,
-                    `OUTBOUND SHIPMENTS: ${monthPLs.length} Dispatches\nTotal Shipped/Reserved: ${totalOutboundQty.toLocaleString()} Units`
+                    `OUTBOUND SHIPMENTS: ${monthPLs.length} Dispatches\nTotal Shipped: ${totalOutboundQty.toLocaleString()} Units`
                 ]];
 
                 autoTable(doc, {
@@ -867,11 +855,11 @@ function Reports() {
                     currentY = 38;
                 }
 
-                // --- SECTION 3: OUTBOUND SHIPMENTS & RESERVES ---
+                // --- SECTION 3: OUTBOUND SHIPMENTS ---
                 doc.setFont("helvetica", "bold");
                 doc.setFontSize(10.5);
                 doc.setTextColor(24, 23, 78);
-                doc.text(`C. OUTBOUND SHIPMENTS & RESERVATIONS (${monthPLs.length} Records)`, 14, currentY);
+                doc.text(`C. OUTBOUND SHIPMENTS (${monthPLs.length} Records)`, 14, currentY);
                 currentY += 4;
 
                 const plColumns = ["Date", "PL Number", "Type", "Customer / Destination", "Dispatched Items Details", "Total Qty", "Carrier / Ref", "Handled By"];
@@ -880,13 +868,13 @@ function Reports() {
                         const itemsStr = (pl.items || []).map(it => {
                             const code = it.materialId?.Code || 'Item';
                             const desc = it.materialId?.ItemDescription || '';
-                            const count = pl.transactionType === "Outbound" ? (it.actualCountShipped || 0) : (it.qtyRequested || 0);
+                            const count = it.actualCountShipped || 0;
                             const uom = it.materialId?.UOM || 'PCS';
                             return `• ${code}${desc ? ` - ${desc}` : ''} (${count} ${uom})`;
                         }).join('\n') || 'No items listed';
 
                         const totalQty = (pl.items || []).reduce((sum, it) => {
-                            return sum + (pl.transactionType === "Outbound" ? (it.actualCountShipped || 0) : (it.qtyRequested || 0));
+                            return sum + (it.actualCountShipped || 0);
                         }, 0);
 
                         return [

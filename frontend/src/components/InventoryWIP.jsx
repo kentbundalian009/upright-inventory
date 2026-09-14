@@ -537,16 +537,14 @@ function InventoryWIP() {
           <form onSubmit={handleInitiateConfirm} className="flex flex-col gap-5">
 
             {/* COMPACT PRODUCTION TYPE CONTAINER */}
-            <div className={`px-3.5 py-2 rounded-xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 ${
-              isDark ? 'bg-[#141622]/80 border-slate-800' : 'bg-slate-50 border-slate-200'
-            }`}>
+            <div className={`px-3.5 py-2 rounded-xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 ${isDark ? 'bg-[#141622]/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+              }`}>
               <div className="flex items-center gap-2">
                 <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Production Type:
                 </span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
-                  isDark ? 'bg-blue-950/60 text-blue-400 border-blue-800' : 'bg-blue-50 text-blue-700 border-blue-200'
-                }`}>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${isDark ? 'bg-blue-950/60 text-blue-400 border-blue-800' : 'bg-blue-50 text-blue-700 border-blue-200'
+                  }`}>
                   🔵 Fabricated
                 </span>
               </div>
@@ -556,11 +554,10 @@ function InventoryWIP() {
                 <button
                   type="button"
                   onClick={() => setProductionType('Fabricated')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                    productionType === 'Fabricated'
-                      ? (isDark ? 'bg-blue-600 text-white border-blue-500 shadow-xs' : 'bg-blue-600 text-white border-blue-700 shadow-xs')
-                      : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${productionType === 'Fabricated'
+                    ? (isDark ? 'bg-blue-600 text-white border-blue-500 shadow-xs' : 'bg-blue-600 text-white border-blue-700 shadow-xs')
+                    : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
+                    }`}
                 >
                   🔵 Fabricated
                 </button>
@@ -585,7 +582,7 @@ function InventoryWIP() {
                   className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer font-medium`}
                   required
                 >
-                  <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>-- Select Registered Customer --</option>
+                  <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>Select Customer</option>
                   {registeredCustomers.map((cust) => (
                     <option key={cust._id} value={cust.name} className={isDark ? 'bg-[#141622] text-white' : ''}>
                       {cust.name}
@@ -611,24 +608,11 @@ function InventoryWIP() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-rose-400' : 'text-red-800'} uppercase leading-snug`}>
-                    Step 1: Type / Select Materials for Stock Deduction
+                    Step 1: Type / Select Materials
                   </label>
                   <p className="text-[11px] text-slate-400">
-                    Filter by segment or search by item description and dimension (e.g. beam 2700).
+                    Filter by segment or search by item description and dimension.
                   </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsInputBrowseModalOpen(true)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-sm ${
-                      isDark ? 'bg-[#141622] border-slate-700 text-indigo-400 hover:bg-indigo-950/60' : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50'
-                    }`}
-                    title="Browse all materials in a table view"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>Browse Table</span>
-                  </button>
                 </div>
               </div>
 
@@ -684,9 +668,8 @@ function InventoryWIP() {
                         <div
                           key={item._id}
                           onClick={() => handleSelectRawMaterial(item)}
-                          className={`p-2.5 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex items-center justify-between gap-3 rounded-lg transition-colors ${
-                            isAdded ? 'opacity-60 bg-emerald-50/20' : ''
-                          }`}
+                          className={`p-2.5 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex items-center justify-between gap-3 rounded-lg transition-colors ${isAdded ? 'opacity-60 bg-emerald-50/20' : ''
+                            }`}
                         >
                           <div className="flex flex-col min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -694,18 +677,16 @@ function InventoryWIP() {
                                 {item.ItemDescription}
                               </span>
                               {dimension && (
-                                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
-                                  isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                                }`}>
+                                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                  }`}>
                                   {dimension}
                                 </span>
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
                               {segment && (
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                                  isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
-                                }`}>
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                                  }`}>
                                   {segment}
                                 </span>
                               )}
@@ -714,9 +695,8 @@ function InventoryWIP() {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            <span className={`text-[11px] px-2 py-0.5 rounded-md font-bold uppercase ${
-                              isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            }`}>
+                            <span className={`text-[11px] px-2 py-0.5 rounded-md font-bold uppercase ${isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              }`}>
                               Avail: {count} {item.UOM || 'pcs'}
                             </span>
                             {isAdded && (
@@ -739,27 +719,39 @@ function InventoryWIP() {
               )}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <span className={`text-[10px] sm:text-xs font-bold ${isDark ? 'text-rose-400 bg-rose-950/40 border border-rose-800' : 'text-red-700 bg-red-50'} px-2 py-1 rounded w-fit uppercase`}>
-                Quantities will be automatically deducted
-              </span>
-              <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-x-auto`}>
-                <table className="w-full text-left border-collapse text-sm min-w-[1200px]">
-                  <thead>
-                    <tr className={`text-white font-bold ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700'} uppercase text-xs whitespace-nowrap`}>
-                      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Qty Used</th>
-                      <th className="py-3 px-4 text-center">UOM</th>
-                      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Stock Balance</th>
+            {/* INPUT / SOURCE MATERIALS TABLE (SHOW ONLY WHEN ITEMS ARE SELECTED) */}
+            {inputMaterials.length > 0 && (
+              <div className="flex flex-col gap-2 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] sm:text-xs font-bold ${isDark ? 'text-rose-400 bg-rose-950/40 border border-rose-800' : 'text-red-700 bg-red-50 border border-rose-200'} px-2.5 py-1 rounded-md w-fit uppercase`}>
+                    🔴 Quantities will be automatically deducted
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setInputMaterials([])}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${
+                      isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Clear Source Items
+                  </button>
+                </div>
+                <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-x-auto`}>
+                  <table className="w-full text-left border-collapse text-sm min-w-[1200px]">
+                    <thead>
+                      <tr className={`text-white font-bold ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700'} uppercase text-xs whitespace-nowrap`}>
+                        <th className="py-3 px-4 text-center w-28 min-w-[112px]">Qty Used</th>
+                        <th className="py-3 px-4 text-center">UOM</th>
+                        <th className="py-3 px-4 text-center w-28 min-w-[112px]">Stock Balance</th>
 
-                      <th className="py-3 px-4">Segment</th>
-                      <th className="py-3 px-4">Description</th>
-                      <th className="py-3 px-4">Dimension</th>
-                      <th className="py-3 px-4 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10]' : 'divide-slate-100'}`}>
-                    {inputMaterials.length > 0 ? (
-                      inputMaterials.map((item, index) => (
+                        <th className="py-3 px-4">Segment</th>
+                        <th className="py-3 px-4">Description</th>
+                        <th className="py-3 px-4">Dimension</th>
+                        <th className="py-3 px-4 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10]' : 'divide-slate-100'}`}>
+                      {inputMaterials.map((item, index) => (
                         <tr key={item.materialId || index} className={`${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} text-xs`}>
 
                           <td className="py-2 px-4 w-28 min-w-[112px]">
@@ -809,18 +801,12 @@ function InventoryWIP() {
                             </button>
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="8" className="text-center py-6 text-red-500 italic font-bold text-xs">
-                          No items added. Search above to add rows.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* --- STEP 2: CONVERSION TARGET (RAW MATERIALS ONLY) --- */}
             <div className={`${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border flex flex-col gap-2.5 relative`}>
@@ -832,19 +818,6 @@ function InventoryWIP() {
                   <p className="text-[11px] text-slate-400">
                     Filter by segment or search by item description and dimension (e.g. beam 2700).
                   </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsOutputBrowseModalOpen(true)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-sm ${
-                      isDark ? 'bg-[#141622] border-slate-700 text-emerald-400 hover:bg-emerald-950/60' : 'bg-white border-slate-200 text-emerald-700 hover:bg-emerald-50'
-                    }`}
-                    title="Browse all materials in a table view"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>Browse Table</span>
-                  </button>
                 </div>
               </div>
 
@@ -899,9 +872,8 @@ function InventoryWIP() {
                         <div
                           key={`${item.type}-${item._id}`}
                           onClick={() => handleSelectOutputItem(item, item.type)}
-                          className={`p-2.5 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex items-center justify-between gap-3 rounded-lg transition-colors ${
-                            isAdded ? 'opacity-60 bg-emerald-50/20' : ''
-                          }`}
+                          className={`p-2.5 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex items-center justify-between gap-3 rounded-lg transition-colors ${isAdded ? 'opacity-60 bg-emerald-50/20' : ''
+                            }`}
                         >
                           <div className="flex flex-col min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -909,18 +881,16 @@ function InventoryWIP() {
                                 {item.ItemDescription}
                               </span>
                               {dimension && (
-                                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
-                                  isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                                }`}>
+                                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                  }`}>
                                   {dimension}
                                 </span>
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
                               {segment && (
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                                  isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
-                                }`}>
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                                  }`}>
                                   {segment}
                                 </span>
                               )}
@@ -929,9 +899,8 @@ function InventoryWIP() {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${
-                              isDark ? 'bg-amber-950/60 text-amber-400 border border-amber-800' : 'bg-amber-100 text-amber-800 border border-amber-200'
-                            }`}>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${isDark ? 'bg-amber-950/60 text-amber-400 border border-amber-800' : 'bg-amber-100 text-amber-800 border border-amber-200'
+                              }`}>
                               Return
                             </span>
                             {isAdded && (
@@ -954,27 +923,38 @@ function InventoryWIP() {
               )}
             </div>
 
-            {/* OUTPUT TABLE */}
-            <div className="flex flex-col gap-2">
-              <span className={`text-[10px] sm:text-xs font-bold ${isDark ? 'text-emerald-400 bg-emerald-950/40 border border-emerald-800' : 'text-emerald-700 bg-emerald-50'} px-2 py-1 rounded w-fit uppercase`}>
-                Quantities will be automatically added
-              </span>
-              <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-x-auto`}>
-                <table className="w-full text-left border-collapse text-sm min-w-[1200px]">
-                  <thead>
-                    <tr className={`text-white font-bold ${isDark ? 'bg-[#0f1d18] text-emerald-300' : 'bg-emerald-700'} uppercase text-xs whitespace-nowrap`}>
-                      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Qty Produced</th>
-                      <th className="py-3 px-4 text-center">UOM</th>
+            {/* OUTPUT TABLE (SHOW ONLY WHEN ITEMS ARE SELECTED) */}
+            {outputItems.length > 0 && (
+              <div className="flex flex-col gap-2 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] sm:text-xs font-bold ${isDark ? 'text-emerald-400 bg-emerald-950/40 border border-emerald-800' : 'text-emerald-700 bg-emerald-50 border border-emerald-200'} px-2.5 py-1 rounded-md w-fit uppercase`}>
+                    🟢 Quantities will be automatically added
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setOutputItems([])}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${
+                      isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Clear Output Items
+                  </button>
+                </div>
+                <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-x-auto`}>
+                  <table className="w-full text-left border-collapse text-sm min-w-[1200px]">
+                    <thead>
+                      <tr className={`text-white font-bold ${isDark ? 'bg-[#0f1d18] text-emerald-300' : 'bg-emerald-700'} uppercase text-xs whitespace-nowrap`}>
+                        <th className="py-3 px-4 text-center w-28 min-w-[112px]">Qty Produced</th>
+                        <th className="py-3 px-4 text-center">UOM</th>
 
-                      <th className="py-3 px-4">Segment</th>
-                      <th className="py-3 px-4">Description</th>
-                      <th className="py-3 px-4">Dimension</th>
-                      <th className="py-3 px-4 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10]' : 'divide-slate-100'}`}>
-                    {outputItems.length > 0 ? (
-                      outputItems.map((item, index) => (
+                        <th className="py-3 px-4">Segment</th>
+                        <th className="py-3 px-4">Description</th>
+                        <th className="py-3 px-4">Dimension</th>
+                        <th className="py-3 px-4 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10]' : 'divide-slate-100'}`}>
+                      {outputItems.map((item, index) => (
                         <tr key={`${item.itemType}-${item.itemId}` || index} className={`${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} text-xs`}>
 
                           <td className="py-2 px-4 w-28 min-w-[112px]">
@@ -1020,23 +1000,19 @@ function InventoryWIP() {
                             </button>
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="7" className="text-center py-6 text-red-500 italic font-bold text-xs">
-                          No items added. Search above to add rows.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* SUBMIT BUTTON */}
-            <button type="submit" className="w-full bg-[#ff6600] hover:bg-[#e05a00] text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer uppercase shadow-sm">
-              Confirm WIP Conversion
-            </button>
+            {/* SUBMIT BUTTON (SHOW ONLY WHEN BOTH INPUT AND OUTPUT ARE POPULATED) */}
+            {inputMaterials.length > 0 && outputItems.length > 0 && (
+              <button type="submit" className="w-full bg-[#ff6600] hover:bg-[#e05a00] text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer uppercase shadow-sm animate-in fade-in duration-200">
+                Confirm WIP Conversion
+              </button>
+            )}
           </form>
         </div>
 
@@ -1072,129 +1048,129 @@ function InventoryWIP() {
         </div>
       </div>
 
-{isModalOpen && selectedConversion && (
-  <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
-    <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-2xl w-full max-w-3xl p-6 shadow-xl relative flex flex-col gap-4`}>
-      
-      <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
-        <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-lg`}>
-          WIP No: {selectedConversion.conversionNo}
-        </h3>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={handleDownloadPDF} 
-            className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
-          >
-            <Download className="w-3.5 h-3.5" /> 
-            Download PDF
-          </button>
-          <button 
-            onClick={() => setIsModalOpen(false)} 
-            className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer transition-colors`}
-          >
-            <X className="w-5 h-5" />
-          </button>
+      {isModalOpen && selectedConversion && (
+        <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-2xl w-full max-w-3xl p-6 shadow-xl relative flex flex-col gap-4`}>
+
+            <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
+              <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-lg`}>
+                WIP No: {selectedConversion.conversionNo}
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDownloadPDF}
+                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download PDF
+                </button>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer transition-colors`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className={`grid grid-cols-2 text-sm gap-2 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border`}>
+              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Control Tracking No:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.conversionNo}</span></div>
+              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Execution Date:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.dateProcessed ? new Date(selectedConversion.dateProcessed).toLocaleDateString() : '-'}</span></div>
+              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Production Type:</span> <span className={`font-bold ${isDark ? 'text-blue-400 bg-blue-950/60 border-blue-800' : 'text-blue-600 bg-blue-50 border-blue-100'} uppercase text-xs px-2 py-0.5 rounded-md border inline-block`}>{selectedConversion.productionType}</span></div>
+              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Prepared By:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.preparedBy || 'N/A'}</span></div>
+              <div className="col-span-2"><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Customer:</span> <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{selectedConversion.customer || selectedConversion.remarks || 'N/A'}</span></div>
+            </div>
+
+            <div className={`max-h-80 overflow-y-auto border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm flex flex-col overflow-x-auto`}>
+
+              <div className={`p-2.5 ${isDark ? 'bg-[#2a131a] text-rose-300 border-slate-800' : 'bg-red-700 text-[#ffffff] border-slate-200'} text-[11px] font-bold sticky top-0 z-10 border-b uppercase tracking-wide`}>
+                Allocated Raw Material Inputs
+              </div>
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className={`${isDark ? 'bg-[#141622] text-slate-300 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} font-bold border-b text-[11px]`}>
+                    <th className="p-2">Segment</th>
+                    <th className="p-2">Item Description</th>
+                    <th className="p-2">Dimension</th>
+                    <th className="p-2 text-right">Qty Used</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
+                  {selectedConversion.inputs?.map((it, idx) => {
+                    const targetId = it.materialId?._id || it.materialId;
+                    const fullMat = dbMaterials?.find(m => m._id === targetId);
+
+                    const segment = fullMat?.Segment || fullMat?.segment || it.materialId?.Segment || it.materialId?.segment || 'N/A';
+                    const desc = fullMat?.ItemDescription || it.materialId?.ItemDescription || '-';
+                    const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.materialId?.Dimension || it.materialId?.dimension || 'N/A';
+                    const uom = fullMat?.UOM || it.materialId?.UOM || '';
+
+                    return (
+                      <tr key={`in-${idx}`} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
+                        <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{segment}</td>
+                        <td className={`p-2.5 ${isDark ? 'text-slate-200' : 'text-slate-700'} font-medium truncate max-w-xs`} title={desc}>{desc}</td>
+                        <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'} font-mono text-[11px]`}>{dimension}</td>
+                        <td className="p-2.5 text-right font-bold text-rose-500">-{it.qtyUsed} {uom}</td>
+                      </tr>
+                    );
+                  })}
+                  {(!selectedConversion.inputs || selectedConversion.inputs.length === 0) && (
+                    <tr>
+                      <td colSpan="4" className="p-4 text-center text-slate-400 italic">No inputs recorded.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+
+              <div className={`p-2.5 ${isDark ? 'bg-[#122b20] text-emerald-300 border-slate-800' : 'bg-emerald-700 text-[#ffffff] border-emerald-100'} text-[11px] font-bold sticky top-[33px] z-10 border-t border-b uppercase tracking-wide`}>
+                Yield Conversion Outputs
+              </div>
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className={`${isDark ? 'bg-[#141622] text-slate-300 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} font-bold border-b text-[11px]`}>
+                    <th className="p-2">Segment</th>
+                    <th className="p-2">Item Description</th>
+                    <th className="p-2">Dimension</th>
+                    <th className="p-2 text-right">Qty Produced</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
+                  {selectedConversion.outputs?.map((it, idx) => {
+                    const targetId = it.itemId?._id || it.itemId;
+                    const fullMat = dbMaterials?.find(m => m._id === targetId);
+
+                    const segment = fullMat?.Segment || fullMat?.segment || it.itemId?.Segment || it.itemId?.segment || 'N/A';
+                    const desc = fullMat?.ItemDescription || it.itemId?.ItemDescription || '-';
+                    const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.itemId?.Dimension || it.itemId?.dimension || 'N/A';
+                    const uom = fullMat?.UOM || it.itemId?.UOM || '';
+
+                    return (
+                      <tr key={`out-${idx}`} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
+                        <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{segment}</td>
+                        <td className={`p-2.5 ${isDark ? 'text-slate-200' : 'text-slate-700'} font-medium truncate max-w-xs`} title={desc}>{desc}</td>
+                        <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'} font-mono text-[11px]`}>{dimension}</td>
+                        <td className="p-2.5 text-right font-bold text-emerald-400">+{it.qtyProduced} {uom}</td>
+                      </tr>
+                    );
+                  })}
+                  {(!selectedConversion.outputs || selectedConversion.outputs.length === 0) && (
+                    <tr>
+                      <td colSpan="4" className="p-4 text-center text-slate-400 italic">No outputs recorded.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+
+            </div>
+
+          </div>
         </div>
-      </div>
-
-      <div className={`grid grid-cols-2 text-sm gap-2 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border`}>
-        <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Control Tracking No:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.conversionNo}</span></div>
-        <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Execution Date:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.dateProcessed ? new Date(selectedConversion.dateProcessed).toLocaleDateString() : '-'}</span></div>
-        <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Production Type:</span> <span className={`font-bold ${isDark ? 'text-blue-400 bg-blue-950/60 border-blue-800' : 'text-blue-600 bg-blue-50 border-blue-100'} uppercase text-xs px-2 py-0.5 rounded-md border inline-block`}>{selectedConversion.productionType}</span></div>
-        <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Prepared By:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.preparedBy || 'N/A'}</span></div>
-        <div className="col-span-2"><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Customer:</span> <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{selectedConversion.customer || selectedConversion.remarks || 'N/A'}</span></div>
-      </div>
-
-      <div className={`max-h-80 overflow-y-auto border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm flex flex-col overflow-x-auto`}>
-
-        <div className={`p-2.5 ${isDark ? 'bg-[#2a131a] text-rose-300 border-slate-800' : 'bg-red-700 text-[#ffffff] border-slate-200'} text-[11px] font-bold sticky top-0 z-10 border-b uppercase tracking-wide`}>
-          Allocated Raw Material Inputs
-        </div>
-        <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className={`${isDark ? 'bg-[#141622] text-slate-300 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} font-bold border-b text-[11px]`}>
-              <th className="p-2">Segment</th>
-              <th className="p-2">Item Description</th>
-              <th className="p-2">Dimension</th>
-              <th className="p-2 text-right">Qty Used</th>
-            </tr>
-          </thead>
-          <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
-            {selectedConversion.inputs?.map((it, idx) => {
-              const targetId = it.materialId?._id || it.materialId;
-              const fullMat = dbMaterials?.find(m => m._id === targetId);
-              
-              const segment = fullMat?.Segment || fullMat?.segment || it.materialId?.Segment || it.materialId?.segment || 'N/A';
-              const desc = fullMat?.ItemDescription || it.materialId?.ItemDescription || '-';
-              const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.materialId?.Dimension || it.materialId?.dimension || 'N/A';
-              const uom = fullMat?.UOM || it.materialId?.UOM || '';
-
-              return (
-                <tr key={`in-${idx}`} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
-                  <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{segment}</td>
-                  <td className={`p-2.5 ${isDark ? 'text-slate-200' : 'text-slate-700'} font-medium truncate max-w-xs`} title={desc}>{desc}</td>
-                  <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'} font-mono text-[11px]`}>{dimension}</td>
-                  <td className="p-2.5 text-right font-bold text-rose-500">-{it.qtyUsed} {uom}</td>
-                </tr>
-              );
-            })}
-            {(!selectedConversion.inputs || selectedConversion.inputs.length === 0) && (
-              <tr>
-                <td colSpan="4" className="p-4 text-center text-slate-400 italic">No inputs recorded.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        <div className={`p-2.5 ${isDark ? 'bg-[#122b20] text-emerald-300 border-slate-800' : 'bg-emerald-700 text-[#ffffff] border-emerald-100'} text-[11px] font-bold sticky top-[33px] z-10 border-t border-b uppercase tracking-wide`}>
-          Yield Conversion Outputs
-        </div>
-        <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className={`${isDark ? 'bg-[#141622] text-slate-300 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} font-bold border-b text-[11px]`}>
-              <th className="p-2">Segment</th>
-              <th className="p-2">Item Description</th>
-              <th className="p-2">Dimension</th>
-              <th className="p-2 text-right">Qty Produced</th>
-            </tr>
-          </thead>
-          <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
-            {selectedConversion.outputs?.map((it, idx) => {
-              const targetId = it.itemId?._id || it.itemId;
-              const fullMat = dbMaterials?.find(m => m._id === targetId);
-
-              const segment = fullMat?.Segment || fullMat?.segment || it.itemId?.Segment || it.itemId?.segment || 'N/A';
-              const desc = fullMat?.ItemDescription || it.itemId?.ItemDescription || '-';
-              const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.itemId?.Dimension || it.itemId?.dimension || 'N/A';
-              const uom = fullMat?.UOM || it.itemId?.UOM || '';
-
-              return (
-                <tr key={`out-${idx}`} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
-                  <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{segment}</td>
-                  <td className={`p-2.5 ${isDark ? 'text-slate-200' : 'text-slate-700'} font-medium truncate max-w-xs`} title={desc}>{desc}</td>
-                  <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'} font-mono text-[11px]`}>{dimension}</td>
-                  <td className="p-2.5 text-right font-bold text-emerald-400">+{it.qtyProduced} {uom}</td>
-                </tr>
-              );
-            })}
-            {(!selectedConversion.outputs || selectedConversion.outputs.length === 0) && (
-              <tr>
-                <td colSpan="4" className="p-4 text-center text-slate-400 italic">No outputs recorded.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-      </div>
-
-    </div>
-  </div>
-)}
+      )}
       {/* CONFIRMATION MODAL */}
       {isConfirmModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto flex flex-col gap-5 animate-in zoom-in-95 duration-200`}>
-            
+
             {/* Header */}
             <div className={`flex justify-between items-start border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
               <div>
@@ -1322,9 +1298,8 @@ function InventoryWIP() {
                 type="button"
                 disabled={isSaving}
                 onClick={() => setIsConfirmModalOpen(false)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-                  isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                }`}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                  }`}
               >
                 Cancel / Edit
               </button>
@@ -1429,16 +1404,14 @@ function InventoryWIP() {
                             </div>
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
-                            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
-                              isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                            }`}>
+                            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border whitespace-nowrap ${isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                              }`}>
                               {dimension}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
-                              isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
-                            }`}>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                              }`}>
                               {segment}
                             </span>
                           </td>
@@ -1454,9 +1427,8 @@ function InventoryWIP() {
                               <button
                                 type="button"
                                 onClick={() => handleSelectRawMaterial(item)}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
-                                  isDark ? 'bg-rose-950/60 border-rose-800 text-rose-400 hover:bg-rose-900/60' : 'bg-rose-50 border-rose-200 text-red-700 hover:bg-rose-100'
-                                }`}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${isDark ? 'bg-rose-950/60 border-rose-800 text-rose-400 hover:bg-rose-900/60' : 'bg-rose-50 border-rose-200 text-red-700 hover:bg-rose-100'
+                                  }`}
                               >
                                 + Add
                               </button>
@@ -1570,16 +1542,14 @@ function InventoryWIP() {
                             </div>
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
-                            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
-                              isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                            }`}>
+                            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border whitespace-nowrap ${isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                              }`}>
                               {dimension}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
-                              isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
-                            }`}>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                              }`}>
                               {segment}
                             </span>
                           </td>
@@ -1592,9 +1562,8 @@ function InventoryWIP() {
                               <button
                                 type="button"
                                 onClick={() => handleSelectOutputItem(item, item.type)}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
-                                  isDark ? 'bg-emerald-950/60 border-emerald-800 text-emerald-400 hover:bg-emerald-900/60' : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                                }`}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${isDark ? 'bg-emerald-950/60 border-emerald-800 text-emerald-400 hover:bg-emerald-900/60' : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                                  }`}
                               >
                                 + Add
                               </button>

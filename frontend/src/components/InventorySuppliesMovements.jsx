@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, CheckCircle2, AlertCircle, Loader2, Layers, ChevronDown, Clock, Tag, Plus, Package } from 'lucide-react';
+import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, CheckCircle2, AlertCircle, Loader2, Layers, ChevronDown, Clock, Tag, Plus, Package, ListPlus } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
@@ -50,7 +50,7 @@ function InventorySuppliesMovements() {
   const suppliesDropdownRef = useRef(null);
   const [selectedSupplyDropdownId, setSelectedSupplyDropdownId] = useState('');
 
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const [selectedCategory, setSelectedCategory] = useState('All Segments');
   const [isBrowseModalOpen, setIsBrowseModalOpen] = useState(false);
   const [modalSearchQuery, setModalSearchQuery] = useState('');
   const [modalCategoryFilter, setModalCategoryFilter] = useState('All Categories');
@@ -60,7 +60,7 @@ function InventorySuppliesMovements() {
   const uniqueCategories = Array.from(
     new Set(
       dbSupplies
-        .map(item => item.Category || item.category)
+        .map(item => item.Segment || item.segment || item.Category || item.category)
         .filter(Boolean)
     )
   ).sort();
@@ -105,17 +105,25 @@ function InventorySuppliesMovements() {
   }, [combinedEmployees, partyName]);
 
   const filteredSuppliesForDropdown = useMemo(() => {
-    if (!suppliesSearchInput || !suppliesSearchInput.trim()) return dbSupplies;
-    const words = suppliesSearchInput.toLowerCase().trim().split(/\s+/);
     return dbSupplies.filter(item => {
+      const cat = (item.Category || item.category || '').toLowerCase();
+      const seg = (item.Segment || item.segment || '').toLowerCase();
+      const matchesCategory = selectedCategory === 'All Segments' ||
+        selectedCategory === 'All Categories' ||
+        cat === selectedCategory.toLowerCase() ||
+        seg === selectedCategory.toLowerCase();
+      if (!matchesCategory) return false;
+
+      if (!suppliesSearchInput || !suppliesSearchInput.trim()) return true;
+
+      const words = suppliesSearchInput.toLowerCase().trim().split(/\s+/);
       const desc = (item.ItemDescription || '').toLowerCase();
       const dim = (item.Dimension || item.Dimensions || item.dimension || item.dimensions || '').toLowerCase();
-      const cat = (item.Category || item.category || '').toLowerCase();
       const code = (item.Code || '').toLowerCase();
-      const seg = (item.Segment || item.segment || '').toLowerCase();
+
       return words.every(w => desc.includes(w) || dim.includes(w) || cat.includes(w) || code.includes(w) || seg.includes(w));
     });
-  }, [dbSupplies, suppliesSearchInput]);
+  }, [dbSupplies, suppliesSearchInput, selectedCategory]);
 
   const showSuccessToast = (message) => {
     toast.custom((t) => (
@@ -601,42 +609,24 @@ function InventorySuppliesMovements() {
 
       <div className="w-full">
         <div className={`w-full p-4 sm:p-6 rounded-2xl border flex flex-col gap-6 shadow-sm ${isDark ? 'bg-[#0e1017] border-slate-800' : 'bg-white border-slate-100'}`}>
-          <div className={`border-b pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm font-bold ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'}`}>
+          <div className={`border-b ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'} pb-3 flex items-center justify-between gap-2 text-sm font-bold`}>
             <div className="flex items-center gap-2 min-w-0">
-              <ArrowLeftRight className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}`} />
+              <ListPlus className="w-4 h-4 text-[#ff6600] flex-shrink-0" />
               <span className="truncate">Supplies Movement & Transaction Slip</span>
             </div>
 
-            {/* ACTION BUTTONS: BROWSE ALL SUPPLIES & HISTORY LOGS & CLEAR */}
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
-                onClick={() => setIsBrowseModalOpen(true)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs border transition-all cursor-pointer shadow-xs ${isDark
-                  ? 'bg-[#141622] border-slate-700 text-amber-400 hover:border-amber-500 hover:bg-amber-950/20'
-                  : 'bg-white border-slate-200 text-[#18174e] hover:bg-slate-50 hover:border-[#18174e]'
-                  }`}
-              >
-                <Layers className="w-3.5 h-3.5 text-amber-500" />
-                <span>Browse All Supplies</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-                  }`}>
-                  {dbSupplies.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setIsHistoryModalOpen(true)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs border transition-all cursor-pointer shadow-xs ${isDark
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs border transition-all cursor-pointer shadow-xs ${isDark
                   ? 'bg-[#141622] border-slate-700 text-slate-200 hover:border-[#ff6600] hover:text-[#ff6600]'
                   : 'bg-white border-slate-200 text-[#18174e] hover:bg-slate-50 hover:border-[#18174e]'
                   }`}
               >
                 <ClipboardList className="w-3.5 h-3.5 text-[#ff6600]" />
                 <span>History Logs</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-                  }`}>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
                   {movementRecords.length}
                 </span>
               </button>
@@ -645,7 +635,7 @@ function InventorySuppliesMovements() {
                 <button
                   type="button"
                   onClick={() => { setManifestItems([]); setReferenceSlipNo(''); setTransactionType('Borrow'); showSuccessToast("Form grid cleared."); }}
-                  className="text-xs font-bold text-rose-500 hover:underline cursor-pointer flex-shrink-0 ml-1"
+                  className="text-xs font-bold text-rose-400 hover:underline cursor-pointer flex-shrink-0 ml-1"
                 >
                   Clear Form Grid
                 </button>
@@ -734,9 +724,6 @@ function InventorySuppliesMovements() {
                   <label className={`block text-xs font-bold uppercase ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                     Personnel *
                   </label>
-                  <span className="text-[10px] text-amber-500 font-semibold">
-                    Type or pick
-                  </span>
                 </div>
 
                 <div className="relative">
@@ -901,133 +888,155 @@ function InventorySuppliesMovements() {
 
             </div>
 
-            {/* 2. SUPPLIES * (SA BABA - FULL WIDTH TYPE + DROPDOWN) */}
-            <div ref={suppliesDropdownRef} className="relative w-full">
-              <div className="flex items-center justify-between mb-1.5">
-                <label className={`block text-xs font-bold uppercase ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                  Supplies *
-                </label>
-                <span className="text-[10px] text-amber-500 font-semibold">
-                  Type or pick item
-                </span>
+            {/* 2. STEP 1: TYPE / SELECT MATERIALS */}
+            <div ref={suppliesDropdownRef} className={`${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border flex flex-col gap-2.5 relative`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <label className={`block text-sm font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase`}>
+                    Step 1: Type / Select Materials
+                  </label>
+                  <p className="text-[11px] text-slate-400">
+                    Filter by segment or search by item description and dimension.
+                  </p>
+                </div>
               </div>
 
-              <div className="relative">
-                <Package className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'} z-10`} />
-                <input
-                  type="text"
-                  value={suppliesSearchInput}
-                  onChange={(e) => {
-                    setSuppliesSearchInput(e.target.value);
-                    setIsSuppliesDropdownOpen(true);
-                  }}
-                  onFocus={() => setIsSuppliesDropdownOpen(true)}
-                  placeholder="Search supply description, dimension, category or code..."
-                  className={`w-full border rounded-lg pl-9 pr-16 py-2 text-sm focus:outline-none font-semibold transition-all ${isDark
-                    ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
-                    : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
-                    }`}
-                />
+              {/* DUAL SEARCH & SEGMENT CONTROLS */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {/* 1. SEGMENT FILTER */}
+                <div className="sm:col-span-1">
+                  <select
+                    value={selectedCategory}
+                    onChange={e => setSelectedCategory(e.target.value)}
+                    className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none font-semibold cursor-pointer`}
+                  >
+                    <option value="All Segments">All Segments ({uniqueCategories.length})</option>
+                    {uniqueCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
 
-                <div className="absolute right-2 top-2 flex items-center gap-1 z-10">
+                {/* 2. SMART MULTI-ATTRIBUTE SEARCH */}
+                <div className="sm:col-span-2 relative">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={suppliesSearchInput}
+                    onChange={(e) => {
+                      setSuppliesSearchInput(e.target.value);
+                      setIsSuppliesDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsSuppliesDropdownOpen(true)}
+                    placeholder="Search description, dimension (e.g. 2700, 50x50), or code..."
+                    className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none`}
+                  />
                   {suppliesSearchInput && (
                     <button
                       type="button"
                       onClick={() => {
                         setSuppliesSearchInput('');
-                        setIsSuppliesDropdownOpen(true);
+                        setIsSuppliesDropdownOpen(false);
                       }}
-                      title="Clear supply search"
-                      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded cursor-pointer"
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-4 h-4" />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setIsSuppliesDropdownOpen(!isSuppliesDropdownOpen)}
-                    title="Toggle supplies dropdown list"
-                    className={`p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-transform duration-200 ${isSuppliesDropdownOpen ? 'rotate-180 text-[#ff6600]' : ''
-                      }`}
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
                 </div>
+              </div>
 
-                {/* FLOATING TYPE + DROPDOWN MENU FOR SUPPLIES */}
-                {isSuppliesDropdownOpen && (
-                  <div
-                    className={`absolute left-0 right-0 top-[102%] mt-1 border rounded-xl max-h-72 overflow-y-auto z-50 divide-y p-1 shadow-2xl ${isDark
-                      ? 'bg-[#0e1017] border-slate-700 divide-slate-800 text-slate-200'
-                      : 'bg-white border-slate-200 divide-slate-100 text-slate-800'
-                      }`}
-                  >
-                    <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-t-lg flex items-center justify-between ${isDark ? 'text-slate-400 bg-slate-900/60' : 'text-slate-500 bg-slate-50'
-                      }`}>
-                      <span>Supplies List ({filteredSuppliesForDropdown.length})</span>
-                      <span className="text-[9px] font-normal lowercase">click to add to table</span>
-                    </div>
+              {/* FLOATING TYPE + DROPDOWN MENU FOR SUPPLIES */}
+              {isSuppliesDropdownOpen && suppliesSearchInput && (
+                <div
+                  className={`absolute left-0 right-0 top-[102%] border rounded-xl max-h-72 overflow-y-auto z-50 divide-y p-1 shadow-2xl ${isDark
+                    ? 'bg-[#0e1017] border-slate-700 divide-slate-800 text-slate-200'
+                    : 'bg-white border-slate-200 divide-slate-100 text-slate-800'
+                    }`}
+                >
+                  <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-t-lg flex items-center justify-between ${isDark ? 'text-slate-400 bg-slate-900/60' : 'text-slate-500 bg-slate-50'
+                    }`}>
+                    <span>Matching Items ({filteredSuppliesForDropdown.length})</span>
+                    <span className="text-[9px] font-normal lowercase">click to add to table</span>
+                  </div>
 
-                    {filteredSuppliesForDropdown.length > 0 ? (
-                      filteredSuppliesForDropdown.map((s) => {
-                        const goodCount = s.ConditionBreakdown?.Good ?? s.ActualCount ?? 0;
-                        const isAdded = manifestItems.some(i => i.supplyId === s._id);
-                        const dimension = s.Dimension || s.Dimensions || s.dimension || s.dimensions;
+                  {filteredSuppliesForDropdown.length > 0 ? (
+                    filteredSuppliesForDropdown.map((s) => {
+                      const goodCount = s.ConditionBreakdown?.Good ?? s.ActualCount ?? 0;
+                      const isAdded = manifestItems.some(i => i.supplyId === s._id);
+                      const dimension = s.Dimension || s.Dimensions || s.dimension || s.dimensions;
+                      const segment = s.Category || s.category || s.Segment || s.segment || 'Supply';
 
-                        return (
-                          <button
-                            key={s._id}
-                            type="button"
-                            disabled={isDeductingType && goodCount <= 0}
-                            onClick={() => {
-                              handleSelectSupply(s);
-                              setSuppliesSearchInput('');
-                              setIsSuppliesDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between gap-2 rounded-lg transition-colors cursor-pointer ${isDeductingType && goodCount <= 0
+                      return (
+                        <div
+                          key={s._id}
+                          onClick={() => {
+                            if (isDeductingType && goodCount <= 0) return;
+                            handleSelectSupply(s);
+                            setSuppliesSearchInput('');
+                            setIsSuppliesDropdownOpen(false);
+                          }}
+                          className={`p-2.5 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex items-center justify-between gap-3 rounded-lg transition-colors ${isDeductingType && goodCount <= 0
                               ? 'opacity-40 cursor-not-allowed bg-slate-900/20'
                               : isAdded
-                                ? (isDark ? 'bg-emerald-950/20 text-emerald-300 hover:bg-emerald-950/40' : 'bg-emerald-50/50 text-emerald-800 hover:bg-emerald-100/50')
-                                : (isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50')
-                              }`}
-                          >
-                            <div className="flex flex-col min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold text-sm truncate">{s.ItemDescription}</span>
-                                {dimension && dimension !== 'N/A' && (
-                                  <span className={`font-mono text-[10px] font-bold px-1.5 py-0.2 rounded border ${isDark ? 'bg-amber-950/60 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'
-                                    }`}>
-                                    {dimension}
-                                  </span>
-                                )}
-                                <span className="font-mono text-[10px] text-slate-400">({s.Code})</span>
-                              </div>
-                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                                <span>{s.Category || s.category || 'Supply'}</span>
-                                <span>•</span>
-                                <span className="font-bold text-emerald-500">Stock: {goodCount} {s.UOM || 'pcs'}</span>
-                              </div>
+                                ? (isDark ? 'opacity-60 bg-emerald-50/20' : 'opacity-60 bg-emerald-50/20')
+                                : ''
+                            }`}
+                        >
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} truncate`}>
+                                {s.ItemDescription}
+                              </span>
+                              {dimension && dimension !== 'N/A' && (
+                                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${isDark ? 'bg-amber-950/60 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'
+                                  }`}>
+                                  {dimension}
+                                </span>
+                              )}
                             </div>
+                            <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                                }`}>
+                                {segment}
+                              </span>
+                              <span className="font-mono text-[10px] text-slate-400">({s.Code})</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-md font-bold uppercase ${goodCount > 0
+                              ? isDark
+                                ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800'
+                                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              : isDark
+                                ? 'bg-rose-950/60 text-rose-400 border border-rose-800'
+                                : 'bg-rose-100 text-rose-800 border border-rose-200'
+                              }`}>
+                              Avail: {goodCount} {s.UOM || 'pcs'}
+                            </span>
                             {isAdded ? (
-                              <span className="text-[10px] font-bold text-emerald-500 flex items-center gap-0.5 shrink-0">
+                              <span className="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
                                 <CheckCircle2 className="w-3.5 h-3.5" /> Added
                               </span>
                             ) : (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#ff6600]/10 text-[#ff6600] shrink-0">
+                              <span className="text-xs font-bold px-2.5 py-1 rounded bg-[#ff6600]/10 text-[#ff6600] border border-[#ff6600]/20 hover:bg-[#ff6600] hover:text-white transition-all">
                                 + Add
                               </span>
                             )}
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <div className="p-3 text-center text-xs text-slate-400">
-                        No supplies matching &ldquo;{suppliesSearchInput}&rdquo;.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="p-4 text-center">
+                      <p className="text-rose-500 italic font-medium text-xs">
+                        No items found matching &ldquo;{suppliesSearchInput}&rdquo; {selectedCategory !== 'All Segments' ? `in ${selectedCategory}` : ''}.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* HIDE TABLE AND NOTICE UNTIL ITEMS ARE SELECTED */}

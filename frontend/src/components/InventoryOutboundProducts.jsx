@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2, Layers } from 'lucide-react';
+import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2, Layers, Pencil } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
@@ -166,15 +166,19 @@ function InventoryOutboundProducts() {
     setRawMatSearchQuery('');
   };
 
-  const handleFastReturnCopy = (reserveSlip) => {
-    setTransactionType("Outbound");
+  const handleFastReturnCopy = (reserveSlip, targetMode = "Outbound") => {
+    setTransactionType(targetMode);
     setCustomer(reserveSlip.customer || '');
     setCarrier(reserveSlip.carrier || '');
     setDestinationAddress(reserveSlip.destinationAddress || '');
     setReferencePlNo(reserveSlip.plNo);
+    if (reserveSlip.shipmentDate) {
+      setShipmentDate(new Date(reserveSlip.shipmentDate).toISOString().split('T')[0]);
+    }
 
     const fastItems = reserveSlip.items.map(it => {
       const targetMaterial = it.materialId || it.productId;
+      const uom = targetMaterial?.UOM || 'pcs';
       return {
         materialId: targetMaterial?._id || targetMaterial,
         Code: targetMaterial?.Code || 'N/A',
@@ -182,14 +186,20 @@ function InventoryOutboundProducts() {
         Segment: targetMaterial?.Segment || targetMaterial?.segment || 'N/A',
         Dimension: targetMaterial?.Dimension || targetMaterial?.dimension || targetMaterial?.Dimensions || targetMaterial?.dimensions || 'N/A',
         qtyRequested: it.qtyRequested,
-        UOM: targetMaterial?.UOM || 'pcs',
+        UOM: uom,
         actualCountShipped: it.qtyRequested,
-        remarks: `Released from Reserve Slip ${reserveSlip.plNo}`
+        remarks: targetMode === "Outbound"
+          ? `Released from Reserve Slip ${reserveSlip.plNo}`
+          : (it.remarks || `Reserved in ${reserveSlip.plNo}`)
       };
     });
 
     setManifestItems(fastItems);
-    showSuccessToast(`Loaded items from Reserve Slip ${reserveSlip.plNo}`);
+    if (targetMode === "Reserve") {
+      showSuccessToast(`Loaded Reservation ${reserveSlip.plNo} for editing.`);
+    } else {
+      showSuccessToast(`Loaded items from Reserve Slip ${reserveSlip.plNo} to fulfill.`);
+    }
   };
 
   const handleUpdateField = (index, field, val) => {
@@ -221,6 +231,25 @@ function InventoryOutboundProducts() {
           }
         }
       }
+    } else if (transactionType === 'Reserve') {
+      const origReserve = plRecords.find(r => r.plNo === referencePlNo);
+      for (const item of manifestItems) {
+        const currentDbItem = dbRawMaterials.find(db => db._id === item.materialId);
+        if (currentDbItem) {
+          const origItem = origReserve?.items?.find(oi => {
+            const mId = oi.materialId?._id || oi.materialId;
+            return mId === item.materialId;
+          });
+          const origQty = origItem ? Number(origItem.qtyRequested || 0) : 0;
+          const additionalNeeded = Math.max(0, Number(item.qtyRequested) - origQty);
+          const availableStock = currentDbItem.ActualCount || 0;
+
+          if (additionalNeeded > availableStock) {
+            showErrorToast(`Insufficient stock for ${item.Code}: Needs +${additionalNeeded} additional, but only ${availableStock} available.`);
+            return;
+          }
+        }
+      }
     }
 
     setIsConfirmModalOpen(true);
@@ -241,7 +270,10 @@ function InventoryOutboundProducts() {
     try {
       const res = await axios.post(PL_URL, payload);
       if (res.status === 200 || res.status === 201) {
-        showSuccessToast(`Material ${transactionType} Slip generated and stock updated!`);
+        const successMsg = res.data?.message || (transactionType === 'Reserve' && referencePlNo
+          ? `Reservation ${referencePlNo} updated successfully!`
+          : `Material ${transactionType} Slip generated and stock updated!`);
+        showSuccessToast(successMsg);
         setManifestItems([]); setCustomer(''); setCarrier(''); setDestinationAddress(''); setReferencePlNo('');
         setTransactionType('Outbound');
         setIsConfirmModalOpen(false);
@@ -427,7 +459,10 @@ function InventoryOutboundProducts() {
         }
       });
       if (res.status === 200) {
-        showSuccessToast(`Log Entry ${selectedSlip.plNo} successfully voided.`);
+        showSuccessToast(isReserve
+          ? `Packed rack ${selectedSlip.plNo} cleared! All reserved stocks have been returned to inventory.`
+          : `Log Entry ${selectedSlip.plNo} successfully voided.`
+        );
         setIsVoidModalOpen(false);
         setIsModalOpen(false);
         setSelectedSlip(null);
@@ -542,14 +577,16 @@ function InventoryOutboundProducts() {
                   <button
                     type="button"
                     onClick={() => {
-                      handleFastReturnCopy(b);
+                      handleFastReturnCopy(b, "Outbound");
                       setQuickReserveSearch('');
                     }}
-                    className="bg-yellow-400 border border-slate-900 hover:border-slate-800 text-[#000] rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 pt-3.5 w-22 h-22 shrink-0"
+                    className="bg-yellow-400 border border-slate-900 hover:border-slate-800 text-[#000] rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 pt-3.5 w-24 h-22 shrink-0"
+                    title="Click to fulfill as Outbound (remaining balance will stay reserved)"
                   >
                     <span className="font-bold text-[#000] text-[12px] tracking-tighter block mb-0.5 line-clamp-2 break-words max-w-full leading-tight">
                       {b.customer}
                     </span>
+                    <span className="text-[10px] font-semibold text-slate-800 opacity-75">{b.plNo}</span>
                   </button>
 
                   <div className="absolute top-1 right-1 flex items-center gap-1 z-20">
@@ -570,12 +607,13 @@ function InventoryOutboundProducts() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleOpenVoidModal(b);
+                        handleFastReturnCopy(b, "Reserve");
+                        setQuickReserveSearch('');
                       }}
-                      className="w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-rose-300 text-slate-900 hover:text-rose-600 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center"
-                      title="Void and Cancel This Reservation Entry"
+                      className="w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-amber-400 text-slate-900 hover:text-amber-800 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center"
+                      title="Edit Reservation (Items & Quantities)"
                     >
-                      <X className="w-2.5 h-2.5 shrink-0" />
+                      <Pencil className="w-2.5 h-2.5 shrink-0" />
                     </button>
                   </div>
                 </div>
@@ -611,19 +649,55 @@ function InventoryOutboundProducts() {
 
           <form onSubmit={handleInitiateConfirm} className="flex flex-col gap-5">
 
+            {/* CONTEXTUAL PACKED RACK BANNER */}
+            {referencePlNo && (
+              <div className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-in fade-in duration-200 ${transactionType === 'Reserve'
+                  ? (isDark ? 'bg-amber-950/40 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-800')
+                  : (isDark ? 'bg-indigo-950/40 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-800')
+                }`}>
+                <div className="flex items-center gap-2 text-xs font-semibold">
+                  <span className={`font-bold uppercase px-2 py-0.5 rounded text-[10px] tracking-wider border shadow-2xs shrink-0 ${transactionType === 'Reserve'
+                      ? (isDark ? 'bg-amber-900/60 border-amber-700 text-amber-200' : 'bg-amber-100 border-amber-300 text-amber-800')
+                      : (isDark ? 'bg-indigo-900/60 border-indigo-700 text-indigo-200' : 'bg-indigo-100 border-indigo-300 text-indigo-800')
+                    }`}>
+                    {transactionType === 'Reserve' ? '🟡 Editing Packed Rack' : '🔴 Fulfilling Packed Rack'}
+                  </span>
+                  <span className="leading-tight">
+                    {transactionType === 'Reserve'
+                      ? `Slip: ${referencePlNo} — Changes will update this reservation and reconcile inventory.`
+                      : `Slip: ${referencePlNo} — Any unverified or partial balance will automatically remain reserved.`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReferencePlNo('');
+                    setManifestItems([]);
+                    setCustomer('');
+                    setDestinationAddress('');
+                    setCarrier('');
+                    setTransactionType('Outbound');
+                    showSuccessToast("Detached and cleared reference slip.");
+                  }}
+                  className={`text-[11px] font-bold underline cursor-pointer shrink-0 ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                  Detach / Clear Ref
+                </button>
+              </div>
+            )}
+
             {/* COMPACT TRANSACTION TYPE CONTAINER */}
-            <div className={`px-3.5 py-2 rounded-xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 overflow-x-auto ${
-              isDark ? 'bg-[#141622]/80 border-slate-800' : 'bg-slate-50 border-slate-200'
-            }`}>
+            <div className={`px-3.5 py-2 rounded-xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 overflow-x-auto ${isDark ? 'bg-[#141622]/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+              }`}>
               <div className="flex items-center gap-2 whitespace-nowrap shrink-0">
                 <span className={`text-xs font-bold uppercase tracking-wider whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Transaction Type:
                 </span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border whitespace-nowrap ${
-                  transactionType === 'Outbound'
-                    ? (isDark ? 'bg-rose-950/60 text-rose-400 border-rose-800' : 'bg-rose-50 text-rose-700 border-rose-200')
-                    : (isDark ? 'bg-amber-950/60 text-amber-400 border-amber-800' : 'bg-amber-50 text-amber-700 border-amber-200')
-                }`}>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border whitespace-nowrap ${transactionType === 'Outbound'
+                  ? (isDark ? 'bg-rose-950/60 text-rose-400 border-rose-800' : 'bg-rose-50 text-rose-700 border-rose-200')
+                  : (isDark ? 'bg-amber-950/60 text-amber-400 border-amber-800' : 'bg-amber-50 text-amber-700 border-amber-200')
+                  }`}>
                   {transactionType === 'Outbound' ? '🔴 Outbound (Deduct)' : '🟡 Reserve (Hold)'}
                 </span>
               </div>
@@ -633,11 +707,10 @@ function InventoryOutboundProducts() {
                 <button
                   type="button"
                   onClick={() => setTransactionType('Reserve')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                    transactionType === 'Reserve'
-                      ? (isDark ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs' : 'bg-amber-500 text-white border-amber-600 shadow-xs')
-                      : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${transactionType === 'Reserve'
+                    ? (isDark ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs' : 'bg-amber-500 text-white border-amber-600 shadow-xs')
+                    : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
+                    }`}
                 >
                   🟡 Reserve
                 </button>
@@ -645,11 +718,10 @@ function InventoryOutboundProducts() {
                 <button
                   type="button"
                   onClick={() => setTransactionType('Outbound')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                    transactionType === 'Outbound'
-                      ? (isDark ? 'bg-rose-600 text-white border-rose-500 shadow-xs' : 'bg-red-600 text-white border-red-700 shadow-xs')
-                      : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${transactionType === 'Outbound'
+                    ? (isDark ? 'bg-rose-600 text-white border-rose-500 shadow-xs' : 'bg-red-600 text-white border-red-700 shadow-xs')
+                    : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
+                    }`}
                 >
                   🔴 Outbound
                 </button>
@@ -666,7 +738,7 @@ function InventoryOutboundProducts() {
                   className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer font-medium`}
                   required
                 >
-                  <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>-- Select Registered Customer --</option>
+                  <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>Select Customer</option>
                   {registeredCustomers.map((cust) => (
                     <option key={cust._id} value={cust.name} className={isDark ? 'bg-[#141622] text-white' : ''}>
                       {cust.name}
@@ -686,7 +758,7 @@ function InventoryOutboundProducts() {
                   className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer font-medium`}
                   required
                 >
-                  <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>-- Select Registered Logistics --</option>
+                  <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>Select Logistics</option>
                   {registeredLogistics.map((log) => (
                     <option key={log._id} value={log.name} className={isDark ? 'bg-[#141622] text-white' : ''}>
                       {log.name}
@@ -733,24 +805,11 @@ function InventoryOutboundProducts() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-rose-400' : 'text-red-800'} uppercase leading-snug`}>
-                    Step 1: Type / Select Materials for Stock Deduction
+                    Step 1: Type / Select Materials
                   </label>
                   <p className="text-[11px] text-slate-400">
-                    Filter by segment or search by item description and dimension (e.g. beam 2700).
+                    Filter by segment or search by item description and dimension.
                   </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsBrowseModalOpen(true)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-sm ${
-                      isDark ? 'bg-[#141622] border-slate-700 text-indigo-400 hover:bg-indigo-950/60' : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50'
-                    }`}
-                    title="Browse all materials in a table view"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>Browse Table</span>
-                  </button>
                 </div>
               </div>
 
@@ -806,9 +865,8 @@ function InventoryOutboundProducts() {
                         <div
                           key={item._id}
                           onClick={() => handleSelectRawMaterial(item)}
-                          className={`p-2.5 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex items-center justify-between gap-3 rounded-lg transition-colors ${
-                            isAdded ? 'opacity-60 bg-emerald-50/20' : ''
-                          }`}
+                          className={`p-2.5 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex items-center justify-between gap-3 rounded-lg transition-colors ${isAdded ? 'opacity-60 bg-emerald-50/20' : ''
+                            }`}
                         >
                           <div className="flex flex-col min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -816,18 +874,16 @@ function InventoryOutboundProducts() {
                                 {item.ItemDescription}
                               </span>
                               {dimension && (
-                                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
-                                  isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                                }`}>
+                                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                  }`}>
                                   {dimension}
                                 </span>
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
                               {segment && (
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                                  isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
-                                }`}>
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                                  }`}>
                                   {segment}
                                 </span>
                               )}
@@ -836,9 +892,8 @@ function InventoryOutboundProducts() {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            <span className={`text-[11px] px-2 py-0.5 rounded-md font-bold uppercase ${
-                              isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            }`}>
+                            <span className={`text-[11px] px-2 py-0.5 rounded-md font-bold uppercase ${isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              }`}>
                               Avail: {count} {item.UOM || 'pcs'}
                             </span>
                             {isAdded && (
@@ -861,27 +916,32 @@ function InventoryOutboundProducts() {
               )}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <span className={`text-[10px] sm:text-xs font-bold ${isDark ? 'text-rose-400 bg-rose-950/40 border border-rose-800' : 'text-red-700 bg-red-50'} px-2 py-1 rounded w-fit uppercase`}>
-                Quantities will be automatically deducted
-              </span>
-              <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-x-auto`}>
-                <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
-                  <thead>
-                    <tr className={`text-white font-bold ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700'} uppercase text-xs whitespace-nowrap`}>
-                      <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
-                      <th className="py-3 px-4 text-center">UOM</th>
-                      <th className="py-3 px-4 text-center w-28 min-w-[112px]">Verified Shipped</th>
-                      <th className="py-3 px-4">Segment</th>
-                      <th className="py-3 px-4">Description</th>
-                      <th className="py-3 px-4">Dimension</th>
-                      <th className="py-3 px-4">Remarks / Notes</th>
-                      <th className="py-3 px-4 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10]' : 'divide-slate-100'}`}>
-                    {manifestItems.length > 0 ? (
-                      manifestItems.map((item, index) => (
+            {/* HIDE TABLE AND NOTICE UNTIL ITEMS ARE SELECTED */}
+            {manifestItems.length > 0 && (
+              <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+                <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${transactionType === 'Reserve'
+                    ? (isDark ? 'bg-amber-950/40 text-amber-300 border border-amber-800/40' : 'text-amber-700 bg-amber-50 border border-amber-200/60')
+                    : (isDark ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' : 'text-rose-700 bg-rose-50 border border-rose-200/60')
+                  }`}>
+                  {transactionType === 'Reserve' ? '🟡 Quantities will be reserved / held' : '🔴 Quantities will be automatically deducted'}
+                </span>
+
+                <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-x-auto`}>
+                  <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
+                    <thead>
+                      <tr className={`text-white font-bold ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700'} uppercase text-xs whitespace-nowrap`}>
+                        <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
+                        <th className="py-3 px-4 text-center">UOM</th>
+                        <th className="py-3 px-4 text-center w-28 min-w-[112px]">Verified Shipped</th>
+                        <th className="py-3 px-4">Segment</th>
+                        <th className="py-3 px-4">Description</th>
+                        <th className="py-3 px-4">Dimension</th>
+                        <th className="py-3 px-4">Remarks / Notes</th>
+                        <th className="py-3 px-4 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10]' : 'divide-slate-100'}`}>
+                      {manifestItems.map((item, index) => (
                         <tr key={index} className={`${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} text-xs`}>
                           <td className="py-2 px-4 w-28 min-w-[112px]">
                             <input
@@ -935,22 +995,23 @@ function InventoryOutboundProducts() {
                             </button>
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="9" className="text-center py-6 text-red-500 italic font-bold text-xs">
-                          No items added. Search above to add rows.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-            <button type="submit" className="w-full bg-[#ff6600] hover:bg-[#e05a00] text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer uppercase shadow-sm">
-              Confirm Outbound Slip
-            </button>
+                <button type="submit" className="w-full bg-[#ff6600] hover:bg-[#e05a00] text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer uppercase shadow-sm">
+                  {transactionType === 'Reserve' && referencePlNo
+                    ? `Update Reservation (${referencePlNo})`
+                    : transactionType === 'Reserve'
+                      ? 'Confirm Reservation Slip'
+                      : referencePlNo
+                        ? `Confirm Outbound & Fulfill (${referencePlNo})`
+                        : 'Confirm Outbound Slip'
+                  }
+                </button>
+              </div>
+            )}
           </form>
         </div>
 
@@ -1007,75 +1068,122 @@ function InventoryOutboundProducts() {
         <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200`}>
           <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200'} border rounded-xl w-full max-w-md p-6 shadow-2xl relative animate-in slide-in-from-top-5 duration-300`}>
 
-            <div className={`border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3 flex items-center justify-between`}>
-              <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm tracking-wide flex items-center gap-2`}>
-                Void Transaction Log
-              </h3>
-              <button
-                onClick={() => setIsVoidModalOpen(false)}
-                className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer flex items-center`}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-800/60' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3 shrink-0`}>
-                <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
-                  * System Action Protocol *
-                </span>
-                <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
-                  You are about to void the log entry <span className="font-bold">{selectedSlip.plNo}</span> ({selectedSlip.transactionType}).
-                  This action is <span className="font-bold">irreversible</span> and will remove the log from the system.
-                  Please ensure you have the proper authorization to proceed with this operation.
-                </p>
-              </div>
-
-              <div>
-                <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>
-                  Reason for Cancellation / Discrepancy Note (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={voidReasonInput}
-                  onChange={e => setVoidReasonInput(e.target.value)}
-                  placeholder="e.g., Wrong item quantity or customer mistake"
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-700 placeholder-slate-400'} border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#ff6600]`}
-                />
-              </div>
-
-              {selectedSlip.transactionType?.toLowerCase() === 'outbound' && (
-                <div>
-                  <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>
-                    Management Reversal Passkey
-                  </label>
-                  <input
-                    type="password"
-                    value={passkeyInput}
-                    onChange={e => setPasskeyInput(e.target.value)}
-                    placeholder="Enter authorized key token"
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-700 placeholder-slate-400'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600] font-mono`}
-                  />
+            {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? (
+              <>
+                <div className={`border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3 flex items-center justify-between`}>
+                  <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm tracking-wide flex items-center gap-2`}>
+                    Clear Packed Rack
+                  </h3>
+                  <button
+                    onClick={() => setIsVoidModalOpen(false)}
+                    className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer flex items-center`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-              )}
-            </div>
 
-            <div className={`flex items-center justify-end gap-2 mt-6 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-              <button
-                type="button"
-                onClick={() => setIsVoidModalOpen(false)}
-                className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer`}
-              >
-                Keep Log Entry
-              </button>
-              <button
-                type="button"
-                onClick={handleExecuteCancellation}
-                className="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
-              >
-                Confirm System Void
-              </button>
-            </div>
+                <div className="mt-4 space-y-3">
+                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-amber-950/30 border-amber-800/60' : 'bg-amber-50 border-amber-200/80'}`}>
+                    <h4 className={`text-sm font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} mb-1.5`}>
+                      Are you sure you want to clear this packed rack?
+                    </h4>
+                    <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Slip: <span className="font-mono font-bold text-[#ff8533]">{selectedSlip.plNo}</span> — <span className="font-bold">{selectedSlip.customer}</span>
+                    </p>
+                    <p className={`text-xs leading-relaxed mt-2.5 font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                      ✓ All {selectedSlip.items?.length || 0} item line(s) will be cleared, and all reserved stocks will immediately be returned to your active inventory.
+                    </p>
+                  </div>
+                </div>
+
+                <div className={`flex items-center justify-end gap-2 mt-6 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setIsVoidModalOpen(false)}
+                    className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-2 px-4 rounded-lg text-xs transition-colors cursor-pointer`}
+                  >
+                    Keep Packed Rack
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExecuteCancellation}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2 px-4 rounded-lg text-xs transition-colors cursor-pointer shadow-sm"
+                  >
+                    Yes, Clear All Items & Return Stock
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={`border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3 flex items-center justify-between`}>
+                  <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm tracking-wide flex items-center gap-2`}>
+                    Void Transaction Log
+                  </h3>
+                  <button
+                    onClick={() => setIsVoidModalOpen(false)}
+                    className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer flex items-center`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                  <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-800/60' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3 shrink-0`}>
+                    <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
+                      * System Action Protocol *
+                    </span>
+                    <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
+                      You are about to void the log entry <span className="font-bold">{selectedSlip.plNo}</span> ({selectedSlip.transactionType}).
+                      This action is <span className="font-bold">irreversible</span> and will remove the log from the system.
+                      Please ensure you have the proper authorization to proceed with this operation.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>
+                      Reason for Cancellation / Discrepancy Note (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={voidReasonInput}
+                      onChange={e => setVoidReasonInput(e.target.value)}
+                      placeholder="e.g., Wrong item quantity or customer mistake"
+                      className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-700 placeholder-slate-400'} border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#ff6600]`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>
+                      Management Reversal Passkey
+                    </label>
+                    <input
+                      type="password"
+                      value={passkeyInput}
+                      onChange={e => setPasskeyInput(e.target.value)}
+                      placeholder="Enter authorized key token"
+                      className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-700 placeholder-slate-400'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600] font-mono`}
+                    />
+                  </div>
+                </div>
+
+                <div className={`flex items-center justify-end gap-2 mt-6 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setIsVoidModalOpen(false)}
+                    className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer`}
+                  >
+                    Keep Log Entry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExecuteCancellation}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
+                  >
+                    Confirm System Void
+                  </button>
+                </div>
+              </>
+            )}
 
           </div>
         </div>
@@ -1218,10 +1326,16 @@ function InventoryOutboundProducts() {
             <div className={`flex justify-between items-start border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
               <div>
                 <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-[#18174e]'}`}>
-                  Confirm Material {transactionType} Slip
+                  {transactionType === 'Reserve' && referencePlNo
+                    ? `Confirm Update to Reservation ${referencePlNo}`
+                    : `Confirm Material ${transactionType} Slip`
+                  }
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Please review the outbound shipment details before saving to the registry.
+                  {transactionType === 'Reserve' && referencePlNo
+                    ? 'Review modified reservation lines before updating registry records.'
+                    : 'Please review the shipment details before saving to the registry.'
+                  }
                 </p>
               </div>
               <button
@@ -1232,6 +1346,33 @@ function InventoryOutboundProducts() {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Context Notice for Partial Outbound or Edit Reserve */}
+            {referencePlNo && transactionType === 'Outbound' && manifestItems.some(i => Number(i.actualCountShipped) < Number(i.qtyRequested)) && (
+              <div className={`p-3 rounded-xl border flex items-start gap-2.5 text-xs animate-in fade-in duration-200 ${isDark ? 'bg-amber-950/40 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-800'
+                }`}>
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+                <div>
+                  <span className="font-bold block uppercase tracking-wider text-[10px]">Partial Outbound Fulfillment</span>
+                  <p className="text-[11px] leading-relaxed mt-0.5">
+                    Only verified shipped quantities will be dispatched as Outbound. The remaining unshipped items will <strong>automatically be re-reserved under a new packed rack slip</strong> in Quick-Assistant.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {referencePlNo && transactionType === 'Reserve' && (
+              <div className={`p-3 rounded-xl border flex items-start gap-2.5 text-xs animate-in fade-in duration-200 ${isDark ? 'bg-amber-950/40 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-800'
+                }`}>
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+                <div>
+                  <span className="font-bold block uppercase tracking-wider text-[10px]">Updating Reservation {referencePlNo}</span>
+                  <p className="text-[11px] leading-relaxed mt-0.5">
+                    Saving these changes will directly update this packed rack in the registry and reconcile raw material stock counts accordingly.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Details Summary Card */}
             <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border text-xs ${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
@@ -1338,7 +1479,12 @@ function InventoryOutboundProducts() {
                     <span>Saving Slip...</span>
                   </>
                 ) : (
-                  <span>Save Packaging List</span>
+                  <span>
+                    {transactionType === 'Reserve' && referencePlNo
+                      ? `Save Changes to Reservation`
+                      : `Save Packaging List`
+                    }
+                  </span>
                 )}
               </button>
             </div>
@@ -1430,16 +1576,14 @@ function InventoryOutboundProducts() {
                             </div>
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
-                            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
-                              isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                            }`}>
+                            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border whitespace-nowrap ${isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                              }`}>
                               {dimension}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
-                              isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
-                            }`}>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                              }`}>
                               {segment}
                             </span>
                           </td>
@@ -1455,9 +1599,8 @@ function InventoryOutboundProducts() {
                               <button
                                 type="button"
                                 onClick={() => handleSelectRawMaterial(item)}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
-                                  isDark ? 'bg-rose-950/60 border-rose-800 text-rose-400 hover:bg-rose-900/60' : 'bg-rose-50 border-rose-200 text-red-700 hover:bg-rose-100'
-                                }`}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${isDark ? 'bg-rose-950/60 border-rose-800 text-rose-400 hover:bg-rose-900/60' : 'bg-rose-50 border-rose-200 text-red-700 hover:bg-rose-100'
+                                  }`}
                               >
                                 + Add
                               </button>
