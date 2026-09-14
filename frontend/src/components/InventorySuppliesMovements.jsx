@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, CheckCircle2, AlertCircle, Loader2, Layers, ChevronDown, Clock, Tag, Plus } from 'lucide-react';
+import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, CheckCircle2, AlertCircle, Loader2, Layers, ChevronDown, Clock, Tag, Plus, Package } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
@@ -44,6 +44,10 @@ function InventorySuppliesMovements() {
   const [registeredEmployees, setRegisteredEmployees] = useState([]);
   const [isPersonnelDropdownOpen, setIsPersonnelDropdownOpen] = useState(false);
   const personnelDropdownRef = useRef(null);
+
+  const [suppliesSearchInput, setSuppliesSearchInput] = useState('');
+  const [isSuppliesDropdownOpen, setIsSuppliesDropdownOpen] = useState(false);
+  const suppliesDropdownRef = useRef(null);
   const [selectedSupplyDropdownId, setSelectedSupplyDropdownId] = useState('');
 
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
@@ -72,6 +76,9 @@ function InventorySuppliesMovements() {
       if (personnelDropdownRef.current && !personnelDropdownRef.current.contains(e.target)) {
         setIsPersonnelDropdownOpen(false);
       }
+      if (suppliesDropdownRef.current && !suppliesDropdownRef.current.contains(e.target)) {
+        setIsSuppliesDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -96,6 +103,19 @@ function InventorySuppliesMovements() {
       emp.address?.toLowerCase().includes(q)
     );
   }, [combinedEmployees, partyName]);
+
+  const filteredSuppliesForDropdown = useMemo(() => {
+    if (!suppliesSearchInput || !suppliesSearchInput.trim()) return dbSupplies;
+    const words = suppliesSearchInput.toLowerCase().trim().split(/\s+/);
+    return dbSupplies.filter(item => {
+      const desc = (item.ItemDescription || '').toLowerCase();
+      const dim = (item.Dimension || item.Dimensions || item.dimension || item.dimensions || '').toLowerCase();
+      const cat = (item.Category || item.category || '').toLowerCase();
+      const code = (item.Code || '').toLowerCase();
+      const seg = (item.Segment || item.segment || '').toLowerCase();
+      return words.every(w => desc.includes(w) || dim.includes(w) || cat.includes(w) || code.includes(w) || seg.includes(w));
+    });
+  }, [dbSupplies, suppliesSearchInput]);
 
   const showSuccessToast = (message) => {
     toast.custom((t) => (
@@ -574,26 +594,46 @@ function InventorySuppliesMovements() {
         }}
       />
 
-      {/* HEADER WITH HISTORY LOGS BUTTON */}
+      {/* HEADER WITH ACTION BUTTONS */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <PageHeader activeTab="supplies-movements" />
-        <button
-          type="button"
-          onClick={() => setIsHistoryModalOpen(true)}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm border transition-all cursor-pointer shadow-sm shrink-0 ${
-            isDark
-              ? 'bg-[#141622] border-slate-700 text-slate-200 hover:border-[#ff6600] hover:text-[#ff6600]'
-              : 'bg-white border-slate-200 text-[#18174e] hover:bg-slate-50 hover:border-[#18174e]'
-          }`}
-        >
-          <ClipboardList className="w-4 h-4 text-[#ff6600]" />
-          <span>History Logs</span>
-          <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
-            isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-          }`}>
-            {movementRecords.length}
-          </span>
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setIsBrowseModalOpen(true)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm border transition-all cursor-pointer shadow-sm shrink-0 ${
+              isDark
+                ? 'bg-[#141622] border-slate-700 text-amber-400 hover:border-amber-500 hover:bg-amber-950/20'
+                : 'bg-white border-slate-200 text-[#18174e] hover:bg-slate-50 hover:border-[#18174e]'
+            }`}
+          >
+            <Layers className="w-4 h-4 text-amber-500" />
+            <span>Browse All Supplies</span>
+            <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
+              isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
+            }`}>
+              {dbSupplies.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsHistoryModalOpen(true)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm border transition-all cursor-pointer shadow-sm shrink-0 ${
+              isDark
+                ? 'bg-[#141622] border-slate-700 text-slate-200 hover:border-[#ff6600] hover:text-[#ff6600]'
+                : 'bg-white border-slate-200 text-[#18174e] hover:bg-slate-50 hover:border-[#18174e]'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4 text-[#ff6600]" />
+            <span>History Logs</span>
+            <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
+              isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
+            }`}>
+              {movementRecords.length}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* ACTIVE BORROW & RESERVED RECORDS TABLE */}
@@ -832,17 +872,17 @@ function InventorySuppliesMovements() {
               </div>
             </div>
 
-            {/* FORM FIELDS GRID */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+            {/* FORM FIELDS: PERSONNEL, PURPOSE, DATE, SUPPLIES */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               
               {/* 1. PERSONNEL (TYPE + DROPDOWN) */}
-              <div ref={personnelDropdownRef} className="relative sm:col-span-2">
+              <div ref={personnelDropdownRef} className="relative">
                 <div className="flex items-center justify-between mb-1.5">
                   <label className={`block text-xs font-bold uppercase ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                     Personnel *
                   </label>
                   <span className="text-[10px] text-amber-500 font-semibold">
-                    Type or pick from dropdown
+                    Type or pick
                   </span>
                 </div>
 
@@ -857,7 +897,7 @@ function InventorySuppliesMovements() {
                       setIsPersonnelDropdownOpen(true);
                     }}
                     onFocus={() => setIsPersonnelDropdownOpen(true)}
-                    placeholder="Enter or search personnel name..."
+                    placeholder="Personnel name..."
                     className={`w-full border rounded-lg pl-9 pr-16 py-2 text-sm focus:outline-none font-semibold transition-all ${
                       isDark
                         ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
@@ -891,10 +931,10 @@ function InventorySuppliesMovements() {
                     </button>
                   </div>
 
-                  {/* FLOATING TYPE + DROPDOWN MENU */}
+                  {/* FLOATING TYPE + DROPDOWN MENU FOR PERSONNEL */}
                   {isPersonnelDropdownOpen && (
                     <div
-                      className={`absolute left-0 right-0 top-[102%] mt-1 border rounded-xl max-h-60 overflow-y-auto z-50 divide-y p-1 shadow-2xl ${
+                      className={`absolute left-0 right-0 sm:-right-16 top-[102%] mt-1 border rounded-xl max-h-60 overflow-y-auto z-50 divide-y p-1 shadow-2xl ${
                         isDark
                           ? 'bg-[#0e1017] border-slate-700 divide-slate-800 text-slate-200'
                           : 'bg-white border-slate-200 divide-slate-100 text-slate-800'
@@ -993,7 +1033,7 @@ function InventorySuppliesMovements() {
                 </div>
               </div>
 
-              {/* 3. DATE BORROW */}
+              {/* 3. DATE */}
               <div>
                 <label className={`block text-xs font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   {transactionType === 'Borrow' ? 'Date Borrow *' : `Date ${transactionType} *`}
@@ -1014,143 +1054,141 @@ function InventorySuppliesMovements() {
                 </div>
               </div>
 
-              {/* 4. TIME */}
-              <div>
-                <label className={`block text-xs font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                  Time *
-                </label>
+              {/* 4. SUPPLIES (TYPE + DROPDOWN) */}
+              <div ref={suppliesDropdownRef} className="relative">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={`block text-xs font-bold uppercase ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    Supplies *
+                  </label>
+                  <span className="text-[10px] text-amber-500 font-semibold">
+                    Type or pick item
+                  </span>
+                </div>
+
                 <div className="relative">
-                  <Clock className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+                  <Package className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'} z-10`} />
                   <input
                     type="text"
-                    value={transactionTime}
-                    onChange={e => setTransactionTime(e.target.value)}
-                    placeholder="e.g. 02:30 PM"
-                    className={`w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none font-semibold ${
+                    value={suppliesSearchInput}
+                    onChange={(e) => {
+                      setSuppliesSearchInput(e.target.value);
+                      setIsSuppliesDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsSuppliesDropdownOpen(true)}
+                    placeholder="Search or pick supply..."
+                    className={`w-full border rounded-lg pl-9 pr-16 py-2 text-sm focus:outline-none font-semibold transition-all ${
                       isDark
-                        ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]'
+                        ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
                         : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
                     }`}
-                    required
                   />
+
+                  <div className="absolute right-2 top-2 flex items-center gap-1 z-10">
+                    {suppliesSearchInput && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSuppliesSearchInput('');
+                          setIsSuppliesDropdownOpen(true);
+                        }}
+                        title="Clear supply search"
+                        className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsSuppliesDropdownOpen(!isSuppliesDropdownOpen)}
+                      title="Toggle supplies dropdown"
+                      className={`p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-transform duration-200 ${
+                        isSuppliesDropdownOpen ? 'rotate-180 text-[#ff6600]' : ''
+                      }`}
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* FLOATING TYPE + DROPDOWN MENU FOR SUPPLIES */}
+                  {isSuppliesDropdownOpen && (
+                    <div
+                      className={`absolute left-0 sm:-left-32 right-0 top-[102%] mt-1 border rounded-xl max-h-64 overflow-y-auto z-50 divide-y p-1 shadow-2xl ${
+                        isDark
+                          ? 'bg-[#0e1017] border-slate-700 divide-slate-800 text-slate-200'
+                          : 'bg-white border-slate-200 divide-slate-100 text-slate-800'
+                      }`}
+                    >
+                      <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-t-lg flex items-center justify-between ${
+                        isDark ? 'text-slate-400 bg-slate-900/60' : 'text-slate-500 bg-slate-50'
+                      }`}>
+                        <span>Supplies List ({filteredSuppliesForDropdown.length})</span>
+                        <span className="text-[9px] font-normal lowercase">click to add to table</span>
+                      </div>
+
+                      {filteredSuppliesForDropdown.length > 0 ? (
+                        filteredSuppliesForDropdown.map((s) => {
+                          const goodCount = s.ConditionBreakdown?.Good ?? s.ActualCount ?? 0;
+                          const isAdded = manifestItems.some(i => i.supplyId === s._id);
+                          const dimension = s.Dimension || s.Dimensions || s.dimension || s.dimensions;
+
+                          return (
+                            <button
+                              key={s._id}
+                              type="button"
+                              disabled={isDeductingType && goodCount <= 0}
+                              onClick={() => {
+                                handleSelectSupply(s);
+                                setSuppliesSearchInput('');
+                                setIsSuppliesDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between gap-2 rounded-lg transition-colors cursor-pointer ${
+                                isDeductingType && goodCount <= 0
+                                  ? 'opacity-40 cursor-not-allowed bg-slate-900/20'
+                                  : isAdded
+                                  ? (isDark ? 'bg-emerald-950/20 text-emerald-300 hover:bg-emerald-950/40' : 'bg-emerald-50/50 text-emerald-800 hover:bg-emerald-100/50')
+                                  : (isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50')
+                              }`}
+                            >
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-sm truncate">{s.ItemDescription}</span>
+                                  {dimension && dimension !== 'N/A' && (
+                                    <span className={`font-mono text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                                      isDark ? 'bg-amber-950/60 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'
+                                    }`}>
+                                      {dimension}
+                                    </span>
+                                  )}
+                                  <span className="font-mono text-[10px] text-slate-400">({s.Code})</span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                                  <span>{s.Category || s.category || 'Supply'}</span>
+                                  <span>•</span>
+                                  <span className="font-bold text-emerald-500">Stock: {goodCount} {s.UOM || 'pcs'}</span>
+                                </div>
+                              </div>
+                              {isAdded ? (
+                                <span className="text-[10px] font-bold text-emerald-500 flex items-center gap-0.5 shrink-0">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#ff6600]/10 text-[#ff6600] shrink-0">
+                                  + Add
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="p-3 text-center text-xs text-slate-400">
+                          No supplies matching &ldquo;{suppliesSearchInput}&rdquo;.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* 5. SLIP NUMBER */}
-              <div>
-                <label className={`block text-xs font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Slip Number</label>
-                <div className="relative">
-                  <FileText className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                  <input
-                    type="text"
-                    value={referenceSlipNo ? `REF: ${referenceSlipNo}` : "[ AUTO-GENERATED ]"}
-                    disabled
-                    className={`w-full border rounded-lg pl-9 pr-3 py-2 text-sm font-bold select-none cursor-not-allowed focus:outline-none ${
-                      isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'
-                    }`}
-                  />
-                </div>
-              </div>
-
-              {/* 6. PREPARED BY */}
-              <div className="sm:col-span-2 lg:col-span-2">
-                <label className={`block text-xs font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Prepared By</label>
-                <div className="relative">
-                  <User className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                  <input
-                    type="text"
-                    value={preparedBy}
-                    disabled
-                    className={`w-full border rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none ${
-                      isDark
-                        ? 'bg-slate-900 border-slate-800 text-slate-500'
-                        : 'bg-slate-50 border-slate-200 text-slate-400'
-                    }`}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* SUPPLIES SELECTION: BUTTON + MODAL & QUICK DROPDOWN */}
-            <div className={`p-4 sm:p-5 rounded-2xl border flex flex-col gap-3.5 relative ${isDark ? 'bg-[#141622]/80 border-slate-800' : 'bg-slate-50/80 border-slate-200'}`}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <label className={`block text-xs sm:text-sm font-bold uppercase tracking-wide ${
-                    transactionType === 'Borrow'
-                      ? (isDark ? 'text-amber-400' : 'text-amber-700')
-                      : transactionType === 'Return'
-                      ? (isDark ? 'text-blue-400' : 'text-blue-700')
-                      : transactionType === 'Restock'
-                      ? (isDark ? 'text-emerald-400' : 'text-emerald-700')
-                      : (isDark ? 'text-rose-400' : 'text-red-800')
-                  }`}>
-                    Step 1: Select Supplies for {
-                      transactionType === 'Borrow'
-                        ? 'Borrowing (Issuance)'
-                        : transactionType === 'Return'
-                        ? 'Return (Receive Back)'
-                        : transactionType === 'Restock'
-                        ? 'Stock Restock (Addition)'
-                        : 'Stock Deduction (Out)'
-                    }
-                  </label>
-                  <p className="text-[11px] text-slate-400">
-                    Click the button to open the full supplies catalog modal, or select directly from the quick dropdown.
-                  </p>
-                </div>
-              </div>
-
-              {/* ACTION BAR: MODAL BUTTON + QUICK DROPDOWN */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-center">
-                {/* 1. HERO SUPPLIES MODAL BUTTON */}
-                <button
-                  type="button"
-                  onClick={() => setIsBrowseModalOpen(true)}
-                  className={`flex items-center justify-center gap-2.5 py-3 px-5 rounded-xl font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer border ${
-                    isDark
-                      ? 'bg-gradient-to-r from-amber-600 via-[#ff6600] to-orange-500 hover:from-amber-500 hover:to-orange-400 text-white border-amber-500/50'
-                      : 'bg-[#18174e] hover:bg-[#282772] text-white border-[#18174e]'
-                  }`}
-                >
-                  <Layers className="w-4 h-4 shrink-0" />
-                  <span>Browse All Supplies (Catalog Modal)</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ml-1 ${
-                    isDark ? 'bg-black/30 text-white' : 'bg-white/20 text-white'
-                  }`}>
-                    {dbSupplies.length} items
-                  </span>
-                </button>
-
-                {/* 2. QUICK DROPDOWN */}
-                <div className="relative">
-                  <select
-                    value={selectedSupplyDropdownId}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      if (!id) return;
-                      const item = dbSupplies.find(s => s._id === id);
-                      if (item) handleSelectSupply(item);
-                      setSelectedSupplyDropdownId('');
-                    }}
-                    className={`w-full border rounded-xl px-3.5 py-3 text-xs sm:text-sm font-semibold cursor-pointer focus:outline-none transition-all shadow-xs ${
-                      isDark
-                        ? 'bg-[#0e1017] border-slate-700 text-white focus:border-[#ff6600]'
-                        : 'bg-white border-slate-300 text-slate-800 focus:border-[#18174e]'
-                    }`}
-                  >
-                    <option value="">-- Or Quick Select from Dropdown ({dbSupplies.length} items) --</option>
-                    {dbSupplies.map(s => {
-                      const goodCount = s.ConditionBreakdown?.Good ?? s.ActualCount ?? 0;
-                      const isAdded = manifestItems.some(i => i.supplyId === s._id);
-                      return (
-                        <option key={s._id} value={s._id} disabled={isDeductingType && goodCount <= 0}>
-                          {s.ItemDescription} {s.Dimension && s.Dimension !== 'N/A' ? `[${s.Dimension}]` : ''} ({s.Code}) • Stock: {goodCount} {s.UOM || 'pcs'} {isAdded ? '✓ Added' : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              </div>
             </div>
 
             <div className="flex flex-col gap-2">
