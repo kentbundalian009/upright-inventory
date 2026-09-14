@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2, Layers, Pencil } from 'lucide-react';
+import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2, Layers, Pencil, Copy } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
@@ -200,6 +200,38 @@ function InventoryOutboundProducts() {
     } else {
       showSuccessToast(`Loaded items from Reserve Slip ${reserveSlip.plNo} to fulfill.`);
     }
+  };
+
+  const handleDuplicatePackedRack = (reserveSlip) => {
+    setTransactionType("Reserve");
+    setCustomer(reserveSlip.customer || '');
+    setCarrier(reserveSlip.carrier || '');
+    setDestinationAddress(reserveSlip.destinationAddress || '');
+    setReferencePlNo('');
+    if (reserveSlip.shipmentDate) {
+      setShipmentDate(new Date(reserveSlip.shipmentDate).toISOString().split('T')[0]);
+    }
+
+    const fastItems = reserveSlip.items.map(it => {
+      const targetMaterial = it.materialId || it.productId;
+      const uom = targetMaterial?.UOM || 'pcs';
+      return {
+        materialId: targetMaterial?._id || targetMaterial,
+        Code: targetMaterial?.Code || 'N/A',
+        ItemDescription: targetMaterial?.ItemDescription || '-',
+        Segment: targetMaterial?.Segment || targetMaterial?.segment || 'N/A',
+        Dimension: targetMaterial?.Dimension || targetMaterial?.dimension || targetMaterial?.Dimensions || targetMaterial?.dimensions || 'N/A',
+        qtyRequested: it.qtyRequested,
+        UOM: uom,
+        actualCountShipped: it.qtyRequested,
+        remarks: it.remarks?.includes(reserveSlip.plNo)
+          ? it.remarks.replace(reserveSlip.plNo, `Copy of ${reserveSlip.plNo}`)
+          : (it.remarks || `Duplicated from ${reserveSlip.plNo}`)
+      };
+    });
+
+    setManifestItems(fastItems);
+    showSuccessToast(`Duplicated ${reserveSlip.plNo}! Ready to save as a new packed rack reservation.`);
   };
 
   const handleUpdateField = (index, field, val) => {
@@ -580,7 +612,7 @@ function InventoryOutboundProducts() {
                       handleFastReturnCopy(b, "Outbound");
                       setQuickReserveSearch('');
                     }}
-                    className="bg-yellow-400 border border-slate-900 hover:border-slate-800 text-[#000] rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 pt-3.5 w-24 h-22 shrink-0"
+                    className="bg-yellow-400 border border-slate-900 hover:border-slate-800 text-[#000] rounded-lg shadow-2xs font-medium cursor-pointer transition-all flex flex-col justify-center items-center text-center p-1.5 pt-4 w-28 h-22 shrink-0"
                     title="Click to fulfill as Outbound (remaining balance will stay reserved)"
                   >
                     <span className="font-bold text-[#000] text-[12px] tracking-tighter block mb-0.5 line-clamp-2 break-words max-w-full leading-tight">
@@ -614,6 +646,19 @@ function InventoryOutboundProducts() {
                       title="Edit Reservation (Items & Quantities)"
                     >
                       <Pencil className="w-2.5 h-2.5 shrink-0" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDuplicatePackedRack(b);
+                        setQuickReserveSearch('');
+                      }}
+                      className="w-5 h-5 bg-yellow-400 border border-slate-900 hover:border-slate-800 hover:border-emerald-600 text-slate-900 hover:text-emerald-800 rounded-full shadow-md transition-all cursor-pointer flex items-center justify-center"
+                      title="Duplicate as New Reservation"
+                    >
+                      <Copy className="w-2.5 h-2.5 shrink-0" />
                     </button>
                   </div>
                 </div>
@@ -668,22 +713,47 @@ function InventoryOutboundProducts() {
                       : `Slip: ${referencePlNo} — Any unverified or partial balance will automatically remain reserved.`}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReferencePlNo('');
-                    setManifestItems([]);
-                    setCustomer('');
-                    setDestinationAddress('');
-                    setCarrier('');
-                    setTransactionType('Outbound');
-                    showSuccessToast("Detached and cleared reference slip.");
-                  }}
-                  className={`text-[11px] font-bold underline cursor-pointer shrink-0 ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                <div className="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const oldRef = referencePlNo;
+                      setReferencePlNo('');
+                      setTransactionType('Reserve');
+                      setManifestItems(prev => prev.map(it => ({
+                        ...it,
+                        remarks: it.remarks?.includes(oldRef) ? it.remarks.replace(oldRef, `Copy of ${oldRef}`) : (it.remarks || `Duplicated from ${oldRef}`)
+                      })));
+                      showSuccessToast(`Duplicated ${oldRef}! Ready to save as a new packed rack reservation.`);
+                    }}
+                    className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer shadow-xs ${
+                      transactionType === 'Reserve'
+                        ? (isDark ? 'bg-amber-900/60 border-amber-700 text-amber-200 hover:bg-amber-800' : 'bg-amber-100 border-amber-300 text-amber-900 hover:bg-amber-200')
+                        : (isDark ? 'bg-indigo-900/60 border-indigo-700 text-indigo-200 hover:bg-indigo-800' : 'bg-indigo-100 border-indigo-300 text-indigo-900 hover:bg-indigo-200')
                     }`}
-                >
-                  Detach / Clear Ref
-                </button>
+                    title="Duplicate this packed rack as a new reservation"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Duplicate</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReferencePlNo('');
+                      setManifestItems([]);
+                      setCustomer('');
+                      setDestinationAddress('');
+                      setCarrier('');
+                      setTransactionType('Outbound');
+                      showSuccessToast("Detached and cleared reference slip.");
+                    }}
+                    className={`text-[11px] font-bold underline cursor-pointer shrink-0 ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                  >
+                    Detach / Clear Ref
+                  </button>
+                </div>
               </div>
             )}
 
