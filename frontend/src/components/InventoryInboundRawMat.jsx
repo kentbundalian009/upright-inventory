@@ -560,7 +560,7 @@ function InventoryInboundRawMat() {
                   <input type="date" value={dateReceived} onChange={e => setDateReceived(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} required />
                 </div>
               </div>
-              <div className="sm:col-span-2">
+              <div className="sm:col-span-2 lg:col-span-2">
                 <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
                   Supplier Address (Auto-filled)
                 </label>
@@ -571,12 +571,6 @@ function InventoryInboundRawMat() {
                   placeholder="Automatically fetched from selected Supplier..."
                   className={`w-full ${isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'} border rounded-lg px-3 py-2 text-sm cursor-not-allowed select-none focus:outline-none font-medium`}
                 />
-              </div>
-              <div>
-                <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Prepared Name</label>
-                <div className="relative"><User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input type="text" value={preparedBy} disabled className={`w-full ${isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'} border rounded-lg pl-9 pr-3 py-2 text-sm font-semibold cursor-not-allowed select-none focus:outline-none`} />
-                </div>
               </div>
             </div>
 
