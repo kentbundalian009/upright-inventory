@@ -1301,8 +1301,28 @@ function InventorySuppliesMovements() {
                         <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
                           {b.partyName || 'N/A'}
                         </td>
-                        <td className="py-2.5 px-3 max-w-xs truncate" title={itemsSummary}>
-                          <span className="font-medium text-xs">{itemsSummary}</span>
+                        <td className="py-2.5 px-3 max-w-xs truncate">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSlip(b);
+                              setIsModalOpen(true);
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-xs max-w-full text-left ${
+                              isDark
+                                ? 'bg-[#141622] border-slate-700 text-slate-200 hover:border-[#ff6600] hover:text-[#ff6600]'
+                                : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#18174e] hover:text-[#18174e] hover:bg-slate-100'
+                            }`}
+                            title={`Click to view Supplies Item details for ${b.slipNo}`}
+                          >
+                            <Package className="w-3.5 h-3.5 text-[#ff6600] shrink-0" />
+                            <span>Supplies Item</span>
+                            {itemsSummary && (
+                              <span className="text-[10px] text-slate-400 font-normal truncate max-w-[130px]">
+                                ({itemsSummary})
+                              </span>
+                            )}
+                          </button>
                         </td>
                         <td className="py-2.5 px-3 whitespace-nowrap">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
@@ -1315,32 +1335,17 @@ function InventorySuppliesMovements() {
                           {totalQty}
                         </td>
                         <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handleFastReturnCopy(b);
-                                setQuickReturnSearch('');
-                              }}
-                              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#ff6600] hover:bg-[#e05a00] text-white transition-all cursor-pointer shadow-xs"
-                              title={b.transactionType === "Reserved" ? "Deploy Reserved Slip" : "Fulfill Return for this Slip"}
-                            >
-                              {b.transactionType === "Reserved" ? "Deploy" : "Fulfill Return"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedSlip(b);
-                                setIsModalOpen(true);
-                              }}
-                              className={`p-1 rounded-lg border transition-colors cursor-pointer ${
-                                isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
-                              }`}
-                              title="View Slip Details"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleFastReturnCopy(b);
+                              setQuickReturnSearch('');
+                            }}
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#ff6600] hover:bg-[#e05a00] text-white transition-all cursor-pointer shadow-xs"
+                            title={b.transactionType === "Reserved" ? "Deploy Reserved Slip" : "Fulfill Return for this Slip"}
+                          >
+                            {b.transactionType === "Reserved" ? "Deploy" : "Fulfill Return"}
+                          </button>
                         </td>
                       </tr>
                     );
