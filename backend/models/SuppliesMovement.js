@@ -11,8 +11,10 @@ const suppliesMovementSchema = new mongoose.Schema(
       trim: true 
     },
     transactionDate: { type: Date, required: true, default: Date.now },
+    transactionTime: { type: String, default: "", trim: true },
     
     partyName: { type: String, default: "N/A", trim: true }, 
+    purpose: { type: String, default: "Production", trim: true },
     originAddress: { type: String, default: "N/A", trim: true },
     preparedBy: { type: String, required: true, default: "System User" },
     

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ListPlus,
   Search,
@@ -16,7 +16,8 @@ import {
   FileText,
   ClipboardList,
   ArrowDownCircle,
-  ArrowUpCircle
+  ArrowUpCircle,
+  ChevronDown
 } from 'lucide-react';
 import axios from 'axios';
 import jsPDF from 'jspdf';
@@ -88,6 +89,33 @@ function Consumable() {
   });
   const [isCustomName, setIsCustomName] = useState(false);
   const [registeredEmployees, setRegisteredEmployees] = useState([]);
+  const [isPersonnelDropdownOpen, setIsPersonnelDropdownOpen] = useState(false);
+  const personnelDropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (personnelDropdownRef.current && !personnelDropdownRef.current.contains(e.target)) {
+        setIsPersonnelDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filtered employees based on what user types
+  const filteredEmployees = useMemo(() => {
+    if (!transactorName || !transactorName.trim()) {
+      return registeredEmployees;
+    }
+    const query = transactorName.toLowerCase().trim();
+    return registeredEmployees.filter(
+      (emp) =>
+        emp.name?.toLowerCase().includes(query) ||
+        emp.contactPerson?.toLowerCase().includes(query) ||
+        emp.address?.toLowerCase().includes(query)
+    );
+  }, [registeredEmployees, transactorName]);
   const [transactionDate, setTransactionDate] = useState(getTodayDateString());
   const [transactionTime, setTransactionTime] = useState(getCurrentTimeString());
   const [manifestItems, setManifestItems] = useState([]);
@@ -652,13 +680,22 @@ function Consumable() {
             </div>
 
 
-            {/* PERSONNEL NAME / PREPARED NAME */}
-            <div>
-              <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
-                {transactionType === 'IN' ? 'Prepared Name *' : 'Personnel Name *'}
-              </label>
+            {/* PERSONNEL NAME / PREPARED NAME (TYPE + DROPDOWN) */}
+            <div ref={personnelDropdownRef} className="relative">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase`}>
+                  {transactionType === 'IN' ? 'Prepared Name *' : 'Personnel Name *'}
+                </label>
+                {transactionType === 'OUT' && (
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Type or pick from dropdown
+                  </span>
+                )}
+              </div>
+
               <div className="relative">
                 <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 z-10" />
+
                 {transactionType === 'IN' ? (
                   <input
                     type="text"
@@ -669,46 +706,118 @@ function Consumable() {
                       : 'bg-slate-50 border-slate-200 text-slate-700'
                       } border rounded-lg pl-9 pr-3 py-2 text-sm font-semibold select-none cursor-not-allowed focus:outline-none`}
                   />
-                ) : registeredEmployees.length === 0 ? (
-                  <input
-                    type="text"
-                    required
-                    value={transactorName}
-                    onChange={(e) => setTransactorName(e.target.value)}
-                    placeholder="Type personnel / worker name (or add in Client Records > Personnel)"
-                    className={`w-full ${isDark
-                      ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]'
-                      : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
-                      } border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none font-semibold`}
-                  />
                 ) : (
-                  <select
-                    value={transactorName}
-                    onChange={(e) => setTransactorName(e.target.value)}
-                    required
-                    className={`w-full ${isDark
-                      ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]'
-                      : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
-                      } border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none font-semibold cursor-pointer`}
-                  >
-                    <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>
-                      -- Select Personnel / Worker --
-                    </option>
-                    {registeredEmployees.map((emp) => (
-                      <option
-                        key={emp._id}
-                        value={emp.name}
-                        className={isDark ? 'bg-[#141622] text-white' : ''}
+                  <>
+                    <input
+                      type="text"
+                      required
+                      value={transactorName}
+                      onChange={(e) => {
+                        setTransactorName(e.target.value);
+                        setIsPersonnelDropdownOpen(true);
+                      }}
+                      onFocus={() => setIsPersonnelDropdownOpen(true)}
+                      placeholder="Type or select personnel / worker name..."
+                      className={`w-full ${isDark
+                        ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
+                        : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
+                        } border rounded-lg pl-9 pr-16 py-2 text-sm focus:outline-none font-semibold transition-all`}
+                    />
+
+                    <div className="absolute right-2 top-2 flex items-center gap-1 z-10">
+                      {transactorName && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTransactorName('');
+                            setIsPersonnelDropdownOpen(true);
+                          }}
+                          title="Clear name"
+                          className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsPersonnelDropdownOpen(!isPersonnelDropdownOpen)}
+                        title="Toggle personnel dropdown list"
+                        className={`p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-transform duration-200 ${
+                          isPersonnelDropdownOpen ? 'rotate-180 text-[#ff6600]' : ''
+                        }`}
                       >
-                        {emp.name} {emp.contactPerson ? `(${emp.contactPerson})` : ''} {emp.address ? `[${emp.address}]` : ''}
-                      </option>
-                    ))}
-                    {transactorName && !registeredEmployees.some((e) => e.name === transactorName) && (
-                      <option value={transactorName} className={isDark ? 'bg-[#141622] text-white' : ''}>
-                        {transactorName}
-                      </option>
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* FLOATING TYPE+DROPDOWN MENU */}
+                    {isPersonnelDropdownOpen && (
+                      <div
+                        className={`absolute left-0 right-0 top-[102%] mt-1 ${isDark
+                          ? 'bg-[#0e1017] border-slate-700 divide-slate-800/80 shadow-2xl'
+                          : 'bg-white border-slate-200 divide-slate-100 shadow-xl'
+                          } border rounded-xl max-h-60 overflow-y-auto z-50 divide-y p-1`}
+                      >
+                        <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${
+                          isDark ? 'text-slate-400 bg-slate-900/60' : 'text-slate-500 bg-slate-50'
+                        } rounded-t-lg flex items-center justify-between`}>
+                          <span>Registered Personnel ({filteredEmployees.length})</span>
+                          <span className="text-[9px] font-normal lowercase">click to select</span>
+                        </div>
+
+                        {filteredEmployees.length > 0 ? (
+                          filteredEmployees.map((emp) => (
+                            <button
+                              key={emp._id}
+                              type="button"
+                              onClick={() => {
+                                setTransactorName(emp.name);
+                                setIsPersonnelDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between gap-2 rounded-lg transition-colors cursor-pointer ${
+                                transactorName === emp.name
+                                  ? isDark
+                                    ? 'bg-[#ff6600]/20 text-[#ff6600]'
+                                    : 'bg-indigo-50 text-[#18174e]'
+                                  : isDark
+                                  ? 'text-slate-200 hover:bg-slate-800'
+                                  : 'text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <div className="flex flex-col">
+                                <span className="font-bold text-sm">{emp.name}</span>
+                                {(emp.contactPerson || emp.address) && (
+                                  <span className="text-[10px] text-slate-400 font-normal">
+                                    {[emp.contactPerson, emp.address].filter(Boolean).join(' • ')}
+                                  </span>
+                                )}
+                              </div>
+                              {transactorName === emp.name && (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              )}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-3 text-center text-xs text-slate-400">
+                            No registered personnel matches "{transactorName}".
+                          </div>
+                        )}
+
+                        {transactorName && !registeredEmployees.some((e) => e.name?.toLowerCase() === transactorName.toLowerCase()) && (
+                          <button
+                            type="button"
+                            onClick={() => setIsPersonnelDropdownOpen(false)}
+                            className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 rounded-lg ${
+                              isDark ? 'bg-emerald-950/40 text-emerald-400 hover:bg-emerald-900/50' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            } transition-colors cursor-pointer`}
+                          >
+                            <Plus className="w-3.5 h-3.5 shrink-0" />
+                            <span>Use custom typed name: <strong>"{transactorName}"</strong></span>
+                          </button>
+                        )}
+                      </div>
                     )}
-                  </select>
+                  </>
                 )}
               </div>
             </div>

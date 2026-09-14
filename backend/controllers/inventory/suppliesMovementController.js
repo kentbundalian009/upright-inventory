@@ -23,7 +23,9 @@ export const createMovement = async (req, res) => {
     const { 
       transactionType, 
       transactionDate, 
+      transactionTime,
       partyName, 
+      purpose,
       originAddress, 
       preparedBy, 
       referenceSlipNo, 
@@ -103,12 +105,15 @@ export const createMovement = async (req, res) => {
 
     const finalSlipNo = await generateSlipNo(transactionType);
 
+    const movementPurpose = purpose || originAddress || "Production";
     const newMovement = new SuppliesMovement({
       slipNo: finalSlipNo,
       transactionType,
       transactionDate,
+      transactionTime: transactionTime || "",
       partyName,
-      originAddress,
+      purpose: movementPurpose,
+      originAddress: originAddress || movementPurpose,
       preparedBy,
       referenceSlipNo: cleanRefNo,
       items: items.map(i => ({
