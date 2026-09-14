@@ -1308,7 +1308,7 @@ function InventorySuppliesMovements() {
                               setSelectedSlip(b);
                               setIsModalOpen(true);
                             }}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-xs max-w-full text-left ${
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-xs text-left whitespace-nowrap ${
                               isDark
                                 ? 'bg-[#141622] border-slate-700 text-slate-200 hover:border-[#ff6600] hover:text-[#ff6600]'
                                 : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#18174e] hover:text-[#18174e] hover:bg-slate-100'
@@ -1317,11 +1317,6 @@ function InventorySuppliesMovements() {
                           >
                             <Package className="w-3.5 h-3.5 text-[#ff6600] shrink-0" />
                             <span>Supplies Item</span>
-                            {itemsSummary && (
-                              <span className="text-[10px] text-slate-400 font-normal truncate max-w-[130px]">
-                                ({itemsSummary})
-                              </span>
-                            )}
                           </button>
                         </td>
                         <td className="py-2.5 px-3 whitespace-nowrap">
