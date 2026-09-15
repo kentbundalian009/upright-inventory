@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Archive, X, Filter, RotateCcw, EyeOff, CheckCircle2, Palette, Image as ImageIcon, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import PageHeader from './PageHeader';
+import TablePagination from './TablePagination';
 import { useTheme } from '../context/ThemeContext';
 
 function InventorySupplies() {
@@ -28,14 +29,14 @@ function InventorySupplies() {
   const [isSavingPalette, setIsSavingPalette] = useState(false);
 
   const COLOR_OPTIONS = [
-    { name: 'Emerald / Green', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800', prefix: '🟢' },
-    { name: 'Blue / Indigo', classes: 'bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800', prefix: '🔵' },
-    { name: 'Amber / Orange', classes: 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800', prefix: '🟡' },
-    { name: 'Rose / Red', classes: 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800', prefix: '🔴' },
-    { name: 'Orange', classes: 'bg-orange-50 text-orange-700 border-orange-200/60 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-800', prefix: '🟠' },
-    { name: 'Purple / Violet', classes: 'bg-purple-50 text-purple-700 border-purple-200/60 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800', prefix: '🟣' },
-    { name: 'Slate / Muted Gray', classes: 'bg-slate-50 text-slate-700 border-slate-200/60 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', prefix: '⚪' },
-    { name: 'Cyan / Teal', classes: 'bg-cyan-50 text-cyan-700 border-cyan-200/60 dark:bg-cyan-950/60 dark:text-cyan-400 dark:border-cyan-800', prefix: '🌐' }
+    { name: 'Emerald / Green', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800', rowBg: 'bg-emerald-500/[0.08] hover:bg-emerald-500/[0.16] dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 border-l-4 border-l-emerald-500', prefix: '🟢' },
+    { name: 'Blue / Indigo', classes: 'bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800', rowBg: 'bg-blue-500/[0.08] hover:bg-blue-500/[0.16] dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border-l-4 border-l-blue-500', prefix: '🔵' },
+    { name: 'Amber / Orange', classes: 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800', rowBg: 'bg-amber-500/[0.08] hover:bg-amber-500/[0.16] dark:bg-amber-950/30 dark:hover:bg-amber-950/50 border-l-4 border-l-amber-500', prefix: '🟡' },
+    { name: 'Rose / Red', classes: 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800', rowBg: 'bg-rose-500/[0.08] hover:bg-rose-500/[0.16] dark:bg-rose-950/30 dark:hover:bg-rose-950/50 border-l-4 border-l-rose-500', prefix: '🔴' },
+    { name: 'Orange', classes: 'bg-orange-50 text-orange-700 border-orange-200/60 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-800', rowBg: 'bg-orange-500/[0.08] hover:bg-orange-500/[0.16] dark:bg-orange-950/30 dark:hover:bg-orange-950/50 border-l-4 border-l-orange-500', prefix: '🟠' },
+    { name: 'Purple / Violet', classes: 'bg-purple-50 text-purple-700 border-purple-200/60 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800', rowBg: 'bg-purple-500/[0.08] hover:bg-purple-500/[0.16] dark:bg-purple-950/30 dark:hover:bg-purple-950/50 border-l-4 border-l-purple-500', prefix: '🟣' },
+    { name: 'Slate / Muted Gray', classes: 'bg-slate-50 text-slate-700 border-slate-200/60 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', rowBg: 'bg-slate-500/[0.08] hover:bg-slate-500/[0.16] dark:bg-slate-900/40 dark:hover:bg-slate-900/60 border-l-4 border-l-slate-400', prefix: '⚪' },
+    { name: 'Cyan / Teal', classes: 'bg-cyan-50 text-cyan-700 border-cyan-200/60 dark:bg-cyan-950/60 dark:text-cyan-400 dark:border-cyan-800', rowBg: 'bg-cyan-500/[0.08] hover:bg-cyan-500/[0.16] dark:bg-cyan-950/30 dark:hover:bg-cyan-950/50 border-l-4 border-l-cyan-500', prefix: '🌐' }
   ];
 
   const categories = ['All Categories', ...[...new Set(suppliesList.map(item => item.Category).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))];
@@ -120,7 +121,7 @@ function InventorySupplies() {
   };
 
   const getSegmentStyles = (segmentName) => {
-    if (!segmentName) return { classes: "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", prefix: "⚪" };
+    if (!segmentName) return { classes: "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", rowBg: "hover:bg-slate-50/80 dark:hover:bg-[#141622] border-l-4 border-l-transparent", prefix: "⚪" };
     const assignedIdx = palette.segmentColors[segmentName];
     if (assignedIdx !== undefined && COLOR_OPTIONS[assignedIdx]) {
       return COLOR_OPTIONS[assignedIdx];
@@ -302,6 +303,18 @@ function InventorySupplies() {
     return matchesCategory && matchesDescription && matchesSearch && matchesZeroQty;
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedDescription, searchTerm, hideZeroQty, showArchivedOnly]);
+
+  const totalRows = filteredSupplies.length;
+  const indexOfFirstRow = (currentPage - 1) * rowsPerPage;
+  const indexOfLastRow = indexOfFirstRow + rowsPerPage;
+  const paginatedSupplies = filteredSupplies.slice(indexOfFirstRow, indexOfLastRow);
+
   const activeCount = suppliesList.filter(s => !s.isArchived).length;
   const archivedCount = suppliesList.filter(s => s.isArchived).length;
 
@@ -424,30 +437,15 @@ function InventorySupplies() {
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className={`text-white font-bold uppercase text-nowrap text-sm ${isDark ? 'bg-[#0f111d] border-b border-slate-800' : 'bg-[#18174e]'}`}>
-                  <th 
-                    className={`py-3 px-3 text-center whitespace-nowrap sticky left-0 z-20 w-[72px] min-w-[72px] max-w-[72px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
-                    style={{ left: 0 }}
-                  >
-                    Image
-                  </th>
-                  <th 
-                    className={`py-3 px-4 whitespace-nowrap sticky z-20 min-w-[180px] sm:min-w-[220px] md:max-w-[300px] ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
-                    style={{ 
-                      left: 72,
-                      boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' 
-                    }}
-                  >
-                    <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
-                    Item Description
-                  </th>
-                  <th className="py-3 px-4 whitespace-nowrap">Segment</th>
+                  <th className="py-3 px-3 text-center whitespace-nowrap">Image</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Item Description</th>
                   <th className="py-3 px-4 whitespace-nowrap">Dimension</th>
-                  <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Brand</th>
-                  <th className="py-3 px-4">Serial No.</th>
-                  <th className="py-3 px-4 text-center">Actual Count</th>
-                  <th className="py-3 px-4 text-center">Damaged</th>
-                  <th className="py-3 px-4">UOM</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Category</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Brand</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Serial No.</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Actual Count</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Damaged</th>
+                  <th className="py-3 px-4 whitespace-nowrap">UOM</th>
                   {!isViewer && (
                     <th className="py-3 px-4 text-center whitespace-nowrap">
                       Actions
@@ -458,28 +456,26 @@ function InventorySupplies() {
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                 {loading ? (
                   <tr>
-                    <td colSpan={isViewer ? "10" : "11"} className="text-center py-10 text-green-500 font-medium italic">
+                    <td colSpan={isViewer ? "9" : "10"} className="text-center py-10 text-green-500 font-medium italic">
                       Fetching secure rackings data from database...
                     </td>
                   </tr>
                 ) : filteredSupplies.length === 0 ? (
                   <tr>
-                    <td colSpan={isViewer ? "10" : "11"} className="text-center py-10 text-red-500 font-medium italic">
+                    <td colSpan={isViewer ? "9" : "10"} className="text-center py-10 text-red-500 font-medium italic">
                       No records match the selected filters or search queries.
                     </td>
                   </tr>) : (
-                  filteredSupplies.map((supply) => {
+                  paginatedSupplies.map((supply) => {
                     const catStyle = getCategoryStyles(supply.Category);
                     const segStyle = getSegmentStyles(supply.Segment);
                     return (
-                      <tr key={supply._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
-                        {/* 1. Image (STICKY FIXED) */}
-                        <td 
-                          className={`py-2 px-3 text-center whitespace-nowrap sticky left-0 z-10 w-[72px] min-w-[72px] max-w-[72px] transition-colors ${
-                            isDark ? 'bg-[#090b10] group-hover:bg-[#141622]' : 'bg-white group-hover:bg-[#f8fafc]'
-                          }`}
-                          style={{ left: 0 }}
-                        >
+                      <tr 
+                        key={supply._id} 
+                        className={`group ${segStyle.rowBg || (isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600')} transition-colors font-medium whitespace-nowrap text-sm`}
+                      >
+                        {/* 1. Image */}
+                        <td className="py-2 px-3 text-center whitespace-nowrap">
                           {supply.ImageUrl ? (
                             <div className="relative inline-block">
                               <img
@@ -505,65 +501,65 @@ function InventorySupplies() {
                           )}
                         </td>
 
-                        {/* 2. Item Description (STICKY FIXED) */}
-                        <td 
-                          className={`py-3.5 px-4 font-semibold sticky z-10 min-w-[180px] sm:min-w-[220px] md:max-w-[300px] whitespace-normal md:whitespace-nowrap transition-colors ${
-                            isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
-                          }`}
-                          style={{ 
-                            left: 72,
-                            boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' 
-                          }}
-                          title={supply.ItemDescription}
-                        >
-                          <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
-                          <div className="line-clamp-2 md:truncate font-semibold" title={supply.ItemDescription}>
+                        {/* 2. Item Description & Segment underneath */}
+                        <td className="py-3 px-4 min-w-[200px]">
+                          <div className={`font-semibold whitespace-normal break-words transition-colors ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
                             {supply.ItemDescription}
                           </div>
-                        </td>
-
-                        {/* 3. Segment */}
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          {supply.Segment ? (
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded border inline-flex items-center gap-1.5 ${segStyle.classes}`}>
-                              {segStyle.prefix && <span>{segStyle.prefix}</span>}
-                              <span>{supply.Segment}</span>
-                            </span>
-                          ) : (
-                            <span className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>—</span>
+                          {supply.Segment && supply.Segment !== 'N/A' && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border inline-flex items-center gap-1 ${segStyle.classes}`}>
+                                {segStyle.prefix && <span>{segStyle.prefix}</span>}
+                                <span>{supply.Segment}</span>
+                              </span>
+                            </div>
                           )}
                         </td>
 
-                        {/* 4. Dimension */}
-                        <td className={`py-3.5 px-4 ${isDark ? 'text-slate-400 bg-slate-800/30' : 'text-slate-600 bg-slate-50/20'} text-xs font-mono whitespace-nowrap`}>
+                        {/* 3. Dimension */}
+                        <td className={`py-3 px-4 font-mono text-xs whitespace-normal break-words transition-colors ${
+                          isDark ? 'text-slate-400' : 'text-slate-600'
+                        }`}>
                           {supply.Dimension || '—'}
                         </td>
 
-                        {/* 5. Category */}
-                        <td className="py-3.5 px-4">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded border text-nowrap ${catStyle.classes}`}>
+                        {/* 4. Category */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded border ${catStyle.classes}`}>
                             {supply.Category || 'Uncategorized'}
                           </span>
                         </td>
 
-                        {/* 6. Brand */}
-                        <td className={`py-3.5 px-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{supply.Brand || '—'}</td>
+                        {/* 5. Brand */}
+                        <td className={`py-3 px-4 whitespace-nowrap ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{supply.Brand || '—'}</td>
 
-                        {/* 7. Serial No. */}
-                        <td className={`py-3.5 px-4 ${isDark ? 'text-slate-400' : 'text-slate-600'} text-xs font-mono`}>{supply.SerialNo || '—'}</td>
+                        {/* 6. Serial No. */}
+                        <td className={`py-3 px-4 whitespace-nowrap ${isDark ? 'text-slate-400' : 'text-slate-600'} text-xs font-mono`}>{supply.SerialNo || '—'}</td>
 
-                        {/* 8. Actual Count */}
-                        <td className={`py-3.5 px-4 text-center font-bold font-mono ${isDark ? 'text-white' : 'text-slate-700 bg-slate-50/40'}`}>{supply.ActualCount}</td>
+                        {/* 7. Actual Count */}
+                        <td className={`py-3 px-4 text-center font-bold font-mono text-sm whitespace-nowrap ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {supply.ActualCount ?? 0}
+                        </td>
 
-                        {/* 9. Damaged */}
-                        <td className="py-3.5 px-4 text-center font-semibold text-red-500">{supply.DamagedCount || 0}</td>
+                        {/* 8. Damaged */}
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          {(Number(supply.DamagedCount) || 0) > 0 ? (
+                            <span className={`inline-flex items-center gap-1 font-mono font-bold text-xs px-2 py-0.5 rounded-md ${
+                              isDark ? 'bg-rose-950/60 text-rose-300 border border-rose-800/60' : 'bg-rose-50 text-rose-600 border border-rose-200'
+                            }`}>
+                              {supply.DamagedCount}
+                            </span>
+                          ) : (
+                            <span className={`text-xs font-mono ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>0</span>
+                          )}
+                        </td>
 
-                        {/* 10. UOM */}
-                        <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{supply.UOM || 'pcs'}</td>
+                        {/* 9. UOM */}
+                        <td className={`py-3 px-4 whitespace-nowrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{supply.UOM || 'pcs'}</td>
 
-                        {/* 11. Actions */}
+                        {/* 10. Actions */}
                         {!isViewer && (
-                          <td className="py-3.5 px-4 text-center">
+                          <td className="py-3 px-4 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
                               {!supply.isArchived ? (
                                 <>
@@ -586,6 +582,14 @@ function InventorySupplies() {
               </tbody>
             </table>
           </div>
+
+          <TablePagination
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            totalRows={totalRows}
+          />
         </div>
       </div>
 

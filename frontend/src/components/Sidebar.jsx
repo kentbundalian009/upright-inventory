@@ -136,16 +136,16 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
       { id: 'admin-backup', name: 'Data Backup', icon: Database, roles: ['Admin'], section: 'admin' },
       { id: 'admin-settings', name: 'System Maintenance', icon: Power, roles: ['Admin'], section: 'admin' },
 
-      { id: 'inbound-raw-mat', name: 'Inbound', icon: ArrowDownCircle, roles: ['Inventory'], section: 'rackings' },
-      { id: 'work-in-progress', name: 'WIP', icon: TrendingUp, roles: ['Inventory'], section: 'rackings' },
-      { id: 'outbound-products', name: 'Outbound', icon: Truck, roles: ['Inventory'], section: 'rackings' },
+      { id: 'inbound-raw-mat', name: 'Inbound Materials', icon: ArrowDownCircle, roles: ['Inventory'], section: 'rackings' },
+      { id: 'work-in-progress', name: 'Work In Progress', icon: TrendingUp, roles: ['Inventory'], section: 'rackings' },
+      { id: 'outbound-products', name: 'Outbound Materials', icon: Truck, roles: ['Inventory'], section: 'rackings' },
 
-      { id: 'consumables', name: 'Consumables', icon: ShoppingBag, roles: ['Inventory', 'Admin'], section: 'supplies' },
-      { id: 'supplies-movements', name: 'Supplies Movements', icon: History, roles: ['Inventory', 'Admin'], section: 'supplies' },
+      { id: 'consumables', name: 'Consumables & PPE', icon: ShoppingBag, roles: ['Inventory', 'Admin'], section: 'supplies' },
+      { id: 'supplies-movements', name: 'Equipment Movements', icon: History, roles: ['Inventory', 'Admin'], section: 'supplies' },
 
       { id: 'raw-materials', name: 'Rackings', icon: Layers, roles: ['Inventory', 'Admin'], section: 'records' },
-      { id: 'supplies', name: 'Supplies', icon: Package, roles: ['Inventory', 'Admin'], section: 'records' },
-      { id: 'client-records', name: 'Clients', icon: Building2, roles: ['Inventory', 'Admin'], section: 'records' },
+      { id: 'supplies', name: 'Equipment', icon: Package, roles: ['Inventory', 'Admin'], section: 'records' },
+      { id: 'client-records', name: 'Business Partners', icon: Building2, roles: ['Inventory', 'Admin'], section: 'records' },
 
       { id: 'reports', name: 'Reports', icon: FileSpreadsheet, roles: ['Inventory'], section: 'reports' },
 

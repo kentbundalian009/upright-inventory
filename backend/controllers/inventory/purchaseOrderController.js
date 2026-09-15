@@ -43,7 +43,7 @@ export const createPurchaseOrder = async (req, res) => {
       }
     }
 
-    const populatedPO = await PurchaseOrder.findById(savedPO._id).populate("items.materialId", "Code ItemDescription UOM");
+    const populatedPO = await PurchaseOrder.findById(savedPO._id).populate("items.materialId", "Code ItemDescription Dimension UOM");
 
     return res.status(201).json(populatedPO);
   } catch (err) {
@@ -58,7 +58,7 @@ export const createPurchaseOrder = async (req, res) => {
 export const getPurchaseOrders = async (req, res) => {
   try {
     const records = await PurchaseOrder.find()
-      .populate("items.materialId", "Code ItemDescription UOM ActualCount")
+      .populate("items.materialId", "Code ItemDescription Dimension UOM ActualCount")
       .sort({ createdAt: -1 });
 
     return res.status(200).json(records);

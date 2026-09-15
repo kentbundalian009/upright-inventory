@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Search, Filter, X, Image as ImageIcon, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { trackSharedLinkClick } from '../utils/linkTracker';
+import TablePagination from '../components/TablePagination';
 
 const COLOR_OPTIONS = [
     { name: 'Emerald / Green', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800', prefix: '🟢' },
@@ -188,6 +189,16 @@ function SharedRackingsView() {
 
         return matchesSearch && matchesSegment && matchesDescription && matchesHealth;
     });
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, selectedSegment, selectedDescription, selectedHealth, hideZeroQty]);
+
+    const totalRows = filteredRawMaterials.length;
+    const paginatedRawMaterials = filteredRawMaterials.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
     if (revocationError) {
         return (
@@ -412,7 +423,7 @@ function SharedRackingsView() {
                                     <tr>
                                         <td colSpan="7" className="text-center py-8 text-rose-600 font-semibold">{error}</td>
                                     </tr>
-                                ) : filteredRawMaterials.map((rawMat) => {
+                                ) : paginatedRawMaterials.map((rawMat) => {
                                     const currentSegConfig = getSegmentStyles(rawMat.Segment);
 
                                     return (
@@ -446,14 +457,14 @@ function SharedRackingsView() {
                                             </td>
 
                                             <td 
-                                                className={`py-3 px-4 font-semibold ${isDark ? 'text-slate-100' : 'text-slate-800'} max-w-[280px] truncate`} 
+                                                className={`py-3 px-4 font-semibold min-w-[200px] whitespace-normal break-words ${isDark ? 'text-slate-100' : 'text-slate-800'}`} 
                                                 title={rawMat.ItemDescription}
                                             >
                                                 {rawMat.ItemDescription || '—'}
                                             </td>
 
                                             <td 
-                                                className="py-3 px-4 max-w-[150px] truncate" 
+                                                className="py-3 px-4 min-w-[120px] whitespace-normal break-words" 
                                                 title={rawMat.Dimension}
                                             >
                                                 {rawMat.Dimension || '—'}
@@ -490,6 +501,13 @@ function SharedRackingsView() {
                             </tbody>
                         </table>
                     </div>
+                    <TablePagination
+                        currentPage={currentPage}
+                        setCurrentPage={setCurrentPage}
+                        rowsPerPage={rowsPerPage}
+                        setRowsPerPage={setRowsPerPage}
+                        totalRows={totalRows}
+                    />
                 </div>
 
             </div>

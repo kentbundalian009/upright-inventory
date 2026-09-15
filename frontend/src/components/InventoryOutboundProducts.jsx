@@ -4,6 +4,7 @@ import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, A
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
+import TablePagination from './TablePagination';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 
@@ -25,8 +26,14 @@ function InventoryOutboundProducts() {
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalPage, setModalPage] = useState(1);
+  const [modalRowsPerPage, setModalRowsPerPage] = useState(10);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setModalPage(1);
+  }, [selectedSlip, isModalOpen]);
 
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [passkeyInput, setPasskeyInput] = useState('');
@@ -689,10 +696,10 @@ function InventoryOutboundProducts() {
                     onDragEnd={handleCardDragEnd}
                     onDrop={(e) => handleCardDrop(e, index, filteredList)}
                     className={`relative inline-block shrink-0 overflow-visible group transition-all duration-200 cursor-grab active:cursor-grabbing select-none ${isDraggingThis
-                        ? 'opacity-35 scale-90 rotate-2 border-2 border-dashed border-[#ff6600] rounded-xl'
-                        : isOverThis
-                          ? 'scale-105 ring-2 ring-[#ff6600] ring-offset-2 shadow-xl -translate-y-1'
-                          : 'hover:scale-[1.02]'
+                      ? 'opacity-35 scale-90 rotate-2 border-2 border-dashed border-[#ff6600] rounded-xl'
+                      : isOverThis
+                        ? 'scale-105 ring-2 ring-[#ff6600] ring-offset-2 shadow-xl -translate-y-1'
+                        : 'hover:scale-[1.02]'
                       }`}
                     title="Drag and drop to rearrange order, or click to fulfill"
                   >
@@ -793,24 +800,27 @@ function InventoryOutboundProducts() {
 
             {/* CONTEXTUAL PACKED RACK BANNER */}
             {referencePlNo && (
-              <div className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-in fade-in duration-200 ${transactionType === 'Reserve'
-                ? (isDark ? 'bg-amber-950/40 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-800')
-                : (isDark ? 'bg-indigo-950/40 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-800')
+              <div className={`p-3.5 sm:p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs transition-all animate-in fade-in duration-200 ${transactionType === 'Reserve'
+                ? (isDark ? 'bg-amber-950/20 border-amber-800/60 text-slate-200' : 'bg-amber-50/70 border-amber-200 text-slate-800')
+                : (isDark ? 'bg-rose-950/20 border-rose-800/60 text-slate-200' : 'bg-rose-50/70 border-rose-200 text-slate-800')
                 }`}>
-                <div className="flex items-center gap-2 text-xs font-semibold">
-                  <span className={`font-bold uppercase px-2 py-0.5 rounded text-[10px] tracking-wider border shadow-2xs shrink-0 ${transactionType === 'Reserve'
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className={`font-bold uppercase px-2.5 py-1 rounded-md text-[10px] tracking-wider border shadow-2xs shrink-0 ${transactionType === 'Reserve'
                     ? (isDark ? 'bg-amber-900/60 border-amber-700 text-amber-200' : 'bg-amber-100 border-amber-300 text-amber-800')
-                    : (isDark ? 'bg-indigo-900/60 border-indigo-700 text-indigo-200' : 'bg-indigo-100 border-indigo-300 text-indigo-800')
+                    : (isDark ? 'bg-rose-900/60 border-rose-700 text-rose-200' : 'bg-rose-100 border-rose-300 text-rose-800')
                     }`}>
                     {transactionType === 'Reserve' ? '🟡 Editing Packed Rack' : '🔴 Fulfilling Packed Rack'}
                   </span>
-                  <span className="leading-tight">
-                    {transactionType === 'Reserve'
-                      ? `Slip: ${referencePlNo} — Changes will update this reservation and reconcile inventory.`
-                      : `Slip: ${referencePlNo} — Any unverified or partial balance will automatically remain reserved.`}
+                  <span className={`font-medium leading-tight ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Slip: <strong className="font-mono text-[#ff8533] font-bold">{referencePlNo}</strong> — {
+                      transactionType === 'Reserve'
+                        ? 'Changes will update this reservation and reconcile inventory.'
+                        : 'Any unverified or partial balance will automatically remain reserved.'
+                    }
                   </span>
                 </div>
-                <div className="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap">
+
+                <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
                   <button
                     type="button"
                     onClick={() => {
@@ -823,13 +833,13 @@ function InventoryOutboundProducts() {
                       })));
                       showSuccessToast(`Duplicated ${oldRef}! Ready to save as a new packed rack reservation.`);
                     }}
-                    className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer shadow-xs ${transactionType === 'Reserve'
-                        ? (isDark ? 'bg-amber-900/60 border-amber-700 text-amber-200 hover:bg-amber-800' : 'bg-amber-100 border-amber-300 text-amber-900 hover:bg-amber-200')
-                        : (isDark ? 'bg-indigo-900/60 border-indigo-700 text-indigo-200 hover:bg-indigo-800' : 'bg-indigo-100 border-indigo-300 text-indigo-900 hover:bg-indigo-200')
+                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-xs ${isDark
+                      ? 'bg-[#141622] text-slate-200 border-slate-700 hover:border-amber-500 hover:text-amber-400 hover:bg-slate-800'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-amber-500 hover:text-amber-700 hover:bg-amber-50/50'
                       }`}
                     title="Duplicate this packed rack as a new reservation"
                   >
-                    <Copy className="w-3.5 h-3.5" />
+                    <Copy className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     <span>Duplicate</span>
                   </button>
 
@@ -844,10 +854,14 @@ function InventoryOutboundProducts() {
                       setTransactionType('Outbound');
                       showSuccessToast("Detached and cleared reference slip.");
                     }}
-                    className={`text-[11px] font-bold underline cursor-pointer shrink-0 ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-xs ${isDark
+                      ? 'bg-[#141622] text-rose-300 border-slate-700 hover:border-rose-700 hover:bg-rose-950/40 hover:text-rose-200'
+                      : 'bg-white text-rose-600 border-slate-200 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700'
                       }`}
+                    title="Detach and clear this reference slip"
                   >
-                    Detach / Clear Ref
+                    <X className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    <span>Detach / Clear Ref</span>
                   </button>
                 </div>
               </div>
@@ -1036,7 +1050,7 @@ function InventoryOutboundProducts() {
                         >
                           <div className="flex flex-col min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} truncate`}>
+                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} whitespace-normal break-words`}>
                                 {item.ItemDescription}
                               </span>
                               {dimension && (
@@ -1084,13 +1098,23 @@ function InventoryOutboundProducts() {
 
             {/* HIDE TABLE AND NOTICE UNTIL ITEMS ARE SELECTED */}
             {manifestItems.length > 0 && (
-              <div className="flex flex-col gap-3 animate-in fade-in duration-200">
-                <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${transactionType === 'Reserve'
-                  ? (isDark ? 'bg-amber-950/40 text-amber-300 border border-amber-800/40' : 'text-amber-700 bg-amber-50 border border-amber-200/60')
-                  : (isDark ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' : 'text-rose-700 bg-rose-50 border border-rose-200/60')
-                  }`}>
-                  {transactionType === 'Reserve' ? '🟡 Quantities will be reserved / held' : '🔴 Quantities will be automatically deducted'}
-                </span>
+              <div className="flex flex-col gap-2 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${transactionType === 'Reserve'
+                    ? (isDark ? 'bg-amber-950/40 text-amber-300 border border-amber-800/40' : 'text-amber-700 bg-amber-50 border border-amber-200/60')
+                    : (isDark ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' : 'text-rose-700 bg-rose-50 border border-rose-200/60')
+                    }`}>
+                    {transactionType === 'Reserve' ? '🟡 Quantities will be reserved / held' : '🔴 Quantities will be automatically deducted'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setManifestItems([])}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
+                      }`}
+                  >
+                    Clear Source Items
+                  </button>
+                </div>
 
                 <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-x-auto`}>
                   <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
@@ -1135,7 +1159,7 @@ function InventoryOutboundProducts() {
                             />
                           </td>
                           <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.Segment}</td>
-                          <td className={`py-2 px-4 max-w-[150px] ${isDark ? 'text-slate-200' : 'text-slate-800'}`} title={item.ItemDescription}>
+                          <td className={`py-2 px-4 min-w-[200px] whitespace-normal break-words ${isDark ? 'text-slate-200' : 'text-slate-800'}`} title={item.ItemDescription}>
                             {item.ItemDescription}
                           </td>
                           <td className={`py-2 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'} whitespace-nowrap`}>{item.Dimension}</td>
@@ -1183,9 +1207,11 @@ function InventoryOutboundProducts() {
 
         <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 rounded-2xl border flex flex-col gap-3 shadow-sm h-auto min-h-[400px]`}>
           <div className={`flex flex-col gap-1 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-2`}>
-            <div className={`flex items-center gap-2 text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
-              <ClipboardList className="w-4 h-4 text-[#ff6600]" />
-              <span>History Logs</span>
+            <div className={`flex items-center justify-between w-full text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
+              <div className="flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-[#ff6600]" />
+                <span>History Logs</span>
+              </div>
             </div>
             <div className="relative mt-1">
               <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
@@ -1193,13 +1219,13 @@ function InventoryOutboundProducts() {
                 type="text"
                 value={historySearchQuery}
                 onChange={e => setHistorySearchQuery(e.target.value)}
-                placeholder="Search slip or customer..."
+                placeholder="Search slip, customer, or carrier..."
                 className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-800'} border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none`}
               />
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[420px] pr-1 custom-scrollbar">
+          <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[440px] pr-1 custom-scrollbar">
             {displayedHistoryLogs.length > 0 ? (
               displayedHistoryLogs.map((rec) => (
                 <div
@@ -1208,23 +1234,30 @@ function InventoryOutboundProducts() {
                   className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
                 >
                   <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
-                    <span className={`text-xs font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1`}>
+                    <span className={`text-xs font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1 truncate max-w-[150px]`}>
                       {rec.plNo}
                       {rec.isVoided && <span className="text-[8px] bg-rose-950/60 text-rose-300 border border-rose-800 px-1 py-0.5 rounded font-black uppercase">VOIDED</span>}
                     </span>
-                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${rec.isVoided ? 'bg-slate-800 text-slate-500 line-through' : rec.transactionType?.toLowerCase() === 'reserve' ? isDark ? 'bg-amber-950/60 text-amber-300 border border-amber-800' : 'bg-amber-50 text-amber-600' : isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-50 text-emerald-600'}`}>
+                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md border ${rec.isVoided
+                      ? 'bg-slate-800 text-slate-500 border-slate-700 line-through'
+                      : rec.transactionType?.toLowerCase() === 'reserve'
+                        ? (isDark ? 'bg-amber-950/60 text-amber-300 border-amber-800' : 'bg-amber-50 text-amber-600 border-amber-200')
+                        : (isDark ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800' : 'bg-emerald-50 text-emerald-600 border-emerald-200')
+                      }`}>
                       {rec.transactionType}
                     </span>
                   </div>
                   <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`}>{rec.customer || 'N/A'}</span>
                   <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
                     <span>{rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString() : 'No Date'}</span>
-                    {rec.carrier && <span className="font-bold text-[#ff8533] truncate max-w-[120px]">🚚 {rec.carrier}</span>}
+                    <span className="font-bold text-slate-400 truncate max-w-[120px]">
+                      {rec.carrier ? `🚚 ${rec.carrier}` : `${rec.items?.length || 0} items`}
+                    </span>
                   </div>
                 </div>
               ))
             ) : (
-              <span className="text-center pt-4 text-red-500 italic font-bold text-xs">No matching records found.</span>
+              <span className="text-center pt-4 text-rose-500 italic font-medium text-xs">No matching records found.</span>
             )}
           </div>
         </div>
@@ -1294,16 +1327,6 @@ function InventoryOutboundProducts() {
                 </div>
 
                 <div className="mt-4 space-y-4">
-                  <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-800/60' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3 shrink-0`}>
-                    <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
-                      * System Action Protocol *
-                    </span>
-                    <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
-                      You are about to void the log entry <span className="font-bold">{selectedSlip.plNo}</span> ({selectedSlip.transactionType}).
-                      This action is <span className="font-bold">irreversible</span> and will remove the log from the system.
-                      Please ensure you have the proper authorization to proceed with this operation.
-                    </p>
-                  </div>
 
                   <div>
                     <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>
@@ -1373,20 +1396,6 @@ function InventoryOutboundProducts() {
                 </button>
               </div>
             </div>
-
-            {selectedSlip.transactionType?.toLowerCase() === 'outbound' && (
-              <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-800/60' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3 shrink-0`}>
-                <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
-                  * System Action Protocol *
-                </span>
-                <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
-                  This is an <span className="font-bold">OUTBOUND</span> dispatch log.
-                  Cancelling dispatched orders disrupts supply chain tracking and returns items back to the active stock pile.
-                  You must provide a valid system reversal passkey to proceed with voiding this log entry.
-                </p>
-              </div>
-            )}
-
             <div className={`grid grid-cols-2 text-sm gap-2 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border`}>
               <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Tracking No:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.plNo}</span></div>
               <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Shipment Date:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.shipmentDate ? new Date(selectedSlip.shipmentDate).toLocaleDateString() : '-'}</span></div>
@@ -1402,83 +1411,98 @@ function InventoryOutboundProducts() {
               )}
             </div>
 
-            <div className={`max-h-64 overflow-y-auto border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm overflow-x-auto`}>
-              <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+            {(() => {
+              const slipItems = selectedSlip.items || [];
+              const modalIndexOfLastRow = modalPage * modalRowsPerPage;
+              const modalIndexOfFirstRow = modalIndexOfLastRow - modalRowsPerPage;
+              const paginatedSlipItems = slipItems.slice(modalIndexOfFirstRow, modalIndexOfLastRow);
 
-                <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700 text-white'} text-[11px] font-bold uppercase whitespace-nowrap`}>
-                  <tr>
-                    <th className="p-3 text-left">Segment</th>
-                    <th className="p-3 text-left">Item Description</th>
-                    <th className="p-3 text-left">Dimension</th>
-                    <th className="p-3 text-right">
-                      {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? 'Reserved Qty' : 'Verified Shipped'}
-                    </th>
-                    <th className="p-3 text-left pl-4">Remarks</th>
-                  </tr>
-                </thead>
+              return (
+                <div className={`border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm overflow-hidden flex flex-col`}>
+                  <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                    <table className="w-full text-left text-xs border-collapse min-w-[650px]">
 
-                <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
-                  {selectedSlip.items?.map((it, idx) => {
-                    const targetMaterial = it.materialId || it.productId;
-                    const targetId = targetMaterial?._id || targetMaterial;
-                    const fullMat = dbRawMaterials?.find(m => m._id === targetId);
+                      <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700 text-white'} text-[11px] font-bold uppercase whitespace-nowrap`}>
+                        <tr>
+                          <th className="p-3 text-left">Segment</th>
+                          <th className="p-3 text-left">Item Description</th>
+                          <th className="p-3 text-left">Dimension</th>
+                          <th className="p-3 text-right">
+                            {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? 'Reserved Qty' : 'Verified Shipped'}
+                          </th>
+                        </tr>
+                      </thead>
 
-                    const segment = fullMat?.Segment || fullMat?.segment ||
-                      targetMaterial?.Segment || targetMaterial?.segment || "N/A";
+                      <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
+                        {paginatedSlipItems.map((it, idx) => {
+                          const targetMaterial = it.materialId || it.productId;
+                          const targetId = targetMaterial?._id || targetMaterial;
+                          const fullMat = dbRawMaterials?.find(m => m._id === targetId);
 
-                    const description = fullMat?.ItemDescription || targetMaterial?.ItemDescription || "-";
+                          const segment = fullMat?.Segment || fullMat?.segment ||
+                            targetMaterial?.Segment || targetMaterial?.segment || "N/A";
 
-                    let dimension = "N/A";
-                    if (fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions) {
-                      dimension = fullMat.Dimension || fullMat.dimension || fullMat.Dimensions || fullMat.dimensions;
-                    } else if (targetMaterial?.Dimension || targetMaterial?.dimension || targetMaterial?.Dimensions || targetMaterial?.dimensions) {
-                      dimension = targetMaterial.Dimension || targetMaterial.dimension || targetMaterial.Dimensions || targetMaterial.dimensions;
-                    } else {
-                      const l = fullMat?.Length || fullMat?.length || targetMaterial?.Length || targetMaterial?.length;
-                      const w = fullMat?.Width || fullMat?.width || targetMaterial?.Width || targetMaterial?.width;
-                      const h = fullMat?.Height || fullMat?.height || targetMaterial?.Height || targetMaterial?.height;
-                      if (l || w || h) {
-                        dimension = `${l || '-'} × ${w || '-'} × ${h || '-'}`;
-                      }
-                    }
+                          const description = fullMat?.ItemDescription || targetMaterial?.ItemDescription || "-";
 
-                    const uom = fullMat?.UOM || targetMaterial?.UOM || '';
+                          let dimension = "N/A";
+                          if (fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions) {
+                            dimension = fullMat.Dimension || fullMat.dimension || fullMat.Dimensions || fullMat.dimensions;
+                          } else if (targetMaterial?.Dimension || targetMaterial?.dimension || targetMaterial?.Dimensions || targetMaterial?.dimensions) {
+                            dimension = targetMaterial.Dimension || targetMaterial.dimension || targetMaterial.Dimensions || targetMaterial.dimensions;
+                          } else {
+                            const l = fullMat?.Length || fullMat?.length || targetMaterial?.Length || targetMaterial?.length;
+                            const w = fullMat?.Width || fullMat?.width || targetMaterial?.Width || targetMaterial?.width;
+                            const h = fullMat?.Height || fullMat?.height || targetMaterial?.Height || targetMaterial?.height;
+                            if (l || w || h) {
+                              dimension = `${l || '-'} × ${w || '-'} × ${h || '-'}`;
+                            }
+                          }
 
-                    return (
-                      <tr key={it._id || idx} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
-                        <td className={`p-3 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap align-middle`}>
-                          {segment}
-                        </td>
+                          const uom = fullMat?.UOM || targetMaterial?.UOM || '';
 
-                        <td className={`p-3 font-bold ${isDark ? 'text-white' : 'text-[#18174e]'} text-xs max-w-xs truncate align-middle`} title={description}>
-                          {description}
-                        </td>
+                          return (
+                            <tr key={it._id || idx} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
+                              <td className={`p-3 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap align-middle`}>
+                                {segment}
+                              </td>
 
-                        <td className={`p-3 ${isDark ? 'text-slate-400' : 'text-slate-600'} font-medium whitespace-nowrap align-middle`}>
-                          {dimension}
-                        </td>
+                              <td className={`p-3 font-bold ${isDark ? 'text-white' : 'text-[#18174e]'} text-xs min-w-[200px] whitespace-normal break-words align-middle`} title={description}>
+                                {description}
+                              </td>
 
-                        <td className="p-3 text-right font-bold text-emerald-400 align-middle whitespace-nowrap">
-                          {it.actualCountShipped} {uom}
-                        </td>
+                              <td className={`p-3 ${isDark ? 'text-slate-400' : 'text-slate-600'} font-medium whitespace-nowrap align-middle`}>
+                                {dimension}
+                              </td>
 
-                        <td className={`p-3 italic ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium text-[11px] max-w-[120px] truncate align-middle pl-4`} title={it.remarks}>
-                          {it.remarks || "-"}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                              <td className="p-3 text-right font-bold text-emerald-400 align-middle whitespace-nowrap">
+                                {it.actualCountShipped} {uom}
+                              </td>
+                            </tr>
+                          );
+                        })}
 
-                  {(!selectedSlip.items || selectedSlip.items.length === 0) && (
-                    <tr>
-                      <td colSpan="6" className="p-4 text-center text-slate-400 italic">
-                        No materials recorded.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        {(!selectedSlip.items || selectedSlip.items.length === 0) && (
+                          <tr>
+                            <td colSpan="4" className="p-4 text-center text-slate-400 italic">
+                              No materials recorded.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <TablePagination
+                    currentPage={modalPage}
+                    setCurrentPage={setModalPage}
+                    rowsPerPage={modalRowsPerPage}
+                    setRowsPerPage={setModalRowsPerPage}
+                    totalRows={slipItems.length}
+                    options={[5, 10, 20, 50, 100]}
+                  />
+                </div>
+              );
+            })()}
 
           </div>
         </div>
@@ -1599,7 +1623,7 @@ function InventoryOutboundProducts() {
                   <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-100'}`}>
                     {manifestItems.map((item, idx) => (
                       <tr key={idx} className={isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
-                        <td className="py-2 px-3 font-semibold max-w-[180px] truncate" title={item.ItemDescription}>
+                        <td className="py-2 px-3 font-semibold min-w-[180px] whitespace-normal break-words" title={item.ItemDescription}>
                           {item.ItemDescription}
                         </td>
                         <td className="py-2 px-3 text-slate-400">
@@ -1735,9 +1759,9 @@ function InventoryOutboundProducts() {
 
                       return (
                         <tr key={item._id} className={`${isDark ? 'hover:bg-slate-800/40 text-slate-300' : 'hover:bg-slate-50 text-slate-700'} transition-colors whitespace-nowrap`}>
-                          <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
-                            <div className="flex items-center gap-2 whitespace-nowrap">
-                              <span className="whitespace-nowrap">{item.ItemDescription}</span>
+                          <td className="py-2.5 px-3 font-semibold min-w-[200px]">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="whitespace-normal break-words">{item.ItemDescription}</span>
                               <span className="font-mono text-[10px] text-slate-400 whitespace-nowrap">({item.Code})</span>
                             </div>
                           </td>

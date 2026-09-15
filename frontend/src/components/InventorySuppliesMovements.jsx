@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, CheckCircle2, AlertCircle, Loader2, Layers, ChevronDown, Clock, Tag, Plus, Package, ListPlus } from 'lucide-react';
+import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, CheckCircle2, AlertCircle, Loader2, Layers, ChevronDown, Clock, Tag, Plus, Package, ListPlus, ArrowUpRight, RotateCcw, History } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
+import TablePagination from './TablePagination';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 
@@ -269,6 +270,7 @@ function InventorySuppliesMovements() {
 
     setManifestItems(fastItems);
     showSuccessToast(`Form loaded mula sa ${slip.transactionType} slip: ${slip.slipNo}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleUpdateField = (index, field, val) => {
@@ -395,8 +397,9 @@ function InventorySuppliesMovements() {
     }
   };
 
-  const handleDownloadPDF = () => {
-    if (!selectedSlip) return;
+  const handleDownloadPDF = (slipRecord = null) => {
+    const targetSlip = slipRecord || selectedSlip;
+    if (!targetSlip) return;
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
       const pageWidth = 210;
@@ -414,47 +417,45 @@ function InventorySuppliesMovements() {
 
       doc.text("Slip Number:", 14, 42);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedSlip.slipNo}`, 45, 42);
+      doc.text(`${targetSlip.slipNo}`, 45, 42);
 
       doc.setFont("helvetica", "bold");
       doc.text("Date Logged:", 120, 42);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedSlip.transactionDate ? new Date(selectedSlip.transactionDate).toLocaleDateString() : '-'}`, 155, 42);
+      doc.text(`${targetSlip.transactionDate ? new Date(targetSlip.transactionDate).toLocaleDateString() : '-'}`, 155, 42);
 
       doc.setFont("helvetica", "bold");
-      doc.text("Action Type:", 14, 49);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(79, 70, 229);
-      doc.text(`${selectedSlip.transactionType}`, 45, 49);
+      doc.text("Transaction:", 14, 49);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${targetSlip.transactionType.toUpperCase()}`, 45, 49);
 
-      doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
       doc.text("Prepared By:", 120, 49);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedSlip.preparedBy || preparedBy}`, 155, 49);
+      doc.text(`${targetSlip.preparedBy || preparedBy}`, 155, 49);
 
       doc.setFont("helvetica", "bold");
       doc.text("Personnel:", 14, 56);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedSlip.partyName || 'N/A'}`, 45, 56);
+      doc.text(`${targetSlip.partyName || 'N/A'}`, 45, 56);
 
       doc.setFont("helvetica", "bold");
       doc.text("Purpose:", 120, 56);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedSlip.purpose || selectedSlip.originAddress || 'Production'}`, 155, 56);
+      doc.text(`${targetSlip.purpose || targetSlip.originAddress || 'Production'}`, 155, 56);
 
       doc.setFont("helvetica", "bold");
       doc.text("Time Borrow:", 14, 63);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedSlip.transactionTime || '-'}`, 45, 63);
+      doc.text(`${targetSlip.transactionTime || '-'}`, 45, 63);
 
-      const slipDate = selectedSlip.transactionDate ? new Date(selectedSlip.transactionDate).toLocaleDateString() : '-';
-      const slipTime = selectedSlip.transactionTime || '-';
-      const slipPersonnel = selectedSlip.partyName || 'N/A';
-      const slipPurpose = selectedSlip.purpose || selectedSlip.originAddress || 'Production';
+      const slipDate = targetSlip.transactionDate ? new Date(targetSlip.transactionDate).toLocaleDateString() : '-';
+      const slipTime = targetSlip.transactionTime || '-';
+      const slipPersonnel = targetSlip.partyName || 'N/A';
+      const slipPurpose = targetSlip.purpose || targetSlip.originAddress || 'Production';
 
       const tableColumns = ["Date Borrow", "Time", "Personnel", "Supplies", "Reason", "Quantity"];
-      const tableRows = selectedSlip.items?.map(it => [
+      const tableRows = targetSlip.items?.map(it => [
         slipDate,
         slipTime,
         slipPersonnel,
@@ -484,7 +485,7 @@ function InventorySuppliesMovements() {
           doc.setTextColor(255, 255, 255);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(14);
-          doc.text(`SUPPLIES TRANSACTION SLIP (${selectedSlip.transactionType.toUpperCase()})`, centerX, 13, { align: 'center' });
+          doc.text(`SUPPLIES TRANSACTION SLIP (${targetSlip.transactionType.toUpperCase()})`, centerX, 13, { align: 'center' });
 
           doc.setFontSize(8.5);
           doc.setFont("helvetica", "normal");
@@ -513,7 +514,7 @@ function InventorySuppliesMovements() {
         }
       });
 
-      doc.save(`SUPPLIES_SLIP_${selectedSlip.slipNo}.pdf`);
+      doc.save(`SUPPLIES_SLIP_${targetSlip.slipNo}.pdf`);
       showSuccessToast("PDF Slip downloaded successfully.");
     } catch (e) {
       showErrorToast("Failed to download PDF slip.");
@@ -564,6 +565,39 @@ function InventorySuppliesMovements() {
     (r.transactionType === "Borrow" || r.transactionType === "Reserved") && r.isReturned === false
   );
 
+  const [activeBorrowsPage, setActiveBorrowsPage] = useState(1);
+  const [activeBorrowsRowsPerPage, setActiveBorrowsRowsPerPage] = useState(10);
+  const [activeBorrowsTypeFilter, setActiveBorrowsTypeFilter] = useState('All');
+
+  const filteredActiveBorrows = useMemo(() => {
+    return activeBorrows.filter(b => {
+      if (activeBorrowsTypeFilter !== 'All') {
+        if (activeBorrowsTypeFilter === 'Borrow' && b.transactionType !== 'Borrow') return false;
+        if (activeBorrowsTypeFilter === 'Reserved' && b.transactionType !== 'Reserved') return false;
+      }
+      if (!quickReturnSearch) return true;
+      const q = quickReturnSearch.toLowerCase().trim();
+      return (
+        b.slipNo?.toLowerCase().includes(q) ||
+        b.partyName?.toLowerCase().includes(q) ||
+        b.purpose?.toLowerCase().includes(q) ||
+        b.originAddress?.toLowerCase().includes(q)
+      );
+    });
+  }, [activeBorrows, quickReturnSearch, activeBorrowsTypeFilter]);
+
+  const borrowCount = activeBorrows.filter(b => b.transactionType === 'Borrow').length;
+  const reservedCount = activeBorrows.filter(b => b.transactionType === 'Reserved').length;
+
+  useEffect(() => {
+    setActiveBorrowsPage(1);
+  }, [quickReturnSearch, activeBorrowsTypeFilter]);
+
+  const paginatedActiveBorrows = useMemo(() => {
+    const start = (activeBorrowsPage - 1) * activeBorrowsRowsPerPage;
+    return filteredActiveBorrows.slice(start, start + activeBorrowsRowsPerPage);
+  }, [filteredActiveBorrows, activeBorrowsPage, activeBorrowsRowsPerPage]);
+
   const filteredHistoryLogs = useMemo(() => {
     let list = movementRecords;
     if (historyFilterType && historyFilterType !== 'All') {
@@ -588,7 +622,30 @@ function InventorySuppliesMovements() {
         address.includes(q) || preparedBy.includes(q) || refSlip.includes(q) || itemsMatch;
     });
   }, [movementRecords, historySearchQuery, historyFilterType]);
-  const displayedHistoryLogs = filteredHistoryLogs.slice(0, 50);
+
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyRowsPerPage, setHistoryRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historyFilterType, historySearchQuery]);
+
+  const paginatedHistoryLogs = useMemo(() => {
+    const start = (historyPage - 1) * historyRowsPerPage;
+    return filteredHistoryLogs.slice(start, start + historyRowsPerPage);
+  }, [filteredHistoryLogs, historyPage, historyRowsPerPage]);
+
+  const filteredSidebarHistoryLogs = useMemo(() => {
+    if (!historySearchQuery.trim()) return movementRecords;
+    const q = historySearchQuery.toLowerCase().trim();
+    return movementRecords.filter(rec => {
+      const slipNo = (rec.slipNo || '').toLowerCase();
+      const party = (rec.partyName || '').toLowerCase();
+      const type = (rec.transactionType || '').toLowerCase();
+      const purpose = (rec.purpose || '').toLowerCase();
+      return slipNo.includes(q) || party.includes(q) || type.includes(q) || purpose.includes(q);
+    });
+  }, [movementRecords, historySearchQuery]);
 
   return (
     <div className={`mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
@@ -607,40 +664,23 @@ function InventorySuppliesMovements() {
         <PageHeader activeTab="supplies-movements" />
       </div>
 
-      <div className="w-full">
-        <div className={`w-full p-4 sm:p-6 rounded-2xl border flex flex-col gap-6 shadow-sm ${isDark ? 'bg-[#0e1017] border-slate-800' : 'bg-white border-slate-100'}`}>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+        <div className={`lg:col-span-3 ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 sm:p-6 rounded-2xl border flex flex-col gap-6 shadow-sm`}>
           <div className={`border-b ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'} pb-3 flex items-center justify-between gap-2 text-sm font-bold`}>
             <div className="flex items-center gap-2 min-w-0">
-              <ListPlus className="w-4 h-4 text-[#ff6600] flex-shrink-0" />
-              <span className="truncate">Supplies Movement & Transaction Slip</span>
+              <History className="w-4 h-4 text-[#ff6600] flex-shrink-0" />
+              <span className="truncate">Equipment Movements & Transaction Slip</span>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            {manifestItems.length > 0 && (
               <button
                 type="button"
-                onClick={() => setIsHistoryModalOpen(true)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs border transition-all cursor-pointer shadow-xs ${isDark
-                  ? 'bg-[#141622] border-slate-700 text-slate-200 hover:border-[#ff6600] hover:text-[#ff6600]'
-                  : 'bg-white border-slate-200 text-[#18174e] hover:bg-slate-50 hover:border-[#18174e]'
-                  }`}
+                onClick={() => { setManifestItems([]); setReferenceSlipNo(''); setTransactionType('Borrow'); showSuccessToast("Form grid cleared."); }}
+                className="text-xs font-bold text-rose-400 hover:underline cursor-pointer flex-shrink-0 ml-1"
               >
-                <ClipboardList className="w-3.5 h-3.5 text-[#ff6600]" />
-                <span>History Logs</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
-                  {movementRecords.length}
-                </span>
+                Clear Form Grid
               </button>
-
-              {manifestItems.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => { setManifestItems([]); setReferenceSlipNo(''); setTransactionType('Borrow'); showSuccessToast("Form grid cleared."); }}
-                  className="text-xs font-bold text-rose-400 hover:underline cursor-pointer flex-shrink-0 ml-1"
-                >
-                  Clear Form Grid
-                </button>
-              )}
-            </div>
+            )}
           </div>
 
           <form onSubmit={handleInitiateConfirm} className="flex flex-col gap-5">
@@ -716,12 +756,12 @@ function InventorySuppliesMovements() {
             </div>
 
             {/* 1. TOP ROW: 3 GRID COLUMNS (PERSONNEL, PURPOSE, DATE BORROW) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 
               {/* 1. PERSONNEL (TYPE + DROPDOWN) */}
               <div ref={personnelDropdownRef} className="relative">
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className={`block text-xs font-bold uppercase ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase`}>
                     Personnel *
                   </label>
                 </div>
@@ -777,11 +817,6 @@ function InventorySuppliesMovements() {
                         : 'bg-white border-slate-200 divide-slate-100 text-slate-800'
                         }`}
                     >
-                      <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-t-lg flex items-center justify-between ${isDark ? 'text-slate-400 bg-slate-900/60' : 'text-slate-500 bg-slate-50'
-                        }`}>
-                        <span>Personnel List ({filteredEmployees.length})</span>
-                        <span className="text-[9px] font-normal lowercase">click to select</span>
-                      </div>
 
                       {filteredEmployees.length > 0 ? (
                         filteredEmployees.map((emp) => (
@@ -834,41 +869,36 @@ function InventorySuppliesMovements() {
 
               {/* 2. PURPOSE DROPDOWN (Production, Deployment, Personal) */}
               <div>
-                <label className={`block text-xs font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
                   Purpose *
                 </label>
-                <div className="relative">
-                  <select
-                    value={purpose}
-                    onChange={(e) => {
-                      const newPurpose = e.target.value;
-                      setPurpose(newPurpose);
-                      setOriginAddress(newPurpose);
-                      // Auto update remarks in manifest if empty or matches previous purpose
-                      setManifestItems(manifestItems.map(item => ({
-                        ...item,
-                        remarks: (!item.remarks || PURPOSE_OPTIONS.includes(item.remarks)) ? newPurpose : item.remarks
-                      })));
-                    }}
-                    className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none font-bold cursor-pointer transition-all ${isDark
-                      ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]'
-                      : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
-                      }`}
-                  >
-                    {PURPOSE_OPTIONS.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat === 'Production' && '🏭 Production'}
-                        {cat === 'Deployment' && '🚀 Deployment'}
-                        {cat === 'Personal' && '👤 Personal'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <select
+                  value={purpose}
+                  onChange={(e) => {
+                    const newPurpose = e.target.value;
+                    setPurpose(newPurpose);
+                    setOriginAddress(newPurpose);
+                    // Auto update remarks in manifest if empty or matches previous purpose
+                    setManifestItems(manifestItems.map(item => ({
+                      ...item,
+                      remarks: (!item.remarks || PURPOSE_OPTIONS.includes(item.remarks)) ? newPurpose : item.remarks
+                    })));
+                  }}
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer font-medium`}
+                  required
+                >
+                  <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>Select Purpose</option>
+                  {PURPOSE_OPTIONS.map((cat) => (
+                    <option key={cat} value={cat} className={isDark ? 'bg-[#141622] text-white' : ''}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* 3. DATE BORROW */}
               <div>
-                <label className={`block text-xs font-bold uppercase mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
                   {transactionType === 'Borrow' ? 'Date Borrow *' : `Date ${transactionType} *`}
                 </label>
                 <div className="relative">
@@ -892,7 +922,14 @@ function InventorySuppliesMovements() {
             <div ref={suppliesDropdownRef} className={`${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border flex flex-col gap-2.5 relative`}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <label className={`block text-sm font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase`}>
+                  <label className={`block text-xs sm:text-sm font-bold ${transactionType === 'Borrow'
+                    ? (isDark ? 'text-amber-400' : 'text-amber-800')
+                    : transactionType === 'Return'
+                      ? (isDark ? 'text-blue-400' : 'text-blue-800')
+                      : transactionType === 'Restock'
+                        ? (isDark ? 'text-emerald-400' : 'text-emerald-800')
+                        : (isDark ? 'text-rose-400' : 'text-rose-800')
+                    } uppercase leading-snug`}>
                     Step 1: Type / Select Materials
                   </label>
                   <p className="text-[11px] text-slate-400">
@@ -954,11 +991,6 @@ function InventorySuppliesMovements() {
                     : 'bg-white border-slate-200 divide-slate-100 text-slate-800'
                     }`}
                 >
-                  <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-t-lg flex items-center justify-between ${isDark ? 'text-slate-400 bg-slate-900/60' : 'text-slate-500 bg-slate-50'
-                    }`}>
-                    <span>Matching Items ({filteredSuppliesForDropdown.length})</span>
-                    <span className="text-[9px] font-normal lowercase">click to add to table</span>
-                  </div>
 
                   {filteredSuppliesForDropdown.length > 0 ? (
                     filteredSuppliesForDropdown.map((s) => {
@@ -977,15 +1009,15 @@ function InventorySuppliesMovements() {
                             setIsSuppliesDropdownOpen(false);
                           }}
                           className={`p-2.5 ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50'} cursor-pointer flex items-center justify-between gap-3 rounded-lg transition-colors ${isDeductingType && goodCount <= 0
-                              ? 'opacity-40 cursor-not-allowed bg-slate-900/20'
-                              : isAdded
-                                ? (isDark ? 'opacity-60 bg-emerald-50/20' : 'opacity-60 bg-emerald-50/20')
-                                : ''
+                            ? 'opacity-40 cursor-not-allowed bg-slate-900/20'
+                            : isAdded
+                              ? (isDark ? 'opacity-60 bg-emerald-50/20' : 'opacity-60 bg-emerald-50/20')
+                              : ''
                             }`}
                         >
                           <div className="flex flex-col min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} truncate`}>
+                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} whitespace-normal break-words`}>
                                 {s.ItemDescription}
                               </span>
                               {dimension && dimension !== 'N/A' && (
@@ -1015,15 +1047,6 @@ function InventorySuppliesMovements() {
                               }`}>
                               Avail: {goodCount} {s.UOM || 'pcs'}
                             </span>
-                            {isAdded ? (
-                              <span className="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Added
-                              </span>
-                            ) : (
-                              <span className="text-xs font-bold px-2.5 py-1 rounded bg-[#ff6600]/10 text-[#ff6600] border border-[#ff6600]/20 hover:bg-[#ff6600] hover:text-white transition-all">
-                                + Add
-                              </span>
-                            )}
                           </div>
                         </div>
                       );
@@ -1041,20 +1064,30 @@ function InventorySuppliesMovements() {
 
             {/* HIDE TABLE AND NOTICE UNTIL ITEMS ARE SELECTED */}
             {manifestItems.length > 0 && (
-              <div className="flex flex-col gap-3 animate-in fade-in duration-200">
-                <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${transactionType === 'Borrow'
-                  ? (isDark ? 'bg-amber-950/40 text-amber-300 border border-amber-800/40' : 'text-amber-700 bg-amber-50')
-                  : transactionType === 'Return'
-                    ? (isDark ? 'bg-blue-950/40 text-blue-300 border border-blue-800/40' : 'text-blue-700 bg-blue-50')
-                    : transactionType === 'Restock'
-                      ? (isDark ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/40' : 'text-emerald-700 bg-emerald-50')
-                      : (isDark ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' : 'text-rose-700 bg-rose-50')
-                  }`}>
-                  {transactionType === 'Borrow' && '🟡 Quantities will be issued / deducted for borrowing'}
-                  {transactionType === 'Return' && '🔵 Quantities will be returned / added to available stock'}
-                  {transactionType === 'Restock' && '🟢 Quantities will be added to available stock'}
-                  {transactionType === 'Out' && '🔴 Quantities will be automatically deducted'}
-                </span>
+              <div className="flex flex-col gap-2 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${transactionType === 'Borrow'
+                    ? (isDark ? 'bg-amber-950/40 text-amber-300 border border-amber-800/40' : 'text-amber-700 bg-amber-50 border border-amber-200/60')
+                    : transactionType === 'Return'
+                      ? (isDark ? 'bg-blue-950/40 text-blue-300 border border-blue-800/40' : 'text-blue-700 bg-blue-50 border border-blue-200/60')
+                      : transactionType === 'Restock'
+                        ? (isDark ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/40' : 'text-emerald-700 bg-emerald-50 border border-emerald-200/60')
+                        : (isDark ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' : 'text-rose-700 bg-rose-50 border border-rose-200/60')
+                    }`}>
+                    {transactionType === 'Borrow' && '🟡 Quantities will be issued / deducted for borrowing'}
+                    {transactionType === 'Return' && '🔵 Quantities will be returned / added to available stock'}
+                    {transactionType === 'Restock' && '🟢 Quantities will be added to available stock'}
+                    {transactionType === 'Out' && '🔴 Quantities will be automatically deducted'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setManifestItems([])}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
+                      }`}
+                  >
+                    Clear Source Items
+                  </button>
+                </div>
 
                 <div className={`rounded-xl border shadow-sm overflow-x-auto ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'}`}>
                   <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
@@ -1067,94 +1100,89 @@ function InventorySuppliesMovements() {
                             ? (isDark ? 'bg-[#0f111d] text-emerald-300 border-b border-slate-800' : 'bg-[#18174e] text-white')
                             : (isDark ? 'bg-[#0f111d] text-rose-300 border-b border-slate-800' : 'bg-[#18174e] text-white')
                         }`}>
-                        <th className="py-2.5 px-3 text-center w-28">Date Borrow</th>
-                        <th className="py-2.5 px-3 text-center w-24">Time</th>
-                        <th className="py-2.5 px-3 w-44">Personnel</th>
-                        <th className="py-2.5 px-3 min-w-[200px]">Supplies</th>
-                        <th className="py-2.5 px-3 min-w-[150px]">Reason / Purpose</th>
-                        <th className="py-2.5 px-3 text-center w-36">Quantity</th>
-                        <th className="py-2.5 px-3 text-center w-14">Action</th>
+                        <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
+                        <th className="py-3 px-4 text-center">UOM</th>
+                        <th className="py-3 px-4 text-center w-28 min-w-[112px]">Actual</th>
+                        <th className="py-3 px-4">Segment</th>
+                        <th className="py-3 px-4">Description</th>
+                        <th className="py-3 px-4">Dimension</th>
+                        <th className="py-3 px-4">Reason / Purpose</th>
+                        <th className="py-3 px-4 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                       {manifestItems.map((item, index) => (
-                        <tr key={item.supplyId || index} className={`${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-700'} transition-colors`}>
+                        <tr key={item.supplyId || index} className={`${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-700'} transition-colors text-xs`}>
 
-                          {/* 1. Date Borrow */}
-                          <td className="py-2.5 px-3 text-center font-mono text-xs whitespace-nowrap">
-                            <span className="font-semibold">{transactionDate || '09/14/2026'}</span>
+                          {/* 1. QTY */}
+                          <td className="py-2 px-4 w-28 min-w-[112px]">
+                            <input
+                              type="number"
+                              min="1"
+                              max={isDeductingType && item.maxLimit < 9999 ? item.maxLimit : undefined}
+                              value={item.qty}
+                              onChange={e => handleUpdateField(index, 'qty', e.target.value)}
+                              onWheel={(e) => e.currentTarget.blur()}
+                              className={`w-full border text-center rounded py-1 text-sm font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isDark
+                                ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]'
+                                : 'border-slate-200 text-slate-800 focus:border-[#18174e]'
+                                }`}
+                              required
+                            />
                           </td>
 
-                          {/* 2. Time */}
-                          <td className="py-2.5 px-3 text-center font-mono text-xs text-slate-400 whitespace-nowrap">
-                            {transactionTime || '02:30 PM'}
-                          </td>
-
-                          {/* 3. Personnel */}
-                          <td className="py-2.5 px-3 font-bold whitespace-nowrap text-sm">
-                            <span className={isDark ? 'text-amber-400' : 'text-[#18174e]'}>
-                              {partyName || 'N/A'}
+                          {/* 2. UOM */}
+                          <td className="py-2 px-4 text-center">
+                            <span className={`${isDark ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-0.5 rounded text-xs`}>
+                              {item.UOM || 'pcs'}
                             </span>
                           </td>
 
-                          {/* 4. Supplies */}
-                          <td className="py-2.5 px-3">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-sm">{item.ItemDescription}</span>
-                              <div className="flex items-center gap-1.5 mt-0.5 text-slate-400 font-mono text-[10px]">
-                                <span>{item.Code}</span>
-                                {item.Dimension && item.Dimension !== 'N/A' && (
-                                  <>
-                                    <span>•</span>
-                                    <span>{item.Dimension}</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
+                          {/* 3. Actual */}
+                          <td className="py-2 px-4 text-center font-bold font-mono text-xs w-28 min-w-[112px]">
+                            <span className={item.maxLimit > 0 ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : 'text-rose-500'}>
+                              {item.maxLimit < 9999 ? item.maxLimit : '—'}
+                            </span>
                           </td>
 
-                          {/* 5. Reason / Purpose */}
-                          <td className="py-2.5 px-3">
+                          {/* 4. Segment */}
+                          <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {item.Segment || item.Category || 'Supplies'}
+                          </td>
+
+                          {/* 5. Description */}
+                          <td className={`py-2 px-4 min-w-[200px] whitespace-normal break-words ${isDark ? 'text-slate-200' : 'text-slate-800'}`} title={item.ItemDescription}>
+                            <div className="font-semibold text-sm">{item.ItemDescription}</div>
+                            <div className="font-mono text-[10px] text-slate-400">{item.Code}</div>
+                          </td>
+
+                          {/* 6. Dimension */}
+                          <td className="py-2 px-4 whitespace-nowrap">
+                            {item.Dimension && item.Dimension !== 'N/A' && item.Dimension !== '—' ? (
+                              <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${isDark ? 'bg-amber-950/60 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                                {item.Dimension}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-mono text-xs">—</span>
+                            )}
+                          </td>
+
+                          {/* 7. Reason / Purpose */}
+                          <td className="py-2 px-4">
                             <input
                               type="text"
                               value={item.remarks || ''}
                               onChange={e => handleUpdateField(index, 'remarks', e.target.value)}
                               placeholder="Reason / Purpose..."
-                              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none ${isDark
+                              className={`w-full border rounded-lg px-2.5 py-1 text-xs font-medium focus:outline-none ${isDark
                                 ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
                                 : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
                                 }`}
                             />
                           </td>
 
-                          {/* 6. Quantity */}
-                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <input
-                                type="number"
-                                min="1"
-                                max={item.maxLimit}
-                                value={item.qty}
-                                onChange={e => handleUpdateField(index, 'qty', e.target.value)}
-                                className={`w-20 text-center border rounded-lg px-2 py-1.5 text-sm font-bold font-mono focus:outline-none ${isDark
-                                  ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]'
-                                  : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
-                                  }`}
-                                required
-                              />
-                              <span className="text-xs font-semibold text-slate-400">
-                                {item.UOM || 'pcs'}
-                              </span>
-                            </div>
-                            {item.maxLimit !== undefined && item.maxLimit < 9999 && (
-                              <div className="text-[10px] text-slate-400 mt-0.5">
-                                Avail: {item.maxLimit}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* 7. Action */}
-                          <td className="py-2.5 px-3 text-center w-14">
+                          {/* 8. Action */}
+                          <td className="py-2 px-4 text-center">
                             <button
                               type="button"
                               onClick={() => {
@@ -1183,154 +1211,239 @@ function InventorySuppliesMovements() {
               </div>
             )}
           </form>
-        </div>
-      </div>
 
-      {/* ACTIVE BORROW & RESERVED RECORDS CONTAINER (BELOW SUPPLIES MOVEMENT & TRANSACTION SLIP) */}
-      {activeBorrows.length > 0 && (
-        <div className={`w-full p-4 sm:p-6 rounded-2xl border flex flex-col gap-4 shadow-sm ${isDark ? 'bg-[#0e1017] border-slate-800' : 'bg-white border-slate-100'}`}>
-          {/* Header */}
-          <div className={`border-b pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm font-bold ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'}`}>
-            <div className="flex items-center gap-2 min-w-0">
-              <ArrowLeftRight className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}`} />
-              <span className="truncate">Active Borrowers & Reserved Supplies</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
-                {activeBorrows.length}
-              </span>
+          {/* ACTIVE BORROW & RESERVED RECORDS TABLE (INSIDE SUPPLIES MOVEMENT & TRANSACTION SLIP CONTAINER) */}
+          {activeBorrows.length > 0 && (
+            <div className={`pt-6 border-t flex flex-col gap-4 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+
+              {/* Table matched to RACKINGS CONSOLIDATED REGISTRY REPORT UI */}
+              <div className={`rounded-xl border shadow-sm overflow-hidden ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'}`}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className={`uppercase text-xs font-bold whitespace-nowrap tracking-wider ${isDark ? 'bg-[#0f111d] text-slate-200 border-b border-slate-800' : 'bg-[#18174e] text-white'
+                        }`}>
+                        <th className="py-3 px-4 whitespace-nowrap">Slip No</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Date & Time</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Personnel</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Supplies Items</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Reason / Purpose</th>
+                        <th className="py-3 px-4 whitespace-nowrap text-center">Total Qty</th>
+                        <th className="py-3 px-4 whitespace-nowrap text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y text-xs ${isDark ? 'divide-slate-800/60 bg-[#090b10] text-slate-300' : 'divide-slate-100 bg-white text-slate-700'
+                      }`}>
+                      {paginatedActiveBorrows.map(b => {
+                        const totalQty = b.items?.reduce((acc, it) => acc + (it.qty || 0), 0) || 0;
+                        const dateFormatted = b.transactionDate ? new Date(b.transactionDate).toLocaleDateString() : '-';
+
+                        return (
+                          <tr key={b._id} className={`transition-colors ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/80'}`}>
+                            {/* Slip No */}
+                            <td className="px-4 py-3 whitespace-nowrap font-mono font-bold">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}`}>{b.slipNo}</span>
+                                {b.transactionType === "Reserved" ? (
+                                  <span className="text-[9px] px-2 py-0.5 rounded-md font-bold uppercase bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                                    Reserved
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] px-2 py-0.5 rounded-md font-bold uppercase bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                                    Borrowed
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Date & Time */}
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="font-semibold text-xs">{dateFormatted}</div>
+                              <div className="text-[10px] font-mono text-slate-400">{b.transactionTime || '—'}</div>
+                            </td>
+
+                            {/* Personnel */}
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className={`flex items-center gap-2 font-semibold text-xs ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
+                                <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-indigo-50 dark:bg-slate-800 text-[#18174e] dark:text-indigo-400 border border-indigo-100 dark:border-slate-700 shrink-0">
+                                  {b.partyName ? b.partyName.charAt(0).toUpperCase() : '?'}
+                                </span>
+                                <span>{b.partyName || 'N/A'}</span>
+                              </div>
+                            </td>
+
+                            {/* Supplies Items */}
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedSlip(b);
+                                  setIsModalOpen(true);
+                                }}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-xs ${isDark
+                                  ? 'bg-[#141622] border-slate-700 text-slate-200 hover:border-[#ff6600] hover:text-[#ff6600]'
+                                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#18174e] hover:text-[#18174e] hover:bg-slate-100'
+                                  }`}
+                                title={`Click to inspect supplies items for ${b.slipNo}`}
+                              >
+                                <Package className="w-3.5 h-3.5 text-[#ff6600] shrink-0" />
+                                <span>{b.items?.length || 0} {b.items?.length === 1 ? 'Item' : 'Items'}</span>
+                                <span className={`text-[10px] font-mono font-normal ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>({totalQty} pcs)</span>
+                              </button>
+                            </td>
+
+                            {/* Reason / Purpose */}
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className={`text-[11px] font-medium px-2.5 py-1 rounded-md border inline-block ${isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                                }`}>
+                                {b.purpose || b.originAddress || 'Production'}
+                              </span>
+                            </td>
+
+                            {/* Total Qty */}
+                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                              <span className={`font-mono font-bold text-xs px-2.5 py-1 rounded-md border ${isDark
+                                ? 'bg-[#141622] border-slate-700 text-white'
+                                : 'bg-slate-50 border-slate-200 text-slate-900'
+                                }`}>
+                                {totalQty}
+                              </span>
+                            </td>
+
+                            {/* Action */}
+                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                              {b.transactionType === "Reserved" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleFastReturnCopy(b);
+                                    setQuickReturnSearch('');
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#ff6600] hover:bg-[#e05a00] text-white shadow-xs transition-all cursor-pointer hover:shadow-md active:scale-95"
+                                  title="Deploy this Reserved Slip into active borrow"
+                                >
+                                  <ArrowUpRight className="w-3.5 h-3.5" />
+                                  <span>Deploy</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleFastReturnCopy(b);
+                                    setQuickReturnSearch('');
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer hover:shadow-md active:scale-95"
+                                  title="Fulfill return for this borrow slip"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                  <span>Fulfill Return</span>
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {filteredActiveBorrows.length === 0 && (
+                        <tr>
+                          <td colSpan="7" className="py-8 text-center text-slate-400 italic">
+                            No matching active borrow or reserved records found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <TablePagination
+                  currentPage={activeBorrowsPage}
+                  setCurrentPage={setActiveBorrowsPage}
+                  rowsPerPage={activeBorrowsRowsPerPage}
+                  setRowsPerPage={setActiveBorrowsRowsPerPage}
+                  totalRows={filteredActiveBorrows.length}
+                />
+              </div>
             </div>
+          )}
+        </div>
 
-            {/* Filter Search */}
-            <div className="relative w-full sm:w-72">
-              <Search className={`absolute left-3 top-2.5 w-3.5 h-3.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+        {/* RIGHT CONTAINER (SIDEBAR HISTORY RECENT LOGS) */}
+        <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 rounded-2xl border flex flex-col gap-3 shadow-sm h-auto min-h-[400px]`}>
+          <div className={`flex flex-col gap-1 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-2`}>
+            <div className={`flex items-center justify-between w-full text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
+              <div className="flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-[#ff6600]" />
+                <span>History Logs</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHistoryModalOpen(true)}
+                className="text-[11px] font-semibold text-[#ff6600] hover:underline cursor-pointer"
+                title="View full history logs table"
+              >
+                View All
+              </button>
+            </div>
+            <div className="relative mt-1">
+              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Filter by Slip No or Personnel..."
-                value={quickReturnSearch}
-                onChange={(e) => setQuickReturnSearch(e.target.value)}
-                className={`w-full rounded-xl pl-9 pr-8 py-1.5 text-xs focus:outline-none transition-colors border font-normal ${isDark
-                  ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
-                  : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e] placeholder-slate-400'
-                  }`}
+                value={historySearchQuery}
+                onChange={e => setHistorySearchQuery(e.target.value)}
+                placeholder="Search slip or personnel..."
+                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-800'} border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none`}
               />
-              {quickReturnSearch && (
-                <button
-                  type="button"
-                  onClick={() => setQuickReturnSearch('')}
-                  className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                  title="Clear filter"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
             </div>
           </div>
 
-          {/* Table matched to InventoryRawMaterials style */}
-          <div className={`overflow-x-auto rounded-xl border shadow-sm max-h-72 overflow-y-auto ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'
-            }`}>
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className={`sticky top-0 z-10 uppercase text-[11px] font-bold whitespace-nowrap ${isDark ? 'bg-[#0f111d] text-slate-200 border-b border-slate-800' : 'bg-[#18174e] text-white'
-                }`}>
-                <tr>
-                  <th className="py-2.5 px-3">Slip No</th>
-                  <th className="py-2.5 px-3">Date Borrow</th>
-                  <th className="py-2.5 px-3">Time</th>
-                  <th className="py-2.5 px-3">Personnel</th>
-                  <th className="py-2.5 px-3">Supplies Items</th>
-                  <th className="py-2.5 px-3">Reason / Purpose</th>
-                  <th className="py-2.5 px-3 text-center">Qty</th>
-                  <th className="py-2.5 px-3 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
-                {activeBorrows
-                  .filter(b =>
-                    b.slipNo?.toLowerCase().includes(quickReturnSearch.toLowerCase()) ||
-                    b.partyName?.toLowerCase().includes(quickReturnSearch.toLowerCase())
-                  )
-                  .map(b => {
-                    const totalQty = b.items?.reduce((acc, it) => acc + (it.qty || 0), 0) || 0;
-                    const itemsSummary = b.items?.map(it => `${it.supplyId?.ItemDescription || 'Supply'} (${it.qty})`).join(', ') || 'None';
-                    const dateFormatted = b.transactionDate ? new Date(b.transactionDate).toLocaleDateString() : '-';
+          <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[440px] pr-1 custom-scrollbar">
+            {filteredSidebarHistoryLogs.length > 0 ? (
+              filteredSidebarHistoryLogs.slice(0, 50).map((rec) => {
+                const isBorrow = rec.transactionType === 'Borrow';
+                const isReturn = rec.transactionType === 'Return';
+                const isRestock = rec.transactionType === 'Restock';
+                const isReserved = rec.transactionType === 'Reserved';
 
-                    return (
-                      <tr key={b._id} className={`${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-700'} transition-colors`}>
-                        <td className="py-2.5 px-3 whitespace-nowrap font-mono font-bold">
-                          <div className="flex items-center gap-1.5">
-                            <span className={isDark ? 'text-[#ff6600]' : 'text-[#18174e]'}>{b.slipNo}</span>
-                            {b.transactionType === "Reserved" && (
-                              <span className="text-[9px] px-1.5 py-0.2 rounded font-bold uppercase bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
-                                Reserved
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap font-medium">
-                          {dateFormatted}
-                        </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap font-mono text-[11px] text-slate-400">
-                          {b.transactionTime || '-'}
-                        </td>
-                        <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
-                          {b.partyName || 'N/A'}
-                        </td>
-                        <td className="py-2.5 px-3 max-w-xs truncate">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedSlip(b);
-                              setIsModalOpen(true);
-                            }}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-xs text-left whitespace-nowrap ${isDark
-                              ? 'bg-[#141622] border-slate-700 text-slate-200 hover:border-[#ff6600] hover:text-[#ff6600]'
-                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#18174e] hover:text-[#18174e] hover:bg-slate-100'
-                              }`}
-                            title={`Click to view Supplies Item details for ${b.slipNo}`}
-                          >
-                            <Package className="w-3.5 h-3.5 text-[#ff6600] shrink-0" />
-                            <span>Supplies Item</span>
-                          </button>
-                        </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'
-                            }`}>
-                            {b.purpose || b.originAddress || 'Production'}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-center font-mono font-bold whitespace-nowrap">
-                          {totalQty}
-                        </td>
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleFastReturnCopy(b);
-                              setQuickReturnSearch('');
-                            }}
-                            className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#ff6600] hover:bg-[#e05a00] text-white transition-all cursor-pointer shadow-xs"
-                            title={b.transactionType === "Reserved" ? "Deploy Reserved Slip" : "Fulfill Return for this Slip"}
-                          >
-                            {b.transactionType === "Reserved" ? "Deploy" : "Fulfill Return"}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                {activeBorrows.filter(b =>
-                  b.slipNo?.toLowerCase().includes(quickReturnSearch.toLowerCase()) ||
-                  b.partyName?.toLowerCase().includes(quickReturnSearch.toLowerCase())
-                ).length === 0 && (
-                    <tr>
-                      <td colSpan="8" className="py-6 text-center text-slate-400 italic">
-                        No matching active borrow/reserved records found for "{quickReturnSearch}".
-                      </td>
-                    </tr>
-                  )}
-              </tbody>
-            </table>
+                const badgeColor = isBorrow
+                  ? (isDark ? 'bg-amber-950/60 text-amber-300 border-amber-800' : 'bg-amber-50 text-amber-600 border-amber-200')
+                  : isReturn
+                    ? (isDark ? 'bg-blue-950/60 text-blue-300 border-blue-800' : 'bg-blue-50 text-blue-600 border-blue-200')
+                    : isRestock
+                      ? (isDark ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800' : 'bg-emerald-50 text-emerald-600 border-emerald-200')
+                      : isReserved
+                        ? (isDark ? 'bg-purple-950/60 text-purple-300 border-purple-800' : 'bg-purple-50 text-purple-600 border-purple-200')
+                        : (isDark ? 'bg-rose-950/60 text-rose-300 border-rose-800' : 'bg-rose-50 text-rose-600 border-rose-200');
+
+                return (
+                  <div
+                    key={rec._id}
+                    onClick={() => { setSelectedSlip(rec); setIsModalOpen(true); }}
+                    className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
+                  >
+                    <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
+                      <span className={`text-xs font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} truncate max-w-[150px]`}>
+                        {rec.slipNo}
+                      </span>
+                      <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md border ${badgeColor}`}>
+                        {rec.transactionType}
+                      </span>
+                    </div>
+                    <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`}>
+                      {rec.partyName || rec.purpose || 'N/A'}
+                    </span>
+                    <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
+                      <span>{rec.transactionDate ? new Date(rec.transactionDate).toLocaleDateString() : 'No Date'}</span>
+                      <span className="font-bold text-slate-400">
+                        {rec.items?.length || 0} {rec.items?.length === 1 ? 'item' : 'items'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <span className="text-center pt-4 text-rose-500 italic font-medium text-xs">No matching records found.</span>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       {isModalOpen && selectedSlip && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1397,14 +1510,14 @@ function InventorySuppliesMovements() {
                         {selectedSlip.partyName || 'N/A'}
                       </td>
                       <td className="p-3 align-middle">
-                        <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'} max-w-xs truncate`} title={it.supplyId?.ItemDescription}>
+                        <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'} whitespace-normal break-words`} title={it.supplyId?.ItemDescription}>
                           {it.supplyId?.ItemDescription || '-'}
                         </div>
                         <div className="text-[10px] text-slate-400 font-mono">
                           {it.supplyId?.Code || ''}
                         </div>
                       </td>
-                      <td className="p-3 italic font-medium text-[11px] max-w-[140px] truncate align-middle" title={it.remarks}>
+                      <td className="p-3 italic font-medium text-[11px] min-w-[120px] whitespace-normal break-words align-middle" title={it.remarks}>
                         {it.remarks || selectedSlip.purpose || selectedSlip.originAddress || 'Production'}
                       </td>
                       <td className={`p-3 text-center align-middle font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
@@ -1516,7 +1629,7 @@ function InventorySuppliesMovements() {
                         <td className="py-2 px-3 font-semibold">
                           {partyName || 'N/A'}
                         </td>
-                        <td className="py-2 px-3 font-semibold max-w-[180px] truncate" title={item.ItemDescription}>
+                        <td className="py-2 px-3 font-semibold min-w-[180px] whitespace-normal break-words" title={item.ItemDescription}>
                           <div>{item.ItemDescription}</div>
                           <div className="text-[10px] text-slate-400 font-mono">{item.Code}</div>
                         </td>
@@ -1770,94 +1883,119 @@ function InventorySuppliesMovements() {
             </div>
 
             {/* History Table */}
-            <div className={`rounded-xl border overflow-x-auto overflow-y-auto flex-1 max-h-[500px] ${isDark ? 'border-slate-800 bg-[#090b10]' : 'border-slate-100 bg-white'}`}>
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#141622] text-slate-300' : 'bg-[#18174e] text-white'} font-bold uppercase text-[11px] whitespace-nowrap`}>
-                  <tr>
-                    <th className="py-2.5 px-3">Slip No</th>
-                    <th className="py-2.5 px-3">Type</th>
-                    <th className="py-2.5 px-3">Date & Time</th>
-                    <th className="py-2.5 px-3">Personnel</th>
-                    <th className="py-2.5 px-3">Purpose / Reason</th>
-                    <th className="py-2.5 px-3">Items Summary</th>
-                    <th className="py-2.5 px-3 text-center">Total Qty</th>
-                    <th className="py-2.5 px-3 text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-100'}`}>
-                  {isLoading ? (
+            <div className={`rounded-xl border shadow-sm flex flex-col flex-1 overflow-hidden min-h-0 ${isDark ? 'border-slate-800 bg-[#0c0e14]' : 'border-slate-100 bg-white'}`}>
+              <div className="overflow-x-auto overflow-y-auto flex-1 max-h-[460px]">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#0f111d] text-slate-200 border-b border-slate-800' : 'bg-[#18174e] text-white'} font-bold uppercase text-[11px] whitespace-nowrap`}>
                     <tr>
-                      <td colSpan="8" className="py-10 text-center text-slate-400">
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <Loader2 className="w-5 h-5 animate-spin text-[#ff6600]" />
-                          <span>Loading history logs...</span>
-                        </div>
-                      </td>
+                      <th className="py-2.5 px-3">Slip No</th>
+                      <th className="py-2.5 px-3">Type</th>
+                      <th className="py-2.5 px-3">Date & Time</th>
+                      <th className="py-2.5 px-3">Personnel</th>
+                      <th className="py-2.5 px-3">Purpose / Reason</th>
+                      <th className="py-2.5 px-3">Items Summary</th>
+                      <th className="py-2.5 px-3 text-center">Total Qty</th>
+                      <th className="py-2.5 px-3 text-center">Action</th>
                     </tr>
-                  ) : filteredHistoryLogs.length > 0 ? (
-                    filteredHistoryLogs.map((rec) => {
-                      const totalQty = rec.items?.reduce((sum, it) => sum + (it.qty || 0), 0) || 0;
-                      const itemsSummary = rec.items?.map(it => `${it.supplyId?.ItemDescription || 'Item'} x${it.qty}`).join(', ') || 'N/A';
-                      const dateStr = rec.transactionDate ? new Date(rec.transactionDate).toLocaleDateString() : '-';
+                  </thead>
+                  <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan="8" className="py-10 text-center text-slate-400">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <Loader2 className="w-5 h-5 animate-spin text-[#ff6600]" />
+                            <span>Loading history logs...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : paginatedHistoryLogs.length > 0 ? (
+                      paginatedHistoryLogs.map((rec) => {
+                        const totalQty = rec.items?.reduce((sum, it) => sum + (it.qty || 0), 0) || 0;
+                        const itemsSummary = rec.items?.map(it => `${it.supplyId?.ItemDescription || 'Item'} x${it.qty}`).join(', ') || 'N/A';
+                        const dateStr = rec.transactionDate ? new Date(rec.transactionDate).toLocaleDateString() : '-';
 
-                      return (
-                        <tr key={rec._id} className={`${isDark ? 'hover:bg-slate-800/40 text-slate-300' : 'hover:bg-slate-50 text-slate-700'} transition-colors`}>
-                          <td className="py-2.5 px-3 font-mono font-bold whitespace-nowrap text-[#ff6600]">
-                            {rec.slipNo}
-                          </td>
-                          <td className="py-2.5 px-3 whitespace-nowrap">
-                            <span className={`text-[10px] px-2 py-0.5 font-bold rounded-md uppercase ${rec.transactionType === 'Borrow' ? (isDark ? 'bg-amber-950/60 text-amber-400 border border-amber-800' : 'bg-amber-50 text-amber-600 border border-amber-200') :
-                              rec.transactionType === 'Return' ? (isDark ? 'bg-blue-950/60 text-blue-400 border border-blue-800' : 'bg-blue-50 text-blue-600 border border-blue-200') :
-                                rec.transactionType === 'Reserved' ? (isDark ? 'bg-purple-950/60 text-purple-400 border border-purple-800' : 'bg-purple-50 text-purple-600 border border-purple-200') :
-                                  rec.transactionType === 'Out' ? (isDark ? 'bg-rose-950/60 text-rose-400 border border-rose-800' : 'bg-rose-50 text-rose-600 border border-rose-200') :
-                                    rec.transactionType === 'Scrap' ? (isDark ? 'bg-red-950/60 text-red-400 border border-red-800' : 'bg-red-50 text-red-600 border border-red-200') :
-                                      rec.transactionType === 'Repair' ? (isDark ? 'bg-teal-950/60 text-teal-400 border border-teal-800' : 'bg-teal-50 text-teal-600 border border-teal-200') :
-                                        (isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-50 text-emerald-600 border border-emerald-200')
-                              }`}>
-                              {rec.transactionType}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 whitespace-nowrap">
-                            <div>{dateStr}</div>
-                            {rec.transactionTime && <div className="text-[10px] text-slate-400 font-mono">{rec.transactionTime}</div>}
-                          </td>
-                          <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
-                            {rec.partyName || 'N/A'}
-                          </td>
-                          <td className="py-2.5 px-3 whitespace-nowrap">
-                            <span className="text-[11px] font-medium">{rec.purpose || rec.originAddress || 'Production'}</span>
-                          </td>
-                          <td className="py-2.5 px-3 max-w-xs truncate" title={itemsSummary}>
-                            {itemsSummary}
-                          </td>
-                          <td className="py-2.5 px-3 text-center font-mono font-bold whitespace-nowrap">
-                            {totalQty}
-                          </td>
-                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedSlip(rec);
-                                setIsModalOpen(true);
-                              }}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${isDark ? 'border-slate-700 hover:bg-slate-800 text-slate-200' : 'border-slate-200 hover:bg-slate-100 text-slate-700'
-                                }`}
-                            >
-                              View Slip
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan="8" className="py-10 text-center text-slate-400 italic">
-                        No history logs found matching your search or filter.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                        return (
+                          <tr key={rec._id} className={`${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-700'} transition-colors`}>
+                            <td className="py-2.5 px-3 font-mono font-bold whitespace-nowrap text-[#ff6600]">
+                              {rec.slipNo}
+                            </td>
+                            <td className="py-2.5 px-3 whitespace-nowrap">
+                              <span className={`text-[10px] px-2 py-0.5 font-bold rounded-md uppercase ${rec.transactionType === 'Borrow' ? (isDark ? 'bg-amber-950/60 text-amber-400 border border-amber-800' : 'bg-amber-50 text-amber-600 border border-amber-200') :
+                                rec.transactionType === 'Return' ? (isDark ? 'bg-blue-950/60 text-blue-400 border border-blue-800' : 'bg-blue-50 text-blue-600 border border-blue-200') :
+                                  rec.transactionType === 'Reserved' ? (isDark ? 'bg-purple-950/60 text-purple-400 border border-purple-800' : 'bg-purple-50 text-purple-600 border border-purple-200') :
+                                    rec.transactionType === 'Out' ? (isDark ? 'bg-rose-950/60 text-rose-400 border border-rose-800' : 'bg-rose-50 text-rose-600 border border-rose-200') :
+                                      rec.transactionType === 'Scrap' ? (isDark ? 'bg-red-950/60 text-red-400 border border-red-800' : 'bg-red-50 text-red-600 border border-red-200') :
+                                        rec.transactionType === 'Repair' ? (isDark ? 'bg-teal-950/60 text-teal-400 border border-teal-800' : 'bg-teal-50 text-teal-600 border border-teal-200') :
+                                          (isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-50 text-emerald-600 border border-emerald-200')
+                                }`}>
+                                {rec.transactionType}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 whitespace-nowrap">
+                              <div>{dateStr}</div>
+                              {rec.transactionTime && <div className="text-[10px] text-slate-400 font-mono">{rec.transactionTime}</div>}
+                            </td>
+                            <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
+                              {rec.partyName || 'N/A'}
+                            </td>
+                            <td className="py-2.5 px-3 whitespace-nowrap">
+                              <span className="text-[11px] font-medium">{rec.purpose || rec.originAddress || 'Production'}</span>
+                            </td>
+                            <td className="py-2.5 px-3 min-w-[200px] whitespace-normal break-words" title={itemsSummary}>
+                              {itemsSummary}
+                            </td>
+                            <td className="py-2.5 px-3 text-center font-mono font-bold whitespace-nowrap">
+                              {totalQty}
+                            </td>
+                            <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedSlip(rec);
+                                    setIsModalOpen(true);
+                                  }}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${isDark ? 'border-slate-700 hover:bg-slate-800 text-slate-200' : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                                    }`}
+                                >
+                                  View Slip
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleDownloadPDF(rec);
+                                  }}
+                                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-2xs ${isDark
+                                    ? 'bg-rose-950/40 text-rose-300 border-rose-800/80 hover:bg-rose-900/60 hover:text-white'
+                                    : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 hover:text-rose-800'
+                                    }`}
+                                  title={`Download PDF for ${rec.slipNo}`}
+                                >
+                                  <Download className="w-3.5 h-3.5 text-rose-500" />
+                                  <span>PDF</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan="8" className="py-10 text-center text-slate-400 italic">
+                          No history logs found matching your search or filter.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <TablePagination
+                currentPage={historyPage}
+                setCurrentPage={setHistoryPage}
+                rowsPerPage={historyRowsPerPage}
+                setRowsPerPage={setHistoryRowsPerPage}
+                totalRows={filteredHistoryLogs.length}
+              />
             </div>
 
             {/* Modal Footer */}

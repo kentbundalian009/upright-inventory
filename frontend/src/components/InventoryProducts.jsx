@@ -400,14 +400,14 @@ function InventoryProducts() {
                       )}
                     </td>
                     <td 
-                      className={`py-3 px-4 font-semibold whitespace-nowrap transition-colors ${
+                      className={`py-3 px-4 font-semibold min-w-[200px] whitespace-normal break-words transition-colors ${
                         isDark ? 'text-slate-100' : 'text-slate-800'
                       }`}
                     >
                       {product.ItemDescription}
                     </td>
                     <td 
-                      className={`py-3 px-4 font-mono text-xs whitespace-nowrap transition-colors ${
+                      className={`py-3 px-4 font-mono text-xs whitespace-normal break-words transition-colors ${
                         isDark ? 'text-slate-300' : 'text-slate-600'
                       }`}
                     >

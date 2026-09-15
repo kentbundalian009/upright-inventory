@@ -652,8 +652,8 @@ function InventoryRawMaterials() {
                                                 )}
                                             </td>
 
-                                            <td className="py-3 px-4 whitespace-nowrap">
-                                                <div className={`font-semibold transition-colors ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
+                                            <td className="py-3 px-4 min-w-[200px]">
+                                                <div className={`font-semibold whitespace-normal break-words transition-colors ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
                                                     {rawMat.ItemDescription}
                                                 </div>
                                                 {rawMat.Segment && rawMat.Segment !== 'N/A' && (
@@ -665,7 +665,7 @@ function InventoryRawMaterials() {
                                             </td>
 
                                             <td 
-                                                className={`py-3 px-4 font-mono text-xs whitespace-nowrap transition-colors ${
+                                                className={`py-3 px-4 font-mono text-xs whitespace-normal break-words transition-colors ${
                                                     isDark ? 'text-slate-300' : 'text-slate-600'
                                                 }`}
                                             >

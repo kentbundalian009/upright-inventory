@@ -273,8 +273,9 @@ function InventoryInboundRawMat() {
     }
   };
 
-  const handleDownloadPDF = () => {
-    if (!selectedPo) return;
+  const handleDownloadPDF = (poRecord = null) => {
+    const targetPo = poRecord || selectedPo;
+    if (!targetPo) return;
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
@@ -294,12 +295,12 @@ function InventoryInboundRawMat() {
 
       doc.text("Purchase Order No.:", 14, 42);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedPo.poNo}`, 52, 42);
+      doc.text(`${targetPo.poNo}`, 52, 42);
 
       doc.setFont("helvetica", "bold");
       doc.text("Date Received:", 120, 42);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedPo.deliveryDate ? new Date(selectedPo.deliveryDate).toLocaleDateString() : '-'}`, 155, 42);
+      doc.text(`${targetPo.deliveryDate ? new Date(targetPo.deliveryDate).toLocaleDateString() : '-'}`, 155, 42);
 
       doc.setFont("helvetica", "bold");
       doc.text("Transaction Type:", 14, 49);
@@ -309,22 +310,22 @@ function InventoryInboundRawMat() {
       doc.setFont("helvetica", "bold");
       doc.text("Supplier:", 120, 49);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedPo.supplier || 'N/A'}`, 155, 49);
+      doc.text(`${targetPo.supplier || 'N/A'}`, 155, 49);
 
       doc.setFont("helvetica", "bold");
       doc.text("Prepared By:", 14, 56);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedPo.preparedBy || preparedBy}`, 52, 56);
+      doc.text(`${targetPo.preparedBy || preparedBy}`, 52, 56);
 
       doc.setFont("helvetica", "bold");
       doc.text("Origin Address:", 120, 56);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedPo.originAddress || 'N/A'}`, 155, 56);
+      doc.text(`${targetPo.originAddress || 'N/A'}`, 155, 56);
 
       const tableColumns = ["Description", "Segment", "Dimension", "QTY Ordered", "Actual Received", "Remarks"];
       const tableRows = [];
 
-      selectedPo.items?.forEach(it => {
+      targetPo.items?.forEach(it => {
         const targetId = it.materialId?._id || it.materialId;
         const fullMaterial = dbMaterials.find(m => m._id === targetId);
 
@@ -398,7 +399,7 @@ function InventoryInboundRawMat() {
         styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 }
       });
 
-      doc.save(`PO_REPORT_${selectedPo.poNo}.pdf`);
+      doc.save(`PO_REPORT_${targetPo.poNo}.pdf`);
       showSuccessToast("PDF Slip downloaded successfully.");
     } catch (e) {
       showErrorToast("Something went wrong while downloading the PDF.");
@@ -485,7 +486,7 @@ function InventoryInboundRawMat() {
       <div><PageHeader activeTab="purchase-order" /></div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-        <div className={`lg:col-span-3 ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-6 rounded-2xl border flex flex-col gap-6 shadow-sm`}>
+        <div className={`lg:col-span-3 min-w-0 ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-6 rounded-2xl border flex flex-col gap-6 shadow-sm`}>
           <div className={`border-b ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'} pb-3 flex items-center justify-between gap-2 text-sm font-bold`}>
             <div className="flex items-center gap-2">
               <ListPlus className="w-4 h-4 text-[#ff6600]" />
@@ -534,42 +535,40 @@ function InventoryInboundRawMat() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Purchase Order No.</label>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Purchase Order No.</label>
                 <div className="relative">
                   <input type="text" value={poNo} onChange={e => setPoNo(e.target.value)} placeholder="Enter PO Number" className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`} />
                 </div>
               </div>
               <div>
-                <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
                   Supplier Origin *
                 </label>
-                <div className="relative">
-                  <select
-                    value={supplier}
-                    onChange={handleSupplierChange}
-                    required
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none font-semibold cursor-pointer`}
-                  >
-                    <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>Select Supplier</option>
-                    {registeredSuppliers.map((sup) => (
-                      <option key={sup._id} value={sup.name} className={isDark ? 'bg-[#141622] text-white' : ''}>
-                        {sup.name}
-                      </option>
-                    ))}
-                    {registeredSuppliers.length === 0 && (
-                      <option disabled value="">No registered supplier found (Go to Client Records)</option>
-                    )}
-                  </select>
-                </div>
+                <select
+                  value={supplier}
+                  onChange={handleSupplierChange}
+                  required
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer font-medium`}
+                >
+                  <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>Select Supplier</option>
+                  {registeredSuppliers.map((sup) => (
+                    <option key={sup._id} value={sup.name} className={isDark ? 'bg-[#141622] text-white' : ''}>
+                      {sup.name}
+                    </option>
+                  ))}
+                  {registeredSuppliers.length === 0 && (
+                    <option disabled value="">No registered supplier found (Go to Client Records)</option>
+                  )}
+                </select>
               </div>
               <div>
-                <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Date Received</label>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Date Received</label>
                 <div className="relative"><Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                   <input type="date" value={dateReceived} onChange={e => setDateReceived(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} required />
                 </div>
               </div>
               <div className="sm:col-span-2 lg:col-span-2">
-                <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
                   Supplier Address (Auto-filled)
                 </label>
                 <input
@@ -661,7 +660,7 @@ function InventoryInboundRawMat() {
                         >
                           <div className="flex flex-col min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} truncate`}>
+                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} whitespace-normal break-words`}>
                                 {item.ItemDescription}
                               </span>
                               {dimension && (
@@ -715,12 +714,22 @@ function InventoryInboundRawMat() {
             </div>
             {/* HIDE TABLE AND NOTICE UNTIL ITEMS ARE SELECTED */}
             {manifestItems.length > 0 && (
-              <div className="flex flex-col gap-3 animate-in fade-in duration-200">
-                <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${
-                  isDark ? 'text-emerald-400 bg-emerald-950/40 border border-emerald-800/40' : 'text-emerald-700 bg-emerald-50 border border-emerald-200/60'
-                }`}>
-                  🟢 Quantities will be automatically added
-                </span>
+              <div className="flex flex-col gap-2 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${isDark ? 'text-emerald-400 bg-emerald-950/40 border border-emerald-800/40' : 'text-emerald-700 bg-emerald-50 border border-emerald-200/60'
+                    }`}>
+                    🟢 Quantities will be automatically added
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setManifestItems([])}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${
+                      isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Clear Source Items
+                  </button>
+                </div>
 
                 <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-x-auto`}>
                   <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
@@ -768,7 +777,7 @@ function InventoryInboundRawMat() {
 
                           <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.Segment}</td>
 
-                          <td className={`py-2 px-4 truncate max-w-[150px] ${isDark ? 'text-slate-200' : 'text-slate-800'}`} title={item.ItemDescription}>
+                          <td className={`py-2 px-4 min-w-[200px] whitespace-normal break-words ${isDark ? 'text-slate-200' : 'text-slate-800'}`} title={item.ItemDescription}>
                             {item.ItemDescription}
                           </td>
 
@@ -810,41 +819,82 @@ function InventoryInboundRawMat() {
           </form>
         </div>
 
-        <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 rounded-2xl border flex flex-col gap-3 shadow-sm h-auto min-h-[400px]`}>
+        <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 rounded-2xl border flex flex-col gap-3 shadow-sm h-auto min-h-[400px] w-full min-w-0`}>
           <div className={`flex flex-col gap-1 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-2`}>
             <div className={`flex items-center justify-between w-full text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
               <div className="flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-[#ff6600]" />
                 <span>History Logs</span>
               </div>
-
             </div>
             <div className="relative mt-1">
               <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-              <input type="text" value={sidebarSearchQuery} onChange={e => setSidebarSearchQuery(e.target.value)} placeholder="Search PO or supplier..." className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-800'} border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none`} />
+              <input
+                type="text"
+                value={sidebarSearchQuery}
+                onChange={e => setSidebarSearchQuery(e.target.value)}
+                placeholder="Search PO or supplier..."
+                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-800'} border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none`}
+              />
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[420px] pr-1 custom-scrollbar">
+          <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[440px] pr-1 custom-scrollbar">
             {filteredPoRecords.length > 0 ? (
               filteredPoRecords.slice(0, 50).map((rec) => (
-                <div key={rec._id} onClick={() => { setSelectedPo(rec); setIsModalOpen(true); }} className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}>
+                <div
+                  key={rec._id}
+                  onClick={() => { setSelectedPo(rec); setIsModalOpen(true); }}
+                  className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
+                >
+                  {/* Top Row: PO Number, Inbound Badge, and PDF Download Button */}
                   <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
-                    <span className={`text-xs font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'}`}>{rec.poNo}</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md ${isDark ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-emerald-50 text-emerald-600'}`}>Inbound</span>
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className={`text-xs font-black truncate max-w-[150px] ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'}`} title={rec.poNo}>
+                        {rec.poNo}
+                      </span>
+                      <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md border shrink-0 ${isDark ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}>
+                        Inbound
+                      </span>
+                    </div>
+
+                    {/* Quick PDF Download Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadPDF(rec);
+                      }}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer shrink-0 shadow-2xs ${
+                        isDark
+                          ? 'bg-rose-950/40 text-rose-300 border-rose-800/80 hover:bg-rose-900/60 hover:text-white'
+                          : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 hover:text-rose-800'
+                      }`}
+                      title={`Download PDF for ${rec.poNo}`}
+                    >
+                      <Download className="w-3 h-3 text-rose-500" />
+                      <span>PDF</span>
+                    </button>
                   </div>
-                  <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`}>{rec.supplier || 'No Supplier'}</span>
-                  <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{rec.deliveryDate ? new Date(rec.deliveryDate).toLocaleDateString() : 'No Date'}</span>
+
+                  {/* Supplier Row */}
+                  <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`} title={rec.supplier || 'No Supplier'}>
+                    {rec.supplier || 'No Supplier'}
+                  </span>
+
+                  {/* Bottom Row: Date & Items count */}
+                  <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
+                    <span>{rec.dateReceived ? new Date(rec.dateReceived).toLocaleDateString() : 'No Date'}</span>
+                    <span className="font-bold text-slate-400">
+                      {(rec.items || rec.materials || []).length} items
+                    </span>
+                  </div>
                 </div>
               ))
             ) : (
-              <span className="text-center pt-4 text-red-500 italic font-bold text-xs">No matching records found.</span>
+              <span className="text-center pt-4 text-rose-500 italic font-medium text-xs">No matching records found.</span>
             )}
           </div>
-
-          {!sidebarSearchQuery && poRecords.length > 4 && (
-            <div className={`text-[10px] text-center font-semibold text-slate-400 mt-auto pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>Showing latest 4 entries.</div>
-          )}
         </div>
       </div>
 
@@ -905,7 +955,7 @@ function InventoryInboundRawMat() {
                   {selectedPo.items?.map((it, idx) => (
                     <tr key={it._id || idx} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
                       <td className="p-3 w-1/4 align-middle">
-                        <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'} max-w-xs truncate`} title={it.materialId?.ItemDescription}>
+                        <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'} whitespace-normal break-words`} title={it.materialId?.ItemDescription}>
                           {it.materialId?.ItemDescription || "-"}
                         </div>
                       </td>
@@ -929,8 +979,8 @@ function InventoryInboundRawMat() {
                         {it.actualCountReceived} {it.materialId?.UOM}
                       </td>
 
-                      <td className={`p-3 italic ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium text-[11px] max-w-[120px] truncate align-middle pl-6`} title={it.remarks}>
-                        {it.remarks || "-"}
+                      <td className={`p-3 italic ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium text-[11px] min-w-[120px] whitespace-normal break-words align-middle pl-6`} title={it.remarks}>
+                        {it.remarks || '—'}
                       </td>
                     </tr>
                   ))}
@@ -1175,15 +1225,19 @@ function InventoryInboundRawMat() {
 
                       return (
                         <tr key={item._id} className={`${isDark ? 'hover:bg-slate-800/40 text-slate-300' : 'hover:bg-slate-50 text-slate-700'} transition-colors whitespace-nowrap`}>
-                          <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
-                            <div className="flex items-center gap-2 whitespace-nowrap">
-                              <span className="whitespace-nowrap">{item.ItemDescription}</span>
+                          <td className="py-2.5 px-3 font-semibold min-w-[200px]">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="whitespace-normal break-words">{item.ItemDescription}</span>
                               <span className="font-mono text-[10px] text-slate-400 whitespace-nowrap">({item.Code})</span>
                             </div>
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
-                            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border whitespace-nowrap ${isDark ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                              }`}>
+                            <span
+                              className={`font-mono text-xs font-bold px-2 py-0.5 rounded border whitespace-nowrap ${isDark
+                                ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300'
+                                : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                }`}
+                            >
                               {dimension}
                             </span>
                           </td>
@@ -1320,7 +1374,7 @@ function InventoryInboundRawMat() {
                   <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-100'}`}>
                     {manifestItems.map((item, idx) => (
                       <tr key={idx} className={isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
-                        <td className="py-2 px-3 font-semibold max-w-[180px] truncate" title={item.ItemDescription}>
+                        <td className="py-2 px-3 font-semibold min-w-[180px] whitespace-normal break-words" title={item.ItemDescription}>
                           {item.ItemDescription}
                         </td>
                         <td className="py-2 px-3 text-slate-400">

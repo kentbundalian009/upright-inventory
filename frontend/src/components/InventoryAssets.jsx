@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Archive, X, Filter, RotateCcw, EyeOff, CheckCircle2, Download } from 'lucide-react';
 import axios from 'axios';
 import PageHeader from './PageHeader';
+import TablePagination from './TablePagination';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useTheme } from '../context/ThemeContext';
@@ -281,6 +282,18 @@ function InventoryAssets() {
     return matchesCategory && matchesSegment && matchesDescription && matchesCondition && matchesSearch;
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedSegment, selectedDescription, selectedConditionFilter, searchTerm, showArchivedOnly]);
+
+  const totalRows = filteredAssets.length;
+  const indexOfFirstRow = (currentPage - 1) * rowsPerPage;
+  const indexOfLastRow = indexOfFirstRow + rowsPerPage;
+  const paginatedAssets = filteredAssets.slice(indexOfFirstRow, indexOfLastRow);
+
   const downloadPDFReport = () => {
     try {
       if (filteredAssets.length === 0) {
@@ -522,11 +535,7 @@ function InventoryAssets() {
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className={`text-white font-bold uppercase text-nowrap text-sm ${isDark ? 'bg-[#0f111d] border-b border-slate-800' : 'bg-[#18174e]'}`}>
-                  <th 
-                    className={`py-3 px-4 whitespace-nowrap static md:sticky md:left-0 z-20 ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'}`}
-                    style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.15)' }}
-                  >
-                    <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
+                  <th className="py-3 px-4 whitespace-nowrap">
                     Item Description
                   </th>
                   <th className="py-3 px-4">Category</th>
@@ -560,17 +569,15 @@ function InventoryAssets() {
                     </td>
                   </tr>
                 ) : (
-                  filteredAssets.map((asset) => (
+                  paginatedAssets.map((asset) => (
                     <tr key={asset._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} font-medium text-sm whitespace-nowrap transition-colors`}>
                       <td 
-                        className={`py-3 px-4 font-semibold static md:sticky md:left-0 z-10 min-w-[160px] sm:min-w-[190px] md:max-w-[280px] whitespace-normal md:whitespace-nowrap transition-colors ${
-                          isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
+                        className={`py-3 px-4 font-semibold min-w-[200px] whitespace-normal break-words transition-colors ${
+                          isDark ? 'text-slate-100' : 'text-slate-800'
                         }`}
-                        style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
                         title={asset.ItemDescription}
                       >
-                        <span className={`hidden md:block absolute right-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-slate-600' : 'bg-slate-300'} pointer-events-none`} />
-                        <div className="line-clamp-2 md:truncate font-semibold" title={asset.ItemDescription}>
+                        <div className="font-semibold whitespace-normal break-words" title={asset.ItemDescription}>
                           {asset.ItemDescription}
                         </div>
                       </td>
@@ -620,6 +627,13 @@ function InventoryAssets() {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            totalRows={totalRows}
+          />
         </div>
       </div>
 

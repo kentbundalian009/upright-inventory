@@ -742,9 +742,8 @@ function Consumable() {
                         type="button"
                         onClick={() => setIsPersonnelDropdownOpen(!isPersonnelDropdownOpen)}
                         title="Toggle personnel dropdown list"
-                        className={`p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-transform duration-200 ${
-                          isPersonnelDropdownOpen ? 'rotate-180 text-[#ff6600]' : ''
-                        }`}
+                        className={`p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-transform duration-200 ${isPersonnelDropdownOpen ? 'rotate-180 text-[#ff6600]' : ''
+                          }`}
                       >
                         <ChevronDown className="w-4 h-4" />
                       </button>
@@ -758,13 +757,6 @@ function Consumable() {
                           : 'bg-white border-slate-200 divide-slate-100 shadow-xl'
                           } border rounded-xl max-h-60 overflow-y-auto z-50 divide-y p-1`}
                       >
-                        <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${
-                          isDark ? 'text-slate-400 bg-slate-900/60' : 'text-slate-500 bg-slate-50'
-                        } rounded-t-lg flex items-center justify-between`}>
-                          <span>Registered Personnel ({filteredEmployees.length})</span>
-                          <span className="text-[9px] font-normal lowercase">click to select</span>
-                        </div>
-
                         {filteredEmployees.length > 0 ? (
                           filteredEmployees.map((emp) => (
                             <button
@@ -774,15 +766,14 @@ function Consumable() {
                                 setTransactorName(emp.name);
                                 setIsPersonnelDropdownOpen(false);
                               }}
-                              className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between gap-2 rounded-lg transition-colors cursor-pointer ${
-                                transactorName === emp.name
+                              className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between gap-2 rounded-lg transition-colors cursor-pointer ${transactorName === emp.name
                                   ? isDark
                                     ? 'bg-[#ff6600]/20 text-[#ff6600]'
                                     : 'bg-indigo-50 text-[#18174e]'
                                   : isDark
-                                  ? 'text-slate-200 hover:bg-slate-800'
-                                  : 'text-slate-700 hover:bg-slate-50'
-                              }`}
+                                    ? 'text-slate-200 hover:bg-slate-800'
+                                    : 'text-slate-700 hover:bg-slate-50'
+                                }`}
                             >
                               <div className="flex flex-col">
                                 <span className="font-bold text-sm">{emp.name}</span>
@@ -807,9 +798,8 @@ function Consumable() {
                           <button
                             type="button"
                             onClick={() => setIsPersonnelDropdownOpen(false)}
-                            className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 rounded-lg ${
-                              isDark ? 'bg-emerald-950/40 text-emerald-400 hover:bg-emerald-900/50' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            } transition-colors cursor-pointer`}
+                            className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 rounded-lg ${isDark ? 'bg-emerald-950/40 text-emerald-400 hover:bg-emerald-900/50' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                              } transition-colors cursor-pointer`}
                           >
                             <Plus className="w-3.5 h-3.5 shrink-0" />
                             <span>Use custom typed name: <strong>"{transactorName}"</strong></span>
@@ -833,7 +823,7 @@ function Consumable() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <label
-                    className={`block text-sm font-bold uppercase ${transactionType === 'IN'
+                    className={`block text-xs sm:text-sm font-bold uppercase leading-snug ${transactionType === 'IN'
                       ? isDark
                         ? 'text-emerald-400'
                         : 'text-emerald-800'
@@ -842,12 +832,10 @@ function Consumable() {
                         : 'text-rose-800'
                       }`}
                   >
-                    {transactionType === 'IN'
-                      ? 'Step 2: Type / Select Materials for Stock Addition'
-                      : 'Step 2: Type / Select Materials for Stock Deduction'}
+                    Step 1: Type / Select Materials
                   </label>
                   <p className="text-[11px] text-slate-400">
-                    Filter by segment or search by item description and dimension (e.g. beam 2700).
+                    Filter by segment or search by item description and dimension.
                   </p>
                 </div>
               </div>
@@ -924,7 +912,7 @@ function Consumable() {
                         >
                           <div className="flex flex-col min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} truncate`}>
+                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-800'} whitespace-normal break-words`}>
                                 {item.ItemDescription}
                               </span>
                               {dimension && dimension !== '—' && (
@@ -999,10 +987,10 @@ function Consumable() {
 
             {/* MANIFEST TABLE (SHOW ONLY WHEN ITEMS ARE SELECTED) */}
             {manifestItems.length > 0 && (
-              <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+              <div className="flex flex-col gap-2 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between">
                   <span
-                    className={`text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${transactionType === 'IN'
+                    className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${transactionType === 'IN'
                       ? isDark
                         ? 'text-emerald-400 bg-emerald-950/40 border border-emerald-800'
                         : 'text-emerald-700 bg-emerald-50 border border-emerald-200'
@@ -1019,11 +1007,10 @@ function Consumable() {
                   <button
                     type="button"
                     onClick={() => setManifestItems([])}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${
-                      isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
-                    }`}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
+                      }`}
                   >
-                    Clear Form Grid
+                    Clear Source Items
                   </button>
                 </div>
 
@@ -1045,13 +1032,13 @@ function Consumable() {
                       >
                         <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
                         <th className="py-3 px-4 text-center">UOM</th>
-                        <th className="py-3 px-4">Item Description</th>
+                        <th className="py-3 px-4 text-center w-28 min-w-[112px]">Actual</th>
                         <th className="py-3 px-4">Segment</th>
+                        <th className="py-3 px-4">Description</th>
                         <th className="py-3 px-4">Dimension</th>
                         <th className="py-3 px-4">Category</th>
                         <th className="py-3 px-4">Brand</th>
                         <th className="py-3 px-4">Serial No.</th>
-                        <th className="py-3 px-4 text-center">Stock</th>
                         <th className="py-3 px-4">Remarks</th>
                         <th className="py-3 px-4 text-center">Action</th>
                       </tr>
@@ -1094,21 +1081,38 @@ function Consumable() {
                             </span>
                           </td>
 
-                          <td
-                            className={`py-2 px-4 font-semibold truncate max-w-[200px] ${isDark ? 'text-slate-200' : 'text-slate-800'
-                              }`}
-                            title={item.ItemDescription}
-                          >
-                            <div>{item.ItemDescription}</div>
-                            <div className="font-mono text-[10px] text-slate-400">{item.Code}</div>
+                          <td className="py-2 px-4 text-center font-bold font-mono text-xs w-28 min-w-[112px]">
+                            <span className={item.ActualCount > 0 ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : 'text-rose-500'}>
+                              {item.ActualCount ?? 0}
+                            </span>
                           </td>
 
                           <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                             {item.Segment}
                           </td>
 
-                          <td className={`py-2 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'} whitespace-nowrap`}>
-                            {item.Dimension}
+                          <td
+                            className={`py-2 px-4 min-w-[200px] whitespace-normal break-words ${isDark ? 'text-slate-200' : 'text-slate-800'
+                              }`}
+                            title={item.ItemDescription}
+                          >
+                            <div className="font-semibold">{item.ItemDescription}</div>
+                            <div className="font-mono text-[10px] text-slate-400">{item.Code}</div>
+                          </td>
+
+                          <td className="py-2 px-4 whitespace-nowrap">
+                            {item.Dimension && item.Dimension !== '—' ? (
+                              <span
+                                className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${isDark
+                                  ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300'
+                                  : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                  }`}
+                              >
+                                {item.Dimension}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-mono text-xs">—</span>
+                            )}
                           </td>
 
                           <td className={`py-2 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -1121,10 +1125,6 @@ function Consumable() {
 
                           <td className={`py-2 px-4 font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                             {item.SerialNo}
-                          </td>
-
-                          <td className="py-2 px-4 text-center font-bold font-mono">
-                            {item.ActualCount} {item.UOM}
                           </td>
 
                           <td className="py-2 px-4">
@@ -1159,11 +1159,10 @@ function Consumable() {
                 {/* CONFIRM BUTTON */}
                 <button
                   type="submit"
-                  className={`w-full font-bold py-2.5 px-4 rounded-xl text-sm transition-all cursor-pointer uppercase shadow-sm flex items-center justify-center gap-2 ${
-                    transactionType === 'IN'
+                  className={`w-full font-bold py-2.5 px-4 rounded-xl text-sm transition-all cursor-pointer uppercase shadow-sm flex items-center justify-center gap-2 ${transactionType === 'IN'
                       ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                       : 'bg-rose-600 hover:bg-rose-700 text-white'
-                  }`}
+                    }`}
                 >
                   {transactionType === 'IN' ? (
                     <>
@@ -1191,7 +1190,7 @@ function Consumable() {
             <div className={`flex items-center justify-between w-full text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
               <div className="flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-[#ff6600]" />
-                <span>Consumables History</span>
+                <span>History Logs</span>
               </div>
             </div>
             <div className="relative mt-1">
@@ -1221,7 +1220,7 @@ function Consumable() {
                   className={`${isDark
                     ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]'
                     : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'
-                    } border rounded-xl p-2.5 flex flex-col gap-1 transition-all cursor-pointer group`}
+                    } border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
                 >
                   <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
                     <span
@@ -1246,35 +1245,28 @@ function Consumable() {
                           : 'bg-rose-50 text-rose-600 border-rose-200'
                         }`}
                     >
-                      {tx.transactionType === 'IN' ? '🟢 IN' : '🔴 OUT'}
+                      {tx.transactionType === 'IN' ? 'IN' : 'OUT'}
                     </span>
                   </div>
 
                   <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`}>
-                    {tx.name || 'System User'}
+                    {tx.transactorName || tx.name || tx.preparedBy || '—'}
                   </span>
 
-                  <div className="flex items-center justify-between text-[10px] text-slate-400">
-                    <span>{tx.date}</span>
-                    <span>{tx.time}</span>
+                  <div className="flex items-center justify-between text-[10px] font-semibold text-slate-400">
+                    <span>{tx.date || (tx.transactionDate ? new Date(tx.transactionDate).toLocaleDateString() : 'No Date')}</span>
+                    <span className="font-bold text-slate-400">
+                      {(tx.items || []).length} items
+                    </span>
                   </div>
                 </div>
               ))
             ) : (
-              <span className="text-center pt-4 text-red-500 italic font-bold text-xs">
+              <span className="text-center pt-4 text-rose-500 italic font-medium text-xs">
                 No matching records found.
               </span>
             )}
           </div>
-
-          {!historySearchQuery && transactions.length > 5 && (
-            <div
-              className={`text-[10px] text-center font-semibold text-slate-400 mt-auto pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-50'
-                }`}
-            >
-              Showing latest {Math.min(50, transactions.length)} entries.
-            </div>
-          )}
         </div>
       </div>
 
@@ -1487,7 +1479,7 @@ function Consumable() {
                       key={it._id || idx}
                       className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}
                     >
-                      <td className="p-3 font-semibold">
+                      <td className="p-3 font-semibold min-w-[200px] whitespace-normal break-words">
                         <div>{it.ItemDescription || it.consumableId?.ItemDescription || '—'}</div>
                         <div className="font-mono text-[10px] text-slate-400">
                           {it.Code || it.consumableId?.Code || '—'}

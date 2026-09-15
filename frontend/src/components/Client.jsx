@@ -6,6 +6,7 @@ import {
   AlertCircle, X, Filter, Sliders, Truck
 } from 'lucide-react';
 import PageHeader from './PageHeader';
+import TablePagination from './TablePagination';
 import { useTheme } from '../context/ThemeContext';
 
 const API_BASE_URL = '/api';
@@ -143,6 +144,20 @@ function Client() {
         return 0;
       });
   }, [clients, activeType, showArchivedOnly, searchTerm, sortBy]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeType, showArchivedOnly, searchTerm, sortBy]);
+
+  const totalRows = filteredClients.length;
+  const indexOfFirstRow = (currentPage - 1) * rowsPerPage;
+  const indexOfLastRow = indexOfFirstRow + rowsPerPage;
+  const paginatedClients = useMemo(() => {
+    return filteredClients.slice(indexOfFirstRow, indexOfLastRow);
+  }, [filteredClients, indexOfFirstRow, indexOfLastRow]);
 
   // Open Add Modal
   const handleOpenAdd = () => {
@@ -531,7 +546,7 @@ function Client() {
                       {error}
                     </td>
                   </tr>
-                ) : filteredClients.map((client) => {
+                ) : paginatedClients.map((client) => {
                   if (activeType === 'Logistics') {
                     return (
                       <tr key={client._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
@@ -742,6 +757,14 @@ function Client() {
               </tbody>
             </table>
           </div>
+
+          <TablePagination
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            totalRows={totalRows}
+          />
         </div>
 
       </div>

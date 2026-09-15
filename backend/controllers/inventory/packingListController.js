@@ -52,18 +52,14 @@ export const createPackingList = async (req, res) => {
           }
         }
 
-        // Check if user actually shipped MORE than originally reserved for any item
+        // Deduct actualCountShipped from warehouse stock since items are now physically shipped out
         for (const shippedItem of formattedItems) {
           if (!shippedItem.materialId) continue;
-          const shippedMatId = shippedItem.materialId.toString();
-          const origItem = originalReserve.items.find(oi => oi.materialId && oi.materialId.toString() === shippedMatId);
-          const origQty = origItem ? Number(origItem.qtyRequested || 0) : 0;
           const shippedQty = Number(shippedItem.actualCountShipped || 0);
 
-          if (shippedQty > origQty) {
-            const extraDeduct = shippedQty - origQty;
+          if (shippedQty > 0) {
             await RawMaterial.findByIdAndUpdate(shippedItem.materialId, {
-              $inc: { ActualCount: -extraDeduct }
+              $inc: { ActualCount: -shippedQty }
             });
           }
         }
@@ -119,35 +115,7 @@ export const createPackingList = async (req, res) => {
       const originalReserve = await PackingList.findOne({ plNo: cleanRefNo, transactionType: "Reserve" });
 
       if (originalReserve) {
-        // Reconcile stock differences between old items and new items
-        const oldItemsMap = new Map();
-        for (const item of originalReserve.items) {
-          const matId = item.materialId ? item.materialId.toString() : null;
-          if (matId) {
-            oldItemsMap.set(matId, (oldItemsMap.get(matId) || 0) + Number(item.qtyRequested || 0));
-          }
-        }
-
-        const newItemsMap = new Map();
-        for (const item of formattedItems) {
-          const matId = item.materialId ? item.materialId.toString() : null;
-          if (matId) {
-            newItemsMap.set(matId, (newItemsMap.get(matId) || 0) + Number(item.qtyRequested || 0));
-          }
-        }
-
-        const allMatIds = new Set([...oldItemsMap.keys(), ...newItemsMap.keys()]);
-        for (const matId of allMatIds) {
-          const oldQty = oldItemsMap.get(matId) || 0;
-          const newQty = newItemsMap.get(matId) || 0;
-          const diff = newQty - oldQty;
-
-          if (diff !== 0) {
-            await RawMaterial.findByIdAndUpdate(matId, {
-              $inc: { ActualCount: -diff }
-            });
-          }
-        }
+        // Note: Reserves do NOT deduct physical warehouse stock. We simply update the manifest details.
 
         originalReserve.customer = customer || originalReserve.customer;
         originalReserve.carrier = carrier || originalReserve.carrier;
@@ -161,7 +129,7 @@ export const createPackingList = async (req, res) => {
           .populate("items.materialId", "Code ItemDescription UOM");
 
         const responseObj = populatedReserve.toObject ? populatedReserve.toObject() : populatedReserve;
-        responseObj.message = `Reservation ${originalReserve.plNo} successfully updated and stock reconciled.`;
+        responseObj.message = `Reservation ${originalReserve.plNo} successfully updated.`;
 
         return res.status(200).json(responseObj);
       }
@@ -186,17 +154,22 @@ export const createPackingList = async (req, res) => {
     
     const savedPL = await newPL.save();
 
-    for (const item of formattedItems) {
-      if (!item.materialId) continue; 
+    // Deduct stock ONLY when items physically leave the warehouse (Outbound)
+    // Reserves keep the stock count visible until actually sent Outbound
+    if (transactionType === "Outbound") {
+      for (const item of formattedItems) {
+        if (!item.materialId) continue; 
 
-      const deductCount = transactionType === "Outbound" ? item.actualCountShipped : item.qtyRequested;
-
-      await RawMaterial.findByIdAndUpdate(
-        item.materialId,
-        { 
-          $inc: { ActualCount: -Number(deductCount) } 
+        const deductCount = Number(item.actualCountShipped || 0);
+        if (deductCount > 0) {
+          await RawMaterial.findByIdAndUpdate(
+            item.materialId,
+            { 
+              $inc: { ActualCount: -deductCount } 
+            }
+          );
         }
-      );
+      }
     }
 
     const populatedPL = await PackingList.findById(savedPL._id)
@@ -240,17 +213,22 @@ export const cancelPackingList = async (req, res) => {
       return res.status(400).json({ message: "This transaction log is already voided." });
     }
 
-    for (const item of slip.items) {
-      if (!item.materialId) continue;
+    // Restore warehouse stock ONLY if an Outbound slip is being voided
+    // (Reserves never deducted physical stock from the warehouse)
+    if (slip.transactionType === "Outbound") {
+      for (const item of slip.items) {
+        if (!item.materialId) continue;
 
-      const returnCount = slip.transactionType === "Outbound" ? item.actualCountShipped : item.qtyRequested;
-
-      await RawMaterial.findByIdAndUpdate(
-        item.materialId,
-        { 
-          $inc: { ActualCount: Number(returnCount) } 
+        const returnCount = Number(item.actualCountShipped || 0);
+        if (returnCount > 0) {
+          await RawMaterial.findByIdAndUpdate(
+            item.materialId,
+            { 
+              $inc: { ActualCount: returnCount } 
+            }
+          );
         }
-      );
+      }
     }
 
     slip.isVoided = true;
@@ -292,33 +270,35 @@ export const updatePackingList = async (req, res) => {
       };
     });
 
-    // Reconcile stock
-    const oldItemsMap = new Map();
-    for (const item of originalReserve.items) {
-      const matId = item.materialId ? item.materialId.toString() : null;
-      if (matId) {
-        oldItemsMap.set(matId, (oldItemsMap.get(matId) || 0) + Number(item.qtyRequested || 0));
+    // Reconcile stock ONLY if an Outbound slip is being modified
+    if (originalReserve.transactionType === "Outbound") {
+      const oldItemsMap = new Map();
+      for (const item of originalReserve.items) {
+        const matId = item.materialId ? item.materialId.toString() : null;
+        if (matId) {
+          oldItemsMap.set(matId, (oldItemsMap.get(matId) || 0) + Number(item.actualCountShipped || 0));
+        }
       }
-    }
 
-    const newItemsMap = new Map();
-    for (const item of formattedItems) {
-      const matId = item.materialId ? item.materialId.toString() : null;
-      if (matId) {
-        newItemsMap.set(matId, (newItemsMap.get(matId) || 0) + Number(item.qtyRequested || 0));
+      const newItemsMap = new Map();
+      for (const item of formattedItems) {
+        const matId = item.materialId ? item.materialId.toString() : null;
+        if (matId) {
+          newItemsMap.set(matId, (newItemsMap.get(matId) || 0) + Number(item.actualCountShipped || 0));
+        }
       }
-    }
 
-    const allMatIds = new Set([...oldItemsMap.keys(), ...newItemsMap.keys()]);
-    for (const matId of allMatIds) {
-      const oldQty = oldItemsMap.get(matId) || 0;
-      const newQty = newItemsMap.get(matId) || 0;
-      const diff = newQty - oldQty;
+      const allMatIds = new Set([...oldItemsMap.keys(), ...newItemsMap.keys()]);
+      for (const matId of allMatIds) {
+        const oldQty = oldItemsMap.get(matId) || 0;
+        const newQty = newItemsMap.get(matId) || 0;
+        const diff = newQty - oldQty;
 
-      if (diff !== 0) {
-        await RawMaterial.findByIdAndUpdate(matId, {
-          $inc: { ActualCount: -diff }
-        });
+        if (diff !== 0) {
+          await RawMaterial.findByIdAndUpdate(matId, {
+            $inc: { ActualCount: -diff }
+          });
+        }
       }
     }
 
@@ -334,7 +314,7 @@ export const updatePackingList = async (req, res) => {
       .populate("items.materialId", "Code ItemDescription UOM");
 
     const responseObj = populated.toObject ? populated.toObject() : populated;
-    responseObj.message = `Reservation ${originalReserve.plNo} successfully updated and stock reconciled.`;
+    responseObj.message = `Packing list ${originalReserve.plNo} successfully updated.`;
 
     return res.status(200).json(responseObj);
   } catch (err) {
