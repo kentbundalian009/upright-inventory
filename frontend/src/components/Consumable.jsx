@@ -23,6 +23,7 @@ import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
+import TablePagination from './TablePagination';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 
@@ -70,7 +71,13 @@ function Consumable() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [modalPage, setModalPage] = useState(1);
+  const [modalRowsPerPage, setModalRowsPerPage] = useState(10);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setModalPage(1);
+  }, [selectedTransaction, isDetailModalOpen]);
 
   // Transaction Form States
   const [transactionType, setTransactionType] = useState('OUT'); // 'OUT' is default
@@ -492,76 +499,121 @@ function Consumable() {
   };
 
   // Generate & Download PDF
-  const handleDownloadPDF = (tx) => {
-    const doc = new jsPDF();
+  const handleDownloadPDF = (txRecord = null) => {
+    const tx = txRecord || selectedTransaction;
+    if (!tx) return;
+    try {
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const centerX = pageWidth / 2;
+      const centerY = pageHeight / 2;
+      const formattedDate = new Date().toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
 
-    // Header styling
-    doc.setFillColor(tx.transactionType === 'IN' ? 16 : 225, tx.transactionType === 'IN' ? 185 : 29, tx.transactionType === 'IN' ? 129 : 72);
-    doc.rect(0, 0, 210, 24, 'F');
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
 
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`ONEINVENTORY - CONSUMABLE STOCK ${tx.transactionType}`, 14, 15);
+      doc.text("Slip Number:", 14, 42);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${tx.transactionNo}`, 48, 42);
+      doc.setFont("helvetica", "bold");
+      doc.text("Date Logged:", 120, 42);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${tx.date || 'N/A'}${tx.time ? ` ${tx.time}` : ''}`, 155, 42);
 
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`SLIP NO: ${tx.transactionNo}`, 140, 15);
-
-    // Meta details
-    doc.setTextColor(50, 50, 50);
-    doc.setFontSize(10);
-    doc.text(`${tx.transactionType === 'IN' ? 'Prepared Name' : 'Personnel Name'}: ${tx.name || 'System User'}`, 14, 34);
-    doc.text(`Transaction Type: ${tx.transactionType === 'IN' ? 'STOCK IN (Addition)' : 'STOCK OUT (Deduction)'}`, 14, 40);
-    doc.text(`Date: ${tx.date || 'N/A'}`, 130, 34);
-    doc.text(`Time: ${tx.time || 'N/A'}`, 130, 40);
-
-    // Table
-    const tableHeaders = [
-      ['#', 'Code', 'Item Description', 'Segment', 'Dimension', 'Brand', 'Serial No', 'QTY', 'UOM', 'Remarks']
-    ];
-
-    const tableRows = (tx.items || []).map((it, idx) => [
-      idx + 1,
-      it.Code || '—',
-      it.ItemDescription || '—',
-      it.Segment || '—',
-      it.Dimension || '—',
-      it.Brand || '—',
-      it.SerialNo || '—',
-      it.qty || 1,
-      it.UOM || 'pcs',
-      it.remarks || '—'
-    ]);
-
-    autoTable(doc, {
-      head: tableHeaders,
-      body: tableRows,
-      startY: 46,
-      theme: 'grid',
-      headStyles: {
-        fillColor: tx.transactionType === 'IN' ? [16, 185, 129] : [225, 29, 72],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        fontSize: 8
-      },
-      styles: {
-        fontSize: 8,
-        cellPadding: 2
-      },
-      columnStyles: {
-        0: { cellWidth: 8, halign: 'center' },
-        7: { halign: 'center', fontStyle: 'bold' },
-        8: { halign: 'center' }
+      doc.setFont("helvetica", "bold");
+      doc.text("Action Type:", 14, 49);
+      doc.setFont("helvetica", "bold");
+      if (tx.transactionType === 'IN') {
+        doc.setTextColor(16, 185, 129);
+      } else {
+        doc.setTextColor(225, 29, 72);
       }
-    });
+      doc.text(`STOCK ${tx.transactionType === 'IN' ? 'IN (Addition)' : 'OUT (Deduction)'}`, 48, 49);
 
-    const finalY = doc.lastAutoTable.finalY + 16;
-    doc.setFontSize(9);
-    doc.text('Prepared By: __________________________', 14, finalY);
-    doc.text('Verified By: __________________________', 120, finalY);
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text(tx.transactionType === 'IN' ? "Prepared By:" : "Personnel:", 120, 49);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${tx.transactorName || tx.name || tx.preparedBy || 'System User'}`, 155, 49);
 
-    doc.save(`${tx.transactionNo || 'Consumable_Slip'}.pdf`);
+      const tableColumns = ["Segment", "Item Description", "Dimension", "Qty", "Remarks"];
+      const tableRows = (tx.items || []).map(it => {
+        const desc = it.ItemDescription || it.consumableId?.ItemDescription || '—';
+        const code = it.Code || it.consumableId?.Code || '';
+        const descWithCode = code ? `${desc} (${code})` : desc;
+        const segment = it.Segment || it.consumableId?.Segment || '—';
+        const dimension = it.Dimension || it.consumableId?.Dimension || '—';
+        const qtyStr = `${it.qty || 1} ${it.UOM || 'pcs'}`;
+        const remarks = it.remarks || (it.Brand ? `Brand: ${it.Brand}` : '—');
+        return [segment, descWithCode, dimension, qtyStr, remarks];
+      });
+
+      autoTable(doc, {
+        startY: 58,
+        head: [tableColumns],
+        body: tableRows,
+        theme: 'grid',
+        didDrawPage: (data) => {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.06 }));
+          const logoWidth = 80;
+          const logoHeight = 80;
+          const logoX = centerX - (logoWidth / 2);
+          const logoY = centerY - (logoHeight / 2);
+          doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
+          doc.restoreGraphicsState();
+
+          doc.setFillColor(24, 23, 78);
+          doc.rect(0, 0, pageWidth, 30, 'F');
+
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(14);
+          doc.text(`CONSUMABLE & PPE TRANSACTION SLIP (${tx.transactionType})`, centerX, 13, { align: 'center' });
+
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(200, 200, 220);
+          doc.text(`Operations Supplies & Consumables Control Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(120, 120, 120);
+          doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10);
+
+          const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
+          doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
+        },
+        headStyles: {
+          fillColor: tx.transactionType === 'IN' ? [16, 185, 129] : [32, 31, 85],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8.5,
+          valign: 'middle'
+        },
+        bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
+        alternateRowStyles: { fillColor: [248, 249, 250] },
+        columnStyles: {
+          0: { cellWidth: 28, halign: 'center' },
+          1: { cellWidth: 55 },
+          2: { cellWidth: 30, halign: 'center' },
+          3: { cellWidth: 28, halign: 'center', fontStyle: 'bold' },
+          4: { cellWidth: 41 }
+        },
+        styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 }
+      });
+
+      doc.save(`CONSUMABLE_SLIP_${tx.transactionNo || 'Record'}.pdf`);
+      showSuccessToast("PDF Slip downloaded successfully.");
+    } catch (e) {
+      console.error(e);
+      showErrorToast("Something went wrong while downloading the PDF.");
+    }
   };
 
   return (
@@ -1359,7 +1411,7 @@ function Consumable() {
         >
           <div
             className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
-              } border rounded-2xl w-full max-w-2xl p-6 shadow-xl relative flex flex-col gap-4`}
+              } border rounded-2xl w-full max-w-3xl p-6 shadow-xl relative flex flex-col gap-4`}
           >
             <div
               className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'
@@ -1373,6 +1425,7 @@ function Consumable() {
                   type="button"
                   onClick={() => handleDownloadPDF(selectedTransaction)}
                   className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                  title={`Download PDF for ${selectedTransaction.transactionNo}`}
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download PDF</span>
@@ -1384,6 +1437,7 @@ function Consumable() {
                     ? 'text-slate-400 hover:text-white hover:bg-slate-800'
                     : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                     } p-1 rounded-lg cursor-pointer transition-colors`}
+                  title="Close"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1422,82 +1476,106 @@ function Consumable() {
                   {selectedTransaction.transactionType === 'IN' ? 'Prepared Name' : 'Personnel Name'}
                 </span>
                 <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                  {selectedTransaction.name || 'System User'}
+                  {selectedTransaction.transactorName || selectedTransaction.name || selectedTransaction.preparedBy || 'System User'}
                 </span>
               </div>
 
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Date</span>
                 <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                  {selectedTransaction.date}
+                  {selectedTransaction.date || (selectedTransaction.transactionDate ? new Date(selectedTransaction.transactionDate).toLocaleDateString() : '-')}
                 </span>
               </div>
 
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Time</span>
                 <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                  {selectedTransaction.time}
+                  {selectedTransaction.time || '-'}
                 </span>
               </div>
 
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Total Quantity</span>
                 <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                  {(selectedTransaction.items || []).reduce((sum, it) => sum + Number(it.qty), 0)} units
+                  {(selectedTransaction.items || []).reduce((sum, it) => sum + Number(it.qty || 1), 0)} units
                 </span>
               </div>
             </div>
 
-            <div
-              className={`max-h-64 overflow-y-auto border ${isDark ? 'border-slate-800' : 'border-slate-200/60'
-                } rounded-xl relative shadow-sm`}
-            >
-              <table className="w-full text-left text-xs border-collapse">
-                <thead
-                  className={`sticky top-0 z-10 ${selectedTransaction.transactionType === 'IN'
-                    ? isDark
-                      ? 'bg-[#0f111d]'
-                      : 'bg-emerald-700'
-                    : isDark
-                      ? 'bg-[#180a0e]'
-                      : 'bg-rose-700'
-                    } text-white text-[11px] font-bold uppercase tracking-wide`}
-                >
-                  <tr>
-                    <th className="p-3">Item Description</th>
-                    <th className="p-3 text-center">Segment</th>
-                    <th className="p-3 text-center">Dimension</th>
-                    <th className="p-3 text-center">Brand</th>
-                    <th className="p-3 text-center">Serial No.</th>
-                    <th className="p-3 text-center w-24">QTY</th>
-                    <th className="p-3">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
-                  {selectedTransaction.items?.map((it, idx) => (
-                    <tr
-                      key={it._id || idx}
-                      className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}
-                    >
-                      <td className="p-3 font-semibold min-w-[200px] whitespace-normal break-words">
-                        <div>{it.ItemDescription || it.consumableId?.ItemDescription || '—'}</div>
-                        <div className="font-mono text-[10px] text-slate-400">
-                          {it.Code || it.consumableId?.Code || '—'}
-                        </div>
-                      </td>
-                      <td className="p-3 text-center text-slate-400">{it.Segment || '—'}</td>
-                      <td className="p-3 text-center text-slate-400 font-mono">{it.Dimension || '—'}</td>
-                      <td className="p-3 text-center text-slate-400">{it.Brand || '—'}</td>
-                      <td className="p-3 text-center text-slate-400 font-mono">{it.SerialNo || '—'}</td>
-                      <td className="p-3 text-center font-bold font-mono">
-                        {it.qty} {it.UOM}
-                      </td>
-                      <td className="p-3 text-slate-400 italic">{it.remarks || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {(() => {
+              const txItems = selectedTransaction.items || [];
+              const modalIndexOfLastRow = modalPage * modalRowsPerPage;
+              const modalIndexOfFirstRow = modalIndexOfLastRow - modalRowsPerPage;
+              const paginatedTxItems = txItems.slice(modalIndexOfFirstRow, modalIndexOfLastRow);
+
+              return (
+                <div className={`border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm overflow-hidden flex flex-col`}>
+                  <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                    <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+                      <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700 text-white'} text-[11px] font-bold uppercase whitespace-nowrap`}>
+                        <tr>
+                          <th className="p-3 text-left">Segment</th>
+                          <th className="p-3 text-left">Item Description</th>
+                          <th className="p-3 text-left">Dimension</th>
+                          <th className="p-3 text-center">Qty</th>
+                          <th className="p-3 text-left pl-4">Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
+                        {paginatedTxItems.map((it, idx) => {
+                          const desc = it.ItemDescription || it.consumableId?.ItemDescription || '—';
+                          const code = it.Code || it.consumableId?.Code;
+                          const segment = it.Segment || it.consumableId?.Segment || '—';
+                          const dimension = it.Dimension || it.consumableId?.Dimension || '—';
+                          const uom = it.UOM || it.consumableId?.UOM || 'pcs';
+
+                          return (
+                            <tr
+                              key={it._id || idx}
+                              className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}
+                            >
+                              <td className={`p-3 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap align-middle`}>
+                                {segment}
+                              </td>
+                              <td className={`p-3 font-bold ${isDark ? 'text-white' : 'text-[#18174e]'} text-xs min-w-[200px] whitespace-normal break-words align-middle`} title={desc}>
+                                <div>{desc}</div>
+                                {code && <div className="font-mono text-[10px] text-slate-400">{code}</div>}
+                              </td>
+                              <td className={`p-3 ${isDark ? 'text-slate-400' : 'text-slate-600'} font-medium whitespace-nowrap align-middle`}>
+                                {dimension}
+                              </td>
+                              <td className="p-3 text-center font-bold font-mono text-emerald-400 align-middle whitespace-nowrap">
+                                {it.qty} {uom}
+                              </td>
+                              <td className={`p-3 italic ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium text-[11px] min-w-[120px] whitespace-normal break-words align-middle pl-4`}>
+                                {it.remarks || (it.Brand ? `Brand: ${it.Brand}` : '—')}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {txItems.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="p-4 text-center text-slate-400 italic">
+                              No consumable items recorded.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <TablePagination
+                    currentPage={modalPage}
+                    setCurrentPage={setModalPage}
+                    rowsPerPage={modalRowsPerPage}
+                    setRowsPerPage={setModalRowsPerPage}
+                    totalRows={txItems.length}
+                    options={[5, 10, 20, 50, 100]}
+                  />
+                </div>
+              );
+            })()}
+
           </div>
         </div>
       )}

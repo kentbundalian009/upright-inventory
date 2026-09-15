@@ -21,6 +21,12 @@ function InventorySuppliesMovements() {
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalPage, setModalPage] = useState(1);
+  const [modalRowsPerPage, setModalRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    setModalPage(1);
+  }, [selectedSlip, isModalOpen]);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [historyFilterType, setHistoryFilterType] = useState('All');
@@ -454,15 +460,15 @@ function InventorySuppliesMovements() {
       const slipPersonnel = targetSlip.partyName || 'N/A';
       const slipPurpose = targetSlip.purpose || targetSlip.originAddress || 'Production';
 
-      const tableColumns = ["Date Borrow", "Time", "Personnel", "Supplies", "Reason", "Quantity"];
-      const tableRows = targetSlip.items?.map(it => [
-        slipDate,
-        slipTime,
-        slipPersonnel,
-        `${it.supplyId?.ItemDescription || '-'}\n(${it.supplyId?.Code || 'N/A'})`,
-        it.remarks || slipPurpose,
-        `${it.qty} ${it.supplyId?.UOM || 'pcs'}`
-      ]) || [];
+      const tableColumns = ["Segment", "Item Description", "Dimension", "Qty", "Remarks"];
+      const tableRows = targetSlip.items?.map(it => {
+        const seg = it.supplyId?.Segment || it.supplyId?.segment || it.supplyId?.Category || it.supplyId?.category || 'Equipment';
+        const desc = `${it.supplyId?.ItemDescription || '-'}\n(${it.supplyId?.Code || 'N/A'})`;
+        const dim = it.supplyId?.Dimension || it.supplyId?.Dimensions || it.supplyId?.Model || '—';
+        const qty = `${it.qty} ${it.supplyId?.UOM || 'pcs'}`;
+        const rem = it.remarks || targetSlip.purpose || targetSlip.originAddress || '—';
+        return [seg, desc, dim, qty, rem];
+      }) || [];
 
       autoTable(doc, {
         startY: 72,
@@ -505,12 +511,11 @@ function InventorySuppliesMovements() {
         alternateRowStyles: { fillColor: [248, 249, 250] },
         styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 },
         columnStyles: {
-          0: { cellWidth: 26, halign: 'center' },
-          1: { cellWidth: 24, halign: 'center' },
-          2: { cellWidth: 35 },
-          3: { cellWidth: 50 },
-          4: { cellWidth: 35 },
-          5: { cellWidth: 20, halign: 'center' }
+          0: { cellWidth: 30, halign: 'center' },
+          1: { cellWidth: 55 },
+          2: { cellWidth: 35, halign: 'center' },
+          3: { cellWidth: 25, halign: 'center' },
+          4: { cellWidth: 35 }
         }
       });
 
@@ -1446,8 +1451,8 @@ function InventorySuppliesMovements() {
       </div>
 
       {isModalOpen && selectedSlip && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`border rounded-2xl w-full max-w-2xl p-6 shadow-2xl relative flex flex-col gap-4 ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+          <div className={`border rounded-2xl w-full max-w-3xl p-6 shadow-2xl relative flex flex-col gap-4 max-h-[90vh] overflow-y-auto ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
             }`}>
 
             <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
@@ -1456,13 +1461,15 @@ function InventorySuppliesMovements() {
               </h3>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleDownloadPDF}
+                  type="button"
+                  onClick={() => handleDownloadPDF(selectedSlip)}
                   className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Download PDF
                 </button>
                 <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
                   className={`p-1 rounded-lg cursor-pointer transition-colors ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                     }`}
@@ -1483,56 +1490,89 @@ function InventorySuppliesMovements() {
               <div><span className="font-semibold text-slate-500">Prepared By:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.preparedBy || preparedBy}</span></div>
             </div>
 
-            <div className={`max-h-64 overflow-y-auto border rounded-xl relative shadow-sm ${isDark ? 'border-slate-800 bg-[#0c0e14]' : 'border-slate-200/60 bg-white'
-              }`}>
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className={`sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wide ${isDark ? 'bg-[#0f111d] text-slate-200' : 'bg-[#18174e] text-white'
-                  }`}>
-                  <tr>
-                    <th className="p-3 text-center whitespace-nowrap w-24">Date Borrow</th>
-                    <th className="p-3 text-center whitespace-nowrap w-20">Time</th>
-                    <th className="p-3 whitespace-nowrap">Personnel</th>
-                    <th className="p-3 min-w-[160px]">Supplies</th>
-                    <th className="p-3 min-w-[130px]">Reason</th>
-                    <th className="p-3 text-center whitespace-nowrap w-24">Quantity</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10] text-slate-300' : 'divide-slate-100 bg-white text-slate-700'}`}>
-                  {selectedSlip.items?.map((it, idx) => (
-                    <tr key={it._id || idx} className={`transition-colors ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'}`}>
-                      <td className="p-3 text-center font-mono whitespace-nowrap">
-                        {selectedSlip.transactionDate ? new Date(selectedSlip.transactionDate).toLocaleDateString() : '-'}
-                      </td>
-                      <td className="p-3 text-center font-mono whitespace-nowrap">
-                        {selectedSlip.transactionTime || '-'}
-                      </td>
-                      <td className="p-3 font-semibold whitespace-nowrap">
-                        {selectedSlip.partyName || 'N/A'}
-                      </td>
-                      <td className="p-3 align-middle">
-                        <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'} whitespace-normal break-words`} title={it.supplyId?.ItemDescription}>
-                          {it.supplyId?.ItemDescription || '-'}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          {it.supplyId?.Code || ''}
-                        </div>
-                      </td>
-                      <td className="p-3 italic font-medium text-[11px] min-w-[120px] whitespace-normal break-words align-middle" title={it.remarks}>
-                        {it.remarks || selectedSlip.purpose || selectedSlip.originAddress || 'Production'}
-                      </td>
-                      <td className={`p-3 text-center align-middle font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                        {it.qty} {it.supplyId?.UOM || 'pcs'}
-                      </td>
-                    </tr>
-                  ))}
-                  {(!selectedSlip.items || selectedSlip.items.length === 0) && (
-                    <tr>
-                      <td colSpan="6" className="p-4 text-center text-slate-500 italic">No materials recorded.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            {(() => {
+              const slipItems = selectedSlip.items || [];
+              const totalItems = slipItems.length;
+              const totalPages = Math.ceil(totalItems / modalRowsPerPage) || 1;
+              const currentPage = Math.min(modalPage, totalPages);
+              const startIndex = (currentPage - 1) * modalRowsPerPage;
+              const paginatedItems = slipItems.slice(startIndex, startIndex + modalRowsPerPage);
+
+              return (
+                <div className="flex flex-col gap-2">
+                  <div className={`border rounded-xl relative shadow-sm overflow-hidden ${isDark ? 'border-slate-800 bg-[#0c0e14]' : 'border-slate-200/60 bg-white'
+                    }`}>
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className={`text-[11px] font-bold uppercase tracking-wide ${isDark ? 'bg-[#0f111d] text-slate-200' : 'bg-[#18174e] text-white'
+                        }`}>
+                        <tr>
+                          <th className="p-3 whitespace-nowrap">Segment</th>
+                          <th className="p-3 min-w-[200px]">Item Description</th>
+                          <th className="p-3 whitespace-nowrap">Dimension</th>
+                          <th className="p-3 text-center whitespace-nowrap">Qty</th>
+                          <th className="p-3 min-w-[140px]">Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10] text-slate-300' : 'divide-slate-100 bg-white text-slate-700'}`}>
+                        {paginatedItems.map((it, idx) => {
+                          const segment = it.supplyId?.Segment || it.supplyId?.segment || it.supplyId?.Category || it.supplyId?.category || 'Equipment';
+                          const description = it.supplyId?.ItemDescription || '-';
+                          const code = it.supplyId?.Code || '';
+                          const dimension = it.supplyId?.Dimension || it.supplyId?.Dimensions || it.supplyId?.Model || '—';
+                          const qty = `${it.qty} ${it.supplyId?.UOM || 'pcs'}`;
+                          const remarks = it.remarks || selectedSlip.purpose || selectedSlip.originAddress || '—';
+
+                          return (
+                            <tr key={it._id || idx} className={`transition-colors ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'}`}>
+                              <td className="p-3 align-middle whitespace-nowrap font-medium text-slate-400">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
+                                  {segment}
+                                </span>
+                              </td>
+                              <td className="p-3 align-middle">
+                                <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'} whitespace-normal break-words`} title={description}>
+                                  {description}
+                                </div>
+                                {code && (
+                                  <div className="text-[10px] text-slate-400 font-mono">
+                                    ({code})
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-3 align-middle whitespace-nowrap">
+                                <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded border ${isDark ? 'bg-amber-950/40 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                                  {dimension}
+                                </span>
+                              </td>
+                              <td className="p-3 text-center align-middle font-bold whitespace-nowrap">
+                                {qty}
+                              </td>
+                              <td className="p-3 align-middle italic text-[11px] text-slate-400 whitespace-normal break-words">
+                                {remarks}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {slipItems.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="p-4 text-center text-slate-500 italic">No materials recorded.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <TablePagination
+                    currentPage={modalPage}
+                    setCurrentPage={setModalPage}
+                    rowsPerPage={modalRowsPerPage}
+                    setRowsPerPage={setModalRowsPerPage}
+                    totalRows={slipItems.length}
+                    options={[5, 10, 20, 50, 100]}
+                  />
+                </div>
+              );
+            })()}
 
           </div>
         </div>

@@ -4,6 +4,7 @@ import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
+import TablePagination from './TablePagination';
 import { useTheme } from '../context/ThemeContext';
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
@@ -26,8 +27,14 @@ function InventoryWIP() {
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
   const [selectedConversion, setSelectedConversion] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalPage, setModalPage] = useState(1);
+  const [modalRowsPerPage, setModalRowsPerPage] = useState(10);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setModalPage(1);
+  }, [selectedConversion, isModalOpen]);
 
   // WIP / Conversion Form States
   const [productionType, setProductionType] = useState('Fabricated');
@@ -247,8 +254,9 @@ function InventoryWIP() {
   };
 
   // --- PDF REPORT GENERATION ---
-  const handleDownloadPDF = () => {
-    if (!selectedConversion) return;
+  const handleDownloadPDF = (conversionRecord = null) => {
+    const targetRec = conversionRecord || selectedConversion;
+    if (!targetRec) return;
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
       const pageWidth = 210;
@@ -266,78 +274,65 @@ function InventoryWIP() {
 
       doc.text("Conversion No:", 14, 42);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedConversion.conversionNo}`, 45, 42);
+      doc.text(`${targetRec.conversionNo}`, 48, 42);
       doc.setFont("helvetica", "bold");
       doc.text("Date Processed:", 120, 42);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedConversion.dateProcessed ? new Date(selectedConversion.dateProcessed).toLocaleDateString() : '-'}`, 155, 42);
+      doc.text(`${targetRec.dateProcessed ? new Date(targetRec.dateProcessed).toLocaleDateString() : '-'}`, 155, 42);
 
       doc.setFont("helvetica", "bold");
       doc.text("Process Mode:", 14, 49);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(37, 99, 235);
-      doc.text(`${selectedConversion.productionType || 'Fabricated'}`, 45, 49);
+      doc.text(`${targetRec.productionType || 'Fabricated'}`, 48, 49);
 
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
       doc.text("Prepared By:", 120, 49);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedConversion.preparedBy || preparedBy}`, 155, 49);
+      doc.text(`${targetRec.preparedBy || preparedBy}`, 155, 49);
 
       doc.setFont("helvetica", "bold");
       doc.text("Customer:", 14, 56);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedConversion.customer || selectedConversion.remarks || "No customer recorded."}`, 45, 56);
+      doc.text(`${targetRec.customer || targetRec.remarks || "No customer recorded."}`, 48, 56);
 
-      const tableColumns = ["Flow Direction", "Description", "Segment", "Dimension", "Quantity Shift", "UOM"];
+      const tableColumns = ["Segment", "Item Description", "Dimension", "Qty", "Remarks"];
       const tableRows = [];
 
-      selectedConversion.inputs?.forEach(it => {
+      targetRec.inputs?.forEach(it => {
         const targetId = it.materialId?._id || it.materialId;
         const fullMat = dbMaterials?.find(m => m._id === targetId);
 
         const descOnly = fullMat?.ItemDescription || it.materialId?.ItemDescription || "-";
-
-        const segment = fullMat?.Segment || fullMat?.segment ||
-          it.materialId?.Segment || it.materialId?.segment || "N/A";
-
-        const dimension = fullMat?.Dimension || fullMat?.dimension ||
-          fullMat?.Dimensions || fullMat?.dimensions ||
-          it.materialId?.Dimension || it.materialId?.dimension ||
-          it.materialId?.Dimensions || it.materialId?.dimensions || "N/A";
+        const segment = fullMat?.Segment || fullMat?.segment || it.materialId?.Segment || it.materialId?.segment || "N/A";
+        const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.materialId?.Dimension || it.materialId?.dimension || "N/A";
+        const uom = fullMat?.UOM || it.materialId?.UOM || '';
 
         tableRows.push([
-          "INPUT (Deducted)",
-          descOnly,
           segment,
+          `${descOnly} (Input)`,
           dimension,
-          `-${it.qtyUsed}`,
-          `${it.materialId?.UOM || ''}`
+          `-${it.qtyUsed} ${uom}`,
+          "Raw Material Input (Deducted)"
         ]);
       });
 
-      selectedConversion.outputs?.forEach(it => {
+      targetRec.outputs?.forEach(it => {
         const targetId = it.itemId?._id || it.itemId;
         const fullMat = dbMaterials?.find(m => m._id === targetId);
 
-        const typeLabel = it.itemType === 'RawMaterial' ? ' [Raw Mat]' : ' [Product]';
-        const descOnly = `${fullMat?.ItemDescription || it.itemId?.ItemDescription || "-"}${typeLabel}`;
-
-        const segment = fullMat?.Segment || fullMat?.segment ||
-          it.itemId?.Segment || it.itemId?.segment || "N/A";
-
-        const dimension = fullMat?.Dimension || fullMat?.dimension ||
-          fullMat?.Dimensions || fullMat?.dimensions ||
-          it.itemId?.Dimension || it.itemId?.dimension ||
-          it.itemId?.Dimensions || it.itemId?.dimensions || "N/A";
+        const descOnly = `${fullMat?.ItemDescription || it.itemId?.ItemDescription || "-"}`;
+        const segment = fullMat?.Segment || fullMat?.segment || it.itemId?.Segment || it.itemId?.segment || "N/A";
+        const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.itemId?.Dimension || it.itemId?.dimension || "N/A";
+        const uom = fullMat?.UOM || it.itemId?.UOM || '';
 
         tableRows.push([
-          `OUTPUT (${it.itemType})`,
-          descOnly,
           segment,
+          `${descOnly} (Output)`,
           dimension,
-          `+${it.qtyProduced}`,
-          `${it.itemId?.UOM || ''}`
+          `+${it.qtyProduced} ${uom}`,
+          "Yield Conversion Output"
         ]);
       });
 
@@ -378,16 +373,10 @@ function InventoryWIP() {
           const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
           doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
         },
-
-        headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, valign: 'middle' },
+        headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5, valign: 'middle' },
         bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
         alternateRowStyles: { fillColor: [248, 249, 250] },
-        styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 },
         columnStyles: {
-          0: { cellWidth: 32, fontStyle: 'bold' },
-          1: { cellWidth: 50 },
-          2: { cellWidth: 22, halign: 'center' },
-          3: { cellWidth: 22, halign: 'center' },
           4: { cellWidth: 30, halign: 'center', fontStyle: 'bold' },
           5: { cellWidth: 26, halign: 'center' }
         },
@@ -1047,10 +1036,10 @@ function InventoryWIP() {
                   className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
                 >
                   <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
-                    <span className={`text-xs font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} truncate max-w-[150px]`}>
+                    <span className={`text-[9px] font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1 truncate max-w-[110px]`}>
                       {rec.conversionNo}
                     </span>
-                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md border ${isDark ? 'bg-blue-950/60 text-blue-300 border-blue-800' : 'bg-blue-50 text-blue-600 border-blue-200'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 font-bold rounded-md border ${isDark ? 'bg-blue-950/60 text-blue-300 border-blue-800' : 'bg-blue-50 text-blue-600 border-blue-200'}`}>
                       {rec.productionType}
                     </span>
                   </div>
@@ -1082,15 +1071,18 @@ function InventoryWIP() {
               </h3>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleDownloadPDF}
+                  type="button"
+                  onClick={() => handleDownloadPDF(selectedConversion)}
                   className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                  title={`Download PDF for ${selectedConversion.conversionNo}`}
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Download PDF
+                  <span>Download PDF</span>
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer transition-colors`}
+                  title="Close"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1101,91 +1093,96 @@ function InventoryWIP() {
               <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Control Tracking No:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.conversionNo}</span></div>
               <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Execution Date:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.dateProcessed ? new Date(selectedConversion.dateProcessed).toLocaleDateString() : '-'}</span></div>
               <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Production Type:</span> <span className={`font-bold ${isDark ? 'text-blue-400 bg-blue-950/60 border-blue-800' : 'text-blue-600 bg-blue-50 border-blue-100'} uppercase text-xs px-2 py-0.5 rounded-md border inline-block`}>{selectedConversion.productionType}</span></div>
-              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Prepared By:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.preparedBy || 'N/A'}</span></div>
-              <div className="col-span-2"><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Customer:</span> <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{selectedConversion.customer || selectedConversion.remarks || 'N/A'}</span></div>
+              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Prepared By:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.preparedBy || preparedBy}</span></div>
+              <div className="col-span-2"><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Customer:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.customer || selectedConversion.remarks || 'N/A'}</span></div>
             </div>
 
-            <div className={`max-h-80 overflow-y-auto border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm flex flex-col overflow-x-auto`}>
+            {(() => {
+              const allWipItems = [
+                ...(selectedConversion.inputs || []).map(it => ({ ...it, isInput: true })),
+                ...(selectedConversion.outputs || []).map(it => ({ ...it, isInput: false }))
+              ];
+              const modalIndexOfLastRow = modalPage * modalRowsPerPage;
+              const modalIndexOfFirstRow = modalIndexOfLastRow - modalRowsPerPage;
+              const paginatedWipItems = allWipItems.slice(modalIndexOfFirstRow, modalIndexOfLastRow);
 
-              <div className={`p-2.5 ${isDark ? 'bg-[#2a131a] text-rose-300 border-slate-800' : 'bg-red-700 text-[#ffffff] border-slate-200'} text-[11px] font-bold sticky top-0 z-10 border-b uppercase tracking-wide`}>
-                Allocated Raw Material Inputs
-              </div>
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className={`${isDark ? 'bg-[#141622] text-slate-300 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} font-bold border-b text-[11px]`}>
-                    <th className="p-2">Segment</th>
-                    <th className="p-2">Item Description</th>
-                    <th className="p-2">Dimension</th>
-                    <th className="p-2 text-right">Qty Used</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
-                  {selectedConversion.inputs?.map((it, idx) => {
-                    const targetId = it.materialId?._id || it.materialId;
-                    const fullMat = dbMaterials?.find(m => m._id === targetId);
+              return (
+                <div className={`border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm overflow-hidden flex flex-col`}>
+                  <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                    <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+                      <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700 text-white'} text-[11px] font-bold uppercase whitespace-nowrap`}>
+                        <tr>
+                          <th className="p-3 text-left">Segment</th>
+                          <th className="p-3 text-left">Item Description</th>
+                          <th className="p-3 text-left">Dimension</th>
+                          <th className="p-3 text-center">Qty</th>
+                          <th className="p-3 text-left pl-4">Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
+                        {paginatedWipItems.map((it, idx) => {
+                          const targetId = it.isInput ? (it.materialId?._id || it.materialId) : (it.itemId?._id || it.itemId);
+                          const fullMat = dbMaterials?.find(m => m._id === targetId);
 
-                    const segment = fullMat?.Segment || fullMat?.segment || it.materialId?.Segment || it.materialId?.segment || 'N/A';
-                    const desc = fullMat?.ItemDescription || it.materialId?.ItemDescription || '-';
-                    const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.materialId?.Dimension || it.materialId?.dimension || 'N/A';
-                    const uom = fullMat?.UOM || it.materialId?.UOM || '';
+                          const segment = fullMat?.Segment || fullMat?.segment ||
+                            (it.isInput ? it.materialId?.Segment || it.materialId?.segment : it.itemId?.Segment || it.itemId?.segment) || "N/A";
 
-                    return (
-                      <tr key={`in-${idx}`} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
-                        <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{segment}</td>
-                        <td className={`p-2.5 ${isDark ? 'text-slate-200' : 'text-slate-700'} font-medium min-w-[200px] whitespace-normal break-words`} title={desc}>{desc}</td>
-                        <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'} font-mono text-[11px]`}>{dimension}</td>
-                        <td className="p-2.5 text-right font-bold text-rose-500">-{it.qtyUsed} {uom}</td>
-                      </tr>
-                    );
-                  })}
-                  {(!selectedConversion.inputs || selectedConversion.inputs.length === 0) && (
-                    <tr>
-                      <td colSpan="4" className="p-4 text-center text-slate-400 italic">No inputs recorded.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                          const desc = fullMat?.ItemDescription ||
+                            (it.isInput ? it.materialId?.ItemDescription : it.itemId?.ItemDescription) || "-";
 
-              <div className={`p-2.5 ${isDark ? 'bg-[#122b20] text-emerald-300 border-slate-800' : 'bg-emerald-700 text-[#ffffff] border-emerald-100'} text-[11px] font-bold sticky top-[33px] z-10 border-t border-b uppercase tracking-wide`}>
-                Yield Conversion Outputs
-              </div>
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className={`${isDark ? 'bg-[#141622] text-slate-300 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} font-bold border-b text-[11px]`}>
-                    <th className="p-2">Segment</th>
-                    <th className="p-2">Item Description</th>
-                    <th className="p-2">Dimension</th>
-                    <th className="p-2 text-right">Qty Produced</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
-                  {selectedConversion.outputs?.map((it, idx) => {
-                    const targetId = it.itemId?._id || it.itemId;
-                    const fullMat = dbMaterials?.find(m => m._id === targetId);
+                          const dimension = fullMat?.Dimension || fullMat?.dimension ||
+                            fullMat?.Dimensions || fullMat?.dimensions ||
+                            (it.isInput ? (it.materialId?.Dimension || it.materialId?.dimension) : (it.itemId?.Dimension || it.itemId?.dimension)) || "N/A";
 
-                    const segment = fullMat?.Segment || fullMat?.segment || it.itemId?.Segment || it.itemId?.segment || 'N/A';
-                    const desc = fullMat?.ItemDescription || it.itemId?.ItemDescription || '-';
-                    const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.itemId?.Dimension || it.itemId?.dimension || 'N/A';
-                    const uom = fullMat?.UOM || it.itemId?.UOM || '';
+                          const uom = fullMat?.UOM || (it.isInput ? it.materialId?.UOM : it.itemId?.UOM) || '';
 
-                    return (
-                      <tr key={`out-${idx}`} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
-                        <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{segment}</td>
-                        <td className={`p-2.5 ${isDark ? 'text-slate-200' : 'text-slate-700'} font-medium min-w-[200px] whitespace-normal break-words`} title={desc}>{desc}</td>
-                        <td className={`p-2.5 ${isDark ? 'text-slate-400' : 'text-slate-500'} font-mono text-[11px]`}>{dimension}</td>
-                        <td className="p-2.5 text-right font-bold text-emerald-400">+{it.qtyProduced} {uom}</td>
-                      </tr>
-                    );
-                  })}
-                  {(!selectedConversion.outputs || selectedConversion.outputs.length === 0) && (
-                    <tr>
-                      <td colSpan="4" className="p-4 text-center text-slate-400 italic">No outputs recorded.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                          return (
+                            <tr key={idx} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
+                              <td className={`p-3 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap align-middle`}>
+                                {segment}
+                              </td>
+                              <td className={`p-3 font-bold ${isDark ? 'text-white' : 'text-[#18174e]'} text-xs min-w-[200px] whitespace-normal break-words align-middle`} title={desc}>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span>{desc}</span>
+                                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${it.isInput ? 'bg-rose-950/40 text-rose-300 border border-rose-800' : 'bg-emerald-950/40 text-emerald-300 border border-emerald-800'}`}>
+                                    {it.isInput ? 'Input' : 'Output'}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className={`p-3 ${isDark ? 'text-slate-400' : 'text-slate-600'} font-medium whitespace-nowrap align-middle`}>
+                                {dimension}
+                              </td>
+                              <td className={`p-3 text-center font-bold align-middle whitespace-nowrap ${it.isInput ? 'text-rose-500' : 'text-emerald-400'}`}>
+                                {it.isInput ? `-${it.qtyUsed}` : `+${it.qtyProduced}`} {uom}
+                              </td>
+                              <td className={`p-3 italic ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium text-[11px] min-w-[120px] whitespace-normal break-words align-middle pl-4`}>
+                                {it.isInput ? 'Raw Material Input (Deducted)' : 'Yield Conversion Output'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {allWipItems.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="p-4 text-center text-slate-400 italic">
+                              No items recorded for this conversion.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
 
-            </div>
+                  <TablePagination
+                    currentPage={modalPage}
+                    setCurrentPage={setModalPage}
+                    rowsPerPage={modalRowsPerPage}
+                    setRowsPerPage={setModalRowsPerPage}
+                    totalRows={allWipItems.length}
+                    options={[5, 10, 20, 50, 100]}
+                  />
+                </div>
+              );
+            })()}
 
           </div>
         </div>

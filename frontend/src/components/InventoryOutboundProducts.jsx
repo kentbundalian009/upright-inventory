@@ -383,8 +383,9 @@ function InventoryOutboundProducts() {
     }
   };
 
-  const handleDownloadPDF = () => {
-    if (!selectedSlip) return;
+  const handleDownloadPDF = (slipRecord = null) => {
+    const targetSlip = slipRecord || selectedSlip;
+    if (!targetSlip) return;
     try {
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
       const pageWidth = 210;
@@ -396,48 +397,63 @@ function InventoryOutboundProducts() {
         hour: '2-digit', minute: '2-digit'
       });
 
+      const isReserve = targetSlip.transactionType?.toLowerCase() === 'reserve';
+
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
 
-      doc.text("Slip Number:", 14, 42);
+      doc.text(isReserve ? "Reservation No.:" : "Slip Number:", 14, 42);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedSlip.plNo}`, 45, 42);
+      doc.text(`${targetSlip.plNo}`, 48, 42);
       doc.setFont("helvetica", "bold");
-      doc.text("Date Logged:", 120, 42);
+      doc.text(isReserve ? "Date Reserved:" : "Date Logged:", 120, 42);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedSlip.shipmentDate ? new Date(selectedSlip.shipmentDate).toLocaleDateString() : '-'}`, 155, 42);
+      doc.text(`${targetSlip.shipmentDate ? new Date(targetSlip.shipmentDate).toLocaleDateString() : '-'}`, 155, 42);
 
       doc.setFont("helvetica", "bold");
       doc.text("Action Type:", 14, 49);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(79, 70, 229);
-      doc.text(`${selectedSlip.transactionType}`, 45, 49);
+      if (isReserve) {
+        doc.setTextColor(217, 119, 6);
+      } else {
+        doc.setTextColor(79, 70, 229);
+      }
+      doc.text(`${targetSlip.transactionType}`, 48, 49);
 
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
       doc.text("Prepared By:", 120, 49);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedSlip.preparedBy || preparedBy}`, 155, 49);
+      doc.text(`${targetSlip.preparedBy || preparedBy}`, 155, 49);
 
       doc.setFont("helvetica", "bold");
       doc.text("Customer Name:", 14, 56);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedSlip.customer || 'N/A'}`, 45, 56);
+      doc.text(`${targetSlip.customer || 'N/A'}`, 48, 56);
 
       doc.setFont("helvetica", "bold");
-      doc.text("Logistics / Carrier:", 120, 56);
+      doc.text(isReserve ? "Logistics / Rack:" : "Logistics / Carrier:", 120, 56);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedSlip.carrier || 'N/A'}`, 155, 56);
+      doc.text(`${targetSlip.carrier || 'N/A'}`, 155, 56);
 
       doc.setFont("helvetica", "bold");
       doc.text("Destination:", 14, 63);
       doc.setFont("helvetica", "normal");
-      doc.text(`${selectedSlip.destinationAddress || 'N/A'}`, 45, 63);
+      doc.text(`${targetSlip.destinationAddress || 'N/A'}`, 48, 63);
 
-      const tableColumns = ["Description", "Segment", "Dimension", "Requested QTY", "Shipped QTY Count", "Item Remarks"];
+      if (targetSlip.referencePlNo) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Linked Reference:", 120, 63);
+        doc.setFont("helvetica", "normal");
+        doc.text(`${targetSlip.referencePlNo}`, 155, 63);
+      }
 
-      const tableRows = selectedSlip.items?.map(it => {
+      const tableColumns = isReserve
+        ? ["Description", "Segment", "Dimension", "Reserved QTY", "Item Remarks"]
+        : ["Description", "Segment", "Dimension", "Requested QTY", "Shipped QTY Count", "Item Remarks"];
+
+      const tableRows = targetSlip.items?.map(it => {
         const targetMaterial = it.materialId || it.productId;
         const targetId = targetMaterial?._id || targetMaterial;
         const fullMat = dbRawMaterials?.find(m => m._id === targetId);
@@ -462,10 +478,15 @@ function InventoryOutboundProducts() {
         }
 
         const uom = fullMat?.UOM || targetMaterial?.UOM || '';
-        const qtyRequested = `${it.qtyRequested} ${uom}`;
-        const actualCountShipped = `${it.actualCountShipped} ${uom}`;
         const remarks = it.remarks || "-";
 
+        if (isReserve) {
+          const resQty = `${it.actualCountShipped || it.qtyRequested || 0} ${uom}`.trim();
+          return [descOnly, segment, dimension, resQty, remarks];
+        }
+
+        const qtyRequested = `${it.qtyRequested || 0} ${uom}`.trim();
+        const actualCountShipped = `${it.actualCountShipped || 0} ${uom}`.trim();
         return [descOnly, segment, dimension, qtyRequested, actualCountShipped, remarks];
       }) || [];
 
@@ -484,18 +505,34 @@ function InventoryOutboundProducts() {
           doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
           doc.restoreGraphicsState();
 
+          if (targetSlip.isVoided) {
+            doc.saveGraphicsState();
+            doc.setFontSize(36);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(220, 38, 38);
+            doc.setGState(new doc.GState({ opacity: 0.18 }));
+            doc.text("VOIDED TRANSACTION", centerX, centerY + 30, { align: 'center', angle: 30 });
+            doc.restoreGraphicsState();
+          }
+
           doc.setFillColor(24, 23, 78);
           doc.rect(0, 0, pageWidth, 30, 'F');
 
           doc.setTextColor(255, 255, 255);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(14);
-          doc.text(`MATERIAL OUTBOUND SLIP (${selectedSlip.transactionType.toUpperCase()})`, centerX, 13, { align: 'center' });
+          const bannerTitle = isReserve
+            ? "MATERIAL RESERVATION SLIP (PACKED RACK)"
+            : `MATERIAL OUTBOUND SLIP (${(targetSlip.transactionType || 'OUTBOUND').toUpperCase()})`;
+          doc.text(bannerTitle, centerX, 13, { align: 'center' });
 
           doc.setFontSize(8.5);
           doc.setFont("helvetica", "normal");
           doc.setTextColor(200, 200, 220);
-          doc.text(`Warehouse Logistics & Outbound Control Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
+          const bannerSubtitle = isReserve
+            ? `Warehouse Reservation & Allocation Registry  |  Generated: ${formattedDate}`
+            : `Warehouse Logistics & Outbound Control Registry  |  Generated: ${formattedDate}`;
+          doc.text(bannerSubtitle, centerX, 21, { align: 'center' });
 
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8);
@@ -506,7 +543,7 @@ function InventoryOutboundProducts() {
           doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
         },
         headStyles: {
-          fillColor: [32, 31, 85],
+          fillColor: isReserve ? [180, 83, 9] : [32, 31, 85],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
           fontSize: 8.5,
@@ -516,7 +553,13 @@ function InventoryOutboundProducts() {
         bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
         alternateRowStyles: { fillColor: [248, 249, 250] },
         styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 },
-        columnStyles: {
+        columnStyles: isReserve ? {
+          0: { cellWidth: 55 },
+          1: { cellWidth: 25, halign: 'center' },
+          2: { cellWidth: 25, halign: 'center' },
+          3: { cellWidth: 35, halign: 'center', fontStyle: 'bold' },
+          4: { cellWidth: 42 }
+        } : {
           0: { cellWidth: 50 },
           1: { cellWidth: 22, halign: 'center' },
           2: { cellWidth: 22, halign: 'center' },
@@ -526,8 +569,9 @@ function InventoryOutboundProducts() {
         }
       });
 
-      doc.save(`OUTBOUND_SLIP_${selectedSlip.plNo}.pdf`);
-      showSuccessToast("PDF Downloaded successfully!");
+      const filePrefix = isReserve ? 'RESERVATION_SLIP' : 'OUTBOUND_SLIP';
+      doc.save(`${filePrefix}_${targetSlip.plNo}.pdf`);
+      showSuccessToast(`${isReserve ? 'Reservation' : 'Outbound'} PDF downloaded successfully!`);
     } catch (e) {
       console.error(e);
       showErrorToast("Failed to download PDF slip configuration.");
@@ -1234,11 +1278,11 @@ function InventoryOutboundProducts() {
                   className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
                 >
                   <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
-                    <span className={`text-xs font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1 truncate max-w-[150px]`}>
+                    <span className={`text-[9px] font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1 truncate max-w-[110px]`}>
                       {rec.plNo}
                       {rec.isVoided && <span className="text-[8px] bg-rose-950/60 text-rose-300 border border-rose-800 px-1 py-0.5 rounded font-black uppercase">VOIDED</span>}
                     </span>
-                    <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md border ${rec.isVoided
+                    <span className={`text-[10px] px-1.5 py-0.5 font-bold rounded-md border ${rec.isVoided
                       ? 'bg-slate-800 text-slate-500 border-slate-700 line-through'
                       : rec.transactionType?.toLowerCase() === 'reserve'
                         ? (isDark ? 'bg-amber-950/60 text-amber-300 border-amber-800' : 'bg-amber-50 text-amber-600 border-amber-200')
@@ -1251,7 +1295,7 @@ function InventoryOutboundProducts() {
                   <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
                     <span>{rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString() : 'No Date'}</span>
                     <span className="font-bold text-slate-400 truncate max-w-[120px]">
-                      {rec.carrier ? `🚚 ${rec.carrier}` : `${rec.items?.length || 0} items`}
+                      {rec.carrier ? ` ${rec.carrier}` : `${rec.items?.length || 0} items`}
                     </span>
                   </div>
                 </div>
@@ -1387,6 +1431,15 @@ function InventoryOutboundProducts() {
                 {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? 'Reservation Slip' : 'Outbound No'}: {selectedSlip.plNo}
               </h3>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPDF(selectedSlip)}
+                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                  title={`Download PDF for ${selectedSlip.plNo}`}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download PDF</span>
+                </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer transition-colors`}

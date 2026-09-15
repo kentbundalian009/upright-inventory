@@ -4,6 +4,7 @@ import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
+import TablePagination from './TablePagination';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 
@@ -35,9 +36,15 @@ function InventoryInboundRawMat() {
 
   const [selectedPo, setSelectedPo] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalPage, setModalPage] = useState(1);
+  const [modalRowsPerPage, setModalRowsPerPage] = useState(10);
   const [isMatModalOpen, setIsMatModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setModalPage(1);
+  }, [selectedPo, isModalOpen]);
 
   // PO Form States
   const [transactionType, setTransactionType] = useState('Inbound');
@@ -847,34 +854,14 @@ function InventoryInboundRawMat() {
                   onClick={() => { setSelectedPo(rec); setIsModalOpen(true); }}
                   className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
                 >
-                  {/* Top Row: PO Number, Inbound Badge, and PDF Download Button */}
+                  {/* Top Row: PO Number and Inbound Badge */}
                   <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                      <span className={`text-xs font-black truncate max-w-[150px] ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'}`} title={rec.poNo}>
-                        {rec.poNo}
-                      </span>
-                      <span className={`text-[9px] px-1.5 py-0.5 font-bold rounded-md border shrink-0 ${isDark ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}>
-                        Inbound
-                      </span>
-                    </div>
-
-                    {/* Quick PDF Download Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownloadPDF(rec);
-                      }}
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer shrink-0 shadow-2xs ${
-                        isDark
-                          ? 'bg-rose-950/40 text-rose-300 border-rose-800/80 hover:bg-rose-900/60 hover:text-white'
-                          : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 hover:text-rose-800'
-                      }`}
-                      title={`Download PDF for ${rec.poNo}`}
-                    >
-                      <Download className="w-3 h-3 text-rose-500" />
-                      <span>PDF</span>
-                    </button>
+                    <span className={`text-[9px] font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1 truncate max-w-[110px]`}>
+                      {rec.poNo}
+                    </span>
+                    <span className={`text-[10px] px-1.5 py-0.5 font-bold rounded-md border shrink-0 ${isDark ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}>
+                      Inbound
+                    </span>
                   </div>
 
                   {/* Supplier Row */}
@@ -900,7 +887,7 @@ function InventoryInboundRawMat() {
 
       {isModalOpen && selectedPo && (
         <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
-          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-2xl w-full max-w-2xl p-6 shadow-xl relative flex flex-col gap-4`}>
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-2xl w-full max-w-3xl p-6 shadow-xl relative flex flex-col gap-4`}>
 
             <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
               <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-lg`}>
@@ -908,15 +895,18 @@ function InventoryInboundRawMat() {
               </h3>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleDownloadPDF}
+                  type="button"
+                  onClick={() => handleDownloadPDF(selectedPo)}
                   className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                  title={`Download PDF for ${selectedPo.poNo}`}
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Download PDF
+                  <span>Download PDF</span>
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer transition-colors`}
+                  title="Close"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -937,56 +927,81 @@ function InventoryInboundRawMat() {
               <div className="col-span-2 sm:col-span-1"><span className={`text-[10px] uppercase font-bold text-slate-400 block mb-0.5`}>Origin Address:</span> <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} truncate block`}>{selectedPo.originAddress || 'N/A'}</span></div>
             </div>
 
-            <div className={`max-h-64 overflow-y-auto border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm`}>
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#0f111d]' : 'bg-emerald-700'} text-white text-[11px] font-bold uppercase tracking-wide`}>
-                  <tr>
-                    <th className="p-3 w-1/4">Material Profile</th>
+            {(() => {
+              const poItems = selectedPo.items || [];
+              const modalIndexOfLastRow = modalPage * modalRowsPerPage;
+              const modalIndexOfFirstRow = modalIndexOfLastRow - modalRowsPerPage;
+              const paginatedPoItems = poItems.slice(modalIndexOfFirstRow, modalIndexOfLastRow);
 
-                    <th className="p-3 w-24 text-center">Segment</th>
+              return (
+                <div className={`border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm overflow-hidden flex flex-col`}>
+                  <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                    <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+                      <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700 text-white'} text-[11px] font-bold uppercase whitespace-nowrap`}>
+                        <tr>
+                          <th className="p-3 text-left">Segment</th>
+                          <th className="p-3 text-left">Item Description</th>
+                          <th className="p-3 text-left">Dimension</th>
+                          <th className="p-3 text-center">QTY Ordered</th>
+                          <th className="p-3 text-right">Actual Received</th>
+                          <th className="p-3 text-left pl-4">Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
+                        {paginatedPoItems.map((it, idx) => {
+                          const targetId = it.materialId?._id || it.materialId;
+                          const fullMat = dbMaterials.find(m => m._id === targetId);
 
-                    <th className="p-3 w-24 text-center">Dimension</th>
-                    <th className="p-3 text-center w-24">QTY Ordered</th>
-                    <th className="p-3 text-right w-28">Actual Received</th>
-                    <th className="p-3 text-left pl-6">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
-                  {selectedPo.items?.map((it, idx) => (
-                    <tr key={it._id || idx} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
-                      <td className="p-3 w-1/4 align-middle">
-                        <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'} whitespace-normal break-words`} title={it.materialId?.ItemDescription}>
-                          {it.materialId?.ItemDescription || "-"}
-                        </div>
-                      </td>
+                          const segment = fullMat?.Segment || fullMat?.segment || it.materialId?.Segment || it.materialId?.segment || "N/A";
+                          const desc = fullMat?.ItemDescription || it.materialId?.ItemDescription || "-";
+                          const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.materialId?.Dimension || it.materialId?.dimension || "N/A";
+                          const uom = fullMat?.UOM || it.materialId?.UOM || '';
 
-                      <td className={`p-3 text-center ${isDark ? 'text-slate-400' : 'text-slate-500'} w-24 align-middle font-semibold text-[11px]`}>
-                        {it.materialId?.Segment || it.materialId?.segment || "N/A"}
-                      </td>
+                          return (
+                            <tr key={it._id || idx} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
+                              <td className={`p-3 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap align-middle`}>
+                                {segment}
+                              </td>
+                              <td className={`p-3 font-bold ${isDark ? 'text-white' : 'text-[#18174e]'} text-xs min-w-[200px] whitespace-normal break-words align-middle`} title={desc}>
+                                {desc}
+                              </td>
+                              <td className={`p-3 ${isDark ? 'text-slate-400' : 'text-slate-600'} font-medium whitespace-nowrap align-middle`}>
+                                {dimension}
+                              </td>
+                              <td className={`p-3 text-center ${isDark ? 'text-slate-300' : 'text-slate-600'} whitespace-nowrap align-middle`}>
+                                {it.qty} {uom}
+                              </td>
+                              <td className="p-3 text-right font-bold text-emerald-400 align-middle whitespace-nowrap">
+                                {it.actualCountReceived} {uom}
+                              </td>
+                              <td className={`p-3 italic ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium text-[11px] min-w-[120px] whitespace-normal break-words align-middle pl-4`} title={it.remarks}>
+                                {it.remarks || '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {poItems.length === 0 && (
+                          <tr>
+                            <td colSpan="6" className="p-4 text-center text-slate-400 italic">
+                              No materials recorded.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
 
-                      <td className={`p-3 text-center ${isDark ? 'text-slate-400' : 'text-slate-500'} w-24 align-middle font-mono text-[11px]`}>
-                        {it.materialId?.Dimension ||
-                          it.materialId?.dimension ||
-                          it.materialId?.Dimensions ||
-                          it.materialId?.dimensions || "N/A"}
-                      </td>
-
-                      <td className={`p-3 text-center ${isDark ? 'text-slate-300' : 'text-slate-600'} w-24 align-middle font-semibold`}>
-                        {it.qty} {it.materialId?.UOM}
-                      </td>
-
-                      <td className={`p-3 text-right font-bold ${isDark ? 'text-emerald-400' : 'text-[#18174e]'} w-28 align-middle`}>
-                        {it.actualCountReceived} {it.materialId?.UOM}
-                      </td>
-
-                      <td className={`p-3 italic ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium text-[11px] min-w-[120px] whitespace-normal break-words align-middle pl-6`} title={it.remarks}>
-                        {it.remarks || '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  <TablePagination
+                    currentPage={modalPage}
+                    setCurrentPage={setModalPage}
+                    rowsPerPage={modalRowsPerPage}
+                    setRowsPerPage={setModalRowsPerPage}
+                    totalRows={poItems.length}
+                    options={[5, 10, 20, 50, 100]}
+                  />
+                </div>
+              );
+            })()}
 
           </div>
         </div>
