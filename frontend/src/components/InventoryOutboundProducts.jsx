@@ -1449,9 +1449,13 @@ function InventoryOutboundProducts() {
                   <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
                     <thead>
                       <tr className={`text-white font-bold ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700'} uppercase text-xs whitespace-nowrap`}>
-                        <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
+                        <th className="py-3 px-4 text-center w-28 min-w-[112px]">
+                          {transactionType === 'Reserve' ? 'Reserve QTY' : 'QTY'}
+                        </th>
                         <th className="py-3 px-4 text-center">UOM</th>
-                        <th className="py-3 px-4 text-center w-28 min-w-[112px]">Verified Shipped</th>
+                        {transactionType !== 'Reserve' && (
+                          <th className="py-3 px-4 text-center w-28 min-w-[112px]">Verified Shipped</th>
+                        )}
                         <th className="py-3 px-4">Segment</th>
                         <th className="py-3 px-4">Description</th>
                         <th className="py-3 px-4">Dimension</th>
@@ -1476,17 +1480,19 @@ function InventoryOutboundProducts() {
                           <td className="py-2 px-4 text-center">
                             <span className={`${isDark ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700'} px-2 py-0.5 rounded text-xs`}>{item.UOM}</span>
                           </td>
-                          <td className="py-2 px-4 w-28 min-w-[112px]">
-                            <input
-                              type="number"
-                              value={item.actualCountShipped}
-                              onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))}
-                              onWheel={(e) => e.currentTarget.blur()}
-                              className={`w-full border ${isDark ? 'bg-[#141622] border-slate-700 text-rose-400' : 'border-slate-200 text-red-600'} text-center rounded py-1 text-sm font-bold focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-                              min="1"
-                              required
-                            />
-                          </td>
+                          {transactionType !== 'Reserve' && (
+                            <td className="py-2 px-4 w-28 min-w-[112px]">
+                              <input
+                                type="number"
+                                value={item.actualCountShipped}
+                                onChange={e => handleUpdateField(index, 'actualCountShipped', Number(e.target.value))}
+                                onWheel={(e) => e.currentTarget.blur()}
+                                className={`w-full border ${isDark ? 'bg-[#141622] border-slate-700 text-rose-400' : 'border-slate-200 text-red-600'} text-center rounded py-1 text-sm font-bold focus:outline-none focus:border-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                                min="1"
+                                required
+                              />
+                            </td>
+                          )}
                           <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.Segment}</td>
                           <td className={`py-2 px-4 min-w-[200px] whitespace-normal break-words ${isDark ? 'text-slate-200' : 'text-slate-800'}`} title={item.ItemDescription}>
                             {item.ItemDescription}
@@ -1871,7 +1877,9 @@ function InventoryOutboundProducts() {
                 <p className="text-xs text-slate-400">
                   {transactionType === 'Reserve' && referencePlNo
                     ? 'Review modified reservation lines before updating registry records.'
-                    : 'Please review the shipment details before saving to the registry.'
+                    : transactionType === 'Reserve'
+                      ? 'Please review the reservation items before holding them in the packed rack registry.'
+                      : 'Please review the shipment details before saving to the registry.'
                   }
                 </p>
               </div>
@@ -1950,9 +1958,14 @@ function InventoryOutboundProducts() {
             {/* Manifest Items Table */}
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center text-xs font-bold px-1">
-                <span className="uppercase text-slate-400">Materials to Dispatch ({manifestItems.length})</span>
-                <span className="text-rose-500 font-bold">
-                  Total Shipped: {manifestItems.reduce((sum, item) => sum + (Number(item.actualCountShipped) || 0), 0)}
+                <span className="uppercase text-slate-400">
+                  {transactionType === 'Reserve' ? `Materials to Reserve (${manifestItems.length})` : `Materials to Dispatch (${manifestItems.length})`}
+                </span>
+                <span className={transactionType === 'Reserve' ? (isDark ? 'text-amber-400 font-bold' : 'text-amber-600 font-bold') : 'text-rose-500 font-bold'}>
+                  {transactionType === 'Reserve'
+                    ? `Total Reserved: ${manifestItems.reduce((sum, item) => sum + (Number(item.qtyRequested) || 0), 0)}`
+                    : `Total Shipped: ${manifestItems.reduce((sum, item) => sum + (Number(item.actualCountShipped) || 0), 0)}`
+                  }
                 </span>
               </div>
               <div className={`rounded-xl border overflow-hidden max-h-56 overflow-y-auto ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-200'}`}>
@@ -1962,8 +1975,14 @@ function InventoryOutboundProducts() {
                       <th className="py-2 px-3">Description</th>
                       <th className="py-2 px-3">Segment</th>
                       <th className="py-2 px-3">Dimension</th>
-                      <th className="py-2 px-3 text-center">Qty Req</th>
-                      <th className="py-2 px-3 text-center font-bold text-rose-500">Shipped Qty</th>
+                      {transactionType === 'Reserve' ? (
+                        <th className="py-2 px-3 text-center font-bold text-amber-500">Reserved Qty</th>
+                      ) : (
+                        <>
+                          <th className="py-2 px-3 text-center">Qty Req</th>
+                          <th className="py-2 px-3 text-center font-bold text-rose-500">Shipped Qty</th>
+                        </>
+                      )}
                       <th className="py-2 px-3">Remarks</th>
                     </tr>
                   </thead>
@@ -1977,12 +1996,20 @@ function InventoryOutboundProducts() {
                           {item.Segment || item.segment || '—'}
                         </td>
                         <td className="py-2 px-3 text-slate-400 font-mono text-[11px]">{item.Dimension || item.dimensions || '—'}</td>
-                        <td className="py-2 px-3 text-center text-slate-400">
-                          {item.qtyRequested}
-                        </td>
-                        <td className="py-2 px-3 text-center font-bold text-rose-500">
-                          {item.actualCountShipped}
-                        </td>
+                        {transactionType === 'Reserve' ? (
+                          <td className="py-2 px-3 text-center font-bold text-amber-500">
+                            {item.qtyRequested}
+                          </td>
+                        ) : (
+                          <>
+                            <td className="py-2 px-3 text-center text-slate-400">
+                              {item.qtyRequested}
+                            </td>
+                            <td className="py-2 px-3 text-center font-bold text-rose-500">
+                              {item.actualCountShipped}
+                            </td>
+                          </>
+                        )}
                         <td className="py-2 px-3 text-slate-400 italic">
                           {item.remarks || '—'}
                         </td>
@@ -2019,7 +2046,9 @@ function InventoryOutboundProducts() {
                   <span>
                     {transactionType === 'Reserve' && referencePlNo
                       ? `Save Changes to Reservation`
-                      : `Save Packaging List`
+                      : transactionType === 'Reserve'
+                        ? 'Save Reservation'
+                        : `Save Packaging List`
                     }
                   </span>
                 )}
