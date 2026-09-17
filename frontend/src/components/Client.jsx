@@ -558,7 +558,6 @@ function Client() {
                           title={client.name}
                         >
                           <div className="flex items-center gap-2.5">
-                            <Truck className={`w-4 h-4 ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'} shrink-0`} />
                             <span className="font-bold text-sm">{client.name}</span>
                           </div>
                         </td>

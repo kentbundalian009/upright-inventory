@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Truck, Calendar, ClipboardList, ListPlus, Trash2, Search, X, Download, User, Plus, CheckCircle2, AlertCircle, Loader2, Layers } from 'lucide-react';
+import { FileText, Truck, Calendar, ClipboardList, ListPlus, Trash2, Search, X, Download, User, Plus, CheckCircle2, AlertCircle, Loader2, Layers, FileSpreadsheet } from 'lucide-react';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -280,14 +280,260 @@ function InventoryInboundRawMat() {
     }
   };
 
+  // --- AUDIT LEDGER STYLED PDF EXPORT (INDIVIDUAL SLIP) ---
   const handleDownloadPDF = (poRecord = null) => {
     const targetPo = poRecord || selectedPo;
     if (!targetPo) return;
     try {
-      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-      const pageWidth = 210;
-      const pageHeight = 297;
+      const pageWidth = 297;
+      const pageHeight = 210;
+      const centerX = pageWidth / 2;
+      const centerY = pageHeight / 2;
+
+      const formattedDate = new Date().toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+      const deliveryDateStr = targetPo.deliveryDate ? new Date(targetPo.deliveryDate).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric'
+      }) : (targetPo.createdAt ? new Date(targetPo.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric'
+      }) : '—');
+
+      // --- PAGE 1 METADATA BLOCK (Matching Audit Ledger layout) ---
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+
+      doc.text("Slip / PO No.:", 14, 38);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(24, 23, 78);
+      doc.text(`${targetPo.poNo || '—'}`, 48, 38);
+
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("Date Generated:", 185, 38);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${formattedDate}`, 220, 38);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Transaction Type:", 14, 45);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(16, 185, 129);
+      doc.text("INBOUND RECEIVING (RACKINGS)", 48, 45);
+
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("Date Received:", 185, 45);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${deliveryDateStr}`, 220, 45);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Supplier Origin:", 14, 52);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${targetPo.supplier || 'N/A'}`, 48, 52);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Prepared By:", 185, 52);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${targetPo.preparedBy || preparedBy || 'Authorized Staff'}`, 220, 52);
+
+      if (targetPo.originAddress) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Origin Address:", 14, 59);
+        doc.setFont("helvetica", "normal");
+        const cleanAddr = targetPo.originAddress.length > 70 ? targetPo.originAddress.substring(0, 68) + '…' : targetPo.originAddress;
+        doc.text(`${cleanAddr}`, 48, 59);
+      }
+
+      // Calculate totals and discrepancies
+      const itemsList = targetPo.items || [];
+      const totalItemsCount = itemsList.length;
+      const totalQtyOrdered = itemsList.reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
+      const totalQtyReceived = itemsList.reduce((acc, it) => acc + (Number(it.actualCountReceived ?? it.qty ?? 0)), 0);
+      const hasDiscrepancy = itemsList.some(it => {
+        const ord = Number(it.qty) || 0;
+        const rec = Number(it.actualCountReceived ?? it.qty ?? 0);
+        return ord !== rec;
+      });
+
+      // KPI Header Table (Styled Grid matching Audit Ledger)
+      const kpiStartY = targetPo.originAddress ? 64 : 58;
+      autoTable(doc, {
+        startY: kpiStartY,
+        margin: { top: 38, bottom: 20, left: 14, right: 14 },
+        head: [["1. TOTAL LINE ITEMS", "2. QUANTITY ORDERED", "3. ACTUAL RECEIVED", "4. AUDIT VERIFICATION STATUS"]],
+        body: [[
+          `${totalItemsCount} Material Types`,
+          `${totalQtyOrdered.toLocaleString()} Units Ordered`,
+          `${totalQtyReceived.toLocaleString()} Units Received`,
+          hasDiscrepancy ? "DISCREPANCY (UNMATCHED COUNT)" : "VERIFIED & QUANTITY BALANCED"
+        ]],
+        theme: 'grid',
+        headStyles: {
+          fillColor: [24, 23, 78],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8,
+          halign: 'center',
+          cellPadding: { top: 2.8, bottom: 2.8, left: 2.5, right: 2.5 }
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          fontStyle: 'bold',
+          textColor: [24, 23, 78],
+          fillColor: [245, 248, 255],
+          halign: 'center',
+          cellPadding: { top: 3, bottom: 3, left: 2.5, right: 2.5 }
+        },
+        styles: { lineColor: [215, 225, 245], lineWidth: 0.25 }
+      });
+
+      const tableColumns = ["Item Description", "Dimension", "Count", "UOM", "Remarks"];
+
+      // Group records by Segment (matching Consolidated Registry Report)
+      const groupedData = {};
+      itemsList.forEach(it => {
+        const targetId = it.materialId?._id || it.materialId;
+        const fullMaterial = dbMaterials.find(m => m._id === targetId);
+        const segment = fullMaterial?.Segment || it.materialId?.Segment || 'STANDARD SEGMENT';
+        const key = segment.trim().toUpperCase() || 'STANDARD SEGMENT';
+        if (!groupedData[key]) {
+          groupedData[key] = [];
+        }
+        groupedData[key].push({ it, fullMaterial });
+      });
+
+      const tableRows = [];
+      Object.keys(groupedData).sort().forEach(groupName => {
+        const itemsInGroup = groupedData[groupName];
+
+        // Section Header Banner across all 5 columns
+        tableRows.push([
+          {
+            content: `SEGMENT: ${groupName}   (${itemsInGroup.length} ${itemsInGroup.length === 1 ? 'ITEM' : 'ITEMS'})`,
+            colSpan: 5,
+            styles: {
+              fillColor: [234, 239, 249],
+              textColor: [24, 23, 78],
+              fontStyle: 'bold',
+              fontSize: 8.5,
+              cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 }
+            }
+          }
+        ]);
+
+        itemsInGroup.forEach(({ it, fullMaterial }) => {
+          const descriptionOnly = fullMaterial?.ItemDescription || it.materialId?.ItemDescription || "-";
+          const dimension = fullMaterial?.Dimension || fullMaterial?.dimension ||
+            fullMaterial?.Dimensions || fullMaterial?.dimensions ||
+            it.materialId?.Dimension || it.materialId?.dimension ||
+            it.materialId?.Dimensions || it.materialId?.dimensions || "—";
+
+          const countVal = it.actualCountReceived !== undefined && it.actualCountReceived !== null
+            ? String(it.actualCountReceived)
+            : (it.qty !== undefined && it.qty !== null ? String(it.qty) : '0');
+
+          const uom = fullMaterial?.UOM || it.materialId?.UOM || '—';
+          const rem = it.remarks || "—";
+
+          tableRows.push([descriptionOnly, dimension, countVal, uom, rem]);
+        });
+      });
+
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 6,
+        margin: { top: 38, bottom: 20, left: 14, right: 14 },
+        head: [tableColumns],
+        body: tableRows,
+        theme: 'grid',
+        headStyles: { fillColor: [24, 23, 78], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, valign: 'middle' },
+        bodyStyles: { fontSize: 7.5, textColor: [50, 50, 50], valign: 'middle' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { overflow: 'ellipsize', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2, rowPageBreak: 'avoid' },
+        columnStyles: {
+          0: { cellWidth: 105 },
+          1: { cellWidth: 45, halign: 'center' },
+          2: { cellWidth: 25, halign: 'center', fontStyle: 'bold' },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 74 }
+        },
+        didDrawCell: (data) => {
+          if (data.cell.colSpan > 1) return;
+          // Highlight Count (col 2)
+          if (data.section === 'body' && data.column.index === 2) {
+            doc.setFillColor(238, 242, 255);
+            doc.rect(data.cell.x + 0.3, data.cell.y + 0.3, data.cell.width - 0.6, data.cell.height - 0.6, 'F');
+            doc.setTextColor(24, 23, 78);
+            doc.setFont("helvetica", "bold");
+            doc.text(String(data.cell.text), data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 1, { align: 'center' });
+          }
+        }
+      });
+
+      // --- DECORATE ALL PAGES (Banner, Watermark, Footer) matching Audit Ledger exactly ---
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+
+        // Watermark in background
+        try {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.05 }));
+          const logoWidth = 75;
+          const logoHeight = 75;
+          doc.addImage('/cropped_circle_image.png', 'PNG', centerX - (logoWidth / 2), centerY - (logoHeight / 2), logoWidth, logoHeight);
+          doc.restoreGraphicsState();
+        } catch (e) {
+          console.warn("Watermark asset omitted.", e);
+        }
+
+        // Top Header Banner
+        doc.setFillColor(24, 23, 78);
+        doc.rect(0, 0, pageWidth, 28, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.text("INBOUND RAW MATERIALS & RACKINGS RECEIVING SLIP", centerX, 12, { align: 'center' });
+
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(215, 220, 245);
+        doc.text(`Material Flow Logistics & Audit Trail Control Registry  |  Slip: ${targetPo.poNo}  |  Generated: ${formattedDate}`, centerX, 20, { align: 'center' });
+
+        // Footer
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(120, 120, 120);
+        doc.text("CONFIDENTIAL AUDIT LEDGER - FOR INTERNAL AUTHORIZED USE ONLY", 14, pageHeight - 8);
+
+        const pageNumber = `Page ${i} of ${totalPages}`;
+        doc.text(pageNumber, pageWidth - 14, pageHeight - 8, { align: 'right' });
+      }
+
+      doc.save(`INBOUND_SLIP_${targetPo.poNo}.pdf`);
+      showSuccessToast("Audit Ledger PDF Slip downloaded successfully.");
+    } catch (e) {
+      console.error("PDF download failure:", e);
+      showErrorToast("Something went wrong while downloading the PDF.");
+    }
+  };
+
+  // --- CONSOLIDATED HISTORY LOGS AUDIT LEDGER PDF ---
+  const handleExportHistoryLedgerPDF = () => {
+    const recordsToExport = filteredPoRecords && filteredPoRecords.length > 0 ? filteredPoRecords : poRecords;
+    if (!recordsToExport || recordsToExport.length === 0) {
+      showErrorToast("No history logs available to export.");
+      return;
+    }
+
+    try {
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageWidth = 297;
+      const pageHeight = 210;
       const centerX = pageWidth / 2;
       const centerY = pageHeight / 2;
 
@@ -296,120 +542,193 @@ function InventoryInboundRawMat() {
         hour: '2-digit', minute: '2-digit'
       });
 
+      // --- PAGE 1 METADATA BLOCK ---
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
+      doc.setFontSize(9.5);
 
-      doc.text("Purchase Order No.:", 14, 42);
+      doc.text("Report Module:", 14, 38);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(24, 23, 78);
+      doc.text("Rackings Inbound Transactions & Receiving Registry", 48, 38);
+
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("Date Generated:", 185, 38);
       doc.setFont("helvetica", "normal");
-      doc.text(`${targetPo.poNo}`, 52, 42);
+      doc.text(`${formattedDate}`, 220, 38);
 
       doc.setFont("helvetica", "bold");
-      doc.text("Date Received:", 120, 42);
-      doc.setFont("helvetica", "normal");
-      doc.text(`${targetPo.deliveryDate ? new Date(targetPo.deliveryDate).toLocaleDateString() : '-'}`, 155, 42);
-
+      doc.text("Security Class:", 14, 45);
       doc.setFont("helvetica", "bold");
-      doc.text("Transaction Type:", 14, 49);
-      doc.setFont("helvetica", "normal");
-      doc.text("Inbound", 52, 49);
+      doc.setTextColor(16, 185, 129);
+      doc.text("Internal Inventory Audit Ledger", 48, 45);
 
+      doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
-      doc.text("Supplier:", 120, 49);
+      doc.text("Total Logs:", 185, 45);
       doc.setFont("helvetica", "normal");
-      doc.text(`${targetPo.supplier || 'N/A'}`, 155, 49);
+      doc.text(`${recordsToExport.length} Logged Inbound Deliveries`, 220, 45);
 
-      doc.setFont("helvetica", "bold");
-      doc.text("Prepared By:", 14, 56);
-      doc.setFont("helvetica", "normal");
-      doc.text(`${targetPo.preparedBy || preparedBy}`, 52, 56);
+      if (sidebarSearchQuery.trim()) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Filter Applied:", 14, 52);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Search Keyword: "${sidebarSearchQuery}"`, 48, 52);
+      }
 
-      doc.setFont("helvetica", "bold");
-      doc.text("Origin Address:", 120, 56);
-      doc.setFont("helvetica", "normal");
-      doc.text(`${targetPo.originAddress || 'N/A'}`, 155, 56);
+      // Compute summary KPI metrics
+      let totalUnitsInbounded = 0;
+      const distinctSuppliers = new Set();
 
-      const tableColumns = ["Description", "Segment", "Dimension", "QTY Ordered", "Actual Received", "Remarks"];
-      const tableRows = [];
+      recordsToExport.forEach(rec => {
+        if (rec.supplier) distinctSuppliers.add(rec.supplier.trim().toLowerCase());
+        const items = rec.items || rec.materials || [];
+        items.forEach(it => {
+          totalUnitsInbounded += Number(it.actualCountReceived ?? it.qty ?? 0);
+        });
+      });
 
-      targetPo.items?.forEach(it => {
-        const targetId = it.materialId?._id || it.materialId;
-        const fullMaterial = dbMaterials.find(m => m._id === targetId);
+      // KPI Header Table
+      const kpiStartY = sidebarSearchQuery.trim() ? 58 : 52;
+      autoTable(doc, {
+        startY: kpiStartY,
+        margin: { top: 38, bottom: 20, left: 14, right: 14 },
+        head: [["1. TOTAL DELIVERIES LOGGED", "2. TOTAL MATERIAL UNITS RECEIVED", "3. REGISTERED SUPPLIERS INVOLVED"]],
+        body: [[
+          `${recordsToExport.length} Deliveries`,
+          `${totalUnitsInbounded.toLocaleString()} Units Inbounded`,
+          `${distinctSuppliers.size} Suppliers Logged`
+        ]],
+        theme: 'grid',
+        headStyles: {
+          fillColor: [24, 23, 78],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8,
+          halign: 'center',
+          cellPadding: { top: 2.8, bottom: 2.8, left: 2.5, right: 2.5 }
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          fontStyle: 'bold',
+          textColor: [24, 23, 78],
+          fillColor: [245, 248, 255],
+          halign: 'center',
+          cellPadding: { top: 3, bottom: 3, left: 2.5, right: 2.5 }
+        },
+        styles: { lineColor: [215, 225, 245], lineWidth: 0.25 }
+      });
 
-        const descriptionOnly = fullMaterial?.ItemDescription || it.materialId?.ItemDescription || "-";
+      const tableColumns = ["#", "PO Number", "Date Received", "Supplier Origin", "Line Items Summary", "Total Received", "Prepared By", "Status"];
+      const tableRows = recordsToExport.map((rec, idx) => {
+        const items = rec.items || rec.materials || [];
+        const dateStr = rec.deliveryDate ? new Date(rec.deliveryDate).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'short', day: 'numeric'
+        }) : (rec.createdAt ? new Date(rec.createdAt).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'short', day: 'numeric'
+        }) : '—');
 
-        const segment = fullMaterial?.Segment || fullMaterial?.segment ||
-          it.materialId?.Segment || it.materialId?.segment || "N/A";
+        const totalQty = items.reduce((sum, it) => sum + (Number(it.actualCountReceived ?? it.qty ?? 0)), 0);
 
-        const dimension = fullMaterial?.Dimension || fullMaterial?.dimension ||
-          fullMaterial?.Dimensions || fullMaterial?.dimensions ||
-          it.materialId?.Dimension || it.materialId?.dimension ||
-          it.materialId?.Dimensions || it.materialId?.dimensions || "N/A";
+        const itemsSummary = items.map(it => {
+          const targetId = it.materialId?._id || it.materialId;
+          const fullMat = dbMaterials.find(m => m._id === targetId);
+          const desc = fullMat?.ItemDescription || it.materialId?.ItemDescription || "Material";
+          const qty = Number(it.actualCountReceived ?? it.qty ?? 0);
+          const uom = fullMat?.UOM || it.materialId?.UOM || '';
+          return `• ${desc}: ${qty} ${uom}`.trim();
+        }).slice(0, 3).join('\n') + (items.length > 3 ? `\n… (+${items.length - 3} more items)` : '');
 
-        const uom = fullMaterial?.UOM || it.materialId?.UOM || '';
-        const qtySent = `${it.qty} ${uom}`;
-        const actualRec = `${it.actualCountReceived} ${uom}`;
-        const rem = it.remarks || "-";
-
-        tableRows.push([descriptionOnly, segment, dimension, qtySent, actualRec, rem]);
+        return [
+          String(idx + 1),
+          rec.poNo || '—',
+          dateStr,
+          rec.supplier || 'N/A',
+          itemsSummary || '—',
+          `${totalQty.toLocaleString()} units`,
+          rec.preparedBy || 'Staff',
+          "INBOUND"
+        ];
       });
 
       autoTable(doc, {
-        startY: 65,
+        startY: doc.lastAutoTable.finalY + 6,
+        margin: { top: 38, bottom: 20, left: 14, right: 14 },
         head: [tableColumns],
         body: tableRows,
         theme: 'grid',
-
-        didDrawPage: (data) => {
-          doc.saveGraphicsState();
-          doc.setGState(new doc.GState({ opacity: 0.06 }));
-          const logoWidth = 80;
-          const logoHeight = 80;
-          const logoX = centerX - (logoWidth / 2);
-          const logoY = centerY - (logoHeight / 2);
-          doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
-          doc.restoreGraphicsState();
-
-          doc.setFillColor(24, 23, 78);
-          doc.rect(0, 0, pageWidth, 30, 'F');
-
-          doc.setTextColor(255, 255, 255);
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(14);
-          doc.text("PURCHASE ORDER REPORT", centerX, 13, { align: 'center' });
-
-          doc.setFontSize(8.5);
-          doc.setFont("helvetica", "normal");
-          doc.setTextColor(200, 200, 220);
-          doc.text(`Inventory Management System Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
-
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(8);
-          doc.setTextColor(120, 120, 120);
-          doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10);
-
-          const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
-          doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
-        },
-
-        headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5, valign: 'middle' },
-        bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
-        alternateRowStyles: { fillColor: [248, 249, 250] },
+        headStyles: { fillColor: [24, 23, 78], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, valign: 'middle' },
+        bodyStyles: { fontSize: 7.5, textColor: [50, 50, 50], valign: 'middle' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { overflow: 'linebreak', cellPadding: 2.5, lineColor: [230, 230, 230], lineWidth: 0.2, rowPageBreak: 'avoid' },
         columnStyles: {
-          0: { cellWidth: 50 },
-          1: { cellWidth: 22, halign: 'center' },
-          2: { cellWidth: 22, halign: 'center' },
-          3: { cellWidth: 23, halign: 'center' },
-          4: { cellWidth: 25, halign: 'right', fontStyle: 'bold' },
-          5: { cellWidth: 40 }
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 32, fontStyle: 'bold', textColor: [24, 23, 78] },
+          2: { cellWidth: 26, halign: 'center' },
+          3: { cellWidth: 46 },
+          4: { cellWidth: 80 },
+          5: { cellWidth: 27, halign: 'center', fontStyle: 'bold' },
+          6: { cellWidth: 28 },
+          7: { cellWidth: 20, halign: 'center', fontStyle: 'bold', textColor: [16, 185, 129] }
         },
-        styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 }
+        didDrawCell: (data) => {
+          if (data.section === 'body' && data.column.index === 5) {
+            doc.setFillColor(238, 242, 255);
+            doc.rect(data.cell.x + 0.3, data.cell.y + 0.3, data.cell.width - 0.6, data.cell.height - 0.6, 'F');
+            doc.setTextColor(24, 23, 78);
+            doc.setFont("helvetica", "bold");
+            doc.text(String(data.cell.text), data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 1, { align: 'center' });
+          }
+        }
       });
 
-      doc.save(`PO_REPORT_${targetPo.poNo}.pdf`);
-      showSuccessToast("PDF Slip downloaded successfully.");
+      // Decorate all pages
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+
+        // Watermark
+        try {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.05 }));
+          const logoWidth = 75;
+          const logoHeight = 75;
+          doc.addImage('/cropped_circle_image.png', 'PNG', centerX - (logoWidth / 2), centerY - (logoHeight / 2), logoWidth, logoHeight);
+          doc.restoreGraphicsState();
+        } catch (e) {
+          console.warn("Watermark asset omitted.", e);
+        }
+
+        // Header Banner
+        doc.setFillColor(24, 23, 78);
+        doc.rect(0, 0, pageWidth, 28, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.text("INBOUND RAW MATERIALS & RACKINGS TRANSACTION AUDIT LEDGER", centerX, 12, { align: 'center' });
+
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(215, 220, 245);
+        doc.text(`Material Flow Logistics & Audit Trail Control Registry  |  Total: ${recordsToExport.length} Inbound Entries  |  Generated: ${formattedDate}`, centerX, 20, { align: 'center' });
+
+        // Footer
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(120, 120, 120);
+        doc.text("CONFIDENTIAL AUDIT LEDGER - FOR INTERNAL AUTHORIZED USE ONLY", 14, pageHeight - 8);
+
+        const pageNumber = `Page ${i} of ${totalPages}`;
+        doc.text(pageNumber, pageWidth - 14, pageHeight - 8, { align: 'right' });
+      }
+
+      doc.save(`INBOUND_HISTORY_AUDIT_LEDGER_${new Date().toISOString().split('T')[0]}.pdf`);
+      showSuccessToast("Consolidated Inbound Audit Ledger (PDF) exported successfully!");
     } catch (e) {
-      showErrorToast("Something went wrong while downloading the PDF.");
+      console.error("Critical failure exporting History Ledger PDF:", e);
+      showErrorToast("Failed to export History Ledger PDF: " + e.message);
     }
   };
 
@@ -499,15 +818,6 @@ function InventoryInboundRawMat() {
               <ListPlus className="w-4 h-4 text-[#ff6600]" />
               <span>Inbound Racking Materials</span>
             </div>
-            {manifestItems.length > 0 && (
-              <button
-                type="button"
-                onClick={() => { setManifestItems([]); showSuccessToast("Form grid cleared."); }}
-                className="text-xs font-bold text-rose-400 hover:underline cursor-pointer flex-shrink-0"
-              >
-                Clear Form Grid
-              </button>
-            )}
           </div>
 
           <form onSubmit={handleInitiateConfirm} className="flex flex-col gap-5">
@@ -730,9 +1040,8 @@ function InventoryInboundRawMat() {
                   <button
                     type="button"
                     onClick={() => setManifestItems([])}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${
-                      isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
-                    }`}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
+                      }`}
                   >
                     Clear Source Items
                   </button>
@@ -828,24 +1137,32 @@ function InventoryInboundRawMat() {
 
         <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 rounded-2xl border flex flex-col gap-3 shadow-sm h-auto min-h-[400px] w-full min-w-0`}>
           <div className={`flex flex-col gap-1 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-2`}>
-            <div className={`flex items-center justify-between w-full text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
-              <div className="flex items-center gap-2">
-                <ClipboardList className="w-4 h-4 text-[#ff6600]" />
-                <span>History Logs</span>
+            <div className={`flex items-center justify-between w-full text-xs sm:text-sm font-bold gap-1.5 whitespace-nowrap ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
+              <div className="flex items-center gap-1.5 whitespace-nowrap min-w-0">
+                <ClipboardList className="w-4 h-4 text-[#ff6600] shrink-0" />
+                <span className="truncate">History Logs</span>
               </div>
+              <button
+                type="button"
+                onClick={handleExportHistoryLedgerPDF}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-[#ff6600] hover:bg-[#e05a00] active:scale-95 text-white rounded-lg text-[10px] font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap shrink-0"
+                title="Export all filtered history logs as Audit Ledger (PDF)"
+              >
+                <Download className="w-3.5 h-3.5 shrink-0" />
+                <span>PDF</span>
+              </button>
             </div>
-            <div className="relative mt-1">
-              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-              <input
-                type="text"
-                value={sidebarSearchQuery}
-                onChange={e => setSidebarSearchQuery(e.target.value)}
-                placeholder="Search PO or supplier..."
-                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-800'} border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none`}
-              />
-            </div>
-          </div>
 
+          </div>
+          <div className="relative mt-1">
+            <input
+              type="text"
+              value={sidebarSearchQuery}
+              onChange={e => setSidebarSearchQuery(e.target.value)}
+              placeholder="Search PO or supplier..."
+              className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+            />
+          </div>
           <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[440px] pr-1 custom-scrollbar">
             {filteredPoRecords.length > 0 ? (
               filteredPoRecords.slice(0, 50).map((rec) => (
@@ -897,11 +1214,11 @@ function InventoryInboundRawMat() {
                 <button
                   type="button"
                   onClick={() => handleDownloadPDF(selectedPo)}
-                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
-                  title={`Download PDF for ${selectedPo.poNo}`}
+                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                  title={`Download Audit Ledger PDF for ${selectedPo.poNo}`}
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download PDF</span>
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Audit Ledger (PDF)</span>
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}

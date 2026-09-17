@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
-import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2, Layers, Pencil, Copy } from 'lucide-react';
+import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2, Layers, Pencil, Copy, FileSpreadsheet } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './PageHeader';
@@ -383,13 +383,14 @@ function InventoryOutboundProducts() {
     }
   };
 
+  // --- AUDIT LEDGER STYLED PDF EXPORT (INDIVIDUAL SLIP) ---
   const handleDownloadPDF = (slipRecord = null) => {
     const targetSlip = slipRecord || selectedSlip;
     if (!targetSlip) return;
     try {
-      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-      const pageWidth = 210;
-      const pageHeight = 297;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageWidth = 297;
+      const pageHeight = 210;
       const centerX = pageWidth / 2;
       const centerY = pageHeight / 2;
       const formattedDate = new Date().toLocaleString('en-US', {
@@ -398,183 +399,467 @@ function InventoryOutboundProducts() {
       });
 
       const isReserve = targetSlip.transactionType?.toLowerCase() === 'reserve';
+      const shipmentDateStr = targetSlip.shipmentDate ? new Date(targetSlip.shipmentDate).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric'
+      }) : (targetSlip.createdAt ? new Date(targetSlip.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric'
+      }) : '—');
+
+      // --- PAGE 1 METADATA BLOCK (Matching Audit Ledger layout) ---
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+
+      doc.text(isReserve ? "Reservation No.:" : "Slip / PL No.:", 14, 38);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(24, 23, 78);
+      doc.text(`${targetSlip.plNo || '—'}`, 48, 38);
 
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-
-      doc.text(isReserve ? "Reservation No.:" : "Slip Number:", 14, 42);
+      doc.text("Date Generated:", 185, 38);
       doc.setFont("helvetica", "normal");
-      doc.text(`${targetSlip.plNo}`, 48, 42);
-      doc.setFont("helvetica", "bold");
-      doc.text(isReserve ? "Date Reserved:" : "Date Logged:", 120, 42);
-      doc.setFont("helvetica", "normal");
-      doc.text(`${targetSlip.shipmentDate ? new Date(targetSlip.shipmentDate).toLocaleDateString() : '-'}`, 155, 42);
+      doc.text(`${formattedDate}`, 220, 38);
 
       doc.setFont("helvetica", "bold");
-      doc.text("Action Type:", 14, 49);
+      doc.text("Action Type:", 14, 45);
       doc.setFont("helvetica", "bold");
       if (isReserve) {
         doc.setTextColor(217, 119, 6);
+        doc.text("MATERIAL RESERVATION (PACKED RACK)", 48, 45);
       } else {
         doc.setTextColor(79, 70, 229);
+        doc.text(`MATERIAL OUTBOUND (${(targetSlip.transactionType || 'OUTBOUND').toUpperCase()})`, 48, 45);
       }
-      doc.text(`${targetSlip.transactionType}`, 48, 49);
 
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
-      doc.text("Prepared By:", 120, 49);
+      doc.text(isReserve ? "Date Reserved:" : "Shipment Date:", 185, 45);
       doc.setFont("helvetica", "normal");
-      doc.text(`${targetSlip.preparedBy || preparedBy}`, 155, 49);
+      doc.text(`${shipmentDateStr}`, 220, 45);
 
       doc.setFont("helvetica", "bold");
-      doc.text("Customer Name:", 14, 56);
+      doc.text("Customer Name:", 14, 52);
       doc.setFont("helvetica", "normal");
-      doc.text(`${targetSlip.customer || 'N/A'}`, 48, 56);
+      doc.text(`${targetSlip.customer || 'N/A'}`, 48, 52);
 
       doc.setFont("helvetica", "bold");
-      doc.text(isReserve ? "Logistics / Rack:" : "Logistics / Carrier:", 120, 56);
+      doc.text("Prepared By:", 185, 52);
       doc.setFont("helvetica", "normal");
-      doc.text(`${targetSlip.carrier || 'N/A'}`, 155, 56);
+      doc.text(`${targetSlip.preparedBy || preparedBy || 'Authorized Staff'}`, 220, 52);
 
       doc.setFont("helvetica", "bold");
-      doc.text("Destination:", 14, 63);
+      doc.text(isReserve ? "Logistics / Rack:" : "Logistics / Carrier:", 14, 59);
       doc.setFont("helvetica", "normal");
-      doc.text(`${targetSlip.destinationAddress || 'N/A'}`, 48, 63);
+      doc.text(`${targetSlip.carrier || 'N/A'}`, 48, 59);
 
-      if (targetSlip.referencePlNo) {
+      if (targetSlip.destinationAddress) {
         doc.setFont("helvetica", "bold");
-        doc.text("Linked Reference:", 120, 63);
+        doc.text("Destination:", 185, 59);
         doc.setFont("helvetica", "normal");
-        doc.text(`${targetSlip.referencePlNo}`, 155, 63);
+        const cleanDest = targetSlip.destinationAddress.length > 30 ? targetSlip.destinationAddress.substring(0, 28) + '…' : targetSlip.destinationAddress;
+        doc.text(`${cleanDest}`, 220, 59);
       }
 
-      const tableColumns = isReserve
-        ? ["Description", "Segment", "Dimension", "Reserved QTY", "Item Remarks"]
-        : ["Description", "Segment", "Dimension", "Requested QTY", "Shipped QTY Count", "Item Remarks"];
+      // Compute KPI summary metrics
+      const itemsList = targetSlip.items || [];
+      const totalItemsCount = itemsList.length;
+      const totalRequested = itemsList.reduce((acc, it) => acc + (Number(it.qtyRequested || it.qty || 0)), 0);
+      const totalShipped = itemsList.reduce((acc, it) => acc + (Number(it.actualCountShipped ?? it.qtyRequested ?? 0)), 0);
+      const isDiscrepant = !isReserve && itemsList.some(it => {
+        const req = Number(it.qtyRequested || 0);
+        const shp = Number(it.actualCountShipped ?? 0);
+        return req !== shp;
+      });
 
-      const tableRows = targetSlip.items?.map(it => {
+      // KPI Header Table
+      autoTable(doc, {
+        startY: 64,
+        margin: { top: 38, bottom: 20, left: 14, right: 14 },
+        head: [["1. TOTAL LINE ITEMS", "2. REQUESTED QUANTITY", isReserve ? "3. RESERVED QUANTITY" : "3. ACTUAL DISPATCHED", "4. AUDIT DISPATCH STATUS"]],
+        body: [[
+          `${totalItemsCount} Line Items`,
+          `${totalRequested.toLocaleString()} Units`,
+          `${totalShipped.toLocaleString()} Units`,
+          targetSlip.isVoided ? "TRANSACTION VOIDED" : (isDiscrepant ? "DISCREPANCY (UNMATCHED COUNT)" : (isReserve ? "RESERVED & ALLOCATED" : "VERIFIED & DISPATCHED"))
+        ]],
+        theme: 'grid',
+        headStyles: {
+          fillColor: isReserve ? [180, 83, 9] : [24, 23, 78],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8,
+          halign: 'center',
+          cellPadding: { top: 2.8, bottom: 2.8, left: 2.5, right: 2.5 }
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          fontStyle: 'bold',
+          textColor: [24, 23, 78],
+          fillColor: [245, 248, 255],
+          halign: 'center',
+          cellPadding: { top: 3, bottom: 3, left: 2.5, right: 2.5 }
+        },
+        styles: { lineColor: [215, 225, 245], lineWidth: 0.25 }
+      });
+
+      const tableColumns = ["Item Description", "Dimension", "Count", "UOM", "Remarks"];
+
+      // Group records by Segment (matching Consolidated Registry Report)
+      const groupedData = {};
+      itemsList.forEach(it => {
         const targetMaterial = it.materialId || it.productId;
         const targetId = targetMaterial?._id || targetMaterial;
         const fullMat = dbRawMaterials?.find(m => m._id === targetId);
+        const segment = fullMat?.Segment || targetMaterial?.Segment || 'STANDARD SEGMENT';
+        const key = segment.trim().toUpperCase() || 'STANDARD SEGMENT';
+        if (!groupedData[key]) {
+          groupedData[key] = [];
+        }
+        groupedData[key].push({ it, targetMaterial, fullMat });
+      });
 
-        const descOnly = fullMat?.ItemDescription || targetMaterial?.ItemDescription || "-";
+      const tableRows = [];
+      Object.keys(groupedData).sort().forEach(groupName => {
+        const itemsInGroup = groupedData[groupName];
 
-        const segment = fullMat?.Segment || fullMat?.segment ||
-          targetMaterial?.Segment || targetMaterial?.segment || "N/A";
-
-        let dimension = "N/A";
-        if (fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions) {
-          dimension = fullMat.Dimension || fullMat.dimension || fullMat.Dimensions || fullMat.dimensions;
-        } else if (targetMaterial?.Dimension || targetMaterial?.dimension || targetMaterial?.Dimensions || targetMaterial?.dimensions) {
-          dimension = targetMaterial.Dimension || targetMaterial.dimension || targetMaterial.Dimensions || targetMaterial.dimensions;
-        } else {
-          const l = fullMat?.Length || fullMat?.length || targetMaterial?.Length || targetMaterial?.length;
-          const w = fullMat?.Width || fullMat?.width || targetMaterial?.Width || targetMaterial?.width;
-          const h = fullMat?.Height || fullMat?.height || targetMaterial?.Height || targetMaterial?.height;
-          if (l || w || h) {
-            dimension = `${l || '-'} × ${w || '-'} × ${h || '-'}`;
+        // Section Header Banner across all 5 columns
+        tableRows.push([
+          {
+            content: `SEGMENT: ${groupName}   (${itemsInGroup.length} ${itemsInGroup.length === 1 ? 'ITEM' : 'ITEMS'})`,
+            colSpan: 5,
+            styles: {
+              fillColor: [234, 239, 249],
+              textColor: [24, 23, 78],
+              fontStyle: 'bold',
+              fontSize: 8.5,
+              cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 }
+            }
           }
-        }
+        ]);
 
-        const uom = fullMat?.UOM || targetMaterial?.UOM || '';
-        const remarks = it.remarks || "-";
+        itemsInGroup.forEach(({ it, targetMaterial, fullMat }) => {
+          const descOnly = fullMat?.ItemDescription || targetMaterial?.ItemDescription || "-";
 
-        if (isReserve) {
-          const resQty = `${it.actualCountShipped || it.qtyRequested || 0} ${uom}`.trim();
-          return [descOnly, segment, dimension, resQty, remarks];
-        }
+          let dimension = "—";
+          if (fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions) {
+            dimension = fullMat.Dimension || fullMat.dimension || fullMat.Dimensions || fullMat.dimensions;
+          } else if (targetMaterial?.Dimension || targetMaterial?.dimension || targetMaterial?.Dimensions || targetMaterial?.dimensions) {
+            dimension = targetMaterial.Dimension || targetMaterial.dimension || targetMaterial.Dimensions || targetMaterial.dimensions;
+          } else {
+            const l = fullMat?.Length || fullMat?.length || targetMaterial?.Length || targetMaterial?.length;
+            const w = fullMat?.Width || fullMat?.width || targetMaterial?.Width || targetMaterial?.width;
+            const h = fullMat?.Height || fullMat?.height || targetMaterial?.Height || targetMaterial?.height;
+            if (l || w || h) {
+              dimension = `${l || '-'} × ${w || '-'} × ${h || '-'}`;
+            }
+          }
 
-        const qtyRequested = `${it.qtyRequested || 0} ${uom}`.trim();
-        const actualCountShipped = `${it.actualCountShipped || 0} ${uom}`.trim();
-        return [descOnly, segment, dimension, qtyRequested, actualCountShipped, remarks];
-      }) || [];
+          const countVal = String(it.actualCountShipped ?? it.qtyRequested ?? it.qty ?? 0);
+          const uom = fullMat?.UOM || targetMaterial?.UOM || '—';
+          const remarks = it.remarks || "-";
+
+          tableRows.push([descOnly, dimension, countVal, uom, remarks]);
+        });
+      });
 
       autoTable(doc, {
-        startY: 72,
+        startY: doc.lastAutoTable.finalY + 6,
+        margin: { top: 38, bottom: 20, left: 14, right: 14 },
         head: [tableColumns],
         body: tableRows,
         theme: 'grid',
-        didDrawPage: (data) => {
-          doc.saveGraphicsState();
-          doc.setGState(new doc.GState({ opacity: 0.06 }));
-          const logoWidth = 80;
-          const logoHeight = 80;
-          const logoX = centerX - (logoWidth / 2);
-          const logoY = centerY - (logoHeight / 2);
-          doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
-          doc.restoreGraphicsState();
-
-          if (targetSlip.isVoided) {
-            doc.saveGraphicsState();
-            doc.setFontSize(36);
+        headStyles: { fillColor: isReserve ? [180, 83, 9] : [24, 23, 78], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, valign: 'middle' },
+        bodyStyles: { fontSize: 7.5, textColor: [50, 50, 50], valign: 'middle' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { overflow: 'ellipsize', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2, rowPageBreak: 'avoid' },
+        columnStyles: {
+          0: { cellWidth: 105 },
+          1: { cellWidth: 45, halign: 'center' },
+          2: { cellWidth: 25, halign: 'center', fontStyle: 'bold' },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 74 }
+        },
+        didDrawCell: (data) => {
+          if (data.cell.colSpan > 1) return;
+          // Highlight Count (col 2)
+          if (data.section === 'body' && data.column.index === 2) {
+            doc.setFillColor(238, 242, 255);
+            doc.rect(data.cell.x + 0.3, data.cell.y + 0.3, data.cell.width - 0.6, data.cell.height - 0.6, 'F');
+            doc.setTextColor(24, 23, 78);
             doc.setFont("helvetica", "bold");
-            doc.setTextColor(220, 38, 38);
-            doc.setGState(new doc.GState({ opacity: 0.18 }));
-            doc.text("VOIDED TRANSACTION", centerX, centerY + 30, { align: 'center', angle: 30 });
-            doc.restoreGraphicsState();
+            doc.text(String(data.cell.text), data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 1, { align: 'center' });
           }
-
-          doc.setFillColor(24, 23, 78);
-          doc.rect(0, 0, pageWidth, 30, 'F');
-
-          doc.setTextColor(255, 255, 255);
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(14);
-          const bannerTitle = isReserve
-            ? "MATERIAL RESERVATION SLIP (PACKED RACK)"
-            : `MATERIAL OUTBOUND SLIP (${(targetSlip.transactionType || 'OUTBOUND').toUpperCase()})`;
-          doc.text(bannerTitle, centerX, 13, { align: 'center' });
-
-          doc.setFontSize(8.5);
-          doc.setFont("helvetica", "normal");
-          doc.setTextColor(200, 200, 220);
-          const bannerSubtitle = isReserve
-            ? `Warehouse Reservation & Allocation Registry  |  Generated: ${formattedDate}`
-            : `Warehouse Logistics & Outbound Control Registry  |  Generated: ${formattedDate}`;
-          doc.text(bannerSubtitle, centerX, 21, { align: 'center' });
-
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(8);
-          doc.setTextColor(120, 120, 120);
-          doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10);
-
-          const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
-          doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
-        },
-        headStyles: {
-          fillColor: isReserve ? [180, 83, 9] : [32, 31, 85],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 8.5,
-          valign: 'middle',
-          overflow: 'visible'
-        },
-        bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
-        alternateRowStyles: { fillColor: [248, 249, 250] },
-        styles: { overflow: 'linebreak', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2 },
-        columnStyles: isReserve ? {
-          0: { cellWidth: 55 },
-          1: { cellWidth: 25, halign: 'center' },
-          2: { cellWidth: 25, halign: 'center' },
-          3: { cellWidth: 35, halign: 'center', fontStyle: 'bold' },
-          4: { cellWidth: 42 }
-        } : {
-          0: { cellWidth: 50 },
-          1: { cellWidth: 22, halign: 'center' },
-          2: { cellWidth: 22, halign: 'center' },
-          3: { cellWidth: 25, halign: 'center' },
-          4: { cellWidth: 28, halign: 'center', fontStyle: 'bold' },
-          5: { cellWidth: 35 }
         }
       });
 
+      // --- DECORATE ALL PAGES (Banner, Watermark, Footer) matching Audit Ledger exactly ---
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+
+        // Watermark in background
+        try {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.05 }));
+          const logoWidth = 75;
+          const logoHeight = 75;
+          doc.addImage('/cropped_circle_image.png', 'PNG', centerX - (logoWidth / 2), centerY - (logoHeight / 2), logoWidth, logoHeight);
+          doc.restoreGraphicsState();
+        } catch (e) {
+          console.warn("Watermark asset omitted.", e);
+        }
+
+        if (targetSlip.isVoided) {
+          doc.saveGraphicsState();
+          doc.setFontSize(36);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(220, 38, 38);
+          doc.setGState(new doc.GState({ opacity: 0.18 }));
+          doc.text("VOIDED TRANSACTION", centerX, centerY + 30, { align: 'center', angle: 30 });
+          doc.restoreGraphicsState();
+        }
+
+        // Top Header Banner
+        doc.setFillColor(isReserve ? 180 : 24, isReserve ? 83 : 23, isReserve ? 9 : 78);
+        doc.rect(0, 0, pageWidth, 28, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        const bannerTitle = isReserve
+          ? "MATERIAL RESERVATION SLIP (PACKED RACK)"
+          : `MATERIAL OUTBOUND TRANSACTION SLIP (${(targetSlip.transactionType || 'OUTBOUND').toUpperCase()})`;
+        doc.text(bannerTitle, centerX, 12, { align: 'center' });
+
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(215, 220, 245);
+        const bannerSubtitle = isReserve
+          ? `Warehouse Reservation & Allocation Registry  |  Slip: ${targetSlip.plNo}  |  Generated: ${formattedDate}`
+          : `Warehouse Logistics & Outbound Control Registry  |  Slip: ${targetSlip.plNo}  |  Generated: ${formattedDate}`;
+        doc.text(bannerSubtitle, centerX, 20, { align: 'center' });
+
+        // Footer
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(120, 120, 120);
+        doc.text("CONFIDENTIAL AUDIT LEDGER - FOR INTERNAL AUTHORIZED USE ONLY", 14, pageHeight - 8);
+
+        const pageNumber = `Page ${i} of ${totalPages}`;
+        doc.text(pageNumber, pageWidth - 14, pageHeight - 8, { align: 'right' });
+      }
+
       const filePrefix = isReserve ? 'RESERVATION_SLIP' : 'OUTBOUND_SLIP';
       doc.save(`${filePrefix}_${targetSlip.plNo}.pdf`);
-      showSuccessToast(`${isReserve ? 'Reservation' : 'Outbound'} PDF downloaded successfully!`);
+      showSuccessToast(`${isReserve ? 'Reservation' : 'Outbound'} Audit Ledger PDF downloaded successfully!`);
     } catch (e) {
       console.error(e);
       showErrorToast("Failed to download PDF slip configuration.");
+    }
+  };
+
+  // --- CONSOLIDATED HISTORY LOGS AUDIT LEDGER PDF ---
+  const handleExportHistoryLedgerPDF = () => {
+    const recordsToExport = filteredHistoryLogs && filteredHistoryLogs.length > 0 ? filteredHistoryLogs : plRecords;
+    if (!recordsToExport || recordsToExport.length === 0) {
+      showErrorToast("No history logs available to export.");
+      return;
+    }
+
+    try {
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageWidth = 297;
+      const pageHeight = 210;
+      const centerX = pageWidth / 2;
+      const centerY = pageHeight / 2;
+
+      const formattedDate = new Date().toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+
+      // --- PAGE 1 METADATA BLOCK ---
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+
+      doc.text("Report Module:", 14, 38);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(24, 23, 78);
+      doc.text("Outbound Products & Material Packing List Registry", 48, 38);
+
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("Date Generated:", 185, 38);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${formattedDate}`, 220, 38);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Security Class:", 14, 45);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(79, 70, 229);
+      doc.text("Internal Logistics Audit Ledger", 48, 45);
+
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("Total Logs:", 185, 45);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${recordsToExport.length} Logged Transactions`, 220, 45);
+
+      if (historySearchQuery.trim()) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Filter Applied:", 14, 52);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Search Keyword: "${historySearchQuery}"`, 48, 52);
+      }
+
+      let totalUnitsShipped = 0;
+      const distinctCustomers = new Set();
+
+      recordsToExport.forEach(rec => {
+        if (rec.customer) distinctCustomers.add(rec.customer.trim().toLowerCase());
+        const items = rec.items || [];
+        items.forEach(it => {
+          totalUnitsShipped += Number(it.actualCountShipped ?? it.qtyRequested ?? 0);
+        });
+      });
+
+      const kpiStartY = historySearchQuery.trim() ? 58 : 52;
+      autoTable(doc, {
+        startY: kpiStartY,
+        margin: { top: 38, bottom: 20, left: 14, right: 14 },
+        head: [["1. TOTAL TRANSACTIONS LOGGED", "2. TOTAL MATERIAL UNITS DISPATCHED", "3. CLIENTS / RECIPIENTS INVOLVED"]],
+        body: [[
+          `${recordsToExport.length} Dispatches`,
+          `${totalUnitsShipped.toLocaleString()} Units Shipped`,
+          `${distinctCustomers.size} Customers Logged`
+        ]],
+        theme: 'grid',
+        headStyles: {
+          fillColor: [24, 23, 78],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8,
+          halign: 'center',
+          cellPadding: { top: 2.8, bottom: 2.8, left: 2.5, right: 2.5 }
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          fontStyle: 'bold',
+          textColor: [24, 23, 78],
+          fillColor: [245, 248, 255],
+          halign: 'center',
+          cellPadding: { top: 3, bottom: 3, left: 2.5, right: 2.5 }
+        },
+        styles: { lineColor: [215, 225, 245], lineWidth: 0.25 }
+      });
+
+      const tableColumns = ["#", "PL / Slip No", "Date", "Customer", "Items Summary", "Total Count", "Prepared By", "Status"];
+      const tableRows = recordsToExport.map((rec, idx) => {
+        const items = rec.items || [];
+        const dateStr = rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'short', day: 'numeric'
+        }) : (rec.createdAt ? new Date(rec.createdAt).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'short', day: 'numeric'
+        }) : '—');
+
+        const totalQty = items.reduce((sum, it) => sum + (Number(it.actualCountShipped ?? it.qtyRequested ?? 0)), 0);
+
+        const itemsSummary = items.map(it => {
+          const targetMat = it.materialId || it.productId;
+          const targetId = targetMat?._id || targetMat;
+          const fullMat = dbRawMaterials?.find(m => m._id === targetId);
+          const desc = fullMat?.ItemDescription || targetMat?.ItemDescription || "Item";
+          const qty = Number(it.actualCountShipped ?? it.qtyRequested ?? 0);
+          const uom = fullMat?.UOM || targetMat?.UOM || '';
+          return `• ${desc}: ${qty} ${uom}`.trim();
+        }).slice(0, 3).join('\n') + (items.length > 3 ? `\n… (+${items.length - 3} more items)` : '');
+
+        return [
+          String(idx + 1),
+          rec.plNo || '—',
+          dateStr,
+          rec.customer || 'N/A',
+          itemsSummary || '—',
+          `${totalQty.toLocaleString()} units`,
+          rec.preparedBy || 'Staff',
+          rec.isVoided ? "VOIDED" : (rec.transactionType || "OUTBOUND").toUpperCase()
+        ];
+      });
+
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 6,
+        margin: { top: 38, bottom: 20, left: 14, right: 14 },
+        head: [tableColumns],
+        body: tableRows,
+        theme: 'grid',
+        headStyles: { fillColor: [24, 23, 78], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, valign: 'middle' },
+        bodyStyles: { fontSize: 7.5, textColor: [50, 50, 50], valign: 'middle' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { overflow: 'ellipsize', cellPadding: 2.5, lineColor: [230, 230, 230], lineWidth: 0.2, rowPageBreak: 'avoid' },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 32, fontStyle: 'bold', textColor: [24, 23, 78] },
+          2: { cellWidth: 26, halign: 'center' },
+          3: { cellWidth: 46 },
+          4: { cellWidth: 80 },
+          5: { cellWidth: 27, halign: 'center', fontStyle: 'bold' },
+          6: { cellWidth: 28 },
+          7: { cellWidth: 20, halign: 'center', fontStyle: 'bold' }
+        },
+        didDrawCell: (data) => {
+          if (data.section === 'body' && data.column.index === 5) {
+            doc.setFillColor(238, 242, 255);
+            doc.rect(data.cell.x + 0.3, data.cell.y + 0.3, data.cell.width - 0.6, data.cell.height - 0.6, 'F');
+            doc.setTextColor(24, 23, 78);
+            doc.setFont("helvetica", "bold");
+            doc.text(String(data.cell.text), data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 1, { align: 'center' });
+          }
+        }
+      });
+
+      // Decorate all pages
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+
+        try {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.05 }));
+          const logoWidth = 75;
+          const logoHeight = 75;
+          doc.addImage('/cropped_circle_image.png', 'PNG', centerX - (logoWidth / 2), centerY - (logoHeight / 2), logoWidth, logoHeight);
+          doc.restoreGraphicsState();
+        } catch (e) { }
+
+        doc.setFillColor(24, 23, 78);
+        doc.rect(0, 0, pageWidth, 28, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.text("OUTBOUND MATERIALS & PRODUCTS TRANSACTION AUDIT LEDGER", centerX, 12, { align: 'center' });
+
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(215, 220, 245);
+        doc.text(`Material Flow Logistics & Activity Trail Control Registry  |  Total: ${recordsToExport.length} Outbound Entries  |  Generated: ${formattedDate}`, centerX, 20, { align: 'center' });
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(120, 120, 120);
+        doc.text("CONFIDENTIAL AUDIT LEDGER - FOR INTERNAL AUTHORIZED USE ONLY", 14, pageHeight - 8);
+
+        const pageNumber = `Page ${i} of ${totalPages}`;
+        doc.text(pageNumber, pageWidth - 14, pageHeight - 8, { align: 'right' });
+      }
+
+      doc.save(`OUTBOUND_HISTORY_AUDIT_LEDGER_${new Date().toISOString().split('T')[0]}.pdf`);
+      showSuccessToast("Consolidated Outbound Audit Ledger (PDF) exported successfully!");
+    } catch (e) {
+      console.error("Failure exporting History Ledger PDF:", e);
+      showErrorToast("Failed to export Outbound History Ledger PDF: " + e.message);
     }
   };
 
@@ -1251,22 +1536,31 @@ function InventoryOutboundProducts() {
 
         <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 rounded-2xl border flex flex-col gap-3 shadow-sm h-auto min-h-[400px]`}>
           <div className={`flex flex-col gap-1 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-2`}>
-            <div className={`flex items-center justify-between w-full text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
-              <div className="flex items-center gap-2">
-                <ClipboardList className="w-4 h-4 text-[#ff6600]" />
-                <span>History Logs</span>
+            <div className={`flex items-center justify-between w-full text-xs sm:text-sm font-bold gap-1.5 whitespace-nowrap ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
+              <div className="flex items-center gap-1.5 whitespace-nowrap min-w-0">
+                <ClipboardList className="w-4 h-4 text-[#ff6600] shrink-0" />
+                <span className="truncate">History Logs</span>
               </div>
+              <button
+                type="button"
+                onClick={handleExportHistoryLedgerPDF}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-[#ff6600] hover:bg-[#e05a00] active:scale-95 text-white rounded-lg text-[10px] font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap shrink-0"
+                title="Export all filtered history logs as Audit Ledger (PDF)"
+              >
+                <Download className="w-3.5 h-3.5 shrink-0" />
+                <span>PDF</span>
+              </button>
             </div>
-            <div className="relative mt-1">
-              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-              <input
-                type="text"
-                value={historySearchQuery}
-                onChange={e => setHistorySearchQuery(e.target.value)}
-                placeholder="Search slip, customer, or carrier..."
-                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-800'} border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none`}
-              />
-            </div>
+
+          </div>
+          <div className="relative mt-1">
+            <input
+              type="text"
+              value={historySearchQuery}
+              onChange={e => setHistorySearchQuery(e.target.value)}
+              placeholder="Search slip, customer, or carrier..."
+              className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[440px] pr-1 custom-scrollbar">
@@ -1434,11 +1728,11 @@ function InventoryOutboundProducts() {
                 <button
                   type="button"
                   onClick={() => handleDownloadPDF(selectedSlip)}
-                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
-                  title={`Download PDF for ${selectedSlip.plNo}`}
+                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                  title={`Download Audit Ledger PDF for ${selectedSlip.plNo}`}
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download PDF</span>
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Audit Ledger (PDF)</span>
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}

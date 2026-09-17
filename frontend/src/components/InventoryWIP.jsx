@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Calendar, Trash2, ClipboardList, Search, X, Download, User, Layers, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { FileText, Calendar, Trash2, ClipboardList, Search, X, Download, User, Layers, CheckCircle2, AlertCircle, Loader2, FileSpreadsheet } from 'lucide-react';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -253,16 +253,272 @@ function InventoryWIP() {
     }
   };
 
-  // --- PDF REPORT GENERATION ---
+  // --- AUDIT LEDGER STYLED PDF EXPORT (INDIVIDUAL SLIP) ---
   const handleDownloadPDF = (conversionRecord = null) => {
     const targetRec = conversionRecord || selectedConversion;
     if (!targetRec) return;
     try {
-      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-      const pageWidth = 210;
-      const pageHeight = 297;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageWidth = 297;
+      const pageHeight = 210;
       const centerX = pageWidth / 2;
       const centerY = pageHeight / 2;
+      const formattedDate = new Date().toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+      const processedDateStr = targetRec.dateProcessed ? new Date(targetRec.dateProcessed).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric'
+      }) : (targetRec.createdAt ? new Date(targetRec.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric'
+      }) : '—');
+
+      // --- PAGE 1 METADATA BLOCK ---
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+
+      doc.text("Conversion / WIP No.:", 14, 38);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(24, 23, 78);
+      doc.text(`${targetRec.conversionNo || '—'}`, 54, 38);
+
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("Date Generated:", 185, 38);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${formattedDate}`, 220, 38);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Process Mode:", 14, 45);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(37, 99, 235);
+      doc.text(`${(targetRec.productionType || 'Fabricated').toUpperCase()}`, 54, 45);
+
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("Date Processed:", 185, 45);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${processedDateStr}`, 220, 45);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Customer Target:", 14, 52);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${targetRec.customer || targetRec.remarks || 'Standard Production'}`, 54, 52);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Prepared By:", 185, 52);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${targetRec.preparedBy || preparedBy || 'Authorized Staff'}`, 220, 52);
+
+      // Calculate totals
+      let totalConsumedQty = 0;
+      let totalProducedQty = 0;
+      (targetRec.inputs || []).forEach(it => { totalConsumedQty += Number(it.qtyUsed || 0); });
+      (targetRec.outputs || []).forEach(it => { totalProducedQty += Number(it.qtyProduced || 0); });
+
+      // KPI Header Table
+      autoTable(doc, {
+        startY: 59,
+        margin: { top: 38, bottom: 20, left: 14, right: 14 },
+        head: [["1. RAW MATERIALS CONSUMED (INPUTS)", "2. FINISHED PRODUCTS YIELD (OUTPUTS)", "3. NET CONVERSION YIELD STATUS"]],
+        body: [[
+          `${totalConsumedQty.toLocaleString()} Units (${targetRec.inputs?.length || 0} Material Lines)`,
+          `${totalProducedQty.toLocaleString()} Units (${targetRec.outputs?.length || 0} Output Lines)`,
+          totalConsumedQty >= totalProducedQty ? "CONVERSION NORMAL (BALANCED)" : "HIGH-YIELD FABRICATION"
+        ]],
+        theme: 'grid',
+        headStyles: {
+          fillColor: [24, 23, 78],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8,
+          halign: 'center',
+          cellPadding: { top: 2.8, bottom: 2.8, left: 2.5, right: 2.5 }
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          fontStyle: 'bold',
+          textColor: [24, 23, 78],
+          fillColor: [245, 248, 255],
+          halign: 'center',
+          cellPadding: { top: 3, bottom: 3, left: 2.5, right: 2.5 }
+        },
+        styles: { lineColor: [215, 225, 245], lineWidth: 0.25 }
+      });
+
+      const tableColumns = ["Item Description", "Dimension", "Count", "UOM", "Remarks"];
+      const tableRows = [];
+
+      const inputsList = targetRec.inputs || [];
+      const outputsList = targetRec.outputs || [];
+
+      if (inputsList.length > 0) {
+        // Section Header Banner for Input Raw Materials
+        tableRows.push([
+          {
+            content: `SEGMENT: RAW MATERIAL INPUTS (CONSUMED)   (${inputsList.length} ${inputsList.length === 1 ? 'ITEM' : 'ITEMS'})`,
+            colSpan: 5,
+            styles: {
+              fillColor: [234, 239, 249],
+              textColor: [24, 23, 78],
+              fontStyle: 'bold',
+              fontSize: 8.5,
+              cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 }
+            }
+          }
+        ]);
+
+        inputsList.forEach(it => {
+          const targetId = it.materialId?._id || it.materialId;
+          const fullMat = dbMaterials?.find(m => m._id === targetId);
+
+          const descOnly = fullMat?.ItemDescription || it.materialId?.ItemDescription || "-";
+          const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.materialId?.Dimension || it.materialId?.dimension || "—";
+          const uom = fullMat?.UOM || it.materialId?.UOM || '—';
+
+          tableRows.push([
+            `${descOnly} (Input / Consumed)`,
+            dimension,
+            `-${it.qtyUsed}`,
+            uom,
+            it.remarks || "Raw Material Input (Deducted)"
+          ]);
+        });
+      }
+
+      if (outputsList.length > 0) {
+        // Section Header Banner for Output Finished Products
+        tableRows.push([
+          {
+            content: `SEGMENT: FINISHED GOODS OUTPUTS (YIELD)   (${outputsList.length} ${outputsList.length === 1 ? 'ITEM' : 'ITEMS'})`,
+            colSpan: 5,
+            styles: {
+              fillColor: [234, 239, 249],
+              textColor: [24, 23, 78],
+              fontStyle: 'bold',
+              fontSize: 8.5,
+              cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 }
+            }
+          }
+        ]);
+
+        outputsList.forEach(it => {
+          const targetId = it.itemId?._id || it.itemId;
+          const fullMat = dbMaterials?.find(m => m._id === targetId);
+
+          const descOnly = fullMat?.ItemDescription || it.itemId?.ItemDescription || "-";
+          const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.itemId?.Dimension || it.itemId?.dimension || "—";
+          const uom = fullMat?.UOM || it.itemId?.UOM || '—';
+
+          tableRows.push([
+            `${descOnly} (Output / Yield)`,
+            dimension,
+            `+${it.qtyProduced}`,
+            uom,
+            it.remarks || "Yield Conversion Output"
+          ]);
+        });
+      }
+
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 6,
+        margin: { top: 38, bottom: 20, left: 14, right: 14 },
+        head: [tableColumns],
+        body: tableRows,
+        theme: 'grid',
+        headStyles: { fillColor: [24, 23, 78], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, valign: 'middle' },
+        bodyStyles: { fontSize: 7.5, textColor: [50, 50, 50], valign: 'middle' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { overflow: 'ellipsize', cellPadding: 3, lineColor: [230, 230, 230], lineWidth: 0.2, rowPageBreak: 'avoid' },
+        columnStyles: {
+          0: { cellWidth: 105 },
+          1: { cellWidth: 45, halign: 'center' },
+          2: { cellWidth: 25, halign: 'center', fontStyle: 'bold' },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 74 }
+        },
+        didDrawCell: (data) => {
+          if (data.cell.colSpan > 1) return;
+          if (data.section === 'body' && data.column.index === 2) {
+            const rawVal = String(data.cell.text || '');
+            const isDeduction = rawVal.startsWith('-');
+            if (isDeduction) {
+              doc.setFillColor(254, 242, 242);
+              doc.rect(data.cell.x + 0.3, data.cell.y + 0.3, data.cell.width - 0.6, data.cell.height - 0.6, 'F');
+              doc.setTextColor(225, 29, 72);
+              doc.setFont("helvetica", "bold");
+              doc.text(rawVal, data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 1, { align: 'center' });
+            } else {
+              doc.setFillColor(240, 253, 244);
+              doc.rect(data.cell.x + 0.3, data.cell.y + 0.3, data.cell.width - 0.6, data.cell.height - 0.6, 'F');
+              doc.setTextColor(16, 185, 129);
+              doc.setFont("helvetica", "bold");
+              doc.text(rawVal, data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 1, { align: 'center' });
+            }
+          }
+        }
+      });
+
+      // Decorate all pages
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+
+        try {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.05 }));
+          const logoWidth = 75;
+          const logoHeight = 75;
+          doc.addImage('/cropped_circle_image.png', 'PNG', centerX - (logoWidth / 2), centerY - (logoHeight / 2), logoWidth, logoHeight);
+          doc.restoreGraphicsState();
+        } catch (e) { }
+
+        doc.setFillColor(24, 23, 78);
+        doc.rect(0, 0, pageWidth, 28, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.text("PRODUCTION WORK IN PROGRESS (WIP) SHEET", centerX, 12, { align: 'center' });
+
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(215, 220, 245);
+        doc.text(`Material Conversion & Yield Control Registry  |  Slip: ${targetRec.conversionNo}  |  Generated: ${formattedDate}`, centerX, 20, { align: 'center' });
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(120, 120, 120);
+        doc.text("CONFIDENTIAL AUDIT LEDGER - FOR INTERNAL AUTHORIZED USE ONLY", 14, pageHeight - 8);
+
+        const pageNumber = `Page ${i} of ${totalPages}`;
+        doc.text(pageNumber, pageWidth - 14, pageHeight - 8, { align: 'right' });
+      }
+
+      doc.save(`PRODUCTION_LOG_${targetRec.conversionNo}.pdf`);
+      setSuccessMessage("WIP Audit Ledger PDF Slip downloaded successfully.");
+    } catch (e) {
+      console.error(e);
+      setErrorMessage("Failed to download PDF slip.");
+    }
+  };
+
+  // --- CONSOLIDATED HISTORY LOGS AUDIT LEDGER PDF ---
+  const handleExportHistoryLedgerPDF = () => {
+    const recordsToExport = filteredConversionRecords && filteredConversionRecords.length > 0 ? filteredConversionRecords : conversionRecords;
+    if (!recordsToExport || recordsToExport.length === 0) {
+      setErrorMessage("No WIP conversion history logs available to export.");
+      return;
+    }
+
+    try {
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageWidth = 297;
+      const pageHeight = 210;
+      const centerX = pageWidth / 2;
+      const centerY = pageHeight / 2;
+
       const formattedDate = new Date().toLocaleString('en-US', {
         month: 'short', day: 'numeric', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
@@ -270,132 +526,162 @@ function InventoryWIP() {
 
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
+      doc.setFontSize(9.5);
 
-      doc.text("Conversion No:", 14, 42);
-      doc.setFont("helvetica", "normal");
-      doc.text(`${targetRec.conversionNo}`, 48, 42);
+      doc.text("Report Module:", 14, 38);
       doc.setFont("helvetica", "bold");
-      doc.text("Date Processed:", 120, 42);
-      doc.setFont("helvetica", "normal");
-      doc.text(`${targetRec.dateProcessed ? new Date(targetRec.dateProcessed).toLocaleDateString() : '-'}`, 155, 42);
-
-      doc.setFont("helvetica", "bold");
-      doc.text("Process Mode:", 14, 49);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(37, 99, 235);
-      doc.text(`${targetRec.productionType || 'Fabricated'}`, 48, 49);
+      doc.setTextColor(24, 23, 78);
+      doc.text("Work in Progress (WIP) Conversion & Assembly Registry", 48, 38);
 
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
-      doc.text("Prepared By:", 120, 49);
+      doc.text("Date Generated:", 185, 38);
       doc.setFont("helvetica", "normal");
-      doc.text(`${targetRec.preparedBy || preparedBy}`, 155, 49);
+      doc.text(`${formattedDate}`, 220, 38);
 
       doc.setFont("helvetica", "bold");
-      doc.text("Customer:", 14, 56);
+      doc.text("Security Class:", 14, 45);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(37, 99, 235);
+      doc.text("Internal Manufacturing Audit Ledger", 48, 45);
+
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("Total Logs:", 185, 45);
       doc.setFont("helvetica", "normal");
-      doc.text(`${targetRec.customer || targetRec.remarks || "No customer recorded."}`, 48, 56);
+      doc.text(`${recordsToExport.length} Logged Conversions`, 220, 45);
 
-      const tableColumns = ["Segment", "Item Description", "Dimension", "Qty", "Remarks"];
-      const tableRows = [];
+      if (sidebarSearchQuery.trim()) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Filter Applied:", 14, 52);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Search Keyword: "${sidebarSearchQuery}"`, 48, 52);
+      }
 
-      targetRec.inputs?.forEach(it => {
-        const targetId = it.materialId?._id || it.materialId;
-        const fullMat = dbMaterials?.find(m => m._id === targetId);
-
-        const descOnly = fullMat?.ItemDescription || it.materialId?.ItemDescription || "-";
-        const segment = fullMat?.Segment || fullMat?.segment || it.materialId?.Segment || it.materialId?.segment || "N/A";
-        const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.materialId?.Dimension || it.materialId?.dimension || "N/A";
-        const uom = fullMat?.UOM || it.materialId?.UOM || '';
-
-        tableRows.push([
-          segment,
-          `${descOnly} (Input)`,
-          dimension,
-          `-${it.qtyUsed} ${uom}`,
-          "Raw Material Input (Deducted)"
-        ]);
+      let grandTotalConsumed = 0;
+      let grandTotalYield = 0;
+      recordsToExport.forEach(w => {
+        (w.inputs || []).forEach(it => { grandTotalConsumed += Number(it.qtyUsed || 0); });
+        (w.outputs || []).forEach(it => { grandTotalYield += Number(it.qtyProduced || 0); });
       });
 
-      targetRec.outputs?.forEach(it => {
-        const targetId = it.itemId?._id || it.itemId;
-        const fullMat = dbMaterials?.find(m => m._id === targetId);
+      const kpiStartY = sidebarSearchQuery.trim() ? 58 : 52;
+      autoTable(doc, {
+        startY: kpiStartY,
+        margin: { top: 38, bottom: 20, left: 14, right: 14 },
+        head: [["1. TOTAL BATCHES EXECUTED", "2. TOTAL INPUT MATERIAL CONSUMED", "3. TOTAL FINISHED OUTPUT YIELD"]],
+        body: [[
+          `${recordsToExport.length} Production Batches`,
+          `${grandTotalConsumed.toLocaleString()} Units Consumed`,
+          `${grandTotalYield.toLocaleString()} Units Produced`
+        ]],
+        theme: 'grid',
+        headStyles: {
+          fillColor: [24, 23, 78],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8,
+          halign: 'center',
+          cellPadding: { top: 2.8, bottom: 2.8, left: 2.5, right: 2.5 }
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          fontStyle: 'bold',
+          textColor: [24, 23, 78],
+          fillColor: [245, 248, 255],
+          halign: 'center',
+          cellPadding: { top: 3, bottom: 3, left: 2.5, right: 2.5 }
+        },
+        styles: { lineColor: [215, 225, 245], lineWidth: 0.25 }
+      });
 
-        const descOnly = `${fullMat?.ItemDescription || it.itemId?.ItemDescription || "-"}`;
-        const segment = fullMat?.Segment || fullMat?.segment || it.itemId?.Segment || it.itemId?.segment || "N/A";
-        const dimension = fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions || it.itemId?.Dimension || it.itemId?.dimension || "N/A";
-        const uom = fullMat?.UOM || it.itemId?.UOM || '';
+      const tableColumns = ["#", "Conversion No", "Date Processed", "Mode", "Target / Customer", "Consumed / Yield", "Prepared By", "Status"];
+      const tableRows = recordsToExport.map((rec, idx) => {
+        const dateStr = rec.dateProcessed ? new Date(rec.dateProcessed).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'short', day: 'numeric'
+        }) : (rec.createdAt ? new Date(rec.createdAt).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'short', day: 'numeric'
+        }) : '—');
 
-        tableRows.push([
-          segment,
-          `${descOnly} (Output)`,
-          dimension,
-          `+${it.qtyProduced} ${uom}`,
-          "Yield Conversion Output"
-        ]);
+        let inQty = 0;
+        let outQty = 0;
+        (rec.inputs || []).forEach(i => { inQty += Number(i.qtyUsed || 0); });
+        (rec.outputs || []).forEach(o => { outQty += Number(o.qtyProduced || 0); });
+
+        return [
+          String(idx + 1),
+          rec.conversionNo || '—',
+          dateStr,
+          (rec.productionType || 'Fabricated').toUpperCase(),
+          rec.customer || rec.remarks || 'Standard Production',
+          `In: -${inQty} | Out: +${outQty}`,
+          rec.preparedBy || 'Staff',
+          "COMPLETED"
+        ];
       });
 
       autoTable(doc, {
-        startY: 64,
+        startY: doc.lastAutoTable.finalY + 6,
+        margin: { top: 38, bottom: 20, left: 14, right: 14 },
         head: [tableColumns],
         body: tableRows,
         theme: 'grid',
-
-        didDrawPage: (data) => {
-          doc.saveGraphicsState();
-          doc.setGState(new doc.GState({ opacity: 0.06 }));
-          const logoWidth = 80;
-          const logoHeight = 80;
-          const logoX = centerX - (logoWidth / 2);
-          const logoY = centerY - (logoHeight / 2);
-          doc.addImage('/cropped_circle_image.png', 'PNG', logoX, logoY, logoWidth, logoHeight);
-          doc.restoreGraphicsState();
-
-          doc.setFillColor(24, 23, 78);
-          doc.rect(0, 0, pageWidth, 30, 'F');
-
-          doc.setTextColor(255, 255, 255);
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(14);
-          doc.text("PRODUCTION WORK IN PROGRESS SHEET", centerX, 13, { align: 'center' });
-
-          doc.setFontSize(8.5);
-          doc.setFont("helvetica", "normal");
-          doc.setTextColor(200, 200, 220);
-          doc.text(`Material Conversion & Yield Control Registry  |  Generated: ${formattedDate}`, centerX, 21, { align: 'center' });
-
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(8);
-          doc.setTextColor(120, 120, 120);
-          doc.text("CONFIDENTIAL - INTERNAL USE ONLY", 14, pageHeight - 10);
-
-          const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
-          doc.text(pageNumber, pageWidth - 14, pageHeight - 10, { align: 'right' });
-        },
-        headStyles: { fillColor: [32, 31, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5, valign: 'middle' },
-        bodyStyles: { fontSize: 8, textColor: [60, 60, 60], valign: 'middle' },
-        alternateRowStyles: { fillColor: [248, 249, 250] },
+        headStyles: { fillColor: [24, 23, 78], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, valign: 'middle' },
+        bodyStyles: { fontSize: 7.5, textColor: [50, 50, 50], valign: 'middle' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { overflow: 'ellipsize', cellPadding: 2.5, lineColor: [230, 230, 230], lineWidth: 0.2, rowPageBreak: 'avoid' },
         columnStyles: {
-          4: { cellWidth: 30, halign: 'center', fontStyle: 'bold' },
-          5: { cellWidth: 26, halign: 'center' }
-        },
-
-        didParseCell: function (data) {
-          if (data.section === 'body' && data.column.index === 0) {
-            if (data.cell.raw.includes('INPUT')) {
-              data.cell.styles.textColor = [185, 28, 28];
-            } else {
-              data.cell.styles.textColor = [4, 120, 87];
-            }
-          }
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 35, fontStyle: 'bold', textColor: [24, 23, 78] },
+          2: { cellWidth: 26, halign: 'center' },
+          3: { cellWidth: 28, halign: 'center' },
+          4: { cellWidth: 70 },
+          5: { cellWidth: 46, halign: 'center', fontStyle: 'bold' },
+          6: { cellWidth: 28 },
+          7: { cellWidth: 26, halign: 'center', fontStyle: 'bold', textColor: [16, 185, 129] }
         }
       });
 
-      doc.save(`PRODUCTION_LOG_${selectedConversion.conversionNo}.pdf`);
-      setSuccessMessage("PDF Slip downloaded successfully.");
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+
+        try {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.05 }));
+          const logoWidth = 75;
+          const logoHeight = 75;
+          doc.addImage('/cropped_circle_image.png', 'PNG', centerX - (logoWidth / 2), centerY - (logoHeight / 2), logoWidth, logoHeight);
+          doc.restoreGraphicsState();
+        } catch (e) { }
+
+        doc.setFillColor(24, 23, 78);
+        doc.rect(0, 0, pageWidth, 28, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.text("WORK IN PROGRESS (WIP) TRANSACTION AUDIT LEDGER", centerX, 12, { align: 'center' });
+
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(215, 220, 245);
+        doc.text(`Material Flow Logistics & Conversion Trail Control Registry  |  Total: ${recordsToExport.length} Entries  |  Generated: ${formattedDate}`, centerX, 20, { align: 'center' });
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(120, 120, 120);
+        doc.text("CONFIDENTIAL AUDIT LEDGER - FOR INTERNAL AUTHORIZED USE ONLY", 14, pageHeight - 8);
+
+        const pageNumber = `Page ${i} of ${totalPages}`;
+        doc.text(pageNumber, pageWidth - 14, pageHeight - 8, { align: 'right' });
+      }
+
+      doc.save(`WIP_HISTORY_AUDIT_LEDGER_${new Date().toISOString().split('T')[0]}.pdf`);
+      setSuccessMessage("Consolidated WIP Audit Ledger (PDF) exported successfully!");
     } catch (e) {
-      setErrorMessage("Failed to download PDF slip.");
+      console.error(e);
+      setErrorMessage("Failed to export WIP History Ledger PDF: " + e.message);
     }
   };
 
@@ -718,9 +1004,8 @@ function InventoryWIP() {
                   <button
                     type="button"
                     onClick={() => setInputMaterials([])}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${
-                      isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
-                    }`}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
+                      }`}
                   >
                     Clear Source Items
                   </button>
@@ -923,9 +1208,8 @@ function InventoryWIP() {
                   <button
                     type="button"
                     onClick={() => setOutputItems([])}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${
-                      isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
-                    }`}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded border transition-all cursor-pointer ${isDark ? 'text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 border-slate-200 hover:bg-slate-100'
+                      }`}
                   >
                     Clear Output Items
                   </button>
@@ -1009,22 +1293,32 @@ function InventoryWIP() {
         {/* RIGHT CONTAINER (SIDEBAR HISTORY RECENT LOGS) */}
         <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 rounded-2xl border flex flex-col gap-3 shadow-sm h-auto min-h-[400px]`}>
           <div className={`flex flex-col gap-1 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-2`}>
-            <div className={`flex items-center justify-between w-full text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
-              <div className="flex items-center gap-2">
-                <ClipboardList className="w-4 h-4 text-[#ff6600]" />
-                <span>History Logs</span>
+            <div className={`flex items-center justify-between w-full text-xs sm:text-sm font-bold gap-1.5 whitespace-nowrap ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
+              <div className="flex items-center gap-1.5 whitespace-nowrap min-w-0">
+                <ClipboardList className="w-4 h-4 text-[#ff6600] shrink-0" />
+                <span className="truncate">History Logs</span>
               </div>
+              <button
+                type="button"
+                onClick={handleExportHistoryLedgerPDF}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-[#ff6600] hover:bg-[#e05a00] active:scale-95 text-white rounded-lg text-[10px] font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap shrink-0"
+                title="Export all filtered history logs as Audit Ledger (PDF)"
+              >
+                <Download className="w-3.5 h-3.5 shrink-0" />
+                <span>PDF</span>
+              </button>
             </div>
-            <div className="relative mt-1">
-              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-              <input
-                type="text"
-                value={sidebarSearchQuery}
-                onChange={e => setSidebarSearchQuery(e.target.value)}
-                placeholder="Search tracking no or customer..."
-                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-800'} border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none`}
-              />
-            </div>
+
+          </div>
+
+          <div className="relative mt-1">
+            <input
+              type="text"
+              value={sidebarSearchQuery}
+              onChange={e => setSidebarSearchQuery(e.target.value)}
+              placeholder="Search tracking no or customer..."
+              className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[440px] pr-1 custom-scrollbar">
@@ -1073,11 +1367,11 @@ function InventoryWIP() {
                 <button
                   type="button"
                   onClick={() => handleDownloadPDF(selectedConversion)}
-                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
-                  title={`Download PDF for ${selectedConversion.conversionNo}`}
+                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                  title={`Download Audit Ledger PDF for ${selectedConversion.conversionNo}`}
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download PDF</span>
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Audit Ledger (PDF)</span>
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
