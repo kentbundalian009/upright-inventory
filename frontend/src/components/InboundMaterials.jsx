@@ -3,8 +3,8 @@ import { FileText, Truck, Calendar, ClipboardList, ListPlus, Trash2, Search, X, 
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import PageHeader from './PageHeader';
-import TablePagination from './TablePagination';
+import PageHeader from './layout/PageHeader';
+import TablePagination from './common/TablePagination';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 
@@ -38,7 +38,6 @@ function InventoryInboundRawMat() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalPage, setModalPage] = useState(1);
   const [modalRowsPerPage, setModalRowsPerPage] = useState(10);
-  const [isMatModalOpen, setIsMatModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -53,16 +52,6 @@ function InventoryInboundRawMat() {
   const [dateReceived, setDateReceived] = useState(getTodayDateString());
   const [originAddress, setOriginAddress] = useState('');
   const [manifestItems, setManifestItems] = useState([]);
-
-  // New Raw Material Form States
-  const [newMatCode, setNewMatCode] = useState('');
-  const [newMatCategory, setNewMatCategory] = useState('');
-  const [newMatSegment, setNewMatSegment] = useState('');
-  const [newMatDesc, setNewMatDesc] = useState('');
-  const [newMatDimension, setNewMatDimension] = useState('');
-  const [newMatUOM, setNewMatUOM] = useState('');
-  const [newMatAccountTo, setNewMatAccountTo] = useState('');
-  const [newMatAcquisitionCost, setNewMatAcquisitionCost] = useState('');
 
   const [preparedBy, setPreparedBy] = useState('System User');
 
@@ -199,38 +188,6 @@ function InventoryInboundRawMat() {
     setManifestItems(updated);
   };
 
-  const handleCreateMaterialProfile = async (e) => {
-    e.preventDefault();
-    if (!newMatDesc || !newMatUOM) {
-      return showErrorToast("Please fill up all required fields (Description, UOM).");
-    }
-
-    const payload = {
-      Code: newMatCode,
-      Category: "",
-      Segment: newMatSegment,
-      ItemDescription: newMatDesc,
-      Dimension: newMatDimension,
-      UOM: newMatUOM,
-      AccountTo: newMatAccountTo,
-      AcquisitionCost: Number(newMatAcquisitionCost) || 0
-    };
-
-    try {
-      const res = await axios.post(RAW_MAT_URL, payload);
-      if (res.status === 200 || res.status === 201) {
-        showSuccessToast("New Raw Material Profile Added Successfully!");
-        setNewMatCode(''); setNewMatCategory(''); setNewMatSegment('');
-        setNewMatDesc(''); setNewMatDimension(''); setNewMatUOM(''); setNewMatAccountTo('');
-        setNewMatAcquisitionCost('');
-        setIsMatModalOpen(false);
-        fetchData();
-      }
-    } catch (err) {
-      const errMsg = err.response?.data?.message || "Error adding raw material profile.";
-      showErrorToast(errMsg);
-    }
-  };
 
   const handleInitiateConfirm = (e) => {
     e.preventDefault();
@@ -773,29 +730,7 @@ function InventoryInboundRawMat() {
     rec.supplier?.toLowerCase().includes(sidebarSearchQuery.toLowerCase())
   );
 
-  useEffect(() => {
-    if (isMatModalOpen) {
-      const rackingCodes = dbMaterials
-        .map(m => m.Code)
-        .filter(code => code && code.startsWith("RCK-USSP-"));
 
-      if (rackingCodes.length === 0) {
-        setNewMatCode("RCK-USSP-00001");
-      } else {
-        const numbers = rackingCodes.map(code => {
-          const parts = code.split("-");
-          const lastPart = parts[parts.length - 1];
-          return parseInt(lastPart, 10) || 0;
-        });
-
-        const maxNumber = Math.max(...numbers);
-        const nextNumber = maxNumber + 1;
-
-        const formattedNumber = String(nextNumber).padStart(5, '0');
-        setNewMatCode(`RCK-USSP-${formattedNumber}`);
-      }
-    }
-  }, [isMatModalOpen, dbMaterials]);
 
   return (
     <div className={`mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
@@ -908,16 +843,6 @@ function InventoryInboundRawMat() {
                     Filter by segment or search by item description and dimension.
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsMatModalOpen(true)}
-                    className="flex items-center justify-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm cursor-pointer transition-all"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>New Item</span>
-                  </button>
-                </div>
               </div>
 
               {/* DUAL SEARCH & SEGMENT CONTROLS */}
@@ -1017,13 +942,6 @@ function InventoryInboundRawMat() {
                       <p className="text-rose-500 italic font-medium text-xs">
                         No materials found matching &ldquo;{searchQuery}&rdquo; {selectedMaterialSegment !== 'All Segments' ? `in ${selectedMaterialSegment}` : ''}.
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => setIsMatModalOpen(true)}
-                        className="text-xs font-bold text-indigo-600 hover:underline cursor-pointer"
-                      >
-                        + Create &ldquo;{searchQuery}&rdquo; as a New Item
-                      </button>
                     </div>
                   )}
                 </div>
@@ -1217,8 +1135,8 @@ function InventoryInboundRawMat() {
                   className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
                   title={`Download Audit Ledger PDF for ${selectedPo.poNo}`}
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5" />
-                  <span>Audit Ledger (PDF)</span>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download (PDF)</span>
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
@@ -1252,6 +1170,14 @@ function InventoryInboundRawMat() {
 
               return (
                 <div className={`border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm overflow-hidden flex flex-col`}>
+                  <TablePagination
+                    currentPage={modalPage}
+                    setCurrentPage={setModalPage}
+                    rowsPerPage={modalRowsPerPage}
+                    setRowsPerPage={setModalRowsPerPage}
+                    totalRows={poItems.length}
+                    options={[5, 10, 20, 50, 100]}
+                  />
                   <div className="overflow-x-auto max-h-72 overflow-y-auto">
                     <table className="w-full text-left text-xs border-collapse min-w-[650px]">
                       <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700 text-white'} text-[11px] font-bold uppercase whitespace-nowrap`}>
@@ -1307,15 +1233,6 @@ function InventoryInboundRawMat() {
                       </tbody>
                     </table>
                   </div>
-
-                  <TablePagination
-                    currentPage={modalPage}
-                    setCurrentPage={setModalPage}
-                    rowsPerPage={modalRowsPerPage}
-                    setRowsPerPage={setModalRowsPerPage}
-                    totalRows={poItems.length}
-                    options={[5, 10, 20, 50, 100]}
-                  />
                 </div>
               );
             })()}
@@ -1324,161 +1241,7 @@ function InventoryInboundRawMat() {
         </div>
       )}
 
-      {isMatModalOpen && (
-        <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
-          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200'} border rounded-2xl w-full max-w-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto`}>
 
-            <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
-              <div className="flex items-center gap-2">
-                <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-base`}>Add Materials Information</h3>
-              </div>
-              <button
-                onClick={() => setIsMatModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-800/60' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3`}>
-              <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
-                * System Inventory Protocol *
-              </span>
-              <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
-                Manual quantity inputs are disabled to comply with audit protocols. Racking images and related media must be uploaded through the <strong>Rackings Components.</strong>
-              </p>
-            </div>
-
-            <form onSubmit={handleCreateMaterialProfile} className="space-y-4 mt-4">
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                <div className="md:col-span-2">
-                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Segment *</label>
-                  <input
-                    type="text"
-                    required
-                    list="modal-segments-list"
-                    placeholder="Enter segment name"
-                    value={newMatSegment}
-                    onChange={e => setNewMatSegment(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
-                  />
-                  <datalist id="modal-segments-list">
-                    {uniqueSegments.map((seg, i) => <option key={i} value={seg} />)}
-                  </datalist>
-                </div>
-
-                <div>
-                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Item Description *</label>
-                  <input
-                    type="text"
-                    required
-                    list="modal-desc-list"
-                    placeholder="Enter item description"
-                    value={newMatDesc}
-                    onChange={e => setNewMatDesc(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
-                  />
-                  <datalist id="modal-desc-list">
-                    {uniqueDescriptions.map((desc, i) => <option key={i} value={desc} />)}
-                  </datalist>
-                </div>
-
-                <div>
-                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Dimension *</label>
-                  <input
-                    type="text"
-                    required
-                    list="modal-dimension-list"
-                    placeholder="Enter product dimension"
-                    value={newMatDimension}
-                    onChange={e => setNewMatDimension(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
-                  />
-                  <datalist id="modal-dimension-list">
-                    {uniqueDimensions.map((dim, i) => <option key={i} value={dim} />)}
-                  </datalist>
-                </div>
-
-                <div>
-                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>UOM *</label>
-                  <input
-                    type="text"
-                    required
-                    list="modal-uom-list"
-                    placeholder="Enter unit of measure"
-                    value={newMatUOM}
-                    onChange={e => setNewMatUOM(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
-                  />
-                  <datalist id="modal-uom-list">
-                    {uniqueUOMs.map((uom, i) => <option key={i} value={uom} />)}
-                  </datalist>
-                </div>
-
-                <div>
-                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Account To *</label>
-                  <input
-                    type="text"
-                    required
-                    list="modal-account-list"
-                    placeholder="Enter account to"
-                    value={newMatAccountTo}
-                    onChange={e => setNewMatAccountTo(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
-                  />
-                  <datalist id="modal-account-list">
-                    {uniqueAccounts.map((acc, i) => <option key={i} value={acc} />)}
-                  </datalist>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
-                    Acquisition Cost (Price)
-                  </label>
-                  <div className="relative">
-                    <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-bold text-base select-none pointer-events-none ${isDark ? 'text-amber-400' : 'text-[#18174e]'}`}>
-                      ₱
-                    </span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0.00"
-                      value={newMatAcquisitionCost}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                          setNewMatAcquisitionCost(val);
-                        }
-                      }}
-                      className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg pl-8 pr-3 py-2 text-sm font-mono focus:outline-none focus:border-[#ff6600]`}
-                    />
-                  </div>
-                </div>
-
-              </div>
-
-              <div className={`flex items-center justify-end gap-2 mt-6 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-                <button
-                  type="button"
-                  onClick={() => setIsMatModalOpen(false)}
-                  className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-[#ff6600] hover:bg-[#e05a00] text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
-                >
-                  Save Details
-                </button>
-              </div>
-
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* BROWSE ALL MATERIALS MODAL */}
       {isBrowseModalOpen && (

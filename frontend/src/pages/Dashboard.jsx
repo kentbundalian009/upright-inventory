@@ -1,28 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios'; 
 import { useTheme } from '../context/ThemeContext';
-import Sidebar from "../components/Sidebar"; 
-import Topbar from "../components/Topbar";
+import Sidebar from "../components/layout/Sidebar"; 
+import Topbar from "../components/layout/Topbar";
 
 // Dashboard file imports
-import AdminUserManagement from '../components/AdminUserManagement';
-import AdminUserActivity from '../components/AdminUserActivity';
-import AdminBackup from '../components/AdminBackup';
-import AdminSettings from '../components/AdminSettings';
-import AdminSharedViewers from '../components/AdminSharedViewers';
-import MaintenanceScreen from '../components/MaintenanceScreen';
+import UserManagement from '../components/UserManagement';
+import UserActivity from '../components/UserActivity';
+import DataBackup from '../components/DataBackup';
+import SystemMaintenance from '../components/SystemMaintenance';
+import ViewerLinks from '../components/ViewerLinks';
+import MaintenanceScreen from '../components/common/MaintenanceScreen';
 
-import InventoryDashboard from '../components/InventoryDashboard';
-import InventoryRawMaterials from '../components/InventoryRawMaterials';
-import InventoryInboundRawMat from '../components/InventoryInboundRawMat';
-import InventoryWIP from '../components/InventoryWIP';
-import InventoryProducts from '../components/InventoryProducts';
-import InventoryOutboundProducts from '../components/InventoryOutboundProducts';
-import InventorySupplies from '../components/InventorySupplies';
-import Consumable from '../components/Consumable';
-import InventorySuppliesMovements from '../components/InventorySuppliesMovements';
-import InventoryAssets from '../components/InventoryAssets';
-import Client from '../components/Client';
+import DashboardOverview from '../components/DashboardOverview';
+import Rackings from '../components/Rackings';
+import InboundMaterials from '../components/InboundMaterials';
+import WorkInProgress from '../components/WorkInProgress';
+import OutboundMaterials from '../components/OutboundMaterials';
+import ToolsAndEquipments from '../components/ToolsAndEquipments';
+import Consumables from '../components/Consumables';
+import ConsumablesMovements from '../components/ConsumablesMovements';
+import EquipmentMovements from '../components/EquipmentMovements';
+import InformationModules from '../components/InformationModules';
 
 import Settings from '../components/Settings';
 import Reports from '../components/Reports';
@@ -48,6 +47,9 @@ function Dashboard() {
             const tab = params.get('tab');
             if (view === 'rackings' || tab === 'raw-materials') {
                 return 'raw-materials';
+            }
+            if (tab === 'consumables-records' || tab === 'inventoryconsumables' || tab === 'inventory-consumables') {
+                return 'consumables-records';
             }
         } catch (e) {}
         return 'dashboard';
@@ -106,38 +108,40 @@ function Dashboard() {
     const renderContent = () => {
         switch (activeTab) {
             case 'dashboard': 
-                return <InventoryDashboard />;
+                return <DashboardOverview />;
 
             case 'user-management': 
-                return userRole === 'Admin' ? <AdminUserManagement /> : <InventoryDashboard />;
+                return userRole === 'Admin' ? <UserManagement /> : <DashboardOverview />;
             case 'user-activity': 
-                return userRole === 'Admin' ? <AdminUserActivity /> : <InventoryDashboard />;
+                return userRole === 'Admin' ? <UserActivity /> : <DashboardOverview />;
             case 'admin-backup':
-                return userRole === 'Admin' ? <AdminBackup /> : <InventoryDashboard />;
+                return userRole === 'Admin' ? <DataBackup /> : <DashboardOverview />;
             case 'admin-settings':
-                return userRole === 'Admin' ? <AdminSettings /> : <InventoryDashboard />;
+                return userRole === 'Admin' ? <SystemMaintenance /> : <DashboardOverview />;
             case 'shared-viewers':
-                return userRole === 'Admin' ? <AdminSharedViewers /> : <InventoryDashboard />;
+                return userRole === 'Admin' ? <ViewerLinks /> : <DashboardOverview />;
                 
-            case 'raw-materials': return <InventoryRawMaterials />;
-            case 'client-records': return <Client />;
-            case 'products': return <InventoryProducts />;
+            case 'raw-materials': return <Rackings />;
+            case 'client-records': return <InformationModules />;
             case 'consumables': 
-            case 'consumable': return <Consumable />;
-            case 'supplies': return <InventorySupplies />;
-            case 'assets': return <InventoryAssets />;
-            case 'inbound-raw-mat': return <InventoryInboundRawMat />;
-            case 'work-in-progress': return <InventoryWIP />;
-            case 'outbound-products': return <InventoryOutboundProducts />;
-            case 'supplies-movements': return <InventorySuppliesMovements />;
+            case 'consumable': return <ConsumablesMovements setActiveTab={setActiveTab} />;
+            case 'supplies': return <ToolsAndEquipments />;
+            case 'consumables-records': 
+            case 'inventoryconsumables':
+            case 'inventory-consumables':
+                return <Consumables setActiveTab={setActiveTab} />;
+            case 'inbound-raw-mat': return <InboundMaterials />;
+            case 'work-in-progress': return <WorkInProgress />;
+            case 'outbound-products': return <OutboundMaterials />;
+            case 'supplies-movements': return <EquipmentMovements />;
             
             case 'settings': return <Settings />;
 
             case 'reports': 
-                return userRole !== 'Admin' ? <Reports /> : <InventoryDashboard />;
+                return userRole !== 'Admin' ? <Reports /> : <DashboardOverview />;
             
             default: 
-                return <InventoryDashboard />;
+                return <DashboardOverview />;
         }
     };
 

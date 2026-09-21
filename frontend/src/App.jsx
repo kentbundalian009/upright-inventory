@@ -7,8 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Signup from './pages/Signup';
 import SharedRackingsView from './pages/SharedRackingsView';
 
-import InventoryDashboard from './components/InventoryDashboard';
-import AdminDashboard from './components/AdminDashboard';  
+import DashboardOverview from './components/DashboardOverview';
 import { trackSharedLinkClick } from './utils/linkTracker';
 
 // =========================================================================
@@ -84,18 +83,14 @@ function App() {
           path="/inventory" 
           element={
             <ProtectedRoute allowedRoles={["Inventory", "Admin", "Viewer"]}>
-              <InventoryDashboard />
+              <DashboardOverview />
             </ProtectedRoute>
           } 
         />
 
         <Route 
           path="/admin" 
-          element={
-            <ProtectedRoute allowedRoles={["Admin"]}>
-              <AdminDashboard />
-            </ProtectedRoute>
-          } 
+          element={<Navigate to="/dashboard" replace />} 
         />
 
       </Routes>

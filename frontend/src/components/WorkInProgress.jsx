@@ -3,8 +3,8 @@ import { FileText, Calendar, Trash2, ClipboardList, Search, X, Download, User, L
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import PageHeader from './PageHeader';
-import TablePagination from './TablePagination';
+import PageHeader from './layout/PageHeader';
+import TablePagination from './common/TablePagination';
 import { useTheme } from '../context/ThemeContext';
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
@@ -12,14 +12,12 @@ const API_BASE_URL = import.meta.env.MODE === 'production'
   : 'http://localhost:5000/api';
 
 const RAW_MAT_URL = `${API_BASE_URL}/raw-materials`;
-const PRODUCTS_URL = `${API_BASE_URL}/products`;
 const CONVERSION_URL = `${API_BASE_URL}/conversions`;
 const CLIENT_URL = `${API_BASE_URL}/clients`;
 
 function InventoryWIP() {
   const { isDark } = useTheme();
   const [dbMaterials, setDbMaterials] = useState([]);
-  const [dbProducts, setDbProducts] = useState([]);
   const [conversionRecords, setConversionRecords] = useState([]);
 
   const [rawMatSearchQuery, setRawMatSearchQuery] = useState('');
@@ -88,14 +86,12 @@ function InventoryWIP() {
 
   const fetchData = async () => {
     try {
-      const [matsRes, prodsRes, convsRes, clientsRes] = await Promise.all([
+      const [matsRes, convsRes, clientsRes] = await Promise.all([
         axios.get(RAW_MAT_URL),
-        axios.get(PRODUCTS_URL),
         axios.get(CONVERSION_URL),
         axios.get(`${CLIENT_URL}?type=Customer`).catch(() => ({ data: [] }))
       ]);
       setDbMaterials(matsRes.data || []);
-      setDbProducts(prodsRes.data?.filter(p => !p.isArchived) || prodsRes.data || []);
       setConversionRecords(convsRes.data || []);
       if (clientsRes?.data) {
         setRegisteredCustomers(clientsRes.data);
@@ -1359,6 +1355,7 @@ function InventoryWIP() {
         <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
           <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-2xl w-full max-w-3xl p-6 shadow-xl relative flex flex-col gap-4`}>
 
+            {/* Header */}
             <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
               <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-lg`}>
                 WIP No: {selectedConversion.conversionNo}
@@ -1370,8 +1367,8 @@ function InventoryWIP() {
                   className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
                   title={`Download Audit Ledger PDF for ${selectedConversion.conversionNo}`}
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5" />
-                  <span>Audit Ledger (PDF)</span>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download (PDF)</span>
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
@@ -1383,14 +1380,37 @@ function InventoryWIP() {
               </div>
             </div>
 
-            <div className={`grid grid-cols-2 text-sm gap-2 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border`}>
-              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Control Tracking No:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.conversionNo}</span></div>
-              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Execution Date:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.dateProcessed ? new Date(selectedConversion.dateProcessed).toLocaleDateString() : '-'}</span></div>
-              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Production Type:</span> <span className={`font-bold ${isDark ? 'text-blue-400 bg-blue-950/60 border-blue-800' : 'text-blue-600 bg-blue-50 border-blue-100'} uppercase text-xs px-2 py-0.5 rounded-md border inline-block`}>{selectedConversion.productionType}</span></div>
-              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Prepared By:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.preparedBy || preparedBy}</span></div>
-              <div className="col-span-2"><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Customer:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.customer || selectedConversion.remarks || 'N/A'}</span></div>
+            {/* Details Grid (Patterned Exactly After Inbound Modal) */}
+            <div className={`grid grid-cols-2 sm:grid-cols-3 text-sm gap-2.5 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border`}>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Transaction Type</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block ${isDark ? 'bg-blue-950/60 text-blue-300 border border-blue-800' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+                  🔵 Fabricated
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Control Tracking No:</span>
+                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.conversionNo}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Execution Date:</span>
+                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.dateProcessed ? new Date(selectedConversion.dateProcessed).toLocaleDateString() : '-'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Production Type:</span>
+                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.productionType || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Prepared By:</span>
+                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedConversion.preparedBy || preparedBy}</span>
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Customer:</span>
+                <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} truncate block`}>{selectedConversion.customer || selectedConversion.remarks || 'N/A'}</span>
+              </div>
             </div>
 
+            {/* Table Section */}
             {(() => {
               const allWipItems = [
                 ...(selectedConversion.inputs || []).map(it => ({ ...it, isInput: true })),
@@ -1402,6 +1422,14 @@ function InventoryWIP() {
 
               return (
                 <div className={`border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm overflow-hidden flex flex-col`}>
+                  <TablePagination
+                    currentPage={modalPage}
+                    setCurrentPage={setModalPage}
+                    rowsPerPage={modalRowsPerPage}
+                    setRowsPerPage={setModalRowsPerPage}
+                    totalRows={allWipItems.length}
+                    options={[5, 10, 20, 50, 100]}
+                  />
                   <div className="overflow-x-auto max-h-72 overflow-y-auto">
                     <table className="w-full text-left text-xs border-collapse min-w-[650px]">
                       <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700 text-white'} text-[11px] font-bold uppercase whitespace-nowrap`}>
@@ -1436,17 +1464,15 @@ function InventoryWIP() {
                                 {segment}
                               </td>
                               <td className={`p-3 font-bold ${isDark ? 'text-white' : 'text-[#18174e]'} text-xs min-w-[200px] whitespace-normal break-words align-middle`} title={desc}>
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span>{desc}</span>
-                                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${it.isInput ? 'bg-rose-950/40 text-rose-300 border border-rose-800' : 'bg-emerald-950/40 text-emerald-300 border border-emerald-800'}`}>
-                                    {it.isInput ? 'Input' : 'Output'}
-                                  </span>
-                                </div>
+                                {desc}
                               </td>
                               <td className={`p-3 ${isDark ? 'text-slate-400' : 'text-slate-600'} font-medium whitespace-nowrap align-middle`}>
                                 {dimension}
                               </td>
-                              <td className={`p-3 text-center font-bold align-middle whitespace-nowrap ${it.isInput ? 'text-rose-500' : 'text-emerald-400'}`}>
+                              <td className={`p-3 text-center font-bold align-middle whitespace-nowrap ${it.isInput
+                                ? (isDark ? 'text-rose-400' : 'text-rose-600')
+                                : (isDark ? 'text-emerald-400' : 'text-emerald-600')
+                                }`}>
                                 {it.isInput ? `-${it.qtyUsed}` : `+${it.qtyProduced}`} {uom}
                               </td>
                               <td className={`p-3 italic ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium text-[11px] min-w-[120px] whitespace-normal break-words align-middle pl-4`}>
@@ -1465,15 +1491,6 @@ function InventoryWIP() {
                       </tbody>
                     </table>
                   </div>
-
-                  <TablePagination
-                    currentPage={modalPage}
-                    setCurrentPage={setModalPage}
-                    rowsPerPage={modalRowsPerPage}
-                    setRowsPerPage={setModalRowsPerPage}
-                    totalRows={allWipItems.length}
-                    options={[5, 10, 20, 50, 100]}
-                  />
                 </div>
               );
             })()}
@@ -1481,6 +1498,7 @@ function InventoryWIP() {
           </div>
         </div>
       )}
+
       {/* CONFIRMATION MODAL */}
       {isConfirmModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">

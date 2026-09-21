@@ -13,8 +13,8 @@ const ConversionSchema = new mongoose.Schema({
     qtyUsed: { type: Number, required: true }
   }],
   outputs: [{
-    itemId: { type: mongoose.Schema.Types.ObjectId, required: true, refPath: 'outputs.itemType' },
-    itemType: { type: String, required: true, enum: ['Product', 'RawMaterial'] }, // Dynamic target mapping
+    itemId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'RawMaterial' },
+    itemType: { type: String, default: 'RawMaterial' },
     qtyProduced: { type: Number, required: true }
   }]
 }, { timestamps: true });

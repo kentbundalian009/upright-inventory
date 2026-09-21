@@ -25,11 +25,9 @@ import { initBackupScheduler } from "./lib/backupScheduler.js";
 
 // API Routes Imports - Inventory
 import rawMaterialRoutes from "./routes/inventory/rawMaterialRoutes.js"; 
-import assetsRoutes from "./routes/inventory/assetsRoutes.js"; 
 import suppliesRoutes from "./routes/inventory/suppliesRoutes.js"; 
 import suppliesMovementRoutes from "./routes/inventory/suppliesMovementRoutes.js"; 
 import conversionRoutes from "./routes/inventory/conversionRoutes.js";
-import productRoutes from "./routes/inventory/productRoutes.js"; 
 import packingListRoutes from "./routes/inventory/packingListRoutes.js"; 
 import purchaseOrderRoutes from "./routes/inventory/purchaseOrderRoutes.js"; 
 import clientRoutes from "./routes/inventory/clientRoutes.js"; 
@@ -59,12 +57,10 @@ app.use("/api/auth", authRoutes);
 
 // 🔒 API ROUTES (Individually secured with role-based auth inside route files)
 app.use("/api/users", userRoutes);
-app.use("/api/assets", assetsRoutes);
 app.use("/api/consumables", consumableRoutes);
 app.use("/api/supplies", suppliesRoutes); 
 app.use("/api/supplies-movements", suppliesMovementRoutes); 
 app.use("/api/conversions", conversionRoutes);
-app.use("/api/products", productRoutes); 
 app.use("/api/packing-lists", packingListRoutes); 
 app.use("/api/raw-materials", rawMaterialRoutes); 
 app.use("/api/clients", clientRoutes);

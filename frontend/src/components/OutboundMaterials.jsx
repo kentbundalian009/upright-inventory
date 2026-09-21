@@ -3,8 +3,8 @@ import axios from 'axios';
 import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2, Layers, Pencil, Copy, FileSpreadsheet } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import PageHeader from './PageHeader';
-import TablePagination from './TablePagination';
+import PageHeader from './layout/PageHeader';
+import TablePagination from './common/TablePagination';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 
@@ -242,13 +242,35 @@ function InventoryOutboundProducts() {
 
     const fastItems = reserveSlip.items.map(it => {
       const targetMaterial = it.materialId || it.productId;
-      const uom = targetMaterial?.UOM || 'pcs';
+      const targetId = targetMaterial?._id || targetMaterial;
+      const fullMat = dbRawMaterials?.find(m => m._id === targetId);
+
+      const segment = fullMat?.Segment || fullMat?.segment ||
+        targetMaterial?.Segment || targetMaterial?.segment || 'N/A';
+
+      const description = fullMat?.ItemDescription || targetMaterial?.ItemDescription || '-';
+      const uom = fullMat?.UOM || targetMaterial?.UOM || 'pcs';
+
+      let dimension = 'N/A';
+      if (fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions) {
+        dimension = fullMat.Dimension || fullMat.dimension || fullMat.Dimensions || fullMat.dimensions;
+      } else if (targetMaterial?.Dimension || targetMaterial?.dimension || targetMaterial?.Dimensions || targetMaterial?.dimensions) {
+        dimension = targetMaterial.Dimension || targetMaterial.dimension || targetMaterial.Dimensions || targetMaterial.dimensions;
+      } else {
+        const l = fullMat?.Length || fullMat?.length || targetMaterial?.Length || targetMaterial?.length;
+        const w = fullMat?.Width || fullMat?.width || targetMaterial?.Width || targetMaterial?.width;
+        const h = fullMat?.Height || fullMat?.height || targetMaterial?.Height || targetMaterial?.height;
+        if (l || w || h) {
+          dimension = `${l || '-'} × ${w || '-'} × ${h || '-'}`;
+        }
+      }
+
       return {
-        materialId: targetMaterial?._id || targetMaterial,
-        Code: targetMaterial?.Code || 'N/A',
-        ItemDescription: targetMaterial?.ItemDescription || '-',
-        Segment: targetMaterial?.Segment || targetMaterial?.segment || 'N/A',
-        Dimension: targetMaterial?.Dimension || targetMaterial?.dimension || targetMaterial?.Dimensions || targetMaterial?.dimensions || 'N/A',
+        materialId: targetId,
+        Code: fullMat?.Code || targetMaterial?.Code || 'N/A',
+        ItemDescription: description,
+        Segment: segment,
+        Dimension: dimension,
         qtyRequested: it.qtyRequested,
         UOM: uom,
         actualCountShipped: it.qtyRequested,
@@ -278,13 +300,35 @@ function InventoryOutboundProducts() {
 
     const fastItems = reserveSlip.items.map(it => {
       const targetMaterial = it.materialId || it.productId;
-      const uom = targetMaterial?.UOM || 'pcs';
+      const targetId = targetMaterial?._id || targetMaterial;
+      const fullMat = dbRawMaterials?.find(m => m._id === targetId);
+
+      const segment = fullMat?.Segment || fullMat?.segment ||
+        targetMaterial?.Segment || targetMaterial?.segment || 'N/A';
+
+      const description = fullMat?.ItemDescription || targetMaterial?.ItemDescription || '-';
+      const uom = fullMat?.UOM || targetMaterial?.UOM || 'pcs';
+
+      let dimension = 'N/A';
+      if (fullMat?.Dimension || fullMat?.dimension || fullMat?.Dimensions || fullMat?.dimensions) {
+        dimension = fullMat.Dimension || fullMat.dimension || fullMat.Dimensions || fullMat.dimensions;
+      } else if (targetMaterial?.Dimension || targetMaterial?.dimension || targetMaterial?.Dimensions || targetMaterial?.dimensions) {
+        dimension = targetMaterial.Dimension || targetMaterial.dimension || targetMaterial.Dimensions || targetMaterial.dimensions;
+      } else {
+        const l = fullMat?.Length || fullMat?.length || targetMaterial?.Length || targetMaterial?.length;
+        const w = fullMat?.Width || fullMat?.width || targetMaterial?.Width || targetMaterial?.width;
+        const h = fullMat?.Height || fullMat?.height || targetMaterial?.Height || targetMaterial?.height;
+        if (l || w || h) {
+          dimension = `${l || '-'} × ${w || '-'} × ${h || '-'}`;
+        }
+      }
+
       return {
-        materialId: targetMaterial?._id || targetMaterial,
-        Code: targetMaterial?.Code || 'N/A',
-        ItemDescription: targetMaterial?.ItemDescription || '-',
-        Segment: targetMaterial?.Segment || targetMaterial?.segment || 'N/A',
-        Dimension: targetMaterial?.Dimension || targetMaterial?.dimension || targetMaterial?.Dimensions || targetMaterial?.dimensions || 'N/A',
+        materialId: targetId,
+        Code: fullMat?.Code || targetMaterial?.Code || 'N/A',
+        ItemDescription: description,
+        Segment: segment,
+        Dimension: dimension,
         qtyRequested: it.qtyRequested,
         UOM: uom,
         actualCountShipped: it.qtyRequested,
@@ -995,13 +1039,12 @@ function InventoryOutboundProducts() {
             </div>
 
             <div className="relative w-full sm:w-64">
-              <Search className={`absolute left-2.5 top-2 w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-[#18174e]/60'}`} />
               <input
                 type="text"
                 placeholder="Type PL No or Customer to filter..."
                 value={quickReserveSearch}
                 onChange={(e) => setQuickReserveSearch(e.target.value)}
-                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-indigo-200/80 text-[#18174e] placeholder-indigo-300'} border rounded-lg pl-8 pr-2 py-1 text-xs focus:outline-none focus:border-[#ff6600]`}
+                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
               />
             </div>
           </div>
@@ -1726,6 +1769,7 @@ function InventoryOutboundProducts() {
         <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
           <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-2xl w-full max-w-3xl p-6 shadow-xl relative flex flex-col gap-4`}>
 
+            {/* Header */}
             <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
               <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-lg`}>
                 {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? 'Reservation Slip' : 'Outbound No'}: {selectedSlip.plNo}
@@ -1737,8 +1781,8 @@ function InventoryOutboundProducts() {
                   className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
                   title={`Download Audit Ledger PDF for ${selectedSlip.plNo}`}
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5" />
-                  <span>Audit Ledger (PDF)</span>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download (PDF)</span>
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
@@ -1749,21 +1793,51 @@ function InventoryOutboundProducts() {
                 </button>
               </div>
             </div>
-            <div className={`grid grid-cols-2 text-sm gap-2 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border`}>
-              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Tracking No:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.plNo}</span></div>
-              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Shipment Date:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.shipmentDate ? new Date(selectedSlip.shipmentDate).toLocaleDateString() : '-'}</span></div>
-              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Log Type:</span> <span className={`font-bold ${isDark ? 'text-indigo-400' : 'text-indigo-700'} uppercase`}>{selectedSlip.transactionType}</span></div>
-              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Prepared By:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.preparedBy || preparedBy}</span></div>
-              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Customer:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.customer || 'N/A'}</span></div>
-              <div><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Logistics:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.carrier || 'N/A'}</span></div>
-              <div className="col-span-2"><span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Destination:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.destinationAddress || 'N/A'}</span></div>
+
+            {/* Details Grid (Matching Inbound / Conversion Pattern) */}
+            <div className={`grid grid-cols-2 sm:grid-cols-3 text-sm gap-2.5 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border`}>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Transaction Type</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block uppercase ${selectedSlip.transactionType?.toLowerCase() === 'reserve'
+                  ? (isDark ? 'bg-amber-950/60 text-amber-300 border border-amber-800' : 'bg-amber-50 text-amber-700 border border-amber-200')
+                  : (isDark ? 'bg-rose-950/60 text-rose-300 border border-rose-800' : 'bg-rose-50 text-rose-700 border border-rose-200')
+                  }`}>
+                  {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? '🟡 Reserve' : '🔴 Outbound'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Tracking No:</span>
+                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.plNo}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Shipment Date:</span>
+                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.shipmentDate ? new Date(selectedSlip.shipmentDate).toLocaleDateString() : '-'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Customer:</span>
+                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.customer || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Prepared By:</span>
+                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.preparedBy || preparedBy}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Logistics:</span>
+                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.carrier || 'N/A'}</span>
+              </div>
+              <div className="col-span-2 sm:col-span-3">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Destination:</span>
+                <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} truncate block`}>{selectedSlip.destinationAddress || 'N/A'}</span>
+              </div>
               {selectedSlip.referencePlNo && (
-                <div className={`col-span-2 text-xs ${isDark ? 'text-amber-300 bg-amber-950/40 border-amber-800' : 'text-amber-700 bg-amber-50 border-amber-200'} font-bold px-2 py-1 rounded border`}>
-                  Linked Reference: {selectedSlip.referencePlNo}
+                <div className={`col-span-2 sm:col-span-3 text-xs ${isDark ? 'text-amber-300 bg-amber-950/40 border-amber-800' : 'text-amber-700 bg-amber-50 border-amber-200'} font-bold px-2.5 py-1.5 rounded-lg border flex items-center justify-between mt-1`}>
+                  <span>Linked Reference:</span>
+                  <span className="font-extrabold">{selectedSlip.referencePlNo}</span>
                 </div>
               )}
             </div>
 
+            {/* Table Section */}
             {(() => {
               const slipItems = selectedSlip.items || [];
               const modalIndexOfLastRow = modalPage * modalRowsPerPage;
@@ -1772,20 +1846,27 @@ function InventoryOutboundProducts() {
 
               return (
                 <div className={`border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm overflow-hidden flex flex-col`}>
+                  <TablePagination
+                    currentPage={modalPage}
+                    setCurrentPage={setModalPage}
+                    rowsPerPage={modalRowsPerPage}
+                    setRowsPerPage={setModalRowsPerPage}
+                    totalRows={slipItems.length}
+                    options={[5, 10, 20, 50, 100]}
+                  />
                   <div className="overflow-x-auto max-h-72 overflow-y-auto">
                     <table className="w-full text-left text-xs border-collapse min-w-[650px]">
-
                       <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700 text-white'} text-[11px] font-bold uppercase whitespace-nowrap`}>
                         <tr>
                           <th className="p-3 text-left">Segment</th>
                           <th className="p-3 text-left">Item Description</th>
                           <th className="p-3 text-left">Dimension</th>
-                          <th className="p-3 text-right">
-                            {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? 'Reserved Qty' : 'Verified Shipped'}
+                          <th className="p-3 text-center">
+                            {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? 'Reserved Qty' : 'QTY Shipped'}
                           </th>
+                          <th className="p-3 text-left pl-4">Remarks</th>
                         </tr>
                       </thead>
-
                       <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
                         {paginatedSlipItems.map((it, idx) => {
                           const targetMaterial = it.materialId || it.productId;
@@ -1827,8 +1908,15 @@ function InventoryOutboundProducts() {
                                 {dimension}
                               </td>
 
-                              <td className="p-3 text-right font-bold text-emerald-400 align-middle whitespace-nowrap">
-                                {it.actualCountShipped} {uom}
+                              <td className={`p-3 text-center font-bold align-middle whitespace-nowrap ${selectedSlip.transactionType?.toLowerCase() === 'reserve'
+                                ? (isDark ? 'text-amber-400' : 'text-amber-600')
+                                : (isDark ? 'text-rose-400' : 'text-rose-600')
+                                }`}>
+                                {it.actualCountShipped || it.qty || 0} {uom}
+                              </td>
+
+                              <td className={`p-3 italic ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium text-[11px] min-w-[120px] whitespace-normal break-words align-middle pl-4`} title={it.remarks}>
+                                {it.remarks || '—'}
                               </td>
                             </tr>
                           );
@@ -1836,7 +1924,7 @@ function InventoryOutboundProducts() {
 
                         {(!selectedSlip.items || selectedSlip.items.length === 0) && (
                           <tr>
-                            <td colSpan="4" className="p-4 text-center text-slate-400 italic">
+                            <td colSpan="5" className="p-4 text-center text-slate-400 italic">
                               No materials recorded.
                             </td>
                           </tr>
@@ -1844,15 +1932,6 @@ function InventoryOutboundProducts() {
                       </tbody>
                     </table>
                   </div>
-
-                  <TablePagination
-                    currentPage={modalPage}
-                    setCurrentPage={setModalPage}
-                    rowsPerPage={modalRowsPerPage}
-                    setRowsPerPage={setModalRowsPerPage}
-                    totalRows={slipItems.length}
-                    options={[5, 10, 20, 50, 100]}
-                  />
                 </div>
               );
             })()}

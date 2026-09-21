@@ -3,7 +3,7 @@ import {
   Clock, Calendar, Shield, User, Search, Filter, RefreshCw, 
   Activity, Share2, ExternalLink, Eye, CheckCircle2 
 } from 'lucide-react';
-import PageHeader from './PageHeader';
+import PageHeader from './layout/PageHeader';
 import axios from 'axios';
 import { useTheme } from '../context/ThemeContext';
 

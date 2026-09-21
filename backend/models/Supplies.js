@@ -3,12 +3,11 @@ import mongoose from "mongoose";
 const suppliesSchema = new mongoose.Schema(
   {
     Code: { type: String, required: true, unique: true, trim: true },
-    Category: { type: String, required: true, trim: true },
+    Category: { type: String, trim: true, default: "General" },
     Segment: { type: String, trim: true },
     ItemDescription: { type: String, required: true, trim: true },
     Dimension: { type: String, trim: true },
     SerialNo: { type: String, trim: true, default: "—" },
-    ImageUrl: { type: String, trim: true, default: "" }, 
     
     // Condition Breakdown Counters (Synchronized to Movements)
     ActualCount: { type: Number, required: true, default: 0 },   
@@ -20,6 +19,7 @@ const suppliesSchema = new mongoose.Schema(
     Brand: { type: String, trim: true },
     Color: { type: String, trim: true },
     AccountTo: { type: String, trim: true },
+    AcquisitionCost: { type: Number, default: 0, min: 0 },
     isArchived: { type: Boolean, default: false }
   },
   { timestamps: true }

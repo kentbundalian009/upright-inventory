@@ -5,8 +5,8 @@ import {
   Trash2, Phone, Mail, MapPin, User, FileText, CheckCircle2,
   AlertCircle, X, Filter, Sliders, Truck
 } from 'lucide-react';
-import PageHeader from './PageHeader';
-import TablePagination from './TablePagination';
+import PageHeader from './layout/PageHeader';
+import TablePagination from './common/TablePagination';
 import { useTheme } from '../context/ThemeContext';
 
 const API_BASE_URL = '/api';
@@ -324,7 +324,6 @@ function Client() {
                   : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
                   }`}
               >
-                <Building2 className="w-3.5 h-3.5" />
                 <span>Suppliers</span>
                 <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${activeType === 'Supplier'
                   ? 'bg-black/20 text-white'
@@ -342,7 +341,6 @@ function Client() {
                   : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
                   }`}
               >
-                <Users className="w-3.5 h-3.5" />
                 <span>Customers</span>
                 <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${activeType === 'Customer'
                   ? 'bg-black/20 text-white'
@@ -360,7 +358,6 @@ function Client() {
                   : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
                   }`}
               >
-                <Truck className="w-3.5 h-3.5" />
                 <span>Logistics</span>
                 <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${activeType === 'Logistics'
                   ? 'bg-black/20 text-white'
@@ -370,23 +367,7 @@ function Client() {
                 </span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => { setActiveType('Employee'); setSearchTerm(''); }}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeType === 'Employee'
-                  ? (isDark ? 'bg-[#ff6600] text-white shadow-sm' : 'bg-[#18174e] text-white shadow-sm')
-                  : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
-                  }`}
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Personnel</span>
-                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${activeType === 'Employee'
-                  ? 'bg-black/20 text-white'
-                  : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
-                  }`}>
-                  {showArchivedOnly ? archivedEmployees : activeEmployees}
-                </span>
-              </button>
+
             </div>
 
             {/* ACTION CONTROLS */}
@@ -480,6 +461,13 @@ function Client() {
 
         {/* MAIN CLEAN TABLE MASTERLIST */}
         <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-hidden`}>
+          <TablePagination
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            totalRows={totalRows}
+          />
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
@@ -512,11 +500,6 @@ function Client() {
                       <th className="py-3 px-4 whitespace-nowrap">
                         {activeType === 'Employee' ? 'Department / Area' : activeType === 'Supplier' ? 'Origin Location Address' : 'Destination Address'}
                       </th>
-                      <th className="py-3 px-4 whitespace-nowrap">
-                        {activeType === 'Employee' ? 'Position / Role' : 'Contact Person'}
-                      </th>
-                      <th className="py-3 px-4 whitespace-nowrap">Contact Number / Email</th>
-                      <th className="py-3 px-4 whitespace-nowrap">Remarks / Notes</th>
                       <th className="py-3 px-4 whitespace-nowrap">Date Added</th>
                       {!isViewer && (
                         <th className="py-3 px-4 text-center whitespace-nowrap">
@@ -531,7 +514,7 @@ function Client() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 6 : 7)}
+                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 3 : 4)}
                       className="text-center py-10 text-green-700 font-medium italic"
                     >
                       Fetching secure {activeType.toLowerCase()} records from database...
@@ -540,7 +523,7 @@ function Client() {
                 ) : error ? (
                   <tr>
                     <td
-                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 6 : 7)}
+                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 3 : 4)}
                       className="text-center py-8 text-rose-600 font-semibold"
                     >
                       {error}
@@ -597,19 +580,17 @@ function Client() {
                                   <button
                                     onClick={() => openUnarchiveConfirmation(client)}
                                     title="Restore"
-                                    className={`p-1 ${isDark ? 'bg-[#181a26] border-emerald-800/80 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-white border-slate-200 text-emerald-600 hover:bg-emerald-600 hover:text-white'} border rounded transition-all cursor-pointer flex items-center gap-1 text-xs font-bold px-2 py-0.5`}
+                                    className={`p-1.5 ${isDark ? 'bg-[#181a26] border-emerald-800/80 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-white border-slate-200 text-emerald-600 hover:bg-emerald-600 hover:text-white'} border rounded transition-all cursor-pointer`}
                                   >
-                                    <RotateCcw className="w-3.5 h-3.5" /> Restore
+                                    <RotateCcw className="w-3.5 h-3.5" />
                                   </button>
-                                  {userRole === 'Admin' && (
-                                    <button
-                                      onClick={() => openPermanentDeleteConfirmation(client)}
-                                      title="Delete Permanently"
-                                      className={`p-1 ${isDark ? 'bg-[#181a26] border-rose-800/80 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer flex items-center gap-1 text-xs font-bold px-2 py-0.5`}
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" /> Delete
-                                    </button>
-                                  )}
+                                  <button
+                                    onClick={() => openPermanentDeleteConfirmation(client)}
+                                    title="Delete Permanently"
+                                    className={`p-1.5 ${isDark ? 'bg-[#181a26] border-rose-800/80 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </>
                               )}
                             </div>
@@ -640,48 +621,6 @@ function Client() {
                           <span className="font-medium">{client.address}</span>
                         ) : (
                           <span className="text-slate-400 italic">No address specified</span>
-                        )}
-                      </td>
-
-                      {/* CONTACT PERSON */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        {client.contactPerson ? (
-                          <div className="flex items-center gap-1.5">
-                            <User className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{client.contactPerson}</span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 italic">—</span>
-                        )}
-                      </td>
-
-                      {/* CONTACT NUMBER & EMAIL */}
-                      <td className="py-3 px-4 whitespace-nowrap text-xs">
-                        <div className="flex flex-col gap-0.5">
-                          {client.contactNumber && (
-                            <div className="flex items-center gap-1 text-slate-300 font-mono">
-                              <Phone className="w-3 h-3 text-slate-500" />
-                              <span>{client.contactNumber}</span>
-                            </div>
-                          )}
-                          {client.email && (
-                            <div className="flex items-center gap-1 text-slate-400">
-                              <Mail className="w-3 h-3 text-slate-500" />
-                              <span>{client.email}</span>
-                            </div>
-                          )}
-                          {!client.contactNumber && !client.email && (
-                            <span className="text-slate-400 italic">—</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* NOTES */}
-                      <td className="py-3 px-4 whitespace-normal max-w-xs text-xs">
-                        {client.notes ? (
-                          <span className="text-slate-400">{client.notes}</span>
-                        ) : (
-                          <span className="text-slate-500 italic">—</span>
                         )}
                       </td>
 
@@ -720,19 +659,17 @@ function Client() {
                                 <button
                                   onClick={() => openUnarchiveConfirmation(client)}
                                   title="Restore"
-                                  className={`p-1 ${isDark ? 'bg-[#181a26] border-emerald-800/80 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-white border-slate-200 text-emerald-600 hover:bg-emerald-600 hover:text-white'} border rounded transition-all cursor-pointer flex items-center gap-1 text-xs font-bold px-2 py-0.5`}
+                                  className={`p-1.5 ${isDark ? 'bg-[#181a26] border-emerald-800/80 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-white border-slate-200 text-emerald-600 hover:bg-emerald-600 hover:text-white'} border rounded transition-all cursor-pointer`}
                                 >
-                                  <RotateCcw className="w-3.5 h-3.5" /> Restore
+                                  <RotateCcw className="w-3.5 h-3.5" />
                                 </button>
-                                {userRole === 'Admin' && (
-                                  <button
-                                    onClick={() => openPermanentDeleteConfirmation(client)}
-                                    title="Delete Permanently"
-                                    className={`p-1 ${isDark ? 'bg-[#181a26] border-rose-800/80 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer flex items-center gap-1 text-xs font-bold px-2 py-0.5`}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" /> Delete
-                                  </button>
-                                )}
+                                <button
+                                  onClick={() => openPermanentDeleteConfirmation(client)}
+                                  title="Delete Permanently"
+                                  className={`p-1.5 ${isDark ? 'bg-[#181a26] border-rose-800/80 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </>
                             )}
                           </div>
@@ -746,7 +683,7 @@ function Client() {
                 {filteredClients.length === 0 && !loading && (
                   <tr>
                     <td
-                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 6 : 7)}
+                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 3 : 4)}
                       className="text-center py-10 text-red-600 font-medium italic"
                     >
                       No {activeType.toLowerCase()} records match the selected filters or search queries.
@@ -756,14 +693,6 @@ function Client() {
               </tbody>
             </table>
           </div>
-
-          <TablePagination
-            currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
-            rowsPerPage={rowsPerPage}
-            setRowsPerPage={setRowsPerPage}
-            totalRows={totalRows}
-          />
         </div>
 
       </div>
@@ -785,19 +714,6 @@ function Client() {
               >
                 <X className="w-5 h-5" />
               </button>
-            </div>
-
-            <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-900/50' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3`}>
-              <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
-                * {activeType} Registry Protocol *
-              </span>
-              <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
-                {activeType === 'Logistics'
-                  ? "Register transport carriers and couriers (e.g. Lalamove, J&T, Transportify, In-house Delivery). Once saved, it will be immediately available in the Outbound Logistics dropdown."
-                  : activeType === 'Employee'
-                    ? "Register company workers and personnel. Once saved, their names will automatically be available for selection in Consumables transactions."
-                    : `Ensure client details and location address are accurate. This address will auto-populate automatically when processing ${activeType === 'Supplier' ? 'Inbound (Raw Materials)' : 'Outbound (Finished Products)'} transactions.`}
-              </p>
             </div>
 
             <form onSubmit={handleSubmitForm} className="space-y-4 mt-4 flex-1 overflow-y-auto pr-1">
@@ -825,39 +741,40 @@ function Client() {
                 />
               </div>
 
-              {/* SHOW ADDRESS & CONTACT DETAILS ONLY FOR SUPPLIER, CUSTOMER AND EMPLOYEE */}
+              {/* ADDRESS (Only for Supplier and Customer) */}
               {activeType !== 'Logistics' && (
-                <>
-                  {/* ADDRESS */}
-                  <div>
-                    <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                      {activeType === 'Employee' ? 'Department / Assigned Area' : activeType === 'Supplier' ? 'Origin Location Address' : 'Destination Address'} {activeType !== 'Employee' && <span className="text-red-500">*</span>}
-                    </label>
-                    <input
-                      type="text"
-                      required={activeType !== 'Employee'}
-                      placeholder={
-                        activeType === 'Supplier'
-                          ? "e.g. Warehouse 4, Industrial Park, Biñan, Laguna"
-                          : activeType === 'Customer'
-                            ? "e.g. Project Site 2, BGC, Taguig City"
-                            : "e.g. Fabrication, Warehouse, Assembly, Production"
-                      }
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
-                    />
-                  </div>
+                <div>
+                  <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
+                    {activeType === 'Employee' ? 'Department / Assigned Area' : activeType === 'Supplier' ? 'Origin Location Address' : 'Destination Address'} {activeType !== 'Employee' && <span className="text-red-500">*</span>}
+                  </label>
+                  <input
+                    type="text"
+                    required={activeType !== 'Employee'}
+                    placeholder={
+                      activeType === 'Supplier'
+                        ? "e.g. Warehouse 4, Industrial Park, Biñan, Laguna"
+                        : activeType === 'Customer'
+                          ? "e.g. Project Site 2, BGC, Taguig City"
+                          : "e.g. Fabrication, Warehouse, Assembly, Production"
+                    }
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                  />
+                </div>
+              )}
 
-                  {/* CONTACT PERSON & PHONE */}
+              {/* CONTACT PERSON, PHONE & EMAIL (Only for Employee if needed) */}
+              {activeType === 'Employee' && (
+                <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                        {activeType === 'Employee' ? 'Position / Role / Designation' : 'Contact Person'}
+                        Position / Role / Designation
                       </label>
                       <input
                         type="text"
-                        placeholder={activeType === 'Employee' ? "e.g. Welder, Fabricator, Machine Operator" : "e.g. Juan Dela Cruz"}
+                        placeholder="e.g. Welder, Fabricator, Machine Operator"
                         value={formData.contactPerson}
                         onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
                         className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
@@ -878,7 +795,6 @@ function Client() {
                     </div>
                   </div>
 
-                  {/* EMAIL */}
                   <div>
                     <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
                       Email Address
@@ -893,24 +809,6 @@ function Client() {
                   </div>
                 </>
               )}
-
-              {/* NOTES */}
-              <div>
-                <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                  {activeType === 'Logistics' ? 'Notes / Vehicle Info' : 'Notes / Remarks'}
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder={
-                    activeType === 'Logistics'
-                      ? "e.g. Plate numbers, vehicle types, or driver contact info..."
-                      : "Additional logistics or delivery reminders..."
-                  }
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none resize-none`}
-                />
-              </div>
 
               {/* FOOTER ACTIONS */}
               <div className={`flex items-center justify-end gap-2 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>

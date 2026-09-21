@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Settings as SettingsIcon, Eye, EyeOff, Key, X, CheckCircle2, Camera, Upload, User, Palette, Sun, Moon } from 'lucide-react';
-import PageHeader from './PageHeader';
+import PageHeader from './layout/PageHeader';
 import { useTheme } from '../context/ThemeContext';
 
 function Settings() {

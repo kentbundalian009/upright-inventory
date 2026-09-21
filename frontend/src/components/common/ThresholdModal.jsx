@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sliders } from 'lucide-react';
 import axios from 'axios';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 
 function ThresholdModal({ isOpen, onClose, categoryType, onSaveSuccess }) {
     const { isDark } = useTheme();

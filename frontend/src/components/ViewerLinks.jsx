@@ -5,7 +5,7 @@ import {
   ExternalLink, AlertCircle, X, 
   Filter, Ban, RotateCcw
 } from 'lucide-react';
-import PageHeader from './PageHeader';
+import PageHeader from './layout/PageHeader';
 import { useTheme } from '../context/ThemeContext';
 
 function AdminSharedViewers() {

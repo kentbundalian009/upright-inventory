@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 import {
   LayoutDashboard,
   Package,
@@ -22,7 +22,8 @@ import {
   Building2,
   Database,
   Power,
-  Share2
+  Share2,
+  Boxes
 } from "lucide-react";
 
 const API_BASE_URL = '/api';
@@ -137,15 +138,16 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
       { id: 'admin-settings', name: 'System Maintenance', icon: Power, roles: ['Admin'], section: 'admin' },
 
       { id: 'inbound-raw-mat', name: 'Inbound Materials', icon: ArrowDownCircle, roles: ['Inventory'], section: 'rackings' },
-      { id: 'work-in-progress', name: 'Work In Progress', icon: TrendingUp, roles: ['Inventory'], section: 'rackings' },
+      { id: 'work-in-progress', name: 'Work In Progress (WIP)', icon: TrendingUp, roles: ['Inventory'], section: 'rackings' },
       { id: 'outbound-products', name: 'Outbound Materials', icon: Truck, roles: ['Inventory'], section: 'rackings' },
 
-      { id: 'consumables', name: 'Consumables & PPE', icon: ShoppingBag, roles: ['Inventory', 'Admin'], section: 'supplies' },
+      { id: 'consumables', name: 'Consumables Movements', icon: ShoppingBag, roles: ['Inventory', 'Admin'], section: 'supplies' },
       { id: 'supplies-movements', name: 'Equipment Movements', icon: History, roles: ['Inventory', 'Admin'], section: 'supplies' },
 
       { id: 'raw-materials', name: 'Rackings', icon: Layers, roles: ['Inventory', 'Admin'], section: 'records' },
-      { id: 'supplies', name: 'Equipment', icon: Package, roles: ['Inventory', 'Admin'], section: 'records' },
-      { id: 'client-records', name: 'Business Partners', icon: Building2, roles: ['Inventory', 'Admin'], section: 'records' },
+      { id: 'supplies', name: 'Tools & Equipments', icon: Package, roles: ['Inventory', 'Admin'], section: 'records' },
+      { id: 'consumables-records', name: 'Consumables', icon: Boxes, roles: ['Inventory', 'Admin'], section: 'records' },
+      { id: 'client-records', name: 'Information (Modules)', icon: Building2, roles: ['Inventory', 'Admin'], section: 'records' },
 
       { id: 'reports', name: 'Reports', icon: FileSpreadsheet, roles: ['Inventory'], section: 'reports' },
 
@@ -175,13 +177,9 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
       case 'admin':
         return <div className="text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1">Admin Controls</div>;
       case 'rackings':
-        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Rackings Process</div>;
-      case 'supplies':
-        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Supplies Process</div>;
+        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Process Management</div>;
       case 'records':
         return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Records Management</div>;
-      case 'settings_section':
-        return <div className={`text-[10px] font-bold text-[#ff6600] uppercase px-3 pt-2 pb-1 border-t ${isDark ? 'border-slate-800/80' : 'border-white/5'} mt-1`}>Settings</div>;
       default:
         return null;
     }
@@ -268,7 +266,8 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
           <nav className="overflow-y-auto py-2.5 space-y-1 px-3 custom-scrollbar flex-1 pb-8 md:pb-4">
             {allowedMenuItems.map((item, index) => {
               const IconComponent = item.icon;
-              const isActive = activeTab === item.id;
+              const isActive = activeTab === item.id ||
+                (item.id === 'consumables-records' && (activeTab === 'inventoryconsumables' || activeTab === 'inventory-consumables'));
 
               return (
                 <React.Fragment key={item.id}>
@@ -296,12 +295,12 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
                     <div className="relative flex-shrink-0 flex items-center justify-center">
                       <IconComponent size={17} className={`transition-transform ${isActive ? 'text-[#ff8533] scale-105' : 'group-hover:scale-105'}`} />
                       {item.id === 'outbound-products' && pendingOutboundCount > 0 && isCollapsed && (
-                        <span className={`hidden md:flex absolute -top-1.5 -right-2 items-center justify-center min-w-[17px] h-[17px] px-0.5 text-[9px] font-black text-white bg-[#ff6600] rounded-full ring-2 ${isDark ? 'ring-[#0a0b10]' : 'ring-[#18174e]'} shadow-sm`}>
+                        <span className={`hidden md:flex absolute -top-1.5 -right-2 items-center justify-center min-w-[17px] h-[17px] px-0.5 text-[9px] font-black text-white bg-yellow-400 rounded-full ring-2 ${isDark ? 'ring-[#0a0b10]' : 'ring-[#18174e]'} shadow-sm shadow-yellow-400/40`}>
                           {pendingOutboundCount > 99 ? '99+' : pendingOutboundCount}
                         </span>
                       )}
                       {item.id === 'supplies-movements' && pendingSuppliesCount > 0 && isCollapsed && (
-                        <span className={`hidden md:flex absolute -top-1.5 -right-2 items-center justify-center min-w-[17px] h-[17px] px-0.5 text-[9px] font-black text-white bg-[#ff6600] rounded-full ring-2 ${isDark ? 'ring-[#0a0b10]' : 'ring-[#18174e]'} shadow-sm`}>
+                        <span className={`hidden md:flex absolute -top-1.5 -right-2 items-center justify-center min-w-[17px] h-[17px] px-0.5 text-[9px] font-black text-white bg-yellow-400 rounded-full ring-2 ${isDark ? 'ring-[#0a0b10]' : 'ring-[#18174e]'} shadow-sm shadow-yellow-400/40`}>
                           {pendingSuppliesCount > 99 ? '99+' : pendingSuppliesCount}
                         </span>
                       )}
@@ -310,12 +309,12 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
                     <span className={`truncate whitespace-nowrap flex-1 text-left ${isCollapsed ? 'md:hidden block' : 'block'}`}>{item.name}</span>
 
                     {item.id === 'outbound-products' && pendingOutboundCount > 0 && (
-                      <span className={`ml-auto items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black text-white bg-[#ff6600] rounded-full shadow-md shrink-0 ${isCollapsed ? 'md:hidden flex' : 'flex'}`}>
+                      <span className={`ml-auto items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black text-white bg-yellow-400 rounded-full shadow-md shadow-yellow-400/30 shrink-0 ${isCollapsed ? 'md:hidden flex' : 'flex'}`}>
                         {pendingOutboundCount > 99 ? '99+' : pendingOutboundCount}
                       </span>
                     )}
                     {item.id === 'supplies-movements' && pendingSuppliesCount > 0 && (
-                      <span className={`ml-auto items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black text-white bg-[#ff6600] rounded-full shadow-md shrink-0 ${isCollapsed ? 'md:hidden flex' : 'flex'}`}>
+                      <span className={`ml-auto items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black text-white bg-yellow-400 rounded-full shadow-md shadow-yellow-400/30 shrink-0 ${isCollapsed ? 'md:hidden flex' : 'flex'}`}>
                         {pendingSuppliesCount > 99 ? '99+' : pendingSuppliesCount}
                       </span>
                     )}

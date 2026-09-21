@@ -1,6 +1,7 @@
 import Consumable from "../../models/Consumable.js";
 import ConsumableTransaction from "../../models/ConsumableTransaction.js";
 import Supplies from "../../models/Supplies.js";
+import { uploadImageBuffer } from "../../lib/cloudinary.js";
 
 // Helper to generate a unique consumable item code
 const generateConsumableCode = async () => {
@@ -29,13 +30,20 @@ const generateTransactionNo = async (type) => {
   return candidate;
 };
 
-// GET all active consumables
+// GET all active consumables (supports ?all=true or ?archived=true)
 export const getConsumables = async (req, res) => {
   try {
-    let items = await Consumable.find({ isArchived: { $ne: true } }).sort({ createdAt: -1 }).lean();
+    let filter = { isArchived: { $ne: true } };
+    if (req.query.all === "true") {
+      filter = {};
+    } else if (req.query.archived === "true") {
+      filter = { isArchived: true };
+    }
+
+    let items = await Consumable.find(filter).sort({ createdAt: -1 }).lean();
 
     // If no consumables exist yet, we can check if there are supplies to provide seed items
-    if (items.length === 0) {
+    if (items.length === 0 && !req.query.archived) {
       const sampleSupplies = await Supplies.find({ isArchived: false }).limit(20);
       if (sampleSupplies.length > 0) {
         const seedDocs = sampleSupplies.map((s, idx) => ({
@@ -49,15 +57,17 @@ export const getConsumables = async (req, res) => {
           ActualCount: s.ActualCount || 0,
           Damaged: s.DamagedCount || 0,
           UOM: s.UOM || "pcs",
+          AcquisitionCost: s.AcquisitionCost || 0,
+          ImageUrl: s.ImageUrl || "",
           isArchived: false
         }));
 
         try {
           await Consumable.insertMany(seedDocs, { ordered: false });
-          items = await Consumable.find({ isArchived: { $ne: true } }).sort({ createdAt: -1 });
+          items = await Consumable.find({ isArchived: { $ne: true } }).sort({ createdAt: -1 }).lean();
         } catch (seedErr) {
           console.warn("Notice: Seed consumables insert encountered duplicates:", seedErr.message);
-          items = await Consumable.find({ isArchived: { $ne: true } }).sort({ createdAt: -1 });
+          items = await Consumable.find({ isArchived: { $ne: true } }).sort({ createdAt: -1 }).lean();
         }
       }
     }
@@ -66,6 +76,24 @@ export const getConsumables = async (req, res) => {
   } catch (err) {
     console.error("Error fetching consumables:", err);
     return res.status(500).json({ message: "Failed to fetch consumables list", error: err.message });
+  }
+};
+
+// GET consumable image (fallback endpoint)
+export const getConsumableImage = async (req, res) => {
+  return res.status(404).send("Image not configured");
+};
+
+// GET consumable by ID
+export const getConsumableById = async (req, res) => {
+  try {
+    const item = await Consumable.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: "Consumable item not found." });
+    }
+    res.status(200).json(item);
+  } catch (err) {
+    res.status(500).json({ message: "Server Error", error: err.message });
   }
 };
 
@@ -82,7 +110,9 @@ export const createConsumable = async (req, res) => {
       SerialNo,
       ActualCount,
       Damaged,
-      UOM
+      UOM,
+      AcquisitionCost,
+      Price
     } = req.body;
 
     if (!ItemDescription || !ItemDescription.trim()) {
@@ -98,6 +128,8 @@ export const createConsumable = async (req, res) => {
       }
     }
 
+    const costVal = AcquisitionCost !== undefined ? AcquisitionCost : Price;
+
     const newItem = new Consumable({
       Code: Code.trim(),
       ItemDescription: ItemDescription.trim(),
@@ -108,7 +140,8 @@ export const createConsumable = async (req, res) => {
       SerialNo: SerialNo?.trim() || "—",
       ActualCount: Number(ActualCount) || 0,
       Damaged: Number(Damaged) || 0,
-      UOM: UOM?.trim() || "pcs"
+      UOM: UOM?.trim() || "pcs",
+      AcquisitionCost: Number(costVal) || 0
     });
 
     const saved = await newItem.save();
@@ -123,10 +156,52 @@ export const createConsumable = async (req, res) => {
 export const updateConsumable = async (req, res) => {
   try {
     const { id } = req.params;
-    const updated = await Consumable.findByIdAndUpdate(id, req.body, { new: true });
-    if (!updated) {
+    const existing = await Consumable.findById(id);
+    if (!existing) {
       return res.status(404).json({ message: "Consumable item not found." });
     }
+
+    let {
+      Code,
+      ItemDescription,
+      Segment,
+      Dimension,
+      Category,
+      Brand,
+      SerialNo,
+      ActualCount,
+      Damaged,
+      UOM,
+      AcquisitionCost,
+      Price
+    } = req.body;
+
+    if (Code && Code.trim() !== existing.Code) {
+      const duplicate = await Consumable.findOne({ _id: { $ne: id }, Code: Code.trim() });
+      if (duplicate) {
+        return res.status(400).json({ message: `Item code ${Code} is already taken.` });
+      }
+    }
+
+    const updatedCost = AcquisitionCost !== undefined
+      ? Number(AcquisitionCost) || 0
+      : (Price !== undefined ? Number(Price) || 0 : existing.AcquisitionCost || 0);
+
+    const updateData = {
+      ...(Code && { Code: Code.trim() }),
+      ...(ItemDescription && { ItemDescription: ItemDescription.trim() }),
+      ...(Segment !== undefined && { Segment: Segment?.trim() || "Consumables" }),
+      ...(Dimension !== undefined && { Dimension: Dimension?.trim() || "—" }),
+      ...(Category !== undefined && { Category: Category?.trim() || "Consumables" }),
+      ...(Brand !== undefined && { Brand: Brand?.trim() || "—" }),
+      ...(SerialNo !== undefined && { SerialNo: SerialNo?.trim() || "—" }),
+      ...(ActualCount !== undefined && { ActualCount: Number(ActualCount) || 0 }),
+      ...(Damaged !== undefined && { Damaged: Number(Damaged) || 0 }),
+      ...(UOM !== undefined && { UOM: UOM?.trim() || "pcs" }),
+      AcquisitionCost: updatedCost
+    };
+
+    const updated = await Consumable.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
     return res.status(200).json(updated);
   } catch (err) {
     console.error("Error updating consumable:", err);
@@ -146,6 +221,36 @@ export const deleteConsumable = async (req, res) => {
   } catch (err) {
     console.error("Error archiving consumable:", err);
     return res.status(500).json({ message: "Failed to archive consumable", error: err.message });
+  }
+};
+
+// PUT unarchive consumable item
+export const unarchiveConsumable = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const restored = await Consumable.findByIdAndUpdate(id, { isArchived: false }, { new: true });
+    if (!restored) {
+      return res.status(404).json({ message: "Consumable item not found." });
+    }
+    return res.status(200).json({ message: "Consumable restored successfully.", data: restored });
+  } catch (err) {
+    console.error("Error restoring consumable:", err);
+    return res.status(500).json({ message: "Failed to restore consumable", error: err.message });
+  }
+};
+
+// DELETE permanent delete consumable item
+export const permanentDeleteConsumable = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Consumable.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ message: "Consumable item not found." });
+    }
+    return res.status(200).json({ message: "Consumable permanently deleted.", data: deleted });
+  } catch (err) {
+    console.error("Error permanently deleting consumable:", err);
+    return res.status(500).json({ message: "Failed to permanently delete consumable", error: err.message });
   }
 };
 

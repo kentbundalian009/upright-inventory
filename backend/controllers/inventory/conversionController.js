@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 import Conversion from '../../models/Conversion.js';
 import RawMaterial from '../../models/RawMaterial.js';
-import Product from '../../models/Product.js';
 
 export const getAllConversions = async (req, res) => {
   try {
@@ -58,16 +57,10 @@ export const createConversion = async (req, res) => {
     }
 
     for (const output of outputs) {
-      let targetItem;
-
-      if (output.itemType === 'RawMaterial') {
-        targetItem = await RawMaterial.findById(output.itemId).session(session);
-      } else {
-        targetItem = await Product.findById(output.itemId).session(session);
-      }
+      const targetItem = await RawMaterial.findById(output.itemId).session(session);
       
       if (!targetItem) {
-        throw new Error(`Target ${output.itemType} ID [${output.itemId}] not found in system records.`);
+        throw new Error(`Target Material ID [${output.itemId}] not found in system records.`);
       }
 
       targetItem.ActualCount = (targetItem.ActualCount || 0) + Number(output.qtyProduced);

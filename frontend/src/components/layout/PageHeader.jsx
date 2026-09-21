@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 import {
   LayoutDashboard,
   Package,
@@ -17,12 +17,13 @@ import {
   Database,
   Power,
   Building2,
-  Share2
+  Share2,
+  Boxes
 } from "lucide-react";
 
 function PageHeader({ activeTab, title, description, icon, badge, actions, children }) {
   const { isDark } = useTheme();
-  
+
   const headerConfig = {
     'dashboard': {
       title: 'Dashboard Overview',
@@ -80,8 +81,8 @@ function PageHeader({ activeTab, title, description, icon, badge, actions, child
       icon: Layers
     },
     'client-records': {
-      title: 'Client (Records)',
-      description: 'Track and manage official directory for Suppliers (Inbound) and Customers (Outbound).',
+      title: 'Information Details (Modules)',
+      description: 'Master list directory for Inventory Modules.',
       icon: Building2
     },
     'inbound-raw-mat': {
@@ -99,11 +100,6 @@ function PageHeader({ activeTab, title, description, icon, badge, actions, child
       description: 'Monitor items currently in the production pipeline and assembly.',
       icon: TrendingUp
     },
-    'products': {
-      title: 'Finished Products',
-      description: 'View and manage items fully processed and ready for distribution.',
-      icon: ShoppingBag
-    },
     'outbound-products': {
       title: 'Outbound',
       description: 'Track outgoing orders, packing lists, and customer fulfillments.',
@@ -119,20 +115,30 @@ function PageHeader({ activeTab, title, description, icon, badge, actions, child
       description: 'Manage consumable stocks, addition (IN), and release (OUT) transactions.',
       icon: ShoppingBag
     },
+    'consumables-records': {
+      title: 'Consumables (Records)',
+      description: 'Masterlist records of all consumable materials, inventory count, and acquisition value.',
+      icon: Boxes
+    },
+    'inventoryconsumables': {
+      title: 'Consumables (Records)',
+      description: 'Masterlist records of all consumable materials, inventory count, and acquisition value.',
+      icon: Boxes
+    },
+    'inventory-consumables': {
+      title: 'Consumables (Records)',
+      description: 'Masterlist records of all consumable materials, inventory count, and acquisition value.',
+      icon: Boxes
+    },
     'supplies': {
-      title: 'Supplies (Records)',
+      title: 'Tools & Equipments (Records)',
       description: 'Manage internal maintenance, operating, and office supplies.',
       icon: Package
     },
     'supplies-movements': {
-      title: 'Supplies Movements',
-      description: 'History of supply stock-ins, usage, and internal requisitions.',
+      title: 'Equipment Movements',
+      description: 'History of equipment stock-ins, usage, and internal requisitions.',
       icon: History
-    },
-    'assets': {
-      title: 'Company Assets',
-      description: 'Fixed asset tracking, depreciation, and equipment assignments.',
-      icon: Briefcase
     },
     'settings': {
       title: 'Personal Information & Settings',
@@ -158,11 +164,10 @@ function PageHeader({ activeTab, title, description, icon, badge, actions, child
   const finalBadge = badge !== undefined ? badge : 'Live System';
 
   return (
-    <header className={`w-full ${
-      isDark
-        ? 'bg-gradient-to-r from-[#090a10] via-[#0f111d] to-[#151829] text-white border border-slate-800/90 shadow-xl'
-        : 'bg-gradient-to-r from-[#18174e] via-[#1f1d63] to-[#282678] text-white border border-[#2e2c8a] shadow-md'
-    } rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 relative overflow-hidden transition-all duration-300`}>
+    <header className={`w-full ${isDark
+      ? 'bg-gradient-to-r from-[#090a10] via-[#0f111d] to-[#151829] text-white border border-slate-800/90 shadow-xl'
+      : 'bg-gradient-to-r from-[#18174e] via-[#1f1d63] to-[#282678] text-white border border-[#2e2c8a] shadow-md'
+      } rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 relative overflow-hidden transition-all duration-300`}>
       {/* Background Ambient Glow Accents */}
       <div className={`absolute -top-10 -right-10 w-36 h-36 sm:w-48 sm:h-48 ${isDark ? 'bg-[#ff6600]/10' : 'bg-[#ff6600]/15'} rounded-full blur-3xl pointer-events-none`} />
       <div className={`absolute -bottom-10 -left-10 w-36 h-36 sm:w-48 sm:h-48 ${isDark ? 'bg-indigo-900/20' : 'bg-blue-500/15'} rounded-full blur-3xl pointer-events-none`} />

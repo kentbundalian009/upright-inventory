@@ -6,7 +6,7 @@ import {
   CheckCircle2, AlertCircle, FileJson, X, Search, ShieldCheck, Clock, Calendar,
   Trash2, RotateCcw, AlertTriangle, ShieldAlert
 } from 'lucide-react';
-import PageHeader from './PageHeader';
+import PageHeader from './layout/PageHeader';
 import { useTheme } from '../context/ThemeContext';
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
@@ -288,7 +288,7 @@ function AdminBackup() {
     setConfirmModalConfig({
       isOpen: true,
       title: 'Confirm Full Database Backup',
-      message: 'Sigurado ka bang nais mong i-export at i-download ang kumpletong JSON backup ng buong database? Naglalaman ito ng live records mula sa Rackings, Supplies, Products, Assets, Outbound, at Accounts.',
+      message: 'Sigurado ka bang nais mong i-export at i-download ang kumpletong JSON backup ng buong database? Naglalaman ito ng live records mula sa Rackings, Tools & Equipments, Consumables, Outbound, at Accounts.',
       confirmText: 'Download Full Backup',
       onConfirm: () => {
         setConfirmModalConfig(prev => ({ ...prev, isOpen: false }));
@@ -373,13 +373,12 @@ function AdminBackup() {
 
   const collections = [
     { key: 'rawMaterials', label: 'Rackings (Raw Materials)', module: 'Rackings', count: stats?.breakdown?.rawMaterials || 0, icon: Layers, badgeClass: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-800' },
-    { key: 'supplies', label: 'Supplies (Records)', module: 'Supplies', count: stats?.breakdown?.supplies || 0, icon: Package, badgeClass: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800' },
-    { key: 'products', label: 'Finished Products', module: 'Products', count: stats?.breakdown?.products || 0, icon: ShoppingBag, badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800' },
-    { key: 'assets', label: 'Company Assets', module: 'Assets', count: stats?.breakdown?.assets || 0, icon: Briefcase, badgeClass: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800' },
+    { key: 'supplies', label: 'Tools & Equipments', module: 'Tools & Equipments', count: stats?.breakdown?.supplies || 0, icon: Package, badgeClass: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800' },
+    { key: 'consumables', label: 'Consumables Records', module: 'Consumables', count: stats?.breakdown?.consumables || 0, icon: ShoppingBag, badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800' },
     { key: 'packingLists', label: 'Outbound Packing Slips', module: 'Outbound', count: stats?.breakdown?.packingLists || 0, icon: Truck, badgeClass: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800' },
     { key: 'conversions', label: 'Work in Progress (WIP)', module: 'WIP Process', count: stats?.breakdown?.conversions || 0, icon: TrendingUp, badgeClass: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800' },
-    { key: 'suppliesMovements', label: 'Supplies Movements', module: 'Supplies Log', count: stats?.breakdown?.suppliesMovements || 0, icon: History, badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/60 dark:text-cyan-400 dark:border-cyan-800' },
-    { key: 'purchaseOrders', label: 'Inbound Purchase Orders', module: 'Inbound Log', count: stats?.breakdown?.purchaseOrders || 0, icon: FileSpreadsheet, badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800' },
+    { key: 'suppliesMovements', label: 'Equipment Movements', module: 'Equipments Log', count: stats?.breakdown?.suppliesMovements || 0, icon: History, badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/60 dark:text-cyan-400 dark:border-cyan-800' },
+    { key: 'purchaseOrders', label: 'Inbound Materials', module: 'Inbound Log', count: stats?.breakdown?.purchaseOrders || 0, icon: FileSpreadsheet, badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800' },
     { key: 'users', label: 'User Staff Accounts', module: 'Administration', count: stats?.breakdown?.users || 0, icon: Users, badgeClass: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' }
   ];
 

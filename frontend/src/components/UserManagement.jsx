@@ -13,7 +13,7 @@ import {
     User
 } from 'lucide-react';
 import axios from 'axios';
-import PageHeader from './PageHeader';
+import PageHeader from './layout/PageHeader';
 
 function AdminUserManagement() {
     // Dynamic Environment URL Strategy

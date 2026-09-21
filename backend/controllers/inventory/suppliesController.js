@@ -3,43 +3,7 @@ import { uploadImageBuffer } from "../../lib/cloudinary.js";
 
 export const getAllSupplies = async (req, res) => {
   try {
-    const suppliesList = await Supplies.aggregate([
-      { $sort: { createdAt: -1 } },
-      {
-        $project: {
-          Code: 1,
-          Category: 1,
-          Segment: 1,
-          ItemDescription: 1,
-          Dimension: 1,
-          SerialNo: 1,
-          ActualCount: 1,
-          UsedCount: 1,
-          DamagedCount: 1,
-          UOM: 1,
-          Condition: 1,
-          Brand: 1,
-          Color: 1,
-          AccountTo: 1,
-          isArchived: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          ImageUrl: {
-            $cond: {
-              if: { $and: [{ $ne: ["$ImageUrl", ""] }, { $ne: ["$ImageUrl", null] }] },
-              then: {
-                $cond: {
-                  if: { $regexMatch: { input: "$ImageUrl", regex: "^https?://" } },
-                  then: "$ImageUrl",
-                  else: { $concat: ["/api/supplies/", { $toString: "$_id" }, "/image"] }
-                }
-              },
-              else: ""
-            }
-          }
-        }
-      }
-    ]);
+    const suppliesList = await Supplies.find().sort({ createdAt: -1 }).lean();
     res.status(200).json(suppliesList);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
@@ -76,11 +40,7 @@ export const getSuppliesById = async (req, res) => {
     if (!suppliesItem) {
       return res.status(404).json({ message: "Supplies item not found" });
     }
-    const obj = suppliesItem.toObject();
-    if (obj.ImageUrl && obj.ImageUrl.startsWith("data:")) {
-      obj.ImageUrl = `/api/supplies/${obj._id}/image`;
-    }
-    res.status(200).json(obj);
+    res.status(200).json(suppliesItem);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
@@ -99,10 +59,12 @@ export const createSupplies = async (req, res) => {
       Brand,
       Color,
       AccountTo,
+      AcquisitionCost,
+      Price,
     } = req.body;
 
-    if (!Category || !ItemDescription || !UOM) {
-      return res.status(400).json({ message: "Please fill in all required fields (Category, Description, UOM)" });
+    if (!ItemDescription || !UOM) {
+      return res.status(400).json({ message: "Please fill in all required fields (Description, UOM)" });
     }
 
     const lastSupply = await Supplies.findOne({ 
@@ -118,28 +80,24 @@ export const createSupplies = async (req, res) => {
     }
 
     const generatedCode = `SPL-USSP-${String(nextNumber).padStart(5, '0')}`;
-
-    let finalImageUrl = "";
-    if (req.file) {
-      finalImageUrl = await uploadImageBuffer(req.file.buffer, req.file.mimetype, "oneinventory/supplies");
-    }
+    const costVal = AcquisitionCost !== undefined ? AcquisitionCost : Price;
 
     const newSupplies = await Supplies.create({
       Code: generatedCode,
-      Category: Category.trim(),
-      Segment: Segment?.trim(),
+      Category: Category?.trim() || "General",
+      Segment: Segment?.trim() || "General",
       ItemDescription: ItemDescription.trim(),
-      Dimension: Dimension?.trim(),
+      Dimension: Dimension?.trim() || "—",
       SerialNo: SerialNo?.trim() || "—",
-      ImageUrl: finalImageUrl, 
-      ActualCount: 0, 
+      ActualCount: Number(req.body.ActualCount) || 0, 
       UsedCount: 0,
-      DamagedCount: 0,
+      DamagedCount: Number(req.body.DamagedCount) || 0,
       UOM: UOM.trim(),
       Condition: Condition || "Good",
-      Brand: Brand?.trim(),
+      Brand: Brand?.trim() || "—",
       Color: Color?.trim(),
       AccountTo: AccountTo?.trim(),
+      AcquisitionCost: Number(costVal) || 0,
     });
 
     res.status(201).json(newSupplies);
@@ -158,12 +116,13 @@ export const updateSupplies = async (req, res) => {
       ItemDescription,
       Dimension,
       SerialNo,
-      ImageUrl,
       UOM,
       Condition,
       Brand,
       Color,
       AccountTo,
+      AcquisitionCost,
+      Price,
     } = req.body;
 
     if (Code) {
@@ -181,12 +140,9 @@ export const updateSupplies = async (req, res) => {
       return res.status(404).json({ message: "Supplies item not found" });
     }
 
-    let finalImageUrl = existingSupply.ImageUrl || "";
-    if (req.file) {
-      finalImageUrl = await uploadImageBuffer(req.file.buffer, req.file.mimetype, "oneinventory/supplies");
-    } else if (ImageUrl && !ImageUrl.startsWith("/api/")) {
-      finalImageUrl = ImageUrl;
-    }
+    const updatedCost = AcquisitionCost !== undefined
+      ? Number(AcquisitionCost) || 0
+      : (Price !== undefined ? Number(Price) || 0 : existingSupply.AcquisitionCost || 0);
 
     const updatedSupplies = await Supplies.findByIdAndUpdate(
       id,
@@ -197,12 +153,14 @@ export const updateSupplies = async (req, res) => {
         ItemDescription: ItemDescription?.trim(),
         Dimension: Dimension?.trim(),
         SerialNo: SerialNo?.trim(),
-        ImageUrl: finalImageUrl, 
+        ...(req.body.ActualCount !== undefined && { ActualCount: Number(req.body.ActualCount) || 0 }),
+        ...(req.body.DamagedCount !== undefined && { DamagedCount: Number(req.body.DamagedCount) || 0 }),
         UOM: UOM?.trim(),
         Condition,
         Brand: Brand?.trim(),
         Color: Color?.trim(),
         AccountTo: AccountTo?.trim(),
+        AcquisitionCost: updatedCost,
       },
       { new: true, runValidators: true }
     );
@@ -211,11 +169,7 @@ export const updateSupplies = async (req, res) => {
       return res.status(404).json({ message: "Supplies item not found" });
     }
 
-    const obj = updatedSupplies.toObject();
-    if (obj.ImageUrl && obj.ImageUrl.startsWith("data:")) {
-      obj.ImageUrl = `/api/supplies/${obj._id}/image`;
-    }
-    res.status(200).json(obj);
+    res.status(200).json(updatedSupplies);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }

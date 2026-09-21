@@ -98,7 +98,7 @@ export const createPackingList = async (req, res) => {
         }
 
         const populatedPL = await PackingList.findById(updatedPL._id)
-          .populate("items.materialId", "Code ItemDescription UOM");
+          .populate("items.materialId", "Code ItemDescription UOM Segment Dimension Dimensions Length Width Height ActualCount");
 
         const responseObj = populatedPL.toObject ? populatedPL.toObject() : populatedPL;
         responseObj.remainingReservePlNo = newReservePlNo;
@@ -126,7 +126,7 @@ export const createPackingList = async (req, res) => {
 
         const updatedReserve = await originalReserve.save();
         const populatedReserve = await PackingList.findById(updatedReserve._id)
-          .populate("items.materialId", "Code ItemDescription UOM");
+          .populate("items.materialId", "Code ItemDescription UOM Segment Dimension Dimensions Length Width Height ActualCount");
 
         const responseObj = populatedReserve.toObject ? populatedReserve.toObject() : populatedReserve;
         responseObj.message = `Reservation ${originalReserve.plNo} successfully updated.`;
@@ -173,7 +173,7 @@ export const createPackingList = async (req, res) => {
     }
 
     const populatedPL = await PackingList.findById(savedPL._id)
-      .populate("items.materialId", "Code ItemDescription UOM");
+      .populate("items.materialId", "Code ItemDescription UOM Segment Dimension Dimensions Length Width Height ActualCount");
 
     res.status(201).json(populatedPL);
   } catch (err) {
@@ -187,7 +187,7 @@ export const createPackingList = async (req, res) => {
 export const getPackingLists = async (req, res) => {
   try {
     const records = await PackingList.find()
-      .populate("items.materialId", "Code ItemDescription UOM")
+      .populate("items.materialId", "Code ItemDescription UOM Segment Dimension Dimensions Length Width Height ActualCount")
       .sort({ createdAt: -1 });
 
     res.status(200).json(records);
@@ -311,7 +311,7 @@ export const updatePackingList = async (req, res) => {
 
     const updated = await originalReserve.save();
     const populated = await PackingList.findById(updated._id)
-      .populate("items.materialId", "Code ItemDescription UOM");
+      .populate("items.materialId", "Code ItemDescription UOM Segment Dimension Dimensions Length Width Height ActualCount");
 
     const responseObj = populated.toObject ? populated.toObject() : populated;
     responseObj.message = `Packing list ${originalReserve.plNo} successfully updated.`;

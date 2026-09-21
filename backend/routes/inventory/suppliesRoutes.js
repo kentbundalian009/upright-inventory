@@ -38,7 +38,7 @@ router.use(protectRoute);
 
 router.route("/")
   .get(restrictTo("Inventory", "Viewer", "Admin"), getAllSupplies)    
-  .post(restrictTo("Inventory", "Admin"), upload.single("image"), createSupplies);
+  .post(restrictTo("Inventory", "Admin"), createSupplies);
 
 router.route("/:id/unarchive")
   .put(restrictTo("Inventory", "Admin"), unarchiveSupplies); 
@@ -48,7 +48,7 @@ router.route("/:id/permanent")
 
 router.route("/:id")
   .get(restrictTo("Inventory", "Viewer", "Admin"), getSuppliesById)   
-  .put(restrictTo("Inventory", "Admin"), upload.single("image"), updateSupplies)
+  .put(restrictTo("Inventory", "Admin"), updateSupplies)
   .delete(restrictTo("Inventory", "Admin"), deleteSupplies); 
 
 export default router;

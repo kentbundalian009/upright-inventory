@@ -3,8 +3,8 @@ import axios from 'axios';
 import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, CheckCircle2, AlertCircle, Loader2, Layers, ChevronDown, Clock, Tag, Plus, Package, ListPlus, ArrowUpRight, RotateCcw, History, FileSpreadsheet } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import PageHeader from './PageHeader';
-import TablePagination from './TablePagination';
+import PageHeader from './layout/PageHeader';
+import TablePagination from './common/TablePagination';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 
@@ -38,7 +38,7 @@ function InventorySuppliesMovements() {
     return now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
-  const [transactionType, setTransactionType] = useState('Borrow');
+  const [transactionType, setTransactionType] = useState('Restock');
   const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
   const [transactionTime, setTransactionTime] = useState(getCurrentTimeString());
   const [partyName, setPartyName] = useState('');
@@ -342,9 +342,6 @@ function InventorySuppliesMovements() {
 
   const handleInitiateConfirm = (e) => {
     e.preventDefault();
-    if (!partyName.trim()) {
-      return showErrorToast("Please select or enter Personnel Name.");
-    }
     if (manifestItems.length === 0) return showErrorToast("Mangyaring magdagdag ng items sa manifest list.");
 
     const hasInvalidQty = manifestItems.some(i => {
@@ -355,42 +352,48 @@ function InventorySuppliesMovements() {
       return showErrorToast("Mangyaring maglagay ng valid quantity sa lahat ng items.");
     }
 
+    if (transactionType === 'Out') {
+      for (const item of manifestItems) {
+        if (item.maxLimit !== undefined && Number(item.qty) > item.maxLimit) {
+          return showErrorToast(`Quantity for "${item.ItemDescription}" exceeds available stock (${item.maxLimit} ${item.UOM || 'pcs'}).`);
+        }
+      }
+    }
+
     setIsConfirmModalOpen(true);
   };
 
   const handleSaveSlip = async () => {
-    if (!partyName.trim()) {
-      return showErrorToast("Please select or enter Personnel Name.");
-    }
     setIsSaving(true);
+    const finalPartyName = preparedBy?.trim() || "System User";
     const payload = {
       transactionType,
-      transactionDate,
+      transactionDate: transactionDate || new Date().toISOString().split('T')[0],
       transactionTime: transactionTime || getCurrentTimeString(),
-      partyName,
-      purpose,
-      originAddress: purpose,
-      preparedBy,
+      partyName: finalPartyName,
+      purpose: transactionType === 'Out' ? 'Stock Deduction' : 'Stock Addition',
+      originAddress: "N/A",
+      preparedBy: finalPartyName,
       referenceSlipNo,
       items: manifestItems.map(i => ({
         supplyId: i.supplyId,
         qty: Number(i.qty),
-        goodConditionQty: Number(i.goodConditionQty),
-        damagedQty: Number(i.damagedQty),
-        remarks: i.remarks || purpose
+        goodConditionQty: Number(i.qty),
+        damagedQty: 0,
+        remarks: ""
       }))
     };
     try {
       const config = getAuthConfig();
       const res = await axios.post(MOVEMENT_URL, payload, config);
       if (res.status === 200 || res.status === 201) {
-        showSuccessToast(`Supply ${transactionType} finalized successfully!`);
+        showSuccessToast(`Supply ${transactionType === 'Out' ? 'OUT' : 'IN'} finalized successfully!`);
         setManifestItems([]);
         setPartyName('');
         setPurpose('Production');
         setOriginAddress('');
         setReferenceSlipNo('');
-        setTransactionType('Borrow');
+        setTransactionType('Restock');
         setTransactionTime(getCurrentTimeString());
         setIsConfirmModalOpen(false);
         fetchData();
@@ -976,45 +979,16 @@ function InventorySuppliesMovements() {
                 <span className={`text-xs font-bold uppercase tracking-wider whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Transaction Type:
                 </span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border whitespace-nowrap ${transactionType === 'Borrow'
-                  ? (isDark ? 'bg-amber-950/60 text-amber-400 border-amber-800' : 'bg-amber-50 text-amber-700 border-amber-200')
-                  : transactionType === 'Return'
-                    ? (isDark ? 'bg-blue-950/60 text-blue-400 border-blue-800' : 'bg-blue-50 text-blue-700 border-blue-200')
-                    : transactionType === 'Restock'
-                      ? (isDark ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800' : 'bg-emerald-50 text-emerald-700 border-emerald-200')
-                      : (isDark ? 'bg-rose-950/60 text-rose-400 border-rose-800' : 'bg-rose-50 text-rose-700 border-rose-200')
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border whitespace-nowrap ${transactionType === 'Out'
+                  ? (isDark ? 'bg-rose-950/60 text-rose-400 border-rose-800' : 'bg-rose-50 text-rose-700 border-rose-200')
+                  : (isDark ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800' : 'bg-emerald-50 text-emerald-700 border-emerald-200')
                   }`}>
-                  {transactionType === 'Borrow' && '🟡 Borrow (Issue Stock)'}
-                  {transactionType === 'Return' && '🔵 Return (Receive Back)'}
-                  {transactionType === 'Restock' && '🟢 Restock (Stock In)'}
-                  {transactionType === 'Out' && '🔴 Out (Deduct Stock)'}
+                  {transactionType === 'Out' ? '🔴 OUT (Stock Deduction)' : '🟢 IN (Stock Addition)'}
                 </span>
               </div>
 
               {/* ACTION TOGGLE BUTTONS */}
               <div className="flex items-center gap-1.5 ml-auto sm:ml-0 flex-nowrap shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setTransactionType('Borrow')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${transactionType === 'Borrow'
-                    ? (isDark ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs' : 'bg-amber-500 text-white border-amber-600 shadow-xs')
-                    : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
-                    }`}
-                >
-                  🟡 Borrow
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setTransactionType('Return')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${transactionType === 'Return'
-                    ? (isDark ? 'bg-blue-600 text-white border-blue-500 shadow-xs' : 'bg-blue-600 text-white border-blue-700 shadow-xs')
-                    : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
-                    }`}
-                >
-                  🔵 Return
-                </button>
-
                 <button
                   type="button"
                   onClick={() => setTransactionType('Restock')}
@@ -1023,9 +997,8 @@ function InventorySuppliesMovements() {
                     : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
                     }`}
                 >
-                  🟢 Restock
+                  🟢 IN
                 </button>
-
                 <button
                   type="button"
                   onClick={() => setTransactionType('Out')}
@@ -1034,185 +1007,22 @@ function InventorySuppliesMovements() {
                     : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
                     }`}
                 >
-                  🔴 Out
+                  🔴 OUT
                 </button>
+
+
               </div>
-            </div>
-
-            {/* 1. TOP ROW: 3 GRID COLUMNS (PERSONNEL, PURPOSE, DATE BORROW) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-              {/* 1. PERSONNEL (TYPE + DROPDOWN) */}
-              <div ref={personnelDropdownRef} className="relative">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase`}>
-                    Personnel *
-                  </label>
-                </div>
-
-                <div className="relative">
-                  <User className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'} z-10`} />
-                  <input
-                    type="text"
-                    required
-                    value={partyName}
-                    onChange={(e) => {
-                      setPartyName(e.target.value);
-                      setIsPersonnelDropdownOpen(true);
-                    }}
-                    onFocus={() => setIsPersonnelDropdownOpen(true)}
-                    placeholder="Personnel name..."
-                    className={`w-full border rounded-lg pl-9 pr-16 py-2 text-sm focus:outline-none font-semibold transition-all ${isDark
-                      ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
-                      : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
-                      }`}
-                  />
-
-                  <div className="absolute right-2 top-2 flex items-center gap-1 z-10">
-                    {partyName && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPartyName('');
-                          setIsPersonnelDropdownOpen(true);
-                        }}
-                        title="Clear personnel"
-                        className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded cursor-pointer"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setIsPersonnelDropdownOpen(!isPersonnelDropdownOpen)}
-                      title="Toggle personnel dropdown list"
-                      className={`p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-transform duration-200 ${isPersonnelDropdownOpen ? 'rotate-180 text-[#ff6600]' : ''
-                        }`}
-                    >
-                      <ChevronDown className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* FLOATING TYPE + DROPDOWN MENU FOR PERSONNEL */}
-                  {isPersonnelDropdownOpen && (
-                    <div
-                      className={`absolute left-0 right-0 sm:-right-16 top-[102%] mt-1 border rounded-xl max-h-60 overflow-y-auto z-50 divide-y p-1 shadow-2xl ${isDark
-                        ? 'bg-[#0e1017] border-slate-700 divide-slate-800 text-slate-200'
-                        : 'bg-white border-slate-200 divide-slate-100 text-slate-800'
-                        }`}
-                    >
-
-                      {filteredEmployees.length > 0 ? (
-                        filteredEmployees.map((emp) => (
-                          <button
-                            key={emp._id}
-                            type="button"
-                            onClick={() => {
-                              setPartyName(emp.name);
-                              setIsPersonnelDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between gap-2 rounded-lg transition-colors cursor-pointer ${partyName === emp.name
-                              ? (isDark ? 'bg-[#ff6600]/20 text-[#ff6600]' : 'bg-indigo-50 text-[#18174e]')
-                              : (isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50')
-                              }`}
-                          >
-                            <div className="flex flex-col">
-                              <span className="font-bold text-sm">{emp.name}</span>
-                              {(emp.contactPerson || emp.address) && (
-                                <span className="text-[10px] text-slate-400 font-normal">
-                                  {[emp.contactPerson, emp.address].filter(Boolean).join(' • ')}
-                                </span>
-                              )}
-                            </div>
-                            {partyName === emp.name && (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                            )}
-                          </button>
-                        ))
-                      ) : (
-                        <div className="p-3 text-center text-xs text-slate-400">
-                          No registered personnel matches "{partyName}".
-                        </div>
-                      )}
-
-                      {partyName && !combinedEmployees.some((e) => e.name?.toLowerCase() === partyName.toLowerCase()) && (
-                        <button
-                          type="button"
-                          onClick={() => setIsPersonnelDropdownOpen(false)}
-                          className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 rounded-lg transition-colors cursor-pointer ${isDark ? 'bg-emerald-950/40 text-emerald-400 hover:bg-emerald-900/50' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            }`}
-                        >
-                          <Plus className="w-3.5 h-3.5 shrink-0" />
-                          <span>Use typed personnel: <strong>"{partyName}"</strong></span>
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 2. PURPOSE DROPDOWN (Production, Deployment, Personal) */}
-              <div>
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
-                  Purpose *
-                </label>
-                <select
-                  value={purpose}
-                  onChange={(e) => {
-                    const newPurpose = e.target.value;
-                    setPurpose(newPurpose);
-                    setOriginAddress(newPurpose);
-                    // Auto update remarks in manifest if empty or matches previous purpose
-                    setManifestItems(manifestItems.map(item => ({
-                      ...item,
-                      remarks: (!item.remarks || PURPOSE_OPTIONS.includes(item.remarks)) ? newPurpose : item.remarks
-                    })));
-                  }}
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer font-medium`}
-                  required
-                >
-                  <option value="" className={isDark ? 'bg-[#141622] text-slate-300' : ''}>Select Purpose</option>
-                  {PURPOSE_OPTIONS.map((cat) => (
-                    <option key={cat} value={cat} className={isDark ? 'bg-[#141622] text-white' : ''}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 3. DATE BORROW */}
-              <div>
-                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
-                  {transactionType === 'Borrow' ? 'Date Borrow *' : `Date ${transactionType} *`}
-                </label>
-                <div className="relative">
-                  <Calendar className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                  <input
-                    type="date"
-                    value={transactionDate}
-                    onChange={e => setTransactionDate(e.target.value)}
-                    className={`w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none font-semibold ${isDark
-                      ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]'
-                      : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
-                      }`}
-                    required
-                  />
-                </div>
-              </div>
-
             </div>
 
             {/* 2. STEP 1: TYPE / SELECT MATERIALS */}
-            <div ref={suppliesDropdownRef} className={`${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border flex flex-col gap-2.5 relative`}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div
+              className={`${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                } p-4 rounded-xl border flex flex-col gap-2.5 relative`}
+            >              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <label className={`block text-xs sm:text-sm font-bold ${transactionType === 'Borrow'
-                    ? (isDark ? 'text-amber-400' : 'text-amber-800')
-                    : transactionType === 'Return'
-                      ? (isDark ? 'text-blue-400' : 'text-blue-800')
-                      : transactionType === 'Restock'
-                        ? (isDark ? 'text-emerald-400' : 'text-emerald-800')
-                        : (isDark ? 'text-rose-400' : 'text-rose-800')
+                  <label className={`block text-xs sm:text-sm font-bold ${transactionType === 'Restock'
+                    ? (isDark ? 'text-emerald-400' : 'text-emerald-800')
+                    : (isDark ? 'text-rose-400' : 'text-rose-800')
                     } uppercase leading-snug`}>
                     Step 1: Type / Select Materials
                   </label>
@@ -1350,18 +1160,11 @@ function InventorySuppliesMovements() {
             {manifestItems.length > 0 && (
               <div className="flex flex-col gap-2 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between">
-                  <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${transactionType === 'Borrow'
-                    ? (isDark ? 'bg-amber-950/40 text-amber-300 border border-amber-800/40' : 'text-amber-700 bg-amber-50 border border-amber-200/60')
-                    : transactionType === 'Return'
-                      ? (isDark ? 'bg-blue-950/40 text-blue-300 border border-blue-800/40' : 'text-blue-700 bg-blue-50 border border-blue-200/60')
-                      : transactionType === 'Restock'
-                        ? (isDark ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/40' : 'text-emerald-700 bg-emerald-50 border border-emerald-200/60')
-                        : (isDark ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' : 'text-rose-700 bg-rose-50 border border-rose-200/60')
+                  <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-md w-fit uppercase ${transactionType === 'Restock'
+                    ? (isDark ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/40' : 'text-emerald-700 bg-emerald-50 border border-emerald-200/60')
+                    : (isDark ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40' : 'text-rose-700 bg-rose-50 border border-rose-200/60')
                     }`}>
-                    {transactionType === 'Borrow' && '🟡 Quantities will be issued / deducted for borrowing'}
-                    {transactionType === 'Return' && '🔵 Quantities will be returned / added to available stock'}
-                    {transactionType === 'Restock' && '🟢 Quantities will be added to available stock'}
-                    {transactionType === 'Out' && '🔴 Quantities will be automatically deducted'}
+                    {transactionType === 'Restock' ? '🟢 Quantities will be automatically added' : '🔴 Quantities will be automatically deducted'}
                   </span>
                   <button
                     type="button"
@@ -1374,15 +1177,11 @@ function InventorySuppliesMovements() {
                 </div>
 
                 <div className={`rounded-xl border shadow-sm overflow-x-auto ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'}`}>
-                  <table className="w-full text-left border-collapse text-sm min-w-[1000px]">
+                  <table className="w-full text-left border-collapse text-sm min-w-[900px]">
                     <thead>
-                      <tr className={`uppercase text-xs whitespace-nowrap font-bold ${transactionType === 'Borrow'
-                        ? (isDark ? 'bg-[#0f111d] text-amber-300 border-b border-slate-800' : 'bg-[#18174e] text-white')
-                        : transactionType === 'Return'
-                          ? (isDark ? 'bg-[#0f111d] text-blue-300 border-b border-slate-800' : 'bg-[#18174e] text-white')
-                          : transactionType === 'Restock'
-                            ? (isDark ? 'bg-[#0f111d] text-emerald-300 border-b border-slate-800' : 'bg-[#18174e] text-white')
-                            : (isDark ? 'bg-[#0f111d] text-rose-300 border-b border-slate-800' : 'bg-[#18174e] text-white')
+                      <tr className={`uppercase text-xs whitespace-nowrap font-bold text-white ${transactionType === 'Restock'
+                        ? (isDark ? 'bg-[#0f111d] text-emerald-300 border-b border-slate-800' : 'bg-emerald-700')
+                        : (isDark ? 'bg-[#180a0e] text-rose-300 border-b border-slate-800' : 'bg-rose-700')
                         }`}>
                         <th className="py-3 px-4 text-center w-28 min-w-[112px]">QTY</th>
                         <th className="py-3 px-4 text-center">UOM</th>
@@ -1390,7 +1189,6 @@ function InventorySuppliesMovements() {
                         <th className="py-3 px-4">Segment</th>
                         <th className="py-3 px-4">Description</th>
                         <th className="py-3 px-4">Dimension</th>
-                        <th className="py-3 px-4">Reason / Purpose</th>
                         <th className="py-3 px-4 text-center">Action</th>
                       </tr>
                     </thead>
@@ -1407,9 +1205,9 @@ function InventorySuppliesMovements() {
                               value={item.qty}
                               onChange={e => handleUpdateField(index, 'qty', e.target.value)}
                               onWheel={(e) => e.currentTarget.blur()}
-                              className={`w-full border text-center rounded py-1 text-sm font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isDark
-                                ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]'
-                                : 'border-slate-200 text-slate-800 focus:border-[#18174e]'
+                              className={`w-full border text-center rounded py-1 text-sm font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${transactionType === 'Restock'
+                                ? (isDark ? 'bg-[#141622] border-slate-700 text-emerald-400 focus:border-emerald-500' : 'border-slate-200 text-emerald-700 focus:border-emerald-600')
+                                : (isDark ? 'bg-[#141622] border-slate-700 text-rose-400 focus:border-rose-500' : 'border-slate-200 text-rose-700 focus:border-rose-600')
                                 }`}
                               required
                             />
@@ -1451,21 +1249,7 @@ function InventorySuppliesMovements() {
                             )}
                           </td>
 
-                          {/* 7. Reason / Purpose */}
-                          <td className="py-2 px-4">
-                            <input
-                              type="text"
-                              value={item.remarks || ''}
-                              onChange={e => handleUpdateField(index, 'remarks', e.target.value)}
-                              placeholder="Reason / Purpose..."
-                              className={`w-full border rounded-lg px-2.5 py-1 text-xs font-medium focus:outline-none ${isDark
-                                ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
-                                : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
-                                }`}
-                            />
-                          </td>
-
-                          {/* 8. Action */}
+                          {/* 7. Action */}
                           <td className="py-2 px-4 text-center">
                             <button
                               type="button"
@@ -1488,9 +1272,22 @@ function InventorySuppliesMovements() {
 
                 <button
                   type="submit"
-                  className="w-full bg-[#ff6600] hover:bg-[#e05a00] text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer uppercase shadow-sm"
+                  className={`w-full font-bold py-2.5 px-4 rounded-xl text-sm transition-all cursor-pointer uppercase shadow-sm flex items-center justify-center gap-2 ${transactionType === 'Restock'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-rose-600 hover:bg-rose-700 text-white'
+                    }`}
                 >
-                  Confirm Supplies {transactionType} Slip
+                  {transactionType === 'Restock' ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Confirm Stock IN (Addition)</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Confirm Stock OUT (Release)</span>
+                    </>
+                  )}
                 </button>
               </div>
             )}
@@ -1502,6 +1299,13 @@ function InventorySuppliesMovements() {
 
               {/* Table matched to RACKINGS CONSOLIDATED REGISTRY REPORT UI */}
               <div className={`rounded-xl border shadow-sm overflow-hidden ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'}`}>
+                <TablePagination
+                  currentPage={activeBorrowsPage}
+                  setCurrentPage={setActiveBorrowsPage}
+                  rowsPerPage={activeBorrowsRowsPerPage}
+                  setRowsPerPage={setActiveBorrowsRowsPerPage}
+                  totalRows={filteredActiveBorrows.length}
+                />
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
@@ -1637,13 +1441,6 @@ function InventorySuppliesMovements() {
                     </tbody>
                   </table>
                 </div>
-                <TablePagination
-                  currentPage={activeBorrowsPage}
-                  setCurrentPage={setActiveBorrowsPage}
-                  rowsPerPage={activeBorrowsRowsPerPage}
-                  setRowsPerPage={setActiveBorrowsRowsPerPage}
-                  totalRows={filteredActiveBorrows.length}
-                />
               </div>
             </div>
           )}
@@ -1732,10 +1529,11 @@ function InventorySuppliesMovements() {
       </div>
 
       {isModalOpen && selectedSlip && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+        <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-150`}>
           <div className={`border rounded-2xl w-full max-w-3xl p-6 shadow-2xl relative flex flex-col gap-4 max-h-[90vh] overflow-y-auto ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
             }`}>
 
+            {/* Header */}
             <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
               <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-slate-800'}`}>
                 Transaction No: <span className="font-mono text-[#ff6600]">{selectedSlip.slipNo}</span>
@@ -1744,23 +1542,25 @@ function InventorySuppliesMovements() {
                 <button
                   type="button"
                   onClick={() => handleDownloadPDF(selectedSlip)}
-                  className="flex items-center gap-1.5 bg-[#18174e] hover:bg-[#13123f] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
                   title="Export Audit Ledger PDF Slip"
                 >
-                  <Download className="w-3.5 h-3.5 text-indigo-300" />
-                  <span>Audit Ledger (PDF)</span>
+                  <Download className="w-3.5 h-3.5 text-white" />
+                  <span>Download (PDF)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   className={`p-1 rounded-lg cursor-pointer transition-colors ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                     }`}
+                  title="Close"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
+            {/* Details Grid */}
             <div className={`grid grid-cols-2 sm:grid-cols-3 text-sm gap-2.5 p-4 rounded-xl border ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'
               }`}>
               <div><span className="font-semibold text-slate-500">Slip ID No:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.slipNo}</span></div>
@@ -1772,30 +1572,36 @@ function InventorySuppliesMovements() {
               <div><span className="font-semibold text-slate-500">Prepared By:</span> <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.preparedBy || preparedBy}</span></div>
             </div>
 
+            {/* Table Section */}
             {(() => {
               const slipItems = selectedSlip.items || [];
-              const totalItems = slipItems.length;
-              const totalPages = Math.ceil(totalItems / modalRowsPerPage) || 1;
-              const currentPage = Math.min(modalPage, totalPages);
-              const startIndex = (currentPage - 1) * modalRowsPerPage;
-              const paginatedItems = slipItems.slice(startIndex, startIndex + modalRowsPerPage);
+              const modalIndexOfLastRow = modalPage * modalRowsPerPage;
+              const modalIndexOfFirstRow = modalIndexOfLastRow - modalRowsPerPage;
+              const paginatedItems = slipItems.slice(modalIndexOfFirstRow, modalIndexOfLastRow);
 
               return (
-                <div className="flex flex-col gap-2">
-                  <div className={`border rounded-xl relative shadow-sm overflow-hidden ${isDark ? 'border-slate-800 bg-[#0c0e14]' : 'border-slate-200/60 bg-white'
-                    }`}>
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead className={`text-[11px] font-bold uppercase tracking-wide ${isDark ? 'bg-[#0f111d] text-slate-200' : 'bg-[#18174e] text-white'
-                        }`}>
+                <div className={`border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm overflow-hidden flex flex-col`}>
+                  <TablePagination
+                    currentPage={modalPage}
+                    setCurrentPage={setModalPage}
+                    rowsPerPage={modalRowsPerPage}
+                    setRowsPerPage={setModalRowsPerPage}
+                    totalRows={slipItems.length}
+                    options={[5, 10, 20, 50, 100]}
+                  />
+                  <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                    <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+                      {/* Header pattern matched directly from reference PO modal */}
+                      <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700 text-white'} text-[11px] font-bold uppercase whitespace-nowrap`}>
                         <tr>
-                          <th className="p-3 whitespace-nowrap">Segment</th>
-                          <th className="p-3 min-w-[200px]">Item Description</th>
-                          <th className="p-3 whitespace-nowrap">Dimension</th>
-                          <th className="p-3 text-center whitespace-nowrap">Qty</th>
-                          <th className="p-3 min-w-[140px]">Remarks</th>
+                          <th className="p-3 text-left">Segment</th>
+                          <th className="p-3 text-left">Item Description</th>
+                          <th className="p-3 text-left">Dimension</th>
+                          <th className="p-3 text-center">Qty</th>
+                          <th className="p-3 text-left pl-4">Remarks</th>
                         </tr>
                       </thead>
-                      <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 bg-[#090b10] text-slate-300' : 'divide-slate-100 bg-white text-slate-700'}`}>
+                      <tbody className={`divide-y ${isDark ? 'bg-[#090b10] divide-slate-800' : 'bg-white divide-slate-100'}`}>
                         {paginatedItems.map((it, idx) => {
                           const segment = it.supplyId?.Segment || it.supplyId?.segment || it.supplyId?.Category || it.supplyId?.category || 'Equipment';
                           const description = it.supplyId?.ItemDescription || '-';
@@ -1805,31 +1611,21 @@ function InventorySuppliesMovements() {
                           const remarks = it.remarks || selectedSlip.purpose || selectedSlip.originAddress || '—';
 
                           return (
-                            <tr key={it._id || idx} className={`transition-colors ${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'}`}>
-                              <td className="p-3 align-middle whitespace-nowrap font-medium text-slate-400">
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
-                                  {segment}
-                                </span>
+                            <tr key={it._id || idx} className={`${isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/50'} transition-colors`}>
+                              <td className={`p-3 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'} whitespace-nowrap align-middle`}>
+                                {segment}
                               </td>
-                              <td className="p-3 align-middle">
-                                <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'} whitespace-normal break-words`} title={description}>
-                                  {description}
-                                </div>
-                                {code && (
-                                  <div className="text-[10px] text-slate-400 font-mono">
-                                    ({code})
-                                  </div>
-                                )}
+                              <td className={`p-3 font-bold ${isDark ? 'text-white' : 'text-[#18174e]'} text-xs min-w-[200px] whitespace-normal break-words align-middle`} title={description}>
+                                <div>{description}</div>
+                                {code && <div className={`font-mono text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>({code})</div>}
                               </td>
-                              <td className="p-3 align-middle whitespace-nowrap">
-                                <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded border ${isDark ? 'bg-amber-950/40 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
-                                  {dimension}
-                                </span>
+                              <td className={`p-3 ${isDark ? 'text-slate-400' : 'text-slate-600'} font-medium whitespace-nowrap align-middle`}>
+                                {dimension}
                               </td>
-                              <td className="p-3 text-center align-middle font-bold whitespace-nowrap">
+                              <td className="p-3 text-center font-bold font-mono align-middle whitespace-nowrap text-[#ff6600]">
                                 {qty}
                               </td>
-                              <td className="p-3 align-middle italic text-[11px] text-slate-400 whitespace-normal break-words">
+                              <td className={`p-3 italic ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium text-[11px] min-w-[120px] whitespace-normal break-words align-middle pl-4`}>
                                 {remarks}
                               </td>
                             </tr>
@@ -1837,21 +1633,14 @@ function InventorySuppliesMovements() {
                         })}
                         {slipItems.length === 0 && (
                           <tr>
-                            <td colSpan="5" className="p-4 text-center text-slate-500 italic">No materials recorded.</td>
+                            <td colSpan="5" className="p-4 text-center text-slate-400 italic">
+                              No materials recorded.
+                            </td>
                           </tr>
                         )}
                       </tbody>
                     </table>
                   </div>
-
-                  <TablePagination
-                    currentPage={modalPage}
-                    setCurrentPage={setModalPage}
-                    rowsPerPage={modalRowsPerPage}
-                    setRowsPerPage={setModalRowsPerPage}
-                    totalRows={slipItems.length}
-                    options={[5, 10, 20, 50, 100]}
-                  />
                 </div>
               );
             })()}
@@ -1859,7 +1648,9 @@ function InventorySuppliesMovements() {
           </div>
         </div>
       )}
-      {/* CONFIRMATION MODAL */}
+
+
+      {/* CONFIRMATION MODAL (Matching Inbound PO UI) */}
       {isConfirmModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto flex flex-col gap-5 animate-in zoom-in-95 duration-200`}>
@@ -1868,10 +1659,10 @@ function InventorySuppliesMovements() {
             <div className={`flex justify-between items-start border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
               <div>
                 <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-[#18174e]'}`}>
-                  Confirm Supplies Movement ({transactionType})
+                  Confirm Equipment Movement ({transactionType === 'Restock' ? 'Inbound' : 'Outbound'})
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Paki-review ang mga detalye ng supply transaction bago i-save sa database.
+                  Please review the transaction details before committing to the database.
                 </p>
               </div>
               <button
@@ -1887,43 +1678,34 @@ function InventorySuppliesMovements() {
             <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border text-xs ${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Transaction Type</span>
-                <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block ${isDark ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-800' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'}`}>
-                  {transactionType}
+                <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block ${transactionType === 'Restock'
+                  ? (isDark ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800' : 'bg-emerald-50 text-emerald-700 border border-emerald-200')
+                  : (isDark ? 'bg-rose-950/60 text-rose-400 border border-rose-800' : 'bg-rose-50 text-rose-700 border border-rose-200')
+                  }`}>
+                  {transactionType === 'Restock' ? '🟢 Stock Addition (IN)' : '🔴 Stock Deduction (OUT)'}
                 </span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Date Borrow</span>
-                <span className="font-semibold">{transactionDate ? new Date(transactionDate).toLocaleDateString() : '—'}</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Date & Time</span>
+                <span className="font-semibold">{transactionDate ? new Date(transactionDate).toLocaleDateString() : '—'} at {transactionTime || getCurrentTimeString()}</span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Time</span>
-                <span className="font-semibold">{transactionTime || '—'}</span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Personnel</span>
-                <span className="font-bold text-amber-500">{partyName || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Purpose</span>
-                <span className="font-bold">{purpose || 'Production'}</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Total Quantity</span>
+                <span className={`font-bold font-mono ${transactionType === 'Restock' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {manifestItems.reduce((sum, it) => sum + Number(it.qty || 0), 0)} units
+                </span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Prepared By</span>
-                <span className="font-semibold">{preparedBy}</span>
+                <span className="font-semibold">{preparedBy || 'System User'}</span>
               </div>
-              {referenceSlipNo && (
-                <div className="sm:col-span-3">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Reference Slip</span>
-                  <span className={`font-mono font-bold ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`}>{referenceSlipNo}</span>
-                </div>
-              )}
             </div>
 
             {/* Manifest Items Table */}
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center text-xs font-bold px-1">
-                <span className="uppercase text-slate-400">Supplies to Process ({manifestItems.length})</span>
-                <span className="text-[#ff6600] font-bold">
+                <span className="uppercase text-slate-400">Items to Process ({manifestItems.length})</span>
+                <span className={transactionType === 'Restock' ? 'text-emerald-500 font-bold' : 'text-rose-500 font-bold'}>
                   Total Qty: {manifestItems.reduce((sum, item) => sum + (Number(item.qty) || 0), 0)}
                 </span>
               </div>
@@ -1931,35 +1713,33 @@ function InventorySuppliesMovements() {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className={`uppercase text-[10px] font-bold ${isDark ? 'bg-[#141622] text-slate-300 border-b border-slate-800' : 'bg-slate-100 text-slate-600 border-b border-slate-200'}`}>
-                      <th className="py-2 px-3 text-center">Date Borrow</th>
-                      <th className="py-2 px-3 text-center">Time</th>
-                      <th className="py-2 px-3">Personnel</th>
-                      <th className="py-2 px-3">Supplies</th>
-                      <th className="py-2 px-3">Reason</th>
-                      <th className="py-2 px-3 text-center font-bold">Quantity</th>
+                      <th className="py-2 px-3">Item Description</th>
+                      <th className="py-2 px-3">Segment</th>
+                      <th className="py-2 px-3">Dimension Serial</th>
+                      <th className="py-2 px-3 text-center">Expected Qty</th>
+                      <th className={`py-2 px-3 text-center font-bold ${transactionType === 'Restock' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        Actual Received
+                      </th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-100'}`}>
                     {manifestItems.map((item, idx) => (
                       <tr key={idx} className={isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
-                        <td className="py-2 px-3 text-center font-mono">
-                          {transactionDate}
-                        </td>
-                        <td className="py-2 px-3 text-center font-mono">
-                          {transactionTime || '02:30 PM'}
-                        </td>
-                        <td className="py-2 px-3 font-semibold">
-                          {partyName || 'N/A'}
-                        </td>
                         <td className="py-2 px-3 font-semibold min-w-[180px] whitespace-normal break-words" title={item.ItemDescription}>
                           <div>{item.ItemDescription}</div>
-                          <div className="text-[10px] text-slate-400 font-mono">{item.Code}</div>
+                          {item.Code && <div className="text-[10px] text-slate-400 font-mono">{item.Code}</div>}
                         </td>
-                        <td className="py-2 px-3 text-slate-400 italic">
-                          {item.remarks || purpose || '—'}
+                        <td className="py-2 px-3 text-slate-400">
+                          {item.Segment || item.Category || '—'}
                         </td>
-                        <td className="py-2 px-3 text-center font-bold">
-                          {item.qty} {item.UOM}
+                        <td className="py-2 px-3 text-slate-400 font-mono text-[11px]">
+                          {item.Dimension && item.Dimension !== '—' ? item.Dimension : (item.SerialNo && item.SerialNo !== '—' ? item.SerialNo : '—')}
+                        </td>
+                        <td className="py-2 px-3 text-center text-slate-400">
+                          {item.qty}
+                        </td>
+                        <td className={`py-2 px-3 text-center font-bold ${transactionType === 'Restock' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {item.qty} {item.UOM || 'pcs'}
                         </td>
                       </tr>
                     ))}
@@ -1988,10 +1768,10 @@ function InventorySuppliesMovements() {
                 {isSaving ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Saving Activity...</span>
+                    <span>Saving Equipment...</span>
                   </>
                 ) : (
-                  <span>Save Supplies Activity</span>
+                  <span>Save Equipment Transaction</span>
                 )}
               </button>
             </div>
@@ -2217,6 +1997,13 @@ function InventorySuppliesMovements() {
 
             {/* History Table */}
             <div className={`rounded-xl border shadow-sm flex flex-col flex-1 overflow-hidden min-h-0 ${isDark ? 'border-slate-800 bg-[#0c0e14]' : 'border-slate-100 bg-white'}`}>
+              <TablePagination
+                currentPage={historyPage}
+                setCurrentPage={setHistoryPage}
+                rowsPerPage={historyRowsPerPage}
+                setRowsPerPage={setHistoryRowsPerPage}
+                totalRows={filteredHistoryLogs.length}
+              />
               <div className="overflow-x-auto overflow-y-auto flex-1 max-h-[460px]">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#0f111d] text-slate-200 border-b border-slate-800' : 'bg-[#18174e] text-white'} font-bold uppercase text-[11px] whitespace-nowrap`}>
@@ -2322,13 +2109,6 @@ function InventorySuppliesMovements() {
                   </tbody>
                 </table>
               </div>
-              <TablePagination
-                currentPage={historyPage}
-                setCurrentPage={setHistoryPage}
-                rowsPerPage={historyRowsPerPage}
-                setRowsPerPage={setHistoryRowsPerPage}
-                totalRows={filteredHistoryLogs.length}
-              />
             </div>
 
             {/* Modal Footer */}

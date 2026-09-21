@@ -18,13 +18,14 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   ChevronDown,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ExternalLink
 } from 'lucide-react';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import PageHeader from './PageHeader';
-import TablePagination from './TablePagination';
+import PageHeader from './layout/PageHeader';
+import TablePagination from './common/TablePagination';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 
@@ -50,7 +51,7 @@ const getCurrentTimeString = () => {
   return `${strHours}:${minutes} ${ampm}`;
 };
 
-function Consumable() {
+function Consumable({ setActiveTab }) {
   const { isDark } = useTheme();
 
   // Data states
@@ -81,7 +82,7 @@ function Consumable() {
   }, [selectedTransaction, isDetailModalOpen]);
 
   // Transaction Form States
-  const [transactionType, setTransactionType] = useState('OUT'); // 'OUT' is default
+  const [transactionType, setTransactionType] = useState('IN'); // 'IN' is default
   const [transactorName, setTransactorName] = useState('');
   const [preparedBy, setPreparedBy] = useState(() => {
     try {
@@ -97,6 +98,7 @@ function Consumable() {
   });
   const [isCustomName, setIsCustomName] = useState(false);
   const [registeredEmployees, setRegisteredEmployees] = useState([]);
+  const [suppliesList, setSuppliesList] = useState([]);
   const [isPersonnelDropdownOpen, setIsPersonnelDropdownOpen] = useState(false);
   const personnelDropdownRef = useRef(null);
 
@@ -134,10 +136,8 @@ function Consumable() {
   const [newItemDimension, setNewItemDimension] = useState('');
   const [newItemCategory, setNewItemCategory] = useState('');
   const [newItemBrand, setNewItemBrand] = useState('');
-  const [newItemSerialNo, setNewItemSerialNo] = useState('');
-  const [newItemActualCount, setNewItemActualCount] = useState(0);
-  const [newItemDamaged, setNewItemDamaged] = useState(0);
   const [newItemUOM, setNewItemUOM] = useState('pcs');
+  const [newItemAcquisitionCost, setNewItemAcquisitionCost] = useState('');
 
   // Custom Toast Helpers
   const showSuccessToast = (message) => {
@@ -181,15 +181,20 @@ function Consumable() {
     try {
       setLoading(true);
       const config = getAuthConfig();
-      const [itemsRes, txRes, employeesRes] = await Promise.all([
+      const [itemsRes, txRes, employeesRes, suppliesRes] = await Promise.all([
         axios.get(CONSUMABLES_URL, config).catch(() => ({ data: [] })),
         axios.get(TRANSACTIONS_URL, config).catch(() => ({ data: [] })),
-        axios.get(`${API_BASE_URL}/clients?type=Employee`, config).catch(() => ({ data: [] }))
+        axios.get(`${API_BASE_URL}/clients?type=Employee`, config).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE_URL}/supplies`, config).catch(() => ({ data: [] }))
       ]);
 
       setConsumables(Array.isArray(itemsRes.data) ? itemsRes.data : []);
       setTransactions(Array.isArray(txRes.data) ? txRes.data : []);
       setRegisteredEmployees(Array.isArray(employeesRes.data) ? employeesRes.data : []);
+      const rawSupplies = Array.isArray(suppliesRes.data)
+        ? suppliesRes.data
+        : (Array.isArray(suppliesRes.data?.data) ? suppliesRes.data.data : []);
+      setSuppliesList(rawSupplies);
     } catch (err) {
       console.error('Error fetching consumable data:', err);
       showErrorToast('Failed to load consumables data from server.');
@@ -215,30 +220,83 @@ function Consumable() {
     }
   }, []);
 
-  // Unique segments for filter
+  // Combined list of all existing items (Consumables + Supplies)
+  const allExistingItems = useMemo(() => {
+    const map = new Map();
+    consumables.forEach((c) => {
+      if (c.ItemDescription) map.set(c.ItemDescription.trim().toLowerCase(), c);
+    });
+    suppliesList.forEach((s) => {
+      const key = (s.ItemDescription || '').trim().toLowerCase();
+      if (key && !map.has(key)) {
+        map.set(key, s);
+      }
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      (a.ItemDescription || '').localeCompare(b.ItemDescription || '')
+    );
+  }, [consumables, suppliesList]);
+
+  // Unique lists for autocomplete datalists
+  const uniqueDescriptions = useMemo(() => {
+    return Array.from(new Set(allExistingItems.map((item) => item.ItemDescription).filter(Boolean))).sort();
+  }, [allExistingItems]);
+
   const uniqueSegments = useMemo(() => {
     return Array.from(
       new Set(
-        consumables
+        allExistingItems
           .map((item) => item.Segment)
           .filter(Boolean)
           .map((s) => s.trim())
       )
     ).sort();
-  }, [consumables]);
+  }, [allExistingItems]);
 
-  // Unique lists for autocomplete datalists
+  const uniqueDimensions = useMemo(() => {
+    return Array.from(
+      new Set(
+        allExistingItems
+          .map((item) => item.Dimension)
+          .filter((d) => d && d !== '—' && d !== 'N/A')
+          .map((d) => d.trim())
+      )
+    ).sort();
+  }, [allExistingItems]);
+
   const uniqueCategories = useMemo(() => {
-    return Array.from(new Set(consumables.map((item) => item.Category).filter(Boolean))).sort();
-  }, [consumables]);
+    return Array.from(
+      new Set(
+        allExistingItems
+          .map((item) => item.Category)
+          .filter(Boolean)
+          .map((c) => c.trim())
+      )
+    ).sort();
+  }, [allExistingItems]);
 
   const uniqueBrands = useMemo(() => {
-    return Array.from(new Set(consumables.map((item) => item.Brand).filter(Boolean))).sort();
-  }, [consumables]);
+    return Array.from(
+      new Set(
+        allExistingItems
+          .map((item) => item.Brand)
+          .filter((b) => b && b !== '—' && b !== 'N/A')
+          .map((b) => b.trim())
+      )
+    ).sort();
+  }, [allExistingItems]);
+
 
   const uniqueUOMs = useMemo(() => {
-    return Array.from(new Set(consumables.map((item) => item.UOM).filter(Boolean))).sort();
-  }, [consumables]);
+    return Array.from(
+      new Set(
+        allExistingItems
+          .map((item) => item.UOM)
+          .filter(Boolean)
+          .map((u) => u.trim())
+      )
+    ).sort();
+  }, [allExistingItems]);
 
   // Filtered suggestions for autocomplete dropdown
   const filteredSuggestions = useMemo(() => {
@@ -291,6 +349,14 @@ function Consumable() {
       return matchSegment && matchQuery;
     });
   }, [consumables, browseSearchQuery, browseSegmentFilter]);
+
+  // Total Acquisition Cost of consumables in Browse modal
+  const browseTotalAcquisitionCost = useMemo(() => {
+    return browseFilteredMaterials.reduce(
+      (sum, item) => sum + ((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)),
+      0
+    );
+  }, [browseFilteredMaterials]);
 
   // Filtered transactions for History sidebar
   const filteredTransactions = useMemo(() => {
@@ -366,18 +432,17 @@ function Consumable() {
   const handleInitiateConfirm = (e) => {
     e.preventDefault();
 
-    if (transactionType === 'OUT' && !transactorName.trim()) {
-      showErrorToast('Please select or enter the Personnel Name.');
-      return;
-    }
-
-    if (transactionType === 'IN' && !preparedBy.trim()) {
-      showErrorToast('Prepared Name is missing from session.');
-      return;
-    }
-
     if (manifestItems.length === 0) {
       showErrorToast('Please add at least one material to the table before confirming.');
+      return;
+    }
+
+    const hasInvalidQty = manifestItems.some((i) => {
+      const q = Number(i.qty);
+      return isNaN(q) || q <= 0;
+    });
+    if (hasInvalidQty) {
+      showErrorToast('Please enter a valid quantity for all items.');
       return;
     }
 
@@ -401,10 +466,7 @@ function Consumable() {
     try {
       setIsSaving(true);
       const config = getAuthConfig();
-      const finalName =
-        transactionType === 'IN'
-          ? (preparedBy.trim() || 'System User')
-          : (transactorName.trim() || 'Personnel Stock Release');
+      const finalName = preparedBy?.trim() || 'System User';
 
       const payload = {
         transactionType,
@@ -448,6 +510,43 @@ function Consumable() {
     }
   };
 
+  // Autofill details when picking from existing items dropdown
+  const handleSelectExistingConsumable = (selectedIdentifier) => {
+    if (!selectedIdentifier) return;
+    const item = allExistingItems.find(
+      (c) => c._id === selectedIdentifier || c.Code === selectedIdentifier || c.ItemDescription === selectedIdentifier
+    );
+    if (!item) return;
+
+    setNewItemDesc(item.ItemDescription || '');
+    if (item.Segment && item.Segment !== 'N/A') setNewItemSegment(item.Segment);
+    if (item.Dimension && item.Dimension !== '—' && item.Dimension !== 'N/A') setNewItemDimension(item.Dimension);
+    if (item.Category && item.Category !== 'N/A') setNewItemCategory(item.Category);
+    if (item.Brand && item.Brand !== '—' && item.Brand !== 'N/A') setNewItemBrand(item.Brand);
+    if (item.UOM) setNewItemUOM(item.UOM);
+    if (item.AcquisitionCost !== undefined && item.AcquisitionCost !== null && Number(item.AcquisitionCost) > 0) {
+      setNewItemAcquisitionCost(String(item.AcquisitionCost));
+    }
+  };
+
+  // Autofill details if typed description matches an existing item
+  const handleItemDescChange = (val) => {
+    setNewItemDesc(val);
+    const matched = allExistingItems.find(
+      (c) => c.ItemDescription?.toLowerCase().trim() === val.toLowerCase().trim()
+    );
+    if (matched) {
+      if (matched.Segment && matched.Segment !== 'N/A') setNewItemSegment(matched.Segment);
+      if (matched.Dimension && matched.Dimension !== '—' && matched.Dimension !== 'N/A') setNewItemDimension(matched.Dimension);
+      if (matched.Category && matched.Category !== 'N/A') setNewItemCategory(matched.Category);
+      if (matched.Brand && matched.Brand !== '—' && matched.Brand !== 'N/A') setNewItemBrand(matched.Brand);
+      if (matched.UOM) setNewItemUOM(matched.UOM);
+      if (matched.AcquisitionCost !== undefined && matched.AcquisitionCost !== null && Number(matched.AcquisitionCost) > 0) {
+        setNewItemAcquisitionCost(String(matched.AcquisitionCost));
+      }
+    }
+  };
+
   // Create new consumable item
   const handleCreateNewItem = async (e) => {
     e.preventDefault();
@@ -465,10 +564,11 @@ function Consumable() {
         Dimension: newItemDimension.trim() || '—',
         Category: newItemCategory.trim() || 'Consumables',
         Brand: newItemBrand.trim() || '—',
-        SerialNo: newItemSerialNo.trim() || '—',
-        ActualCount: Number(newItemActualCount) || 0,
-        Damaged: Number(newItemDamaged) || 0,
-        UOM: newItemUOM.trim() || 'pcs'
+        SerialNo: '—',
+        ActualCount: 0,
+        Damaged: 0,
+        UOM: newItemUOM.trim() || 'pcs',
+        AcquisitionCost: Number(newItemAcquisitionCost) || 0
       };
 
       const res = await axios.post(CONSUMABLES_URL, payload, config);
@@ -480,10 +580,8 @@ function Consumable() {
       setNewItemDimension('');
       setNewItemCategory('');
       setNewItemBrand('');
-      setNewItemSerialNo('');
-      setNewItemActualCount(0);
-      setNewItemDamaged(0);
       setNewItemUOM('pcs');
+      setNewItemAcquisitionCost('');
       setIsNewItemModalOpen(false);
 
       // Refresh consumables
@@ -965,30 +1063,7 @@ function Consumable() {
               <span>Consumable Materials Management</span>
             </div>
 
-            {/* BUTTONS: Browse Table & New Item */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsBrowseModalOpen(true)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-sm ${isDark
-                  ? 'bg-[#141622] border-slate-700 text-indigo-400 hover:bg-indigo-950/60'
-                  : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50'
-                  }`}
-                title="Browse all consumables masterlist"
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Browse Table</span>
-              </button>
 
-              <button
-                type="button"
-                onClick={() => setIsNewItemModalOpen(true)}
-                className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm cursor-pointer transition-all"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>New Item</span>
-              </button>
-            </div>
           </div>
 
           <form onSubmit={handleInitiateConfirm} className="flex flex-col gap-4">
@@ -1020,20 +1095,6 @@ function Consumable() {
 
                 <button
                   type="button"
-                  onClick={() => setTransactionType('OUT')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${transactionType === 'OUT'
-                    ? isDark
-                      ? 'bg-rose-600 text-white border-rose-500 shadow-xs'
-                      : 'bg-red-600 text-white border-red-700 shadow-xs'
-                    : isDark
-                      ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                    }`}
-                >
-                  🔴 OUT
-                </button>
-                <button
-                  type="button"
                   onClick={() => setTransactionType('IN')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${transactionType === 'IN'
                     ? isDark
@@ -1047,140 +1108,21 @@ function Consumable() {
                   🟢 IN
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => setTransactionType('OUT')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${transactionType === 'OUT'
+                    ? isDark
+                      ? 'bg-rose-600 text-white border-rose-500 shadow-xs'
+                      : 'bg-red-600 text-white border-red-700 shadow-xs'
+                    : isDark
+                      ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                >
+                  🔴 OUT
+                </button>
 
-              </div>
-            </div>
-
-
-            {/* PERSONNEL NAME / PREPARED NAME (TYPE + DROPDOWN) */}
-            <div ref={personnelDropdownRef} className="relative">
-              <div className="flex items-center justify-between mb-1.5">
-                <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase`}>
-                  {transactionType === 'IN' ? 'Prepared Name *' : 'Personnel Name *'}
-                </label>
-                {transactionType === 'OUT' && (
-                  <span className="text-[10px] text-slate-400 font-medium">
-                    Type or pick from dropdown
-                  </span>
-                )}
-              </div>
-
-              <div className="relative">
-                <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 z-10" />
-
-                {transactionType === 'IN' ? (
-                  <input
-                    type="text"
-                    readOnly
-                    value={preparedBy}
-                    className={`w-full ${isDark
-                      ? 'bg-slate-900 border-slate-800 text-slate-300'
-                      : 'bg-slate-50 border-slate-200 text-slate-700'
-                      } border rounded-lg pl-9 pr-3 py-2 text-sm font-semibold select-none cursor-not-allowed focus:outline-none`}
-                  />
-                ) : (
-                  <>
-                    <input
-                      type="text"
-                      required
-                      value={transactorName}
-                      onChange={(e) => {
-                        setTransactorName(e.target.value);
-                        setIsPersonnelDropdownOpen(true);
-                      }}
-                      onFocus={() => setIsPersonnelDropdownOpen(true)}
-                      placeholder="Type or select personnel / worker name..."
-                      className={`w-full ${isDark
-                        ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]'
-                        : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'
-                        } border rounded-lg pl-9 pr-16 py-2 text-sm focus:outline-none font-semibold transition-all`}
-                    />
-
-                    <div className="absolute right-2 top-2 flex items-center gap-1 z-10">
-                      {transactorName && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTransactorName('');
-                            setIsPersonnelDropdownOpen(true);
-                          }}
-                          title="Clear name"
-                          className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded cursor-pointer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setIsPersonnelDropdownOpen(!isPersonnelDropdownOpen)}
-                        title="Toggle personnel dropdown list"
-                        className={`p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-transform duration-200 ${isPersonnelDropdownOpen ? 'rotate-180 text-[#ff6600]' : ''
-                          }`}
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* FLOATING TYPE+DROPDOWN MENU */}
-                    {isPersonnelDropdownOpen && (
-                      <div
-                        className={`absolute left-0 right-0 top-[102%] mt-1 ${isDark
-                          ? 'bg-[#0e1017] border-slate-700 divide-slate-800/80 shadow-2xl'
-                          : 'bg-white border-slate-200 divide-slate-100 shadow-xl'
-                          } border rounded-xl max-h-60 overflow-y-auto z-50 divide-y p-1`}
-                      >
-                        {filteredEmployees.length > 0 ? (
-                          filteredEmployees.map((emp) => (
-                            <button
-                              key={emp._id}
-                              type="button"
-                              onClick={() => {
-                                setTransactorName(emp.name);
-                                setIsPersonnelDropdownOpen(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between gap-2 rounded-lg transition-colors cursor-pointer ${transactorName === emp.name
-                                ? isDark
-                                  ? 'bg-[#ff6600]/20 text-[#ff6600]'
-                                  : 'bg-indigo-50 text-[#18174e]'
-                                : isDark
-                                  ? 'text-slate-200 hover:bg-slate-800'
-                                  : 'text-slate-700 hover:bg-slate-50'
-                                }`}
-                            >
-                              <div className="flex flex-col">
-                                <span className="font-bold text-sm">{emp.name}</span>
-                                {(emp.contactPerson || emp.address) && (
-                                  <span className="text-[10px] text-slate-400 font-normal">
-                                    {[emp.contactPerson, emp.address].filter(Boolean).join(' • ')}
-                                  </span>
-                                )}
-                              </div>
-                              {transactorName === emp.name && (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                              )}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="p-3 text-center text-xs text-slate-400">
-                            No registered personnel matches "{transactorName}".
-                          </div>
-                        )}
-
-                        {transactorName && !registeredEmployees.some((e) => e.name?.toLowerCase() === transactorName.toLowerCase()) && (
-                          <button
-                            type="button"
-                            onClick={() => setIsPersonnelDropdownOpen(false)}
-                            className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 rounded-lg ${isDark ? 'bg-emerald-950/40 text-emerald-400 hover:bg-emerald-900/50' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                              } transition-colors cursor-pointer`}
-                          >
-                            <Plus className="w-3.5 h-3.5 shrink-0" />
-                            <span>Use custom typed name: <strong>"{transactorName}"</strong></span>
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
               </div>
             </div>
 
@@ -1410,8 +1352,6 @@ function Consumable() {
                         <th className="py-3 px-4">Dimension</th>
                         <th className="py-3 px-4">Category</th>
                         <th className="py-3 px-4">Brand</th>
-                        <th className="py-3 px-4">Serial No.</th>
-                        <th className="py-3 px-4">Remarks</th>
                         <th className="py-3 px-4 text-center">Action</th>
                       </tr>
                     </thead>
@@ -1449,7 +1389,7 @@ function Consumable() {
                                 : 'bg-slate-100 text-slate-700'
                                 } px-2 py-0.5 rounded text-xs`}
                             >
-                              {item.UOM}
+                              {item.UOM || '—'}
                             </span>
                           </td>
 
@@ -1460,7 +1400,7 @@ function Consumable() {
                           </td>
 
                           <td className={`py-2 px-4 italic ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            {item.Segment}
+                            {item.Segment || '—'}
                           </td>
 
                           <td
@@ -1468,7 +1408,7 @@ function Consumable() {
                               }`}
                             title={item.ItemDescription}
                           >
-                            <div className="font-semibold">{item.ItemDescription}</div>
+                            <div className="font-semibold">{item.ItemDescription || '—'}</div>
                             <div className="font-mono text-[10px] text-slate-400">{item.Code}</div>
                           </td>
 
@@ -1488,28 +1428,11 @@ function Consumable() {
                           </td>
 
                           <td className={`py-2 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            {item.Category}
+                            {item.Category || '—'}
                           </td>
 
                           <td className={`py-2 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            {item.Brand}
-                          </td>
-
-                          <td className={`py-2 px-4 font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            {item.SerialNo}
-                          </td>
-
-                          <td className="py-2 px-4">
-                            <input
-                              type="text"
-                              value={item.remarks}
-                              onChange={(e) => handleUpdateManifestField(index, 'remarks', e.target.value)}
-                              placeholder="Remarks..."
-                              className={`w-full border ${isDark
-                                ? 'bg-[#141622] border-slate-700 text-white'
-                                : 'border-slate-200 text-slate-800'
-                                } rounded px-2 py-1 text-xs focus:outline-none focus:border-[#ff6600]`}
-                            />
+                            {item.Brand || '—'}
                           </td>
 
                           <td className="py-2 px-4 text-center">
@@ -1647,72 +1570,120 @@ function Consumable() {
         </div>
       </div>
 
-      {/* CONFIRMATION MODAL */}
+      {/* CONFIRMATION MODAL (Matching Inbound PO UI) */}
       {isConfirmModalOpen && (
-        <div
-          className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'
-            } backdrop-blur-sm flex items-center justify-center z-50 p-4`}
-        >
-          <div
-            className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-              } border rounded-2xl w-full max-w-md p-6 shadow-xl flex flex-col gap-4`}
-          >
-            <div className="flex items-center gap-2 border-b pb-3 border-slate-700/50">
-              <CheckCircle2
-                className={`w-5 h-5 ${transactionType === 'IN' ? 'text-emerald-500' : 'text-rose-500'}`}
-              />
-              <h3 className="font-bold text-base">
-                Confirm Consumable Stock {transactionType === 'IN' ? 'IN' : 'OUT'}
-              </h3>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto flex flex-col gap-5 animate-in zoom-in-95 duration-200`}>
+
+            {/* Header */}
+            <div className={`flex justify-between items-start border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
+              <div>
+                <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-[#18174e]'}`}>
+                  Confirm Consumables Movement ({transactionType === 'IN' ? 'Inbound' : 'Outbound'})
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Please review the transaction details before committing to the database.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConfirmModalOpen(false)}
+                className={`p-1.5 rounded-lg ${isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'} transition-colors cursor-pointer`}
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <p className="text-sm">
-              Are you sure you want to process this transaction for{' '}
-              <span className="font-bold">{manifestItems.length}</span> consumable items under{' '}
-              {transactionType === 'IN' ? 'prepared by' : 'personnel'}{' '}
-              <span className="font-bold">{transactionType === 'IN' ? preparedBy : transactorName}</span>?
-            </p>
-
-            <div
-              className={`p-3 rounded-xl border text-xs flex flex-col gap-1.5 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-200'
-                }`}
-            >
+            {/* Details Summary Card */}
+            <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border text-xs ${isDark ? 'bg-[#141622]/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
               <div>
-                <span className="font-semibold text-slate-400">Type: </span>
-                <span className={`font-bold ${transactionType === 'IN' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  {transactionType === 'IN' ? 'Stock Addition (IN)' : 'Stock Release (OUT)'}
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Transaction Type</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block ${transactionType === 'IN'
+                  ? (isDark ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800' : 'bg-emerald-50 text-emerald-700 border border-emerald-200')
+                  : (isDark ? 'bg-rose-950/60 text-rose-300 border border-rose-800' : 'bg-rose-50 text-rose-700 border border-rose-200')
+                  }`}>
+                  {transactionType === 'IN' ? '🟢 Stock Addition (IN)' : '🔴 Stock Deduction (OUT)'}
                 </span>
               </div>
               <div>
-                <span className="font-semibold text-slate-400">Date & Time: </span>
-                <span className="font-bold">
-                  {transactionDate} at {transactionTime}
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Date & Time</span>
+                <span className="font-semibold">{transactionDate || getTodayDateString()} at {transactionTime || getCurrentTimeString()}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Total Quantity</span>
+                <span className={`font-bold font-mono ${transactionType === 'IN' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {manifestItems.reduce((sum, it) => sum + Number(it.qty || 0), 0)} units
                 </span>
               </div>
               <div>
-                <span className="font-semibold text-slate-400">Total Items: </span>
-                <span className="font-bold">{manifestItems.reduce((sum, it) => sum + Number(it.qty), 0)} units</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Prepared By</span>
+                <span className="font-semibold">{preparedBy || 'System User'}</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            {/* Manifest Items Table */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center text-xs font-bold px-1">
+                <span className="uppercase text-slate-400">Items to Process ({manifestItems.length})</span>
+                <span className={transactionType === 'IN' ? 'text-emerald-500 font-bold' : 'text-rose-500 font-bold'}>
+                  Total Qty: {manifestItems.reduce((sum, item) => sum + (Number(item.qty) || 0), 0)}
+                </span>
+              </div>
+              <div className={`rounded-xl border overflow-hidden max-h-56 overflow-y-auto ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-200'}`}>
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className={`uppercase text-[10px] font-bold ${isDark ? 'bg-[#141622] text-slate-300 border-b border-slate-800' : 'bg-slate-100 text-slate-600 border-b border-slate-200'}`}>
+                      <th className="py-2 px-3">Item Description</th>
+                      <th className="py-2 px-3">Segment</th>
+                      <th className="py-2 px-3">Dimension Serial</th>
+                      <th className="py-2 px-3 text-center">Expected Qty</th>
+                      <th className={`py-2 px-3 text-center font-bold ${transactionType === 'IN' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        Actual Received
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-100'}`}>
+                    {manifestItems.map((item, idx) => (
+                      <tr key={idx} className={isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
+                        <td className="py-2 px-3 font-semibold min-w-[180px] whitespace-normal break-words" title={item.ItemDescription}>
+                          <div>{item.ItemDescription}</div>
+                          {item.Code && <div className="text-[10px] text-slate-400 font-mono">{item.Code}</div>}
+                        </td>
+                        <td className="py-2 px-3 text-slate-400">
+                          {item.Segment || item.Category || '—'}
+                        </td>
+                        <td className="py-2 px-3 text-slate-400 font-mono text-[11px]">
+                          {item.Dimension && item.Dimension !== '—' ? item.Dimension : (item.SerialNo && item.SerialNo !== '—' ? item.SerialNo : '—')}
+                        </td>
+                        <td className="py-2 px-3 text-center text-slate-400">
+                          {item.qty}
+                        </td>
+                        <td className={`py-2 px-3 text-center font-bold ${transactionType === 'IN' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {item.qty} {item.UOM || 'pcs'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className={`flex items-center justify-end gap-3 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
               <button
                 type="button"
                 disabled={isSaving}
                 onClick={() => setIsConfirmModalOpen(false)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
                   }`}
               >
-                Cancel
+                Cancel / Edit
               </button>
               <button
                 type="button"
                 disabled={isSaving}
                 onClick={handleConfirmSubmit}
-                className={`px-4 py-2 rounded-lg text-sm font-bold text-white cursor-pointer flex items-center gap-1.5 ${transactionType === 'IN'
-                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                  : 'bg-rose-600 hover:bg-rose-700'
-                  }`}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#ff6600] hover:bg-[#e05a00] disabled:opacity-50 transition-all cursor-pointer shadow-md"
               >
                 {isSaving ? (
                   <>
@@ -1720,48 +1691,40 @@ function Consumable() {
                     <span>Processing...</span>
                   </>
                 ) : (
-                  <span>Yes, Submit</span>
+                  <span>Save Consumables Transaction</span>
                 )}
               </button>
             </div>
+
           </div>
         </div>
       )}
 
       {/* TRANSACTION SLIP DETAILS MODAL */}
       {isDetailModalOpen && selectedTransaction && (
-        <div
-          className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'
-            } backdrop-blur-sm flex items-center justify-center z-50 p-4`}
-        >
-          <div
-            className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
-              } border rounded-2xl w-full max-w-3xl p-6 shadow-xl relative flex flex-col gap-4`}
-          >
-            <div
-              className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'
-                } pb-3`}
-            >
+        <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-2xl w-full max-w-3xl p-6 shadow-xl relative flex flex-col gap-4`}>
+
+            {/* Header */}
+            <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
               <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-lg`}>
                 Consumable Slip: {selectedTransaction.transactionNo}
               </h3>
               <div className="flex items-center gap-2">
+                {/* Audit Ledger PDF Button (Orange Theme) */}
                 <button
                   type="button"
                   onClick={() => handleDownloadPDF(selectedTransaction)}
-                  className="flex items-center gap-1.5 bg-[#18174e] hover:bg-[#13123f] text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                  className="flex items-center gap-1.5 bg-[#ff6600] hover:bg-[#e05a00] active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
                   title="Export Audit Ledger PDF Slip"
                 >
-                  <Download className="w-3.5 h-3.5 text-indigo-300" />
-                  <span>Audit Ledger (PDF)</span>
+                  <Download className="w-3.5 h-3.5 text-white" />
+                  <span>Download (PDF)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsDetailModalOpen(false)}
-                  className={`${isDark
-                    ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                    } p-1 rounded-lg cursor-pointer transition-colors`}
+                  className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer transition-colors`}
                   title="Close"
                 >
                   <X className="w-5 h-5" />
@@ -1769,22 +1732,14 @@ function Consumable() {
               </div>
             </div>
 
-            <div
-              className={`grid grid-cols-2 sm:grid-cols-3 text-sm gap-2.5 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'
-                } p-4 rounded-xl border`}
-            >
+            {/* Details Grid */}
+            <div className={`grid grid-cols-2 sm:grid-cols-3 text-sm gap-2.5 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border`}>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Transaction Type</span>
-                <span
-                  className={`px-2 py-0.5 rounded text-xs font-bold inline-block ${selectedTransaction.transactionType === 'IN'
-                    ? isDark
-                      ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800'
-                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : isDark
-                      ? 'bg-rose-950/60 text-rose-300 border border-rose-800'
-                      : 'bg-rose-50 text-rose-700 border border-rose-200'
-                    }`}
-                >
+                <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block uppercase ${selectedTransaction.transactionType === 'IN'
+                  ? (isDark ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800' : 'bg-emerald-50 text-emerald-700 border border-emerald-200')
+                  : (isDark ? 'bg-rose-950/60 text-rose-300 border border-rose-800' : 'bg-rose-50 text-rose-700 border border-rose-200')
+                  }`}>
                   {selectedTransaction.transactionType === 'IN' ? '🟢 Stock IN' : '🔴 Stock OUT'}
                 </span>
               </div>
@@ -1821,12 +1776,13 @@ function Consumable() {
 
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Total Quantity</span>
-                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                <span className={`font-bold ${isDark ? 'text-[#ff6600]' : 'text-[#e05a00]'}`}>
                   {(selectedTransaction.items || []).reduce((sum, it) => sum + Number(it.qty || 1), 0)} units
                 </span>
               </div>
             </div>
 
+            {/* Table Section */}
             {(() => {
               const txItems = selectedTransaction.items || [];
               const modalIndexOfLastRow = modalPage * modalRowsPerPage;
@@ -1835,6 +1791,14 @@ function Consumable() {
 
               return (
                 <div className={`border ${isDark ? 'border-slate-800' : 'border-slate-200/60'} rounded-xl relative shadow-sm overflow-hidden flex flex-col`}>
+                  <TablePagination
+                    currentPage={modalPage}
+                    setCurrentPage={setModalPage}
+                    rowsPerPage={modalRowsPerPage}
+                    setRowsPerPage={setModalRowsPerPage}
+                    totalRows={txItems.length}
+                    options={[5, 10, 20, 50, 100]}
+                  />
                   <div className="overflow-x-auto max-h-72 overflow-y-auto">
                     <table className="w-full text-left text-xs border-collapse min-w-[650px]">
                       <thead className={`sticky top-0 z-10 ${isDark ? 'bg-[#1c1117] text-rose-300' : 'bg-red-700 text-white'} text-[11px] font-bold uppercase whitespace-nowrap`}>
@@ -1864,12 +1828,15 @@ function Consumable() {
                               </td>
                               <td className={`p-3 font-bold ${isDark ? 'text-white' : 'text-[#18174e]'} text-xs min-w-[200px] whitespace-normal break-words align-middle`} title={desc}>
                                 <div>{desc}</div>
-                                {code && <div className="font-mono text-[10px] text-slate-400">{code}</div>}
+                                {code && <div className={`font-mono text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{code}</div>}
                               </td>
                               <td className={`p-3 ${isDark ? 'text-slate-400' : 'text-slate-600'} font-medium whitespace-nowrap align-middle`}>
                                 {dimension}
                               </td>
-                              <td className="p-3 text-center font-bold font-mono text-emerald-400 align-middle whitespace-nowrap">
+                              <td className={`p-3 text-center font-bold font-mono align-middle whitespace-nowrap ${selectedTransaction.transactionType === 'IN'
+                                ? (isDark ? 'text-emerald-400' : 'text-emerald-600')
+                                : (isDark ? 'text-rose-400' : 'text-rose-600')
+                                }`}>
                                 {it.qty} {uom}
                               </td>
                               <td className={`p-3 italic ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium text-[11px] min-w-[120px] whitespace-normal break-words align-middle pl-4`}>
@@ -1888,15 +1855,6 @@ function Consumable() {
                       </tbody>
                     </table>
                   </div>
-
-                  <TablePagination
-                    currentPage={modalPage}
-                    setCurrentPage={setModalPage}
-                    rowsPerPage={modalRowsPerPage}
-                    setRowsPerPage={setModalRowsPerPage}
-                    totalRows={txItems.length}
-                    options={[5, 10, 20, 50, 100]}
-                  />
                 </div>
               );
             })()}
@@ -1919,12 +1877,34 @@ function Consumable() {
             {/* Header */}
             <div
               className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'
-                } pb-3`}
+                } pb-3 flex-wrap gap-2`}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-base`}>
                   Browse Consumables Masterlist
                 </h3>
+                {setActiveTab && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsBrowseModalOpen(false);
+                      setActiveTab('consumables-records');
+                    }}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shadow-sm ${isDark ? 'bg-indigo-950/50 border-indigo-800 text-indigo-300 hover:bg-indigo-900/70' : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                      }`}
+                    title="Open dedicated Consumables (Records) page"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open Records Page</span>
+                  </button>
+                )}
+                <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border select-none ${isDark ? 'bg-[#141622] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'
+                  }`}>
+                  <span>Total Acquisition Cost:</span>
+                  <span className="font-mono font-black text-red-600 dark:text-red-400">
+                    ₱{browseTotalAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsNewItemModalOpen(true)}
@@ -1988,12 +1968,12 @@ function Consumable() {
               </div>
             </div>
 
-            {/* Table: Item Description | Segment | Dimension | Category | Brand | Serial No. | Actual Count | Damaged | UOM | Action */}
+            {/* Table: Item Description | Segment | Dimension | Category | Brand | Serial No. | Actual Count | Damaged | UOM | Acquisition Cost | Total Acquisition Cost | Action */}
             <div
               className={`rounded-xl border overflow-x-auto overflow-y-auto flex-1 max-h-96 ${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-200'
                 }`}
             >
-              <table className="w-full text-left text-xs border-collapse whitespace-nowrap min-w-[900px]">
+              <table className="w-full text-left text-xs border-collapse whitespace-nowrap min-w-[1050px]">
                 <thead>
                   <tr
                     className={`text-white font-bold uppercase text-[11px] sticky top-0 z-10 whitespace-nowrap ${isDark ? 'bg-[#0f111d]' : 'bg-[#18174e]'
@@ -2004,10 +1984,11 @@ function Consumable() {
                     <th className="py-2.5 px-3 whitespace-nowrap">Dimension</th>
                     <th className="py-2.5 px-3 whitespace-nowrap">Category</th>
                     <th className="py-2.5 px-3 whitespace-nowrap">Brand</th>
-                    <th className="py-2.5 px-3 whitespace-nowrap">Serial No.</th>
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">Actual Count</th>
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">Damaged</th>
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">UOM</th>
+                    <th className="py-2.5 px-3 text-right whitespace-nowrap">Acquisition Cost</th>
+                    <th className="py-2.5 px-3 text-right whitespace-nowrap">Total Acquisition Cost</th>
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
@@ -2024,7 +2005,7 @@ function Consumable() {
                         >
                           <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
                             <div className="flex items-center gap-2 whitespace-nowrap">
-                              <span>{item.ItemDescription}</span>
+                              <span>{item.ItemDescription || '—'}</span>
                               <span className="font-mono text-[10px] text-slate-400">({item.Code})</span>
                             </div>
                           </td>
@@ -2046,11 +2027,9 @@ function Consumable() {
 
                           <td className="py-2.5 px-3 whitespace-nowrap">{item.Brand || '—'}</td>
 
-                          <td className="py-2.5 px-3 whitespace-nowrap font-mono">{item.SerialNo || '—'}</td>
-
                           <td className="py-2.5 px-3 text-center font-bold font-mono whitespace-nowrap">
                             <span className={item.ActualCount > 0 ? 'text-emerald-500' : 'text-rose-500'}>
-                              {item.ActualCount}
+                              {item.ActualCount ?? 0}
                             </span>
                           </td>
 
@@ -2058,7 +2037,15 @@ function Consumable() {
                             {item.Damaged || 0}
                           </td>
 
-                          <td className="py-2.5 px-3 text-center whitespace-nowrap">{item.UOM}</td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">{item.UOM || '—'}</td>
+
+                          <td className={`py-2.5 px-3 text-right font-mono text-xs whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                            ₱{(Number(item.AcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+
+                          <td className="py-2.5 px-3 text-right font-mono text-xs font-bold whitespace-nowrap text-red-600 dark:text-red-400">
+                            ₱{((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
 
                           <td className="py-2.5 px-3 text-center whitespace-nowrap">
                             {isAdded ? (
@@ -2083,7 +2070,7 @@ function Consumable() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan="10" className="text-center py-8 text-slate-400 italic">
+                      <td colSpan="11" className="text-center py-8 text-slate-400 italic">
                         No consumables found matching your search criteria.
                       </td>
                     </tr>
@@ -2097,59 +2084,98 @@ function Consumable() {
 
       {/* NEW ITEM MODAL */}
       {isNewItemModalOpen && (
-        <div
-          className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'
-            } backdrop-blur-sm flex items-center justify-center z-50 p-4`}
-        >
-          <div
-            className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-              } border rounded-2xl w-full max-w-lg p-6 shadow-xl relative max-h-[90vh] overflow-y-auto flex flex-col gap-4`}
-          >
-            <div
-              className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'
-                } pb-3`}
-            >
+        <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto`}>
+
+            {/* Header */}
+            <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
               <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-base`}>
                 Add New Consumable Item
               </h3>
               <button
                 type="button"
                 onClick={() => setIsNewItemModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateNewItem} className="flex flex-col gap-3">
+            {/* System Inventory Protocol Notice */}
+            <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-800/60' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3`}>
+              <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
+                * System Inventory Protocol *
+              </span>
+              <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
+                New consumable items will be registered in the masterlist with an initial stock of 0. Quantities are added or deducted through Stock IN/OUT transaction slips.
+              </p>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateNewItem} className="space-y-4 mt-4">
+
+              {/* Quick Select Existing Item Dropdown */}
+              {allExistingItems.length > 0 && (
+                <div className={`p-3 rounded-xl border ${isDark ? 'bg-[#141622]/80 border-slate-700' : 'bg-slate-50 border-slate-200'} flex flex-col gap-1.5`}>
+                  <label className={`block text-xs font-bold ${isDark ? 'text-[#ff6600]' : 'text-[#18174e]'} uppercase flex items-center justify-between`}>
+                    <span className="flex items-center gap-1.5">
+                      <ChevronDown className="w-3.5 h-3.5" />
+                      Select Existing Item (Autofill All Details):
+                    </span>
+                    <span className="text-[10px] font-normal text-slate-400">({allExistingItems.length} items available)</span>
+                  </label>
+                  <select
+                    onChange={(e) => {
+                      handleSelectExistingConsumable(e.target.value);
+                      e.target.value = '';
+                    }}
+                    defaultValue=""
+                    className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600] cursor-pointer font-medium`}
+                  >
+                    <option value="">-- Pumili mula sa existing items para mag-autofill --</option>
+                    {allExistingItems.map((item, idx) => (
+                      <option key={item._id || idx} value={item._id || item.Code || item.ItemDescription}>
+                        {item.ItemDescription} {item.Segment ? `• ${item.Segment}` : ''} {item.Dimension && item.Dimension !== '—' ? `• ${item.Dimension}` : ''} {item.Category ? `• ${item.Category}` : ''} {item.Brand && item.Brand !== '—' ? `• ${item.Brand}` : ''} {item.AcquisitionCost ? `(₱${Number(item.AcquisitionCost).toFixed(2)})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Full Width: Item Description */}
               <div>
-                <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
+                <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
                   Item Description *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Masking Tape 1 inch, Drill Bit 5mm"
+                  list="new-item-descriptions"
+                  placeholder="Type or select existing item description..."
                   value={newItemDesc}
-                  onChange={(e) => setNewItemDesc(e.target.value)}
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
-                    } border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                  onChange={(e) => handleItemDescChange(e.target.value)}
+                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
                 />
+                <datalist id="new-item-descriptions">
+                  {uniqueDescriptions.map((desc, i) => (
+                    <option key={i} value={desc} />
+                  ))}
+                </datalist>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              {/* Grid Section 1 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
+                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
                     Segment
                   </label>
                   <input
                     type="text"
                     list="new-item-segments"
-                    placeholder="e.g. Packaging, Hardware"
+                    placeholder="Type or select segment..."
                     value={newItemSegment}
                     onChange={(e) => setNewItemSegment(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
-                      } border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
                   />
                   <datalist id="new-item-segments">
                     {uniqueSegments.map((s, i) => (
@@ -2159,33 +2185,38 @@ function Consumable() {
                 </div>
 
                 <div>
-                  <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
+                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
                     Dimension
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. 50mm x 25m, 2700"
+                    list="new-item-dimensions"
+                    placeholder="Type or select dimension..."
                     value={newItemDimension}
                     onChange={(e) => setNewItemDimension(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
-                      } border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
                   />
+                  <datalist id="new-item-dimensions">
+                    {uniqueDimensions.map((d, i) => (
+                      <option key={i} value={d} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              {/* Grid Section 2 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
+                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
                     Category
                   </label>
                   <input
                     type="text"
                     list="new-item-categories"
-                    placeholder="e.g. Tools, Consumables"
+                    placeholder="Type or select category..."
                     value={newItemCategory}
                     onChange={(e) => setNewItemCategory(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
-                      } border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
                   />
                   <datalist id="new-item-categories">
                     {uniqueCategories.map((c, i) => (
@@ -2195,17 +2226,16 @@ function Consumable() {
                 </div>
 
                 <div>
-                  <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
+                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
                     Brand
                   </label>
                   <input
                     type="text"
                     list="new-item-brands"
-                    placeholder="e.g. 3M, Stanley"
+                    placeholder="Type or select brand..."
                     value={newItemBrand}
                     onChange={(e) => setNewItemBrand(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
-                      } border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
                   />
                   <datalist id="new-item-brands">
                     {uniqueBrands.map((b, i) => (
@@ -2215,34 +2245,20 @@ function Consumable() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              {/* Grid Section 3: UOM & Acquisition Cost */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                    Serial No.
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. SN-001 or —"
-                    value={newItemSerialNo}
-                    onChange={(e) => setNewItemSerialNo(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
-                      } border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
-                  />
-                </div>
-
-                <div>
-                  <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
+                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
                     UOM *
                   </label>
                   <input
                     type="text"
                     required
                     list="new-item-uoms"
-                    placeholder="e.g. pcs, rolls, meters"
+                    placeholder="Type or select UOM..."
                     value={newItemUOM}
                     onChange={(e) => setNewItemUOM(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
-                      } border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
                   />
                   <datalist id="new-item-uoms">
                     {uniqueUOMs.map((u, i) => (
@@ -2250,58 +2266,45 @@ function Consumable() {
                     ))}
                   </datalist>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                    Initial Stock Count
+                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                    Acquisition Cost (Price)
                   </label>
                   <input
                     type="number"
+                    step="0.01"
                     min="0"
-                    value={newItemActualCount}
-                    onChange={(e) => setNewItemActualCount(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
-                      } border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
-                  />
-                </div>
-
-                <div>
-                  <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
-                    Initial Damaged Count
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={newItemDamaged}
-                    onChange={(e) => setNewItemDamaged(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
-                      } border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                    placeholder="0.00"
+                    value={newItemAcquisitionCost}
+                    onChange={(e) => setNewItemAcquisitionCost(e.target.value)}
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-700/50 mt-2">
+              {/* Action Buttons */}
+              <div className={`flex items-center justify-end gap-2 mt-6 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
                 <button
                   type="button"
                   onClick={() => setIsNewItemModalOpen(false)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                    }`}
+                  className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#ff6600] hover:bg-[#e05a00] text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm cursor-pointer transition-all"
+                  className="bg-[#ff6600] hover:bg-[#e05a00] text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
                 >
                   Save Item
                 </button>
               </div>
+
             </form>
           </div>
         </div>
       )}
+
     </div>
   );
 }

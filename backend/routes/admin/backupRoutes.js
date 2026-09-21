@@ -14,10 +14,9 @@ import {
 // Import all models
 import User from "../../models/User.js";
 import RawMaterial from "../../models/RawMaterial.js";
-import Product from "../../models/Product.js";
 import Supplies from "../../models/Supplies.js";
 import SuppliesMovement from "../../models/SuppliesMovement.js";
-import Assets from "../../models/Assets.js";
+import Consumable from "../../models/Consumable.js";
 import PackingList from "../../models/PackingList.js";
 import Conversion from "../../models/Conversion.js";
 import PurchaseOrder from "../../models/PurchaseOrder.js";
@@ -33,10 +32,9 @@ router.get("/stats", protectRoute, restrictTo("Admin"), async (req, res) => {
     const [
       usersCount,
       rawMatCount,
-      productsCount,
       suppliesCount,
       movementsCount,
-      assetsCount,
+      consumablesCount,
       packingListCount,
       conversionsCount,
       poCount,
@@ -44,28 +42,26 @@ router.get("/stats", protectRoute, restrictTo("Admin"), async (req, res) => {
     ] = await Promise.all([
       User.countDocuments(),
       RawMaterial.countDocuments(),
-      Product.countDocuments(),
       Supplies.countDocuments(),
       SuppliesMovement.countDocuments(),
-      Assets.countDocuments(),
+      Consumable.countDocuments(),
       PackingList.countDocuments(),
       Conversion.countDocuments(),
       PurchaseOrder.countDocuments(),
       ActivityLog.countDocuments()
     ]);
 
-    const totalRecords = usersCount + rawMatCount + productsCount + suppliesCount + 
-      movementsCount + assetsCount + packingListCount + conversionsCount + poCount;
+    const totalRecords = usersCount + rawMatCount + suppliesCount + 
+      movementsCount + consumablesCount + packingListCount + conversionsCount + poCount;
 
     return res.status(200).json({
       totalRecords,
       breakdown: {
         users: usersCount,
         rawMaterials: rawMatCount,
-        products: productsCount,
         supplies: suppliesCount,
         suppliesMovements: movementsCount,
-        assets: assetsCount,
+        consumables: consumablesCount,
         packingLists: packingListCount,
         conversions: conversionsCount,
         purchaseOrders: poCount,
@@ -98,17 +94,14 @@ router.get("/export", protectRoute, restrictTo("Admin"), async (req, res) => {
     if (!collection || collection === "all" || collection === "rawMaterials") {
       backupPayload.collections.rawMaterials = await RawMaterial.find().lean();
     }
-    if (!collection || collection === "all" || collection === "products") {
-      backupPayload.collections.products = await Product.find().lean();
-    }
     if (!collection || collection === "all" || collection === "supplies") {
       backupPayload.collections.supplies = await Supplies.find().lean();
     }
     if (!collection || collection === "all" || collection === "suppliesMovements") {
       backupPayload.collections.suppliesMovements = await SuppliesMovement.find().lean();
     }
-    if (!collection || collection === "all" || collection === "assets") {
-      backupPayload.collections.assets = await Assets.find().lean();
+    if (!collection || collection === "all" || collection === "consumables") {
+      backupPayload.collections.consumables = await Consumable.find().lean();
     }
     if (!collection || collection === "all" || collection === "packingLists") {
       backupPayload.collections.packingLists = await PackingList.find().lean();
@@ -189,28 +182,16 @@ router.post("/restore", protectRoute, restrictTo("Admin"), async (req, res) => {
       restoredCounts.supplies = cols.supplies.length;
     }
 
-    // 3. Products
-    if (Array.isArray(cols.products) && cols.products.length > 0) {
+    // 3. Consumables
+    if (Array.isArray(cols.consumables) && cols.consumables.length > 0) {
       if (restoreMode === "replace") {
-        await Product.deleteMany({});
+        await Consumable.deleteMany({});
       }
-      for (const item of cols.products) {
+      for (const item of cols.consumables) {
         const { _id, ...doc } = item;
-        await Product.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
+        await Consumable.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
       }
-      restoredCounts.products = cols.products.length;
-    }
-
-    // 4. Assets
-    if (Array.isArray(cols.assets) && cols.assets.length > 0) {
-      if (restoreMode === "replace") {
-        await Assets.deleteMany({});
-      }
-      for (const item of cols.assets) {
-        const { _id, ...doc } = item;
-        await Assets.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
-      }
-      restoredCounts.assets = cols.assets.length;
+      restoredCounts.consumables = cols.consumables.length;
     }
 
     // 5. Packing Lists
@@ -453,24 +434,14 @@ router.post("/snapshots/:filename/restore", protectRoute, restrictTo("Admin"), a
       restoredCounts.supplies = cols.supplies.length;
     }
 
-    // 3. Products
-    if (Array.isArray(cols.products) && cols.products.length > 0) {
-      if (restoreMode === "replace") await Product.deleteMany({});
-      for (const item of cols.products) {
+    // 3. Consumables
+    if (Array.isArray(cols.consumables) && cols.consumables.length > 0) {
+      if (restoreMode === "replace") await Consumable.deleteMany({});
+      for (const item of cols.consumables) {
         const { _id, ...doc } = item;
-        await Product.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
+        await Consumable.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
       }
-      restoredCounts.products = cols.products.length;
-    }
-
-    // 4. Assets
-    if (Array.isArray(cols.assets) && cols.assets.length > 0) {
-      if (restoreMode === "replace") await Assets.deleteMany({});
-      for (const item of cols.assets) {
-        const { _id, ...doc } = item;
-        await Assets.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
-      }
-      restoredCounts.assets = cols.assets.length;
+      restoredCounts.consumables = cols.consumables.length;
     }
 
     // 5. Packing Lists

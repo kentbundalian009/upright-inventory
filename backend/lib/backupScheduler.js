@@ -7,10 +7,9 @@ import ActivityLog from "../models/ActivityLog.js";
 // Models to backup
 import User from "../models/User.js";
 import RawMaterial from "../models/RawMaterial.js";
-import Product from "../models/Product.js";
 import Supplies from "../models/Supplies.js";
 import SuppliesMovement from "../models/SuppliesMovement.js";
-import Assets from "../models/Assets.js";
+import Consumable from "../models/Consumable.js";
 import PackingList from "../models/PackingList.js";
 import Conversion from "../models/Conversion.js";
 import PurchaseOrder from "../models/PurchaseOrder.js";
@@ -77,7 +76,7 @@ export const generateFullBackupPayload = async (sourceTag = "automated") => {
     products,
     supplies,
     suppliesMovements,
-    assets,
+    consumables,
     packingLists,
     conversions,
     purchaseOrders,
@@ -87,10 +86,9 @@ export const generateFullBackupPayload = async (sourceTag = "automated") => {
   ] = await Promise.all([
     User.find().select("-Password").lean(),
     RawMaterial.find().lean(),
-    Product.find().lean(),
     Supplies.find().lean(),
     SuppliesMovement.find().lean(),
-    Assets.find().lean(),
+    Consumable.find().lean(),
     PackingList.find().lean(),
     Conversion.find().lean(),
     PurchaseOrder.find().lean(),
@@ -107,10 +105,9 @@ export const generateFullBackupPayload = async (sourceTag = "automated") => {
     collections: {
       users,
       rawMaterials,
-      products,
       supplies,
       suppliesMovements,
-      assets,
+      consumables,
       packingLists,
       conversions,
       purchaseOrders,

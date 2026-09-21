@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 
 function TablePagination({
   currentPage = 1,
@@ -8,7 +8,9 @@ function TablePagination({
   rowsPerPage = 10,
   setRowsPerPage,
   totalRows = 0,
-  options = [5, 10, 20, 50, 100]
+  options = [5, 10, 20, 50, 100],
+  position = 'top',
+  className = ''
 }) {
   const { isDark } = useTheme();
 
@@ -16,11 +18,13 @@ function TablePagination({
   const indexOfFirstRow = (currentPage - 1) * rowsPerPage;
   const indexOfLastRow = indexOfFirstRow + rowsPerPage;
 
+  const borderClass = position === 'bottom' ? 'border-t' : 'border-b';
+
   return (
     <div
-      className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
+      className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 ${borderClass} ${
         isDark ? 'bg-[#0f111d] border-slate-800/80 text-slate-300' : 'bg-slate-50/80 border-slate-100 text-slate-600'
-      } text-xs font-semibold select-none`}
+      } text-xs font-semibold select-none ${className}`}
     >
       <div className="flex items-center gap-2">
         <span>Rows per page:</span>

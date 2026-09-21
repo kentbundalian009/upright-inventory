@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Search, Filter, X, Image as ImageIcon, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { trackSharedLinkClick } from '../utils/linkTracker';
-import TablePagination from '../components/TablePagination';
+import TablePagination from '../components/common/TablePagination';
 
 const COLOR_OPTIONS = [
     { name: 'Emerald / Green', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800', prefix: '🟢' },
@@ -396,6 +396,13 @@ function SharedRackingsView() {
 
                 {/* MAIN TABLE MASTERLIST */}
                 <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-hidden`}>
+                    <TablePagination
+                        currentPage={currentPage}
+                        setCurrentPage={setCurrentPage}
+                        rowsPerPage={rowsPerPage}
+                        setRowsPerPage={setRowsPerPage}
+                        totalRows={totalRows}
+                    />
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse text-sm">
                             <thead>
@@ -501,13 +508,6 @@ function SharedRackingsView() {
                             </tbody>
                         </table>
                     </div>
-                    <TablePagination
-                        currentPage={currentPage}
-                        setCurrentPage={setCurrentPage}
-                        rowsPerPage={rowsPerPage}
-                        setRowsPerPage={setRowsPerPage}
-                        totalRows={totalRows}
-                    />
                 </div>
 
             </div>

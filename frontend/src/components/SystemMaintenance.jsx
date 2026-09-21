@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Power, ShieldAlert, CheckCircle2, AlertCircle, Eye, RefreshCw, Server, X, ShieldCheck, Terminal } from 'lucide-react';
-import PageHeader from './PageHeader';
-import MaintenanceScreen from './MaintenanceScreen';
+import PageHeader from './layout/PageHeader';
+import MaintenanceScreen from './common/MaintenanceScreen';
 import { useTheme } from '../context/ThemeContext';
 
 const API_BASE_URL = import.meta.env.MODE === 'production'

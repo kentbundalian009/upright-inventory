@@ -9,7 +9,7 @@ import {
     ResponsiveContainer, PieChart, Pie, Cell, 
     BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid
 } from 'recharts';
-import PageHeader from './PageHeader';
+import PageHeader from './layout/PageHeader';
 import { useTheme } from '../context/ThemeContext';
 
 // Base URL para sa API (Gumagamit ng relative /api para parehong gumana sa Dev proxy at Production)
