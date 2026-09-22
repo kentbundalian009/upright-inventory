@@ -16,6 +16,11 @@ function InventoryConsumables({ setActiveTab }) {
   const [hideZeroQty, setHideZeroQty] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
 
+  // Direct Inline Quantity Editing States
+  const [isEditingQty, setIsEditingQty] = useState(false);
+  const [editedQuantities, setEditedQuantities] = useState({});
+  const [isSavingQty, setIsSavingQty] = useState(false);
+
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState({
     title: '', message: '', actionType: 'archive', onConfirm: () => { }
@@ -150,6 +155,69 @@ function InventoryConsumables({ setActiveTab }) {
       alert("Failed to save palette configuration.");
     } finally {
       setIsSavingPalette(false);
+    }
+  };
+
+  const handleToggleEditQty = () => {
+    if (isEditingQty) {
+      setIsEditingQty(false);
+      setEditedQuantities({});
+    } else {
+      setIsEditingQty(true);
+    }
+  };
+
+  const handleQtyChange = (id, value) => {
+    setEditedQuantities(prev => ({
+      ...prev,
+      [id]: value
+    }));
+  };
+
+  const handleCancelEditQty = () => {
+    setEditedQuantities({});
+    setIsEditingQty(false);
+  };
+
+  const handleSaveQtyChanges = async () => {
+    // Find all items that differ from their database ActualCount
+    const updates = [];
+    for (const [id, countVal] of Object.entries(editedQuantities)) {
+      const item = consumablesList.find(c => c._id === id);
+      if (!item) continue;
+      const parsed = Math.max(0, parseInt(countVal, 10) || 0);
+      if (parsed !== (item.ActualCount ?? 0)) {
+        updates.push({ id, actualCount: parsed });
+      }
+    }
+
+    if (updates.length === 0) {
+      showToast("No quantity changes detected.");
+      setIsEditingQty(false);
+      setEditedQuantities({});
+      return;
+    }
+
+    setIsSavingQty(true);
+    try {
+      try {
+        await axios.put('/api/consumables/batch-counts', { updates });
+      } catch (batchErr) {
+        // Fallback to updating individually if batch route unavailable
+        await Promise.all(
+          updates.map(u => axios.put(`/api/consumables/${u.id}`, { ActualCount: u.actualCount }))
+        );
+      }
+
+      showToast(`Successfully saved actual counts for ${updates.length} item${updates.length > 1 ? 's' : ''}!`);
+      setIsEditingQty(false);
+      setEditedQuantities({});
+      await fetchConsumablesAndPalette();
+    } catch (err) {
+      console.error("Error saving quantities:", err);
+      showToast(err.response?.data?.message || "Failed to save quantity changes.", true);
+    } finally {
+      setIsSavingQty(false);
     }
   };
 
@@ -301,10 +369,12 @@ function InventoryConsumables({ setActiveTab }) {
   const activeCount = consumablesList.filter(s => !s.isArchived).length;
   const archivedCount = consumablesList.filter(s => s.isArchived).length;
 
-  const totalAcquisitionCost = filteredConsumables.reduce(
-    (sum, item) => sum + ((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)),
-    0
-  );
+  const totalAcquisitionCost = filteredConsumables.reduce((sum, item) => {
+    const qty = (isEditingQty && editedQuantities[item._id] !== undefined)
+      ? (Math.max(0, parseInt(editedQuantities[item._id], 10) || 0))
+      : (Number(item.ActualCount) || 0);
+    return sum + (qty * (Number(item.AcquisitionCost) || 0));
+  }, 0);
 
   return (
     <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased relative">
@@ -337,7 +407,7 @@ function InventoryConsumables({ setActiveTab }) {
             </div>
           </div>
 
-          {/* ROW 2: Actions Row (Hide 0 Qty under Filter, Palette Settings, View Archive Vault) */}
+          {/* ROW 2: Actions Row (Hide 0 Qty under Filter, Palette Settings, Edit Qty, View Archive Vault) */}
           <div className="flex items-center gap-2 flex-wrap mt-1">
             <label
               className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${hideZeroQty
@@ -366,9 +436,32 @@ function InventoryConsumables({ setActiveTab }) {
               </button>
             )}
 
+            {/* EDIT QTY BUTTON DIRECTLY IN TABLE */}
+            {!isViewer && !showArchivedOnly && (
+              <button
+                onClick={handleToggleEditQty}
+                title={isEditingQty ? "Cancel Edit Qty Mode" : "Directly Edit Actual Count Column"}
+                className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${
+                  isEditingQty
+                    ? (isDark ? 'border-amber-500 bg-amber-500 text-white ring-2 ring-amber-400/50 shadow-md' : 'border-amber-600 bg-amber-600 text-white ring-2 ring-amber-500/40 shadow-md')
+                    : (isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90')
+                }`}
+              >
+                <Edit2 className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-white" />
+                <span className="hidden md:inline">{isEditingQty ? 'Editing Qty (Active)' : 'Edit Qty'}</span>
+                <span className="md:hidden">{isEditingQty ? 'Editing' : 'Edit Qty'}</span>
+              </button>
+            )}
+
             {!isViewer && (
               <button
-                onClick={() => setShowArchivedOnly(!showArchivedOnly)}
+                onClick={() => {
+                  if (isEditingQty) {
+                    setIsEditingQty(false);
+                    setEditedQuantities({});
+                  }
+                  setShowArchivedOnly(!showArchivedOnly);
+                }}
                 title={showArchivedOnly ? "Show Active Consumables" : "View Archive Vault"}
                 className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${showArchivedOnly
                   ? 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'
@@ -441,7 +534,9 @@ function InventoryConsumables({ setActiveTab }) {
                   <th className="py-3 px-4 whitespace-nowrap">Dimension</th>
                   <th className="py-3 px-4 whitespace-nowrap">Brand</th>
                   <th className="py-3 px-4 whitespace-nowrap">Serial</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap">Actual Count</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">
+                    Actual Count{isEditingQty ? ' (Editing)' : ''}
+                  </th>
                   <th className="py-3 px-4 whitespace-nowrap">UOM</th>
                   <th className="py-3 px-4 whitespace-nowrap text-right">Acquisition Cost</th>
                   <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
@@ -469,6 +564,11 @@ function InventoryConsumables({ setActiveTab }) {
                   paginatedConsumables.map((item) => {
                     const catStyle = getCategoryStyles(item.Category);
                     const segStyle = getSegmentStyles(item.Segment);
+                    const currentItemQty = (isEditingQty && editedQuantities[item._id] !== undefined)
+                      ? (Math.max(0, parseInt(editedQuantities[item._id], 10) || 0))
+                      : (Number(item.ActualCount) || 0);
+                    const isRowQtyModified = isEditingQty && editedQuantities[item._id] !== undefined && (parseInt(editedQuantities[item._id], 10) || 0) !== (item.ActualCount ?? 0);
+
                     return (
                       <tr
                         key={item._id}
@@ -506,7 +606,30 @@ function InventoryConsumables({ setActiveTab }) {
 
                         {/* 5. Actual Count */}
                         <td className={`py-3 px-4 text-center font-bold font-mono text-sm whitespace-nowrap ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {item.ActualCount ?? 0}
+                          {isEditingQty ? (
+                            <div className="flex items-center justify-center">
+                              <input
+                                type="number"
+                                min="0"
+                                value={editedQuantities[item._id] !== undefined ? editedQuantities[item._id] : (item.ActualCount ?? 0)}
+                                onChange={(e) => handleQtyChange(item._id, e.target.value)}
+                                className={`w-24 text-center font-mono font-bold text-sm py-1 px-2 rounded-lg border focus:outline-none transition-all ${
+                                  isDark
+                                    ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600] focus:ring-2 focus:ring-[#ff6600]/30'
+                                    : 'bg-white border-slate-300 text-slate-900 focus:border-[#18174e] focus:ring-2 focus:ring-[#18174e]/20 shadow-sm'
+                                } ${
+                                  isRowQtyModified
+                                    ? (isDark
+                                        ? 'border-[#ff6600] ring-2 ring-[#ff6600]/50 bg-[#ff6600]/10 text-[#ff8533] font-black'
+                                        : 'border-[#18174e] ring-2 ring-[#18174e]/30 bg-[#18174e]/5 text-[#18174e] font-black')
+                                    : ''
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                          ) : (
+                            item.ActualCount ?? 0
+                          )}
                         </td>
 
                         {/* 6. UOM */}
@@ -521,7 +644,7 @@ function InventoryConsumables({ setActiveTab }) {
 
                         {/* 8. Total Acquisition Cost */}
                         <td className="py-3 px-4 text-right font-mono text-xs font-bold whitespace-nowrap text-red-600 dark:text-red-400">
-                          ₱{((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ₱{(currentItemQty * (Number(item.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
 
                         {/* 12. Actions */}
@@ -549,6 +672,69 @@ function InventoryConsumables({ setActiveTab }) {
               </tbody>
             </table>
           </div>
+
+          {/* TABLE BOTTOM ACTIONS: SAVE CHANGES BAR */}
+          {isEditingQty && (
+            <div className={`p-4 border-t flex items-center justify-between flex-wrap gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 ${isDark ? 'bg-[#0f111d] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Editing mode enabled: Type the new <strong>Actual Count</strong> values directly in the column above.
+                </span>
+                {(() => {
+                  const countChanged = Object.entries(editedQuantities).filter(([id, val]) => {
+                    const it = consumablesList.find(c => c._id === id);
+                    return it && (Math.max(0, parseInt(val, 10) || 0)) !== (it.ActualCount ?? 0);
+                  }).length;
+                  return countChanged > 0 ? (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
+                      isDark 
+                        ? 'bg-[#ff6600]/15 text-[#ff8533] border-[#ff6600]/30' 
+                        : 'bg-[#18174e]/10 text-[#18174e] border-[#18174e]/20'
+                    }`}>
+                      {countChanged} {countChanged === 1 ? 'item' : 'items'} modified
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCancelEditQty}
+                  disabled={isSavingQty}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                    isDark
+                      ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveQtyChanges}
+                  disabled={isSavingQty}
+                  className={`flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-50 cursor-pointer shadow-md transition-all ${
+                    isDark
+                      ? 'bg-[#ff6600] hover:bg-[#ff6600]/90'
+                      : 'bg-[#18174e] hover:bg-[#18174e]/90'
+                  }`}
+                >
+                  {isSavingQty ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Saving Changes...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -17,6 +17,11 @@ function InventorySupplies() {
   const [hideZeroQty, setHideZeroQty] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
 
+  // Direct Inline Quantity Editing States
+  const [isEditingQty, setIsEditingQty] = useState(false);
+  const [editedQuantities, setEditedQuantities] = useState({});
+  const [isSavingQty, setIsSavingQty] = useState(false);
+
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState({
     title: '', message: '', actionType: 'archive', onConfirm: () => { }
@@ -157,6 +162,155 @@ function InventorySupplies() {
     }
   };
 
+  const handleToggleEditQty = () => {
+    if (isEditingQty) {
+      setIsEditingQty(false);
+      setEditedQuantities({});
+    } else {
+      setIsEditingQty(true);
+    }
+  };
+
+  const handleActualCountChange = (id, value) => {
+    setEditedQuantities(prev => {
+      const item = suppliesList.find(s => s._id === id);
+      const existing = prev[id] || {
+        actualCount: item?.ActualCount ?? 0,
+        damagedCount: item?.DamagedCount ?? 0
+      };
+
+      const parsedActual = value === '' ? '' : Math.max(0, parseInt(value, 10) || 0);
+      const numActual = value === '' ? 0 : parsedActual;
+      
+      const currentDamaged = existing.damagedCount === '' ? 0 : (parseInt(existing.damagedCount, 10) || 0);
+      const newDamaged = Math.min(currentDamaged, numActual);
+
+      return {
+        ...prev,
+        [id]: {
+          actualCount: value,
+          damagedCount: newDamaged
+        }
+      };
+    });
+  };
+
+  const handleDamagedQtyChange = (id, value) => {
+    setEditedQuantities(prev => {
+      const item = suppliesList.find(s => s._id === id);
+      const existing = prev[id] || {
+        actualCount: item?.ActualCount ?? 0,
+        damagedCount: item?.DamagedCount ?? 0
+      };
+
+      const numActual = existing.actualCount === '' ? 0 : (parseInt(existing.actualCount, 10) || 0);
+      let parsedDamaged = value === '' ? '' : Math.max(0, parseInt(value, 10) || 0);
+      if (parsedDamaged !== '' && parsedDamaged > numActual) {
+        parsedDamaged = numActual;
+      }
+
+      return {
+        ...prev,
+        [id]: {
+          actualCount: existing.actualCount,
+          damagedCount: parsedDamaged
+        }
+      };
+    });
+  };
+
+  const handleGoodConditionQtyChange = (id, value) => {
+    setEditedQuantities(prev => {
+      const item = suppliesList.find(s => s._id === id);
+      const existing = prev[id] || {
+        actualCount: item?.ActualCount ?? 0,
+        damagedCount: item?.DamagedCount ?? 0
+      };
+
+      const numActual = existing.actualCount === '' ? 0 : (parseInt(existing.actualCount, 10) || 0);
+      let parsedGood = value === '' ? 0 : Math.max(0, parseInt(value, 10) || 0);
+      if (parsedGood > numActual) {
+        parsedGood = numActual;
+      }
+      const newDamaged = Math.max(0, numActual - parsedGood);
+
+      return {
+        ...prev,
+        [id]: {
+          actualCount: existing.actualCount,
+          damagedCount: newDamaged
+        }
+      };
+    });
+  };
+
+  const handleQtyChange = handleActualCountChange;
+
+  const handleCancelEditQty = () => {
+    setEditedQuantities({});
+    setIsEditingQty(false);
+  };
+
+  const handleSaveQtyChanges = async () => {
+    // Find all items that differ from their database ActualCount or DamagedCount
+    const updates = [];
+    for (const [id, val] of Object.entries(editedQuantities)) {
+      const item = suppliesList.find(s => s._id === id);
+      if (!item) continue;
+
+      const parsedActual = typeof val === 'object'
+        ? (val.actualCount === '' ? 0 : Math.max(0, parseInt(val.actualCount, 10) || 0))
+        : Math.max(0, parseInt(val, 10) || 0);
+
+      const parsedDamaged = typeof val === 'object' && val.damagedCount !== undefined
+        ? (val.damagedCount === '' ? 0 : Math.max(0, parseInt(val.damagedCount, 10) || 0))
+        : (item.DamagedCount ?? 0);
+
+      const actualChanged = parsedActual !== (item.ActualCount ?? 0);
+      const damagedChanged = parsedDamaged !== (item.DamagedCount ?? 0);
+
+      if (actualChanged || damagedChanged) {
+        updates.push({
+          id,
+          actualCount: parsedActual,
+          damagedCount: parsedDamaged
+        });
+      }
+    }
+
+    if (updates.length === 0) {
+      showToast("No quantity changes detected.");
+      setIsEditingQty(false);
+      setEditedQuantities({});
+      return;
+    }
+
+    setIsSavingQty(true);
+    try {
+      try {
+        await axios.put('/api/supplies/batch-counts', { updates });
+      } catch (batchErr) {
+        // Fallback to updating individually if batch route unavailable
+        await Promise.all(
+          updates.map(u => axios.put(`/api/supplies/${u.id}`, {
+            ActualCount: u.actualCount,
+            DamagedCount: u.damagedCount
+          }))
+        );
+      }
+
+      showToast(`Successfully saved quantities for ${updates.length} item${updates.length > 1 ? 's' : ''}!`);
+      setIsEditingQty(false);
+      setEditedQuantities({});
+      await fetchSuppliesAndPalette();
+    } catch (err) {
+      console.error("Error saving quantities:", err);
+      showToast(err.response?.data?.message || "Failed to save quantity changes.", true);
+    } finally {
+      setIsSavingQty(false);
+    }
+  };
+
   const openAddModal = () => {
     setIsEditing(false);
     setCurrentId(null);
@@ -191,6 +345,37 @@ function InventorySupplies() {
     setDamagedCount(supply.DamagedCount !== undefined ? String(supply.DamagedCount) : '0');
     setAcquisitionCost(supply.AcquisitionCost !== undefined ? String(supply.AcquisitionCost) : '');
     setIsModalOpen(true);
+  };
+
+  const modalActual = actualCount === '' ? 0 : (Math.max(0, parseInt(actualCount, 10) || 0));
+  const modalDamaged = damagedCount === '' ? 0 : (Math.max(0, parseInt(damagedCount, 10) || 0));
+  const modalGood = Math.max(0, modalActual - modalDamaged);
+
+  const handleModalActualChange = (val) => {
+    setActualCount(val);
+    const num = val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0);
+    if (modalDamaged > num) {
+      setDamagedCount(String(num));
+    }
+  };
+
+  const handleModalDamagedChange = (val) => {
+    if (val === '') {
+      setDamagedCount('');
+      return;
+    }
+    let num = Math.max(0, parseInt(val, 10) || 0);
+    if (num > modalActual) {
+      num = modalActual;
+    }
+    setDamagedCount(String(num));
+  };
+
+  const handleModalGoodChange = (val) => {
+    const num = val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0);
+    const clampedGood = Math.min(modalActual, num);
+    const newDamaged = Math.max(0, modalActual - clampedGood);
+    setDamagedCount(String(newDamaged));
   };
 
   const handleFormSubmit = async (e) => {
@@ -309,10 +494,15 @@ function InventorySupplies() {
   const activeCount = suppliesList.filter(s => !s.isArchived).length;
   const archivedCount = suppliesList.filter(s => s.isArchived).length;
 
-  const totalAcquisitionCost = filteredSupplies.reduce(
-    (sum, item) => sum + ((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)),
-    0
-  );
+  const totalAcquisitionCost = filteredSupplies.reduce((sum, item) => {
+    const editState = editedQuantities[item._id];
+    const qty = (isEditingQty && editState !== undefined)
+      ? (typeof editState === 'object'
+          ? Math.max(0, parseInt(editState.actualCount, 10) || 0)
+          : Math.max(0, parseInt(editState, 10) || 0))
+      : (Number(item.ActualCount) || 0);
+    return sum + (qty * (Number(item.AcquisitionCost) || 0));
+  }, 0);
 
   return (
     <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased relative">
@@ -345,7 +535,7 @@ function InventorySupplies() {
             </div>
           </div>
 
-          {/* ROW 2: Actions Row (Hide 0 Qty under Filter, Palette Settings, View Archive Vault) */}
+          {/* ROW 2: Actions Row (Hide 0 Qty under Filter, Palette Settings, Edit Qty, View Archive Vault) */}
           <div className="flex items-center gap-2 flex-wrap mt-1">
             <label
               className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${hideZeroQty
@@ -374,9 +564,32 @@ function InventorySupplies() {
               </button>
             )}
 
+            {/* EDIT QTY BUTTON DIRECTLY IN TABLE */}
+            {!isViewer && !showArchivedOnly && (
+              <button
+                onClick={handleToggleEditQty}
+                title={isEditingQty ? "Cancel Edit Qty Mode" : "Directly Edit Actual Count Column"}
+                className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${
+                  isEditingQty
+                    ? (isDark ? 'border-amber-500 bg-amber-500 text-white ring-2 ring-amber-400/50 shadow-md' : 'border-amber-600 bg-amber-600 text-white ring-2 ring-amber-500/40 shadow-md')
+                    : (isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90')
+                }`}
+              >
+                <Edit2 className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-white" />
+                <span className="hidden md:inline">{isEditingQty ? 'Editing Qty (Active)' : 'Edit Qty'}</span>
+                <span className="md:hidden">{isEditingQty ? 'Editing' : 'Edit Qty'}</span>
+              </button>
+            )}
+
             {!isViewer && (
               <button
-                onClick={() => setShowArchivedOnly(!showArchivedOnly)}
+                onClick={() => {
+                  if (isEditingQty) {
+                    setIsEditingQty(false);
+                    setEditedQuantities({});
+                  }
+                  setShowArchivedOnly(!showArchivedOnly);
+                }}
                 title={showArchivedOnly ? "Show Active Supplies" : "View Archive Vault"}
                 className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${showArchivedOnly
                   ? 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'
@@ -449,9 +662,13 @@ function InventorySupplies() {
                   <th className="py-3 px-4 whitespace-nowrap">Dimension</th>
                   <th className="py-3 px-4 whitespace-nowrap">Brand</th>
                   <th className="py-3 px-4 whitespace-nowrap">Serial</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap">Actual Count</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">
+                    Actual Count{isEditingQty ? ' (Editing)' : ''}
+                  </th>
                   <th className="py-3 px-4 whitespace-nowrap">UOM</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap">Breakdown</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">
+                    Breakdown{isEditingQty ? ' (Editing)' : ''}
+                  </th>
                   <th className="py-3 px-4 whitespace-nowrap text-right">Acquisition Cost</th>
                   <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
                   {!isViewer && (
@@ -477,9 +694,25 @@ function InventorySupplies() {
                   paginatedSupplies.map((supply) => {
                     const catStyle = getCategoryStyles(supply.Category);
                     const segStyle = getSegmentStyles(supply.Segment);
-                    const totalQty = Number(supply.ActualCount) || 0;
-                    const damagedQty = Number(supply.DamagedCount) || 0;
+                    const editState = editedQuantities[supply._id];
+                    const totalQty = (isEditingQty && editState !== undefined)
+                      ? (typeof editState === 'object'
+                          ? (editState.actualCount === '' ? 0 : Math.max(0, parseInt(editState.actualCount, 10) || 0))
+                          : Math.max(0, parseInt(editState, 10) || 0))
+                      : (Number(supply.ActualCount) || 0);
+
+                    const damagedQty = (isEditingQty && editState !== undefined && typeof editState === 'object' && editState.damagedCount !== undefined)
+                      ? (editState.damagedCount === '' ? 0 : Math.max(0, parseInt(editState.damagedCount, 10) || 0))
+                      : (Number(supply.DamagedCount) || 0);
+
                     const goodConditionQty = Math.max(0, totalQty - damagedQty);
+
+                    const isRowQtyModified = isEditingQty && editState !== undefined && (
+                      typeof editState === 'object'
+                        ? ((parseInt(editState.actualCount, 10) || 0) !== (supply.ActualCount ?? 0) ||
+                           (parseInt(editState.damagedCount, 10) || 0) !== (supply.DamagedCount ?? 0))
+                        : (parseInt(editState, 10) || 0) !== (supply.ActualCount ?? 0)
+                    );
 
                     return (
                       <tr
@@ -518,7 +751,30 @@ function InventorySupplies() {
 
                         {/* 5. Actual Count */}
                         <td className={`py-3 px-4 text-center font-bold font-mono text-sm whitespace-nowrap ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {supply.ActualCount ?? 0}
+                          {isEditingQty ? (
+                            <div className="flex items-center justify-center">
+                              <input
+                                type="number"
+                                min="0"
+                                value={editState !== undefined ? (typeof editState === 'object' ? editState.actualCount : editState) : (supply.ActualCount ?? 0)}
+                                onChange={(e) => handleActualCountChange(supply._id, e.target.value)}
+                                className={`w-24 text-center font-mono font-bold text-sm py-1 px-2 rounded-lg border focus:outline-none transition-all ${
+                                  isDark
+                                    ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600] focus:ring-2 focus:ring-[#ff6600]/30'
+                                    : 'bg-white border-slate-300 text-slate-900 focus:border-[#18174e] focus:ring-2 focus:ring-[#18174e]/20 shadow-sm'
+                                } ${
+                                  isRowQtyModified
+                                    ? (isDark
+                                        ? 'border-[#ff6600] ring-2 ring-[#ff6600]/50 bg-[#ff6600]/10 text-[#ff8533] font-black'
+                                        : 'border-[#18174e] ring-2 ring-[#18174e]/30 bg-[#18174e]/5 text-[#18174e] font-black')
+                                    : ''
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                          ) : (
+                            supply.ActualCount ?? 0
+                          )}
                         </td>
 
                         {/* 6. UOM */}
@@ -528,19 +784,50 @@ function InventorySupplies() {
 
                         {/* 7. Breakdown (Good Condition QTY & Damaged QTY) */}
                         <td className="py-3 px-4 text-center whitespace-nowrap">
-                          <div className="inline-flex flex-col gap-1 items-center min-w-[140px]">
-                            <span className="inline-flex items-center justify-between w-full gap-2 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                              <span>Good Condition QTY:</span>
-                              <span className="font-mono font-bold">{goodConditionQty}</span>
-                            </span>
-                            <span className={`inline-flex items-center justify-between w-full gap-2 px-2 py-0.5 rounded text-[11px] font-semibold ${damagedQty > 0
-                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                              : isDark ? 'bg-slate-800/60 text-slate-400 border border-slate-700/60' : 'bg-slate-100 text-slate-500 border border-slate-200'
+                          {isEditingQty ? (
+                            <div className="inline-flex flex-col gap-1.5 items-center min-w-[170px]" onClick={(e) => e.stopPropagation()}>
+                              <div className="inline-flex items-center justify-between w-full gap-2 px-2 py-1 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                <span className="whitespace-nowrap">Good Condition QTY:</span>
+                                <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" title="Auto-computed: Actual Count - Damaged QTY">
+                                  {goodConditionQty}
+                                </span>
+                              </div>
+                              <div className={`inline-flex items-center justify-between w-full gap-2 px-2 py-1 rounded text-[11px] font-semibold border ${
+                                damagedQty > 0
+                                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                                  : isDark ? 'bg-slate-800/60 text-slate-400 border-slate-700/60' : 'bg-slate-100 text-slate-500 border border-slate-200'
                               }`}>
-                              <span>Damaged QTY:</span>
-                              <span className="font-mono font-bold">{damagedQty}</span>
-                            </span>
-                          </div>
+                                <span className="whitespace-nowrap">Damaged QTY:</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={totalQty}
+                                  value={editState !== undefined && typeof editState === 'object' && editState.damagedCount !== undefined ? editState.damagedCount : damagedQty}
+                                  onChange={(e) => handleDamagedQtyChange(supply._id, e.target.value)}
+                                  className={`w-14 text-center font-mono font-bold text-xs py-0.5 px-1 rounded border focus:outline-none transition-all ${
+                                    isDark
+                                      ? 'bg-[#141622] border-rose-500/50 text-white focus:ring-2 focus:ring-rose-400/40'
+                                      : 'bg-white border-rose-300 text-slate-900 focus:ring-2 focus:ring-rose-500/30'
+                                  }`}
+                                  title={`Max ${totalQty} based on Actual Count`}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="inline-flex flex-col gap-1 items-center min-w-[140px]">
+                              <span className="inline-flex items-center justify-between w-full gap-2 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                <span>Good Condition QTY:</span>
+                                <span className="font-mono font-bold">{goodConditionQty}</span>
+                              </span>
+                              <span className={`inline-flex items-center justify-between w-full gap-2 px-2 py-0.5 rounded text-[11px] font-semibold ${damagedQty > 0
+                                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                                : isDark ? 'bg-slate-800/60 text-slate-400 border border-slate-700/60' : 'bg-slate-100 text-slate-500 border border-slate-200'
+                                }`}>
+                                <span>Damaged QTY:</span>
+                                <span className="font-mono font-bold">{damagedQty}</span>
+                              </span>
+                            </div>
+                          )}
                         </td>
 
                         {/* 8. Acquisition Cost */}
@@ -550,7 +837,7 @@ function InventorySupplies() {
 
                         {/* 9. Total Acquisition Cost */}
                         <td className="py-3 px-4 text-right font-mono text-xs font-bold whitespace-nowrap text-red-600 dark:text-red-400">
-                          ₱{((Number(supply.ActualCount) || 0) * (Number(supply.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ₱{(totalQty * (Number(supply.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
 
                         {/* 12. Actions */}
@@ -578,6 +865,76 @@ function InventorySupplies() {
               </tbody>
             </table>
           </div>
+
+          {/* TABLE BOTTOM ACTIONS: SAVE CHANGES BAR */}
+          {isEditingQty && (
+            <div className={`p-4 border-t flex items-center justify-between flex-wrap gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 ${isDark ? 'bg-[#0f111d] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Editing mode enabled: Adjust <strong>Actual Count</strong> or <strong>Damaged QTY</strong> directly in the table. Good Condition QTY updates automatically.
+                </span>
+                {(() => {
+                  const countChanged = Object.entries(editedQuantities).filter(([id, val]) => {
+                    const it = suppliesList.find(s => s._id === id);
+                    if (!it) return false;
+                    const parsedActual = typeof val === 'object'
+                      ? (val.actualCount === '' ? 0 : Math.max(0, parseInt(val.actualCount, 10) || 0))
+                      : Math.max(0, parseInt(val, 10) || 0);
+                    const parsedDamaged = typeof val === 'object' && val.damagedCount !== undefined
+                      ? (val.damagedCount === '' ? 0 : Math.max(0, parseInt(val.damagedCount, 10) || 0))
+                      : (it.DamagedCount ?? 0);
+                    return parsedActual !== (it.ActualCount ?? 0) || parsedDamaged !== (it.DamagedCount ?? 0);
+                  }).length;
+                  return countChanged > 0 ? (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
+                      isDark 
+                        ? 'bg-[#ff6600]/15 text-[#ff8533] border-[#ff6600]/30' 
+                        : 'bg-[#18174e]/10 text-[#18174e] border-[#18174e]/20'
+                    }`}>
+                      {countChanged} {countChanged === 1 ? 'item' : 'items'} modified
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCancelEditQty}
+                  disabled={isSavingQty}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                    isDark
+                      ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveQtyChanges}
+                  disabled={isSavingQty}
+                  className={`flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-50 cursor-pointer shadow-md transition-all ${
+                    isDark
+                      ? 'bg-[#ff6600] hover:bg-[#ff6600]/90'
+                      : 'bg-[#18174e] hover:bg-[#18174e]/90'
+                  }`}
+                >
+                  {isSavingQty ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Saving Changes...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -705,7 +1062,62 @@ function InventorySupplies() {
                   </datalist>
                 </div>
 
-                {/* 7. Acquisition Cost */}
+                {/* 7. Quantity & Condition Breakdown */}
+                <div className={`md:col-span-2 p-3.5 rounded-xl border ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className="flex items-center justify-between mb-2.5 flex-wrap gap-1">
+                    <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Quantity & Condition Breakdown
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      Actual Count = Good Condition + Damaged
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Actual Count */}
+                    <div>
+                      <label className={`block text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1`}>
+                        Actual Count *
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={actualCount}
+                        onChange={(e) => handleModalActualChange(e.target.value)}
+                        className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:border-[#ff6600]`}
+                      />
+                    </div>
+
+                    {/* Good Condition QTY (Auto-calculated, Read-only) */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-1">
+                        Good Condition QTY
+                      </label>
+                      <div className={`w-full ${isDark ? 'bg-[#0e1017]/80 border-slate-700/70 text-emerald-400' : 'bg-slate-100 border-slate-200 text-emerald-700'} border rounded-lg px-3 py-2 text-sm font-mono font-bold select-none flex items-center justify-between`}>
+                        <span>{modalGood}</span>
+                        <span className="text-[10px] text-slate-400 font-medium italic">Auto (Count - Damaged)</span>
+                      </div>
+                    </div>
+
+                    {/* Damaged QTY */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase mb-1">
+                        Damaged QTY
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={modalActual}
+                        value={damagedCount}
+                        onChange={(e) => handleModalDamagedChange(e.target.value)}
+                        className={`w-full ${isDark ? 'bg-[#0e1017] border-rose-500/40 text-rose-400' : 'bg-white border-rose-300 text-rose-700'} border rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-rose-500/20`}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 8. Acquisition Cost */}
                 <div className="md:col-span-2">
                   <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Acquisition Cost (Price)</label>
                   <input
