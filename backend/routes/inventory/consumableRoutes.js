@@ -10,7 +10,8 @@ import {
   unarchiveConsumable,
   permanentDeleteConsumable,
   getTransactions,
-  createTransaction
+  createTransaction,
+  batchUpdateActualCounts
 } from "../../controllers/inventory/consumableController.js";
 import { protectRoute, restrictTo } from "../../middleware/authMiddleware.js";
 
@@ -40,6 +41,9 @@ router.use(protectRoute);
 router.route("/")
   .get(restrictTo("Inventory", "Viewer", "Admin"), getConsumables)
   .post(restrictTo("Inventory", "Admin"), createConsumable);
+
+router.route("/batch-counts")
+  .put(restrictTo("Inventory", "Admin"), batchUpdateActualCounts);
 
 router.route("/transactions")
   .get(restrictTo("Inventory", "Viewer", "Admin"), getTransactions)

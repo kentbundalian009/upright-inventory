@@ -209,6 +209,32 @@ export const updateConsumable = async (req, res) => {
   }
 };
 
+// PUT batch update actual counts
+export const batchUpdateActualCounts = async (req, res) => {
+  try {
+    const { updates } = req.body;
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ message: "No count updates provided." });
+    }
+
+    const bulkOps = updates.map(u => ({
+      updateOne: {
+        filter: { _id: u.id },
+        update: { $set: { ActualCount: Math.max(0, Number(u.actualCount) || 0) } }
+      }
+    }));
+
+    const result = await Consumable.bulkWrite(bulkOps);
+    return res.status(200).json({ 
+      message: "Actual counts updated successfully.", 
+      modifiedCount: result.modifiedCount 
+    });
+  } catch (err) {
+    console.error("Error batch updating actual counts:", err);
+    return res.status(500).json({ message: "Failed to update actual counts", error: err.message });
+  }
+};
+
 // DELETE archive consumable item
 export const deleteConsumable = async (req, res) => {
   try {

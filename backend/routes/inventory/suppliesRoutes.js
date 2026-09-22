@@ -10,6 +10,7 @@ import {
   deleteSupplies,
   unarchiveSupplies,
   permanentDeleteSupplies,
+  batchUpdateSuppliesActualCounts,
 } from "../../controllers/inventory/suppliesController.js";
 import { protectRoute, restrictTo } from "../../middleware/authMiddleware.js";
 
@@ -35,6 +36,9 @@ const upload = multer({
 router.get("/:id/image", getSuppliesImage);
 
 router.use(protectRoute);
+
+router.route("/batch-counts")
+  .put(restrictTo("Inventory", "Admin"), batchUpdateSuppliesActualCounts);
 
 router.route("/")
   .get(restrictTo("Inventory", "Viewer", "Admin"), getAllSupplies)    

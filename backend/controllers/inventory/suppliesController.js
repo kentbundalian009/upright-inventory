@@ -175,6 +175,40 @@ export const updateSupplies = async (req, res) => {
   }
 };
 
+export const batchUpdateSuppliesActualCounts = async (req, res) => {
+  try {
+    const { updates } = req.body;
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ message: "No count updates provided." });
+    }
+
+    const bulkOps = updates.map(u => {
+      const setFields = {};
+      if (u.actualCount !== undefined) {
+        setFields.ActualCount = Math.max(0, Number(u.actualCount) || 0);
+      }
+      if (u.damagedCount !== undefined) {
+        setFields.DamagedCount = Math.max(0, Number(u.damagedCount) || 0);
+      }
+      return {
+        updateOne: {
+          filter: { _id: u.id },
+          update: { $set: setFields }
+        }
+      };
+    });
+
+    const result = await Supplies.bulkWrite(bulkOps);
+    return res.status(200).json({
+      message: "Supplies actual counts updated successfully.",
+      modifiedCount: result.modifiedCount
+    });
+  } catch (err) {
+    console.error("Error batch updating supplies actual counts:", err);
+    return res.status(500).json({ message: "Failed to update actual counts", error: err.message });
+  }
+};
+
 export const deleteSupplies = async (req, res) => {
   try {
     const { id } = req.params;
