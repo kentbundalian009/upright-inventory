@@ -35,8 +35,6 @@ function SharedRackingsView() {
     // Lightbox image preview state
     const [previewImage, setPreviewImage] = useState(null);
 
-    // System thresholds
-    const [thresholds, setThresholds] = useState({ critical: 5, reorder: 15, overstock: 50 });
     const [segmentColors, setSegmentColors] = useState({});
 
     // API Base URL
@@ -82,21 +80,6 @@ function SharedRackingsView() {
         }
     };
 
-    const fetchThresholdSettings = async () => {
-        try {
-            const res = await axios.get(`${API_BASE_URL}/api/settings/thresholds/raw_materials`).catch(() => null);
-            if (res && res.data) {
-                const data = res.data;
-                setThresholds({
-                    critical: Number(data.critical ?? data.settings?.critical ?? 5),
-                    reorder: Number(data.reorder ?? data.settings?.reorder ?? 15),
-                    overstock: Number(data.overstock ?? data.settings?.overstock ?? 50)
-                });
-            }
-        } catch (err) {
-            // Use defaults
-        }
-    };
 
     useEffect(() => {
         trackSharedLinkClick();
@@ -129,7 +112,6 @@ function SharedRackingsView() {
 
         fetchRawMaterials();
         fetchPaletteSettings();
-        fetchThresholdSettings();
     }, []);
 
     // Distinct filter lists
@@ -149,14 +131,19 @@ function SharedRackingsView() {
         return COLOR_OPTIONS[(index !== -1 ? index : 0) % COLOR_OPTIONS.length];
     };
 
-    const getRawMaterialHealthBadge = (actualCount) => {
-        if (actualCount <= thresholds.critical) {
+    const getRawMaterialHealthBadge = (item) => {
+        const actualCount = Number(item?.ActualCount) || 0;
+        const critical = item?.CriticalAlert !== undefined ? Number(item.CriticalAlert) : 0;
+        const reorder = item?.RestockWarning !== undefined ? Number(item.RestockWarning) : 10;
+        const overstock = item?.MaxStorage !== undefined ? Number(item.MaxStorage) : 1000;
+
+        if (actualCount <= critical) {
             return <span className="text-xs bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800 px-2 py-0.5 rounded font-medium">🔴 Critical</span>;
         }
-        if (actualCount <= thresholds.reorder) {
+        if (actualCount <= reorder) {
             return <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800 px-2 py-0.5 rounded font-medium">🟡 Re-Stock</span>;
         }
-        if (actualCount > thresholds.overstock) {
+        if (actualCount > overstock) {
             return <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 px-2 py-0.5 rounded font-medium">🔵 Overstock</span>;
         }
         return <span className="text-xs bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800 px-2 py-0.5 rounded font-medium">🟢 Healthy</span>;
@@ -176,15 +163,20 @@ function SharedRackingsView() {
         const matchesSegment = selectedSegment === 'All Segments' || item.Segment === selectedSegment;
         const matchesDescription = selectedDescription === 'All Item Descriptions' || item.ItemDescription === selectedDescription;
 
+        const actualCount = Number(item.ActualCount) || 0;
+        const critical = item.CriticalAlert !== undefined ? Number(item.CriticalAlert) : 0;
+        const reorder = item.RestockWarning !== undefined ? Number(item.RestockWarning) : 10;
+        const overstock = item.MaxStorage !== undefined ? Number(item.MaxStorage) : 1000;
+
         let matchesHealth = true;
         if (selectedHealth === 'Healthy') {
-            matchesHealth = item.ActualCount > thresholds.reorder && item.ActualCount <= thresholds.overstock;
+            matchesHealth = actualCount > reorder && actualCount <= overstock;
         } else if (selectedHealth === 'Re-Stock') {
-            matchesHealth = item.ActualCount > thresholds.critical && item.ActualCount <= thresholds.reorder;
+            matchesHealth = actualCount > critical && actualCount <= reorder;
         } else if (selectedHealth === 'Critical') {
-            matchesHealth = item.ActualCount <= thresholds.critical;
+            matchesHealth = actualCount <= critical;
         } else if (selectedHealth === 'Overstock') {
-            matchesHealth = item.ActualCount > thresholds.overstock;
+            matchesHealth = actualCount > overstock;
         }
 
         return matchesSearch && matchesSegment && matchesDescription && matchesHealth;
@@ -492,7 +484,7 @@ function SharedRackingsView() {
                                             </td>
 
                                             <td className="py-3 px-4">
-                                                {getRawMaterialHealthBadge(rawMat.ActualCount)}
+                                                {getRawMaterialHealthBadge(rawMat)}
                                             </td>
                                         </tr>
                                     );

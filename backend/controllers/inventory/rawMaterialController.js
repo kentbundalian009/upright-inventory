@@ -18,6 +18,9 @@ export const getAllRawMaterials = async (req, res) => {
           AccountTo: 1,
           AcquisitionCost: 1,
           isArchived: 1,
+          CriticalAlert: { $ifNull: ["$CriticalAlert", 0] },
+          RestockWarning: { $ifNull: ["$RestockWarning", 10] },
+          MaxStorage: { $ifNull: ["$MaxStorage", 1000] },
           createdAt: 1,
           updatedAt: 1,
           ImageUrl: {
@@ -84,7 +87,22 @@ export const getRawMaterialById = async (req, res) => {
 
 export const createRawMaterial = async (req, res) => {
   try {
-    const { Code, Category, Segment, ItemDescription, Dimension, UOM, AccountTo, AcquisitionCost } = req.body;
+    const { 
+      Code, 
+      Category, 
+      Segment, 
+      ItemDescription, 
+      Dimension, 
+      UOM, 
+      AccountTo, 
+      AcquisitionCost,
+      CriticalAlert,
+      criticalAlert,
+      RestockWarning,
+      restockWarning,
+      MaxStorage,
+      maxStorage
+    } = req.body;
 
     if (!ItemDescription || !UOM) {
       return res.status(400).json({ 
@@ -111,7 +129,18 @@ export const createRawMaterial = async (req, res) => {
     let finalImagePath = "";
     if (req.file) {
       finalImagePath = await uploadImageBuffer(req.file.buffer, req.file.mimetype, "oneinventory/raw_materials");
+    } else if (req.body.selectedImageId) {
+      const sourceMat = await RawMaterial.findById(req.body.selectedImageId).select("ImageUrl");
+      if (sourceMat && sourceMat.ImageUrl) {
+        finalImagePath = sourceMat.ImageUrl;
+      }
+    } else if (req.body.ImageUrl) {
+      finalImagePath = req.body.ImageUrl.trim();
     }
+
+    const parsedCritical = CriticalAlert !== undefined ? Number(CriticalAlert) : (criticalAlert !== undefined ? Number(criticalAlert) : 0);
+    const parsedRestock = RestockWarning !== undefined ? Number(RestockWarning) : (restockWarning !== undefined ? Number(restockWarning) : 10);
+    const parsedMaxStorage = MaxStorage !== undefined ? Number(MaxStorage) : (maxStorage !== undefined ? Number(maxStorage) : 1000);
 
     const newMaterial = await RawMaterial.create({
       Code: finalCode,
@@ -125,6 +154,9 @@ export const createRawMaterial = async (req, res) => {
       Condition: "Good",
       AccountTo: AccountTo?.trim() || "N/A",
       AcquisitionCost: Number(AcquisitionCost) >= 0 ? Number(AcquisitionCost) : 0,
+      CriticalAlert: !isNaN(parsedCritical) && parsedCritical >= 0 ? parsedCritical : 0,
+      RestockWarning: !isNaN(parsedRestock) && parsedRestock >= 0 ? parsedRestock : 10,
+      MaxStorage: !isNaN(parsedMaxStorage) && parsedMaxStorage >= 0 ? parsedMaxStorage : 1000,
       isArchived: false
     });
 
@@ -137,7 +169,24 @@ export const createRawMaterial = async (req, res) => {
 export const updateRawMaterial = async (req, res) => {
   try {
     const { id } = req.params;
-    const { Code, Category, Segment, ItemDescription, Dimension, ActualCount, UOM, Condition, AccountTo, AcquisitionCost } = req.body;
+    const { 
+      Code, 
+      Category, 
+      Segment, 
+      ItemDescription, 
+      Dimension, 
+      ActualCount, 
+      UOM, 
+      Condition, 
+      AccountTo, 
+      AcquisitionCost,
+      CriticalAlert,
+      criticalAlert,
+      RestockWarning,
+      restockWarning,
+      MaxStorage,
+      maxStorage
+    } = req.body;
 
     if (Code) {
       const duplicateCheck = await RawMaterial.findOne({
@@ -157,6 +206,13 @@ export const updateRawMaterial = async (req, res) => {
     let finalImagePath = existingMaterial.ImageUrl;
     if (req.file) {
       finalImagePath = await uploadImageBuffer(req.file.buffer, req.file.mimetype, "oneinventory/raw_materials");
+    } else if (req.body.selectedImageId) {
+      const sourceMat = await RawMaterial.findById(req.body.selectedImageId).select("ImageUrl");
+      if (sourceMat && sourceMat.ImageUrl) {
+        finalImagePath = sourceMat.ImageUrl;
+      }
+    } else if (req.body.ImageUrl !== undefined) {
+      finalImagePath = req.body.ImageUrl.trim();
     }
 
     const updatedMaterial = await RawMaterial.findByIdAndUpdate(
@@ -172,7 +228,16 @@ export const updateRawMaterial = async (req, res) => {
         UOM: UOM?.trim(),
         Condition,
         AccountTo: AccountTo?.trim(),
-        ...(AcquisitionCost !== undefined && { AcquisitionCost: Number(AcquisitionCost) >= 0 ? Number(AcquisitionCost) : 0 })
+        ...(AcquisitionCost !== undefined && { AcquisitionCost: Number(AcquisitionCost) >= 0 ? Number(AcquisitionCost) : 0 }),
+        ...(CriticalAlert !== undefined || criticalAlert !== undefined ? {
+          CriticalAlert: Math.max(0, Number(CriticalAlert !== undefined ? CriticalAlert : criticalAlert) || 0)
+        } : {}),
+        ...(RestockWarning !== undefined || restockWarning !== undefined ? {
+          RestockWarning: Math.max(0, Number(RestockWarning !== undefined ? RestockWarning : restockWarning) || 0)
+        } : {}),
+        ...(MaxStorage !== undefined || maxStorage !== undefined ? {
+          MaxStorage: Math.max(0, Number(MaxStorage !== undefined ? MaxStorage : maxStorage) || 0)
+        } : {})
       },
       { new: true, runValidators: true }
     );

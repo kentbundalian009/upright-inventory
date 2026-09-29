@@ -331,6 +331,9 @@ function Reports() {
                 SerialNo: item.SerialNo || '—',
                 Damaged: Number(item.DamagedCount ?? item.Damaged ?? 0),
                 ActualCount: displayCount,
+                CriticalAlert: item.CriticalAlert !== undefined ? Number(item.CriticalAlert) : 0,
+                RestockWarning: item.RestockWarning !== undefined ? Number(item.RestockWarning) : 10,
+                MaxStorage: item.MaxStorage !== undefined ? Number(item.MaxStorage) : 1000,
                 isArchived: !!item.isArchived,
                 UOM: item.UOM || 'PCS',
                 inflows: inflows,
@@ -632,6 +635,7 @@ function Reports() {
             doc.setTextColor(40, 40, 40);
 
             const isRackings = activeModule === 'raw-materials';
+
             const columns = isRackings
                 ? ["Item Description", "Segment", "Dimension", "Quantity", "UOM", "Inflows (This Month)", "Outflows (This Month)"]
                 : ["Item Description", "Segment", "Dimension", "Serial", "Quantity", "UOM"];
@@ -681,11 +685,24 @@ function Reports() {
 
                     const displayQty = item.isArchived ? '0' : (item.ActualCount !== undefined && item.ActualCount !== null ? Number(item.ActualCount).toLocaleString() : '0');
 
+                    const countVal = Number(item.ActualCount ?? 0);
+                    const crit = item.CriticalAlert !== undefined ? Number(item.CriticalAlert) : 0;
+                    const reord = item.RestockWarning !== undefined ? Number(item.RestockWarning) : 10;
+                    const overstk = item.MaxStorage !== undefined ? Number(item.MaxStorage) : 1000;
+
+                    let conditionType = 'healthy';
+                    if (countVal <= crit) conditionType = 'critical';
+                    else if (countVal <= reord) conditionType = 'reorder';
+                    else if (countVal > overstk) conditionType = 'overstock';
+
                     const itemRow = isRackings ? [
                         item.isArchived ? `${item.ItemDescription || '—'} (Archived)` : (item.ItemDescription || '—'),
                         item.Segment || 'Standard',
                         item.Dimension || '—',
-                        displayQty,
+                        {
+                            content: displayQty,
+                            condition: conditionType
+                        },
                         item.UOM || 'PCS',
                         formatLogs(item.inflows, false),
                         formatLogs(item.outflows, true)
@@ -746,6 +763,39 @@ function Reports() {
                     const pageNumber = `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`;
                     doc.text(pageNumber, pageWidth - 14, pageHeight - 8, { align: 'right' });
                 },
+                willDrawCell: (data) => {
+                    if (data.cell.colSpan > 1) return;
+                    if (data.section === 'body' && (isRackings ? data.column.index === 3 : data.column.index === 4)) {
+                        if (isRackings) {
+                            const cond = data.cell.raw?.condition;
+                            if (cond === 'critical') {
+                                data.cell.styles.fillColor = [254, 205, 211];      // Rich visible Rose-200
+                                data.cell.styles.textColor = [159, 18, 57];        // Rose-900 bold
+                            } else if (cond === 'reorder') {
+                                data.cell.styles.fillColor = [254, 215, 120];      // Rich visible Amber-200
+                                data.cell.styles.textColor = [120, 53, 15];        // Amber-950 bold
+                            } else if (cond === 'overstock') {
+                                data.cell.styles.fillColor = [191, 219, 254];      // Rich visible Blue-200
+                                data.cell.styles.textColor = [30, 58, 138];        // Blue-900 bold
+                            } else {
+                                data.cell.styles.fillColor = [167, 243, 208];      // Rich visible Emerald-200
+                                data.cell.styles.textColor = [6, 95, 70];          // Emerald-900 bold
+                            }
+                            data.cell.styles.fontStyle = 'bold';
+                        } else {
+                            const rawText = String(data.cell.text || '');
+                            const countVal = Number(rawText.replace(/,/g, ''));
+                            if (isNaN(countVal) || countVal === 0) {
+                                data.cell.styles.fillColor = [254, 205, 211];
+                                data.cell.styles.textColor = [159, 18, 57];
+                            } else {
+                                data.cell.styles.fillColor = [238, 242, 255];
+                                data.cell.styles.textColor = [24, 23, 78];
+                            }
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                },
                 didDrawCell: (data) => {
                     // Skip indicator drawing on section subheader rows
                     if (data.cell.colSpan > 1) return;
@@ -795,23 +845,49 @@ function Reports() {
                         });
                     }
 
-                    // Background highlighting for Quantity (col 3 for Rackings, col 4 for others)
+                    // Full-box solid highlighting for Quantity cell (seamless full box without colored outline)
                     if (data.section === 'body' && (isRackings ? data.column.index === 3 : data.column.index === 4)) {
-                        const rawText = String(data.cell.text || '');
-                        const countVal = Number(rawText.replace(/,/g, ''));
-                        if (isNaN(countVal) || countVal === 0) {
-                            doc.setFillColor(254, 242, 242);
-                            doc.rect(data.cell.x + 0.5, data.cell.y + 0.5, data.cell.width - 1, data.cell.height - 1, 'F');
-                            doc.setTextColor(225, 29, 72);
-                            doc.setFont("helvetica", "bold");
-                            doc.text(String(data.cell.text), data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 1, { align: 'center' });
+                        let bg = [238, 242, 255];
+                        let text = [24, 23, 78];
+
+                        if (isRackings) {
+                            const cond = data.cell.raw?.condition;
+                            if (cond === 'critical') {
+                                bg = [254, 205, 211];       // Rich visible Rose-200
+                                text = [159, 18, 57];        // Rose-900 bold
+                            } else if (cond === 'reorder') {
+                                bg = [254, 215, 120];       // Rich visible Amber-200
+                                text = [120, 53, 15];        // Amber-950 bold
+                            } else if (cond === 'overstock') {
+                                bg = [191, 219, 254];       // Rich visible Blue-200
+                                text = [30, 58, 138];        // Blue-900 bold
+                            } else {
+                                bg = [167, 243, 208];       // Rich visible Emerald-200
+                                text = [6, 95, 70];          // Emerald-900 bold
+                            }
                         } else {
-                            doc.setFillColor(238, 242, 255);
-                            doc.rect(data.cell.x + 0.5, data.cell.y + 0.5, data.cell.width - 1, data.cell.height - 1, 'F');
-                            doc.setTextColor(24, 23, 78);
-                            doc.setFont("helvetica", "bold");
-                            doc.text(String(data.cell.text), data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 1, { align: 'center' });
+                            const countVal = Number(String(data.cell.text || '').replace(/,/g, ''));
+                            if (isNaN(countVal) || countVal === 0) {
+                                bg = [254, 205, 211];
+                                text = [159, 18, 57];
+                            }
                         }
+
+                        // 1. Fill the entire cell box with solid background (no colored outline)
+                        doc.setFillColor(...bg);
+                        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+
+                        // 2. Standard subtle table grid border (seamless with table theme)
+                        doc.setDrawColor(230, 230, 230);
+                        doc.setLineWidth(0.2);
+                        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'S');
+
+                        // 3. Centered text with high contrast bold font
+                        doc.setTextColor(...text);
+                        doc.setFont("helvetica", "bold");
+                        doc.setFontSize(data.cell.styles.fontSize || 8);
+                        const cellText = Array.isArray(data.cell.text) ? data.cell.text.join('') : String(data.cell.text || '');
+                        doc.text(cellText, data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2), { align: 'center', baseline: 'middle' });
                     }
                 },
                 headStyles: { fillColor: [24, 23, 78], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, valign: 'middle' },
@@ -2031,20 +2107,51 @@ function Reports() {
                                                     </td>
                                                 )}
 
-                                                {/* 4. Quantity (Styled same size and badge look as Inflows/Outflows) */}
-                                                <td className="px-4 py-3 whitespace-nowrap text-center">
-                                                    {isDepleted ? (
-                                                        <span className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap font-mono ${isDark ? 'bg-rose-950/30 border-rose-800/40 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-700'
-                                                            }`}>
-                                                            <span>0</span>
-                                                        </span>
-                                                    ) : (
-                                                        <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap font-mono ${isDark ? 'bg-indigo-950/30 border-indigo-800/40 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                                                            }`}>
-                                                            <span className="font-bold">{Number(row.ActualCount ?? 0).toLocaleString()}</span>
-                                                        </span>
-                                                    )}
-                                                </td>
+                                                {/* 4. Quantity (Full-box condition color for Rackings) */}
+                                                {activeModule === 'raw-materials' ? (() => {
+                                                    const count = Number(row.ActualCount ?? 0);
+                                                    const crit = row.CriticalAlert !== undefined ? Number(row.CriticalAlert) : 0;
+                                                    const reord = row.RestockWarning !== undefined ? Number(row.RestockWarning) : 10;
+                                                    const overstk = row.MaxStorage !== undefined ? Number(row.MaxStorage) : 1000;
+
+                                                    let fullBoxClasses = isDark 
+                                                        ? 'bg-emerald-950/70 text-emerald-300 font-bold' 
+                                                        : 'bg-emerald-100 text-emerald-950 font-bold';
+
+                                                    if (count <= crit) {
+                                                        fullBoxClasses = isDark 
+                                                            ? 'bg-rose-950/80 text-rose-300 font-bold' 
+                                                            : 'bg-rose-100 text-rose-950 font-bold';
+                                                    } else if (count <= reord) {
+                                                        fullBoxClasses = isDark 
+                                                            ? 'bg-amber-950/80 text-amber-300 font-bold' 
+                                                            : 'bg-amber-100 text-amber-950 font-bold';
+                                                    } else if (count > overstk) {
+                                                        fullBoxClasses = isDark 
+                                                            ? 'bg-blue-950/80 text-blue-300 font-bold' 
+                                                            : 'bg-blue-100 text-blue-950 font-bold';
+                                                    }
+
+                                                    return (
+                                                        <td className={`px-4 py-3 whitespace-nowrap text-center font-mono text-xs transition-colors ${fullBoxClasses}`}>
+                                                            {count.toLocaleString()}
+                                                        </td>
+                                                    );
+                                                })() : (
+                                                    <td className="px-4 py-3 whitespace-nowrap text-center">
+                                                        {isDepleted ? (
+                                                            <span className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap font-mono ${isDark ? 'bg-rose-950/30 border-rose-800/40 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-700'
+                                                                }`}>
+                                                                <span>0</span>
+                                                            </span>
+                                                        ) : (
+                                                            <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap font-mono ${isDark ? 'bg-indigo-950/30 border-indigo-800/40 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                                                }`}>
+                                                                <span className="font-bold">{Number(row.ActualCount ?? 0).toLocaleString()}</span>
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                )}
 
                                                 {/* 5. UOM */}
                                                 <td className={`px-4 py-3 whitespace-nowrap text-center font-medium text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>

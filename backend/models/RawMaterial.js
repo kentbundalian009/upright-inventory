@@ -58,6 +58,21 @@ const rawMaterialSchema = new mongoose.Schema(
       default: 0,
       min: 0
     },
+    CriticalAlert: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    RestockWarning: {
+      type: Number,
+      default: 10,
+      min: 0
+    },
+    MaxStorage: {
+      type: Number,
+      default: 1000,
+      min: 0
+    },
     isArchived: {
       type: Boolean,
       default: false
