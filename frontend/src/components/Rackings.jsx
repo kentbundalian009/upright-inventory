@@ -83,6 +83,7 @@ function InventoryRawMaterials() {
     const [selectedExistingImage, setSelectedExistingImage] = useState(null);
     const [isImagePickerModalOpen, setIsImagePickerModalOpen] = useState(false);
     const [imagePickerSearch, setImagePickerSearch] = useState('');
+    const [dbImageLibrary, setDbImageLibrary] = useState([]);
 
     // Item-specific threshold states for Add/Edit
     const [criticalAlert, setCriticalAlert] = useState(0);
@@ -228,14 +229,30 @@ function InventoryRawMaterials() {
             else if (response.data && Array.isArray(response.data.data)) setRawMaterialsList(response.data.data);
             else setRawMaterialsList([]);
             setError(null);
+            fetchImageLibrary();
         } catch (err) {
             setError("Failed to load data from the server.");
             setRawMaterialsList([]);
         } finally { setLoading(false); }
     };
 
+    const fetchImageLibrary = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get('/api/raw-materials/image-library', {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+            if (Array.isArray(res.data)) {
+                setDbImageLibrary(res.data);
+            }
+        } catch (err) {
+            console.error("Failed to load unique image library:", err);
+        }
+    };
+
     useEffect(() => {
         fetchRawMaterials();
+        fetchImageLibrary();
         fetchPaletteSettings();
     }, []);
 
@@ -282,24 +299,39 @@ function InventoryRawMaterials() {
     };
 
     const availableExistingImages = useMemo(() => {
-        const seenUrls = new Set();
+        if (dbImageLibrary && dbImageLibrary.length > 0) return dbImageLibrary;
+
+        const seenKeys = new Set();
         const images = [];
         rawMaterialsList.forEach(item => {
             if (!item.ImageUrl || !item.ImageUrl.trim()) return;
-            const url = item.ImageUrl.trim();
-            if (seenUrls.has(url)) return;
-            seenUrls.add(url);
+            const cleanDesc = (item.ItemDescription || '')
+                .replace(/\s*\((new|old)\s*stocks?\)/gi, '')
+                .replace(/\s*-(new|old)\s*stocks?/gi, '')
+                .replace(/\s*\(october stock\)/gi, '')
+                .trim();
+            const key = `${cleanDesc.toLowerCase()}___${(item.Segment || '').trim().toLowerCase()}`;
+            if (seenKeys.has(key)) return;
+            seenKeys.add(key);
             images.push({
                 materialId: item._id,
                 code: item.Code,
-                itemDescription: item.ItemDescription,
+                itemDescription: cleanDesc || item.ItemDescription,
                 dimension: item.Dimension,
                 segment: item.Segment,
-                imageUrl: url
+                imageUrl: item.ImageUrl.trim(),
+                usedCount: 1,
+                usedBy: [{
+                    materialId: item._id,
+                    code: item.Code,
+                    itemDescription: item.ItemDescription,
+                    segment: item.Segment,
+                    dimension: item.Dimension
+                }]
             });
         });
         return images;
-    }, [rawMaterialsList]);
+    }, [dbImageLibrary, rawMaterialsList]);
 
     const filteredLibraryImages = useMemo(() => {
         if (!imagePickerSearch.trim()) return availableExistingImages;
@@ -308,7 +340,11 @@ function InventoryRawMaterials() {
             (img.itemDescription && img.itemDescription.toLowerCase().includes(q)) ||
             (img.segment && img.segment.toLowerCase().includes(q)) ||
             (img.code && img.code.toLowerCase().includes(q)) ||
-            (img.dimension && img.dimension.toLowerCase().includes(q))
+            (img.dimension && img.dimension.toLowerCase().includes(q)) ||
+            (Array.isArray(img.usedBy) && img.usedBy.some(u =>
+                (u.code && u.code.toLowerCase().includes(q)) ||
+                (u.itemDescription && u.itemDescription.toLowerCase().includes(q))
+            ))
         );
     }, [availableExistingImages, imagePickerSearch]);
 
@@ -1077,8 +1113,8 @@ function InventoryRawMaterials() {
                                                                 <ImageIcon className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                                                                 <span className="truncate">{selectedExistingImage.itemDescription}</span>
                                                             </div>
-                                                            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold font-mono">
-                                                                Reusing DB photo ({selectedExistingImage.code || 'Item'} - {selectedExistingImage.segment})
+                                                            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                                                                Reusing DB photo ({selectedExistingImage.segment})
                                                             </span>
                                                         </>
                                                     ) : (
@@ -1145,7 +1181,7 @@ function InventoryRawMaterials() {
                                             >
                                                 <ImageIcon className="w-5 h-5 mb-1 text-indigo-500" />
                                                 <span className="text-xs font-bold">Pick from DB Library</span>
-                                                <span className="text-[10px] opacity-75">{availableExistingImages.length} photos available</span>
+                                                <span className="text-[10px] opacity-75">{availableExistingImages.length} unique photos</span>
                                             </button>
                                         </div>
                                     )}
@@ -1155,7 +1191,7 @@ function InventoryRawMaterials() {
                                         <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800">
                                             <div className="flex items-center justify-between mb-1.5">
                                                 <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                                    <span>⚡ Quick Pick from DB:</span>
+                                                    <span>⚡ Quick Pick from DB (Unique Photos):</span>
                                                 </span>
                                                 <button
                                                     type="button"
@@ -1169,7 +1205,7 @@ function InventoryRawMaterials() {
                                                 </button>
                                             </div>
                                             <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
-                                                {availableExistingImages.slice(0, 10).map((img, idx) => {
+                                                {availableExistingImages.slice(0, 15).map((img, idx) => {
                                                     const isSelected = selectedExistingImage?.imageUrl === img.imageUrl || (existingImgPreview === img.imageUrl && !selectedFile);
                                                     return (
                                                         <button
@@ -1327,21 +1363,16 @@ function InventoryRawMaterials() {
                         
                         {/* Header */}
                         <div className={`p-4 sm:p-5 border-b ${isDark ? 'border-slate-800 bg-[#141622]' : 'border-slate-100 bg-slate-50/70'} flex items-center justify-between shrink-0`}>
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2.5 rounded-xl ${isDark ? 'bg-indigo-950/60 text-indigo-400 border border-indigo-800/50' : 'bg-indigo-100 text-indigo-700'}`}>
-                                    <ImageIcon className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h3 className={`font-bold text-base sm:text-lg ${isDark ? 'text-white' : 'text-slate-900'} flex items-center gap-2`}>
-                                        Database Image Library
-                                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${isDark ? 'bg-indigo-900/50 text-indigo-300' : 'bg-indigo-100 text-indigo-700'}`}>
-                                            {availableExistingImages.length} {availableExistingImages.length === 1 ? 'photo' : 'photos'}
-                                        </span>
-                                    </h3>
-                                    <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                        Select any previously uploaded picture to link with this racking item without re-uploading.
-                                    </p>
-                                </div>
+                            <div>
+                                <h3 className={`font-bold text-base sm:text-lg ${isDark ? 'text-white' : 'text-slate-900'} flex items-center gap-2`}>
+                                    Database Image Library
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${isDark ? 'bg-indigo-900/50 text-indigo-300' : 'bg-indigo-100 text-indigo-700'}`}>
+                                        {availableExistingImages.length} unique {availableExistingImages.length === 1 ? 'photo' : 'photos'}
+                                    </span>
+                                </h3>
+                                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                    Unique product photos deduplicated across database. Select a photo to link with this item.
+                                </p>
                             </div>
                             <button
                                 type="button"
@@ -1455,19 +1486,27 @@ function InventoryRawMaterials() {
                                                         <p className="text-xs font-bold text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" title={img.itemDescription}>
                                                             {img.itemDescription || 'Unnamed Item'}
                                                         </p>
-                                                        <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                                                            <span className="font-mono">{img.code || 'N/A'}</span>
-                                                            {img.dimension && (
-                                                                <>
-                                                                    <span>•</span>
-                                                                    <span className="truncate">{img.dimension}</span>
-                                                                </>
-                                                            )}
-                                                        </div>
+                                                        {img.dimension && img.dimension !== 'N/A' && (
+                                                            <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                                                                {img.dimension}
+                                                            </div>
+                                                        )}
                                                     </div>
 
-                                                    <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
-                                                        <span className={`text-[10px] font-semibold ${isSelected ? 'text-[#ff6600]' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                                                    <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-1">
+                                                        {img.usedCount > 1 ? (
+                                                            <span 
+                                                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/50 truncate max-w-[110px]"
+                                                                title={Array.isArray(img.usedBy) ? `Shared across ${img.usedCount} products:\n${img.usedBy.map(u => `• ${u.itemDescription}`).join('\n')}` : ''}
+                                                            >
+                                                                Used in {img.usedCount} items
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                                                                Single product
+                                                            </span>
+                                                        )}
+                                                        <span className={`text-[10px] font-semibold shrink-0 ${isSelected ? 'text-[#ff6600]' : 'text-indigo-600 dark:text-indigo-400'}`}>
                                                             {isSelected ? '✓ Selected' : 'Click to select'}
                                                         </span>
                                                     </div>
@@ -1481,8 +1520,7 @@ function InventoryRawMaterials() {
 
                         {/* Modal Footer */}
                         <div className={`p-3.5 sm:px-5 border-t ${isDark ? 'border-slate-800 bg-[#141622]' : 'border-slate-100 bg-slate-50/80'} flex items-center justify-between shrink-0`}>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                <span>💡</span>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
                                 <span className="hidden sm:inline">Reusing existing pictures saves database and cloud storage.</span>
                             </p>
                             <button

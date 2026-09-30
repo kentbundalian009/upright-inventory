@@ -1,5 +1,6 @@
 import RawMaterial from "../../models/RawMaterial.js";
 import { uploadImageBuffer } from "../../lib/cloudinary.js";
+import crypto from "crypto";
 
 export const getAllRawMaterials = async (req, res) => {
   try {
@@ -85,6 +86,84 @@ export const getRawMaterialById = async (req, res) => {
   }
 };
 
+export const getUniqueImageLibrary = async (req, res) => {
+  try {
+    const materials = await RawMaterial.find(
+      { ImageUrl: { $exists: true, $ne: "" }, isArchived: { $ne: true } },
+      "_id Code ItemDescription Segment Dimension ImageUrl createdAt"
+    ).sort({ createdAt: -1 }).lean();
+
+    const groups = [];
+    const hashToGroup = new Map();
+    const nameToGroup = new Map();
+
+    for (const item of materials) {
+      if (!item.ImageUrl || !item.ImageUrl.trim()) continue;
+      const rawUrl = item.ImageUrl.trim();
+
+      // Fingerprint key using MD5 for base64 or lowercase URL for Cloudinary/hosted images
+      const contentHash = rawUrl.startsWith("data:")
+        ? crypto.createHash("md5").update(rawUrl).digest("hex")
+        : rawUrl.split("?")[0].toLowerCase();
+
+      // Cleaned/normalized item description to merge multiple entries of the same item name
+      const cleanDesc = (item.ItemDescription || '')
+        .replace(/\s*\((new|old)\s*stocks?\)/gi, '')
+        .replace(/\s*-(new|old)\s*stocks?/gi, '')
+        .replace(/\s*\(october stock\)/gi, '')
+        .trim();
+
+      const nameKey = `${cleanDesc.toLowerCase()}___${(item.Segment || '').trim().toLowerCase()}`;
+
+      // Check if this image already exists by exact image hash OR by clean item name within the segment
+      const target = hashToGroup.get(contentHash) || nameToGroup.get(nameKey);
+
+      if (target) {
+        target.usedCount += 1;
+        target.usedBy.push({
+          materialId: item._id,
+          code: item.Code,
+          itemDescription: item.ItemDescription,
+          segment: item.Segment,
+          dimension: item.Dimension
+        });
+      } else {
+        const streamUrl = rawUrl.startsWith("http")
+          ? rawUrl
+          : `/api/raw-materials/${item._id}/image`;
+
+        const newGroup = {
+          key: nameKey,
+          contentHash,
+          materialId: item._id,
+          code: item.Code,
+          itemDescription: cleanDesc || item.ItemDescription,
+          rawItemDescription: item.ItemDescription,
+          dimension: item.Dimension,
+          segment: item.Segment,
+          imageUrl: streamUrl,
+          usedCount: 1,
+          usedBy: [{
+            materialId: item._id,
+            code: item.Code,
+            itemDescription: item.ItemDescription,
+            segment: item.Segment,
+            dimension: item.Dimension
+          }]
+        };
+
+        groups.push(newGroup);
+        hashToGroup.set(contentHash, newGroup);
+        nameToGroup.set(nameKey, newGroup);
+      }
+    }
+
+    res.status(200).json(groups);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
 export const createRawMaterial = async (req, res) => {
   try {
     const { 
@@ -135,7 +214,14 @@ export const createRawMaterial = async (req, res) => {
         finalImagePath = sourceMat.ImageUrl;
       }
     } else if (req.body.ImageUrl) {
-      finalImagePath = req.body.ImageUrl.trim();
+      const trimmedUrl = req.body.ImageUrl.trim();
+      const match = trimmedUrl.match(/\/api\/raw-materials\/([a-f0-9]{24})\/image/i);
+      if (match) {
+        const sourceMat = await RawMaterial.findById(match[1]).select("ImageUrl");
+        finalImagePath = sourceMat?.ImageUrl || trimmedUrl;
+      } else {
+        finalImagePath = trimmedUrl;
+      }
     }
 
     const parsedCritical = CriticalAlert !== undefined ? Number(CriticalAlert) : (criticalAlert !== undefined ? Number(criticalAlert) : 0);
@@ -212,7 +298,14 @@ export const updateRawMaterial = async (req, res) => {
         finalImagePath = sourceMat.ImageUrl;
       }
     } else if (req.body.ImageUrl !== undefined) {
-      finalImagePath = req.body.ImageUrl.trim();
+      const trimmedUrl = req.body.ImageUrl.trim();
+      const match = trimmedUrl.match(/\/api\/raw-materials\/([a-f0-9]{24})\/image/i);
+      if (match) {
+        const sourceMat = await RawMaterial.findById(match[1]).select("ImageUrl");
+        finalImagePath = sourceMat?.ImageUrl || trimmedUrl;
+      } else {
+        finalImagePath = trimmedUrl;
+      }
     }
 
     const updatedMaterial = await RawMaterial.findByIdAndUpdate(
