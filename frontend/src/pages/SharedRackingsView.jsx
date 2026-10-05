@@ -153,6 +153,54 @@ function SharedRackingsView() {
         return <span className="text-xs bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800 px-2 py-0.5 rounded font-medium">🟢 Healthy</span>;
     };
 
+    const getCleanItemDescription = (desc, segment) => {
+        if (!desc) return '';
+        let cleaned = desc
+            .replace(/\s*\((new|old)\s*stocks?\)/gi, '')
+            .replace(/\s*-(new|old)\s*stocks?/gi, '')
+            .replace(/\s*\(fabricated\)/gi, '')
+            .replace(/\s*-fabricated/gi, '')
+            .trim();
+        if (segment && segment !== 'N/A') {
+            const escaped = segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const stripped = cleaned
+                .replace(new RegExp(`\\s*\\(${escaped}\\)`, 'gi'), '')
+                .replace(new RegExp(`\\s*-\\s*${escaped}`, 'gi'), '')
+                .trim();
+            if (stripped) {
+                cleaned = stripped;
+            }
+        }
+        return cleaned || desc;
+    };
+
+    const getItemConditions = (rawMat) => {
+        const tags = [];
+        const condStr = (rawMat?.Condition || '').toLowerCase().trim();
+        const descStr = (rawMat?.ItemDescription || '').toLowerCase();
+
+        if (condStr && condStr !== 'good' && condStr !== 'n/a') {
+            if (condStr.includes('old stocks') || condStr.includes('old stock')) tags.push('Old Stocks');
+            if (condStr.includes('new stocks') || condStr.includes('new stock')) tags.push('New Stocks');
+            if (condStr.includes('fabricated')) tags.push('Fabricated');
+
+            if (tags.length === 0 && rawMat.Condition) {
+                tags.push(rawMat.Condition);
+            }
+        } else {
+            if (descStr.includes('(old stocks)') || descStr.includes('(old stock)') || descStr.includes('-old stocks') || descStr.includes('-old stock')) {
+                tags.push('Old Stocks');
+            }
+            if (descStr.includes('(new stocks)') || descStr.includes('(new stock)') || descStr.includes('-new stocks') || descStr.includes('-new stock')) {
+                tags.push('New Stocks');
+            }
+            if (descStr.includes('(fabricated)') || descStr.includes('-fabricated')) {
+                tags.push('Fabricated');
+            }
+        }
+        return tags;
+    };
+
     // Client-side filtering
     const filteredRawMaterials = rawMaterialsList.filter(item => {
         if (item.isArchived) return false;
@@ -184,6 +232,16 @@ function SharedRackingsView() {
         }
 
         return matchesSearch && matchesSegment && matchesDescription && matchesHealth;
+    }).sort((a, b) => {
+        const descA = (a.ItemDescription || '').trim();
+        const descB = (b.ItemDescription || '').trim();
+        const cmp = descA.localeCompare(descB, undefined, { sensitivity: 'base', numeric: true });
+        if (cmp !== 0) return cmp;
+        const dimA = (a.Dimension || '').trim();
+        const dimB = (b.Dimension || '').trim();
+        const dimCmp = dimA.localeCompare(dimB, undefined, { sensitivity: 'base', numeric: true });
+        if (dimCmp !== 0) return dimCmp;
+        return (a.Code || '').localeCompare(b.Code || '', undefined, { sensitivity: 'base', numeric: true });
     });
 
     const [currentPage, setCurrentPage] = useState(1);
@@ -464,7 +522,44 @@ function SharedRackingsView() {
                                                 className={`py-3 px-4 font-semibold min-w-[200px] whitespace-normal break-words ${isDark ? 'text-slate-100' : 'text-slate-800'}`} 
                                                 title={rawMat.ItemDescription}
                                             >
-                                                {rawMat.ItemDescription || '—'}
+                                                <div>{getCleanItemDescription(rawMat.ItemDescription, rawMat.Segment) || '—'}</div>
+                                                {(() => {
+                                                    const conditions = getItemConditions(rawMat);
+                                                    if (!conditions || conditions.length === 0) return null;
+                                                    return (
+                                                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                                            {conditions.map((cond, idx) => {
+                                                                let badgeStyle = isDark 
+                                                                    ? 'bg-slate-800 text-slate-300 border-slate-700' 
+                                                                    : 'bg-slate-100 text-slate-700 border-slate-200';
+                                                                
+                                                                if (cond === 'New Stocks') {
+                                                                    badgeStyle = isDark
+                                                                        ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/80'
+                                                                        : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                                                                } else if (cond === 'Old Stocks') {
+                                                                    badgeStyle = isDark
+                                                                        ? 'bg-amber-950/60 text-amber-300 border-amber-800/80'
+                                                                        : 'bg-amber-50 text-amber-700 border-amber-200';
+                                                                } else if (cond === 'Fabricated') {
+                                                                    badgeStyle = isDark
+                                                                        ? 'bg-purple-950/60 text-purple-300 border-purple-800/80'
+                                                                        : 'bg-purple-50 text-purple-700 border-purple-200';
+                                                                }
+
+                                                                return (
+                                                                    <span 
+                                                                        key={idx} 
+                                                                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded border leading-none inline-flex items-center gap-1 ${badgeStyle}`}
+                                                                    >
+                                                                        <span>{cond === 'New Stocks' ? '🟢' : cond === 'Old Stocks' ? '🟡' : cond === 'Fabricated' ? '🟣' : '🏷️'}</span>
+                                                                        <span>{cond}</span>
+                                                                    </span>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </td>
 
                                             <td 

@@ -5,7 +5,7 @@ import { Clock, ShieldAlert, Package, ChevronRight, Info } from 'lucide-react';
  * Renders an interactive Reserve Count badge for materials held in Outbound (PackingList Reserves).
  * Shows a stylish glowing amber pill when reserved, with a detailed breakdown of active slips on hover/click.
  */
-export default function ReserveCountBadge({ rawMat, isDark = false }) {
+export default function ReserveCountBadge({ rawMat, isDark = false, className = '' }) {
   const [showModal, setShowModal] = useState(false);
   const reserveCount = Number(rawMat.ReserveCount) || 0;
   const actualCount = Number(rawMat.ActualCount) || 0;
@@ -23,26 +23,25 @@ export default function ReserveCountBadge({ rawMat, isDark = false }) {
 
   return (
     <>
-      <div className="relative inline-block group/reserve">
+      <div className={`relative inline-block group/reserve ${className}`}>
         <button
           type="button"
           onClick={() => setShowModal(true)}
-          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold font-mono border transition-all cursor-pointer shadow-2xs hover:scale-105 ${
+          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium border shadow-xs leading-none transition-colors cursor-pointer ${
             isDark
-              ? 'bg-amber-950/60 text-amber-300 border-amber-800/80 hover:bg-amber-900/60 hover:border-amber-600'
-              : 'bg-amber-50 text-amber-800 border-amber-300/80 hover:bg-amber-100 hover:border-amber-400'
+              ? 'bg-amber-950/50 text-amber-300 border-amber-800/70 hover:bg-amber-900/50 hover:border-amber-700'
+              : 'bg-amber-50/90 text-amber-800 border-amber-200 hover:bg-amber-100/90 hover:border-amber-300'
           }`}
           title="Click to view reservation breakdown"
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
           <span>{reserveCount.toLocaleString()}</span>
         </button>
 
         {/* Hover Tooltip Preview */}
         <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/reserve:flex flex-col w-64 p-3 bg-slate-900/95 backdrop-blur-md text-white rounded-xl shadow-2xl text-left border border-slate-700/80 pointer-events-none transition-all">
           <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-800">
-            <span className="text-[10.5px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1">
-              <span>🟡</span>
+            <span className="text-[10.5px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              <Clock className="w-3 h-3 text-amber-400 shrink-0" />
               <span>Reserved in Outbound</span>
             </span>
             <span className="text-[10px] font-mono text-amber-300 font-bold">
@@ -98,7 +97,7 @@ export default function ReserveCountBadge({ rawMat, isDark = false }) {
             <div className="flex items-start justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div>
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 mb-1">
-                  <span>🟡</span> Active Reservation Hold
+                  <Clock className="w-3 h-3 text-amber-500 shrink-0" /> Active Reservation Hold
                 </span>
                 <h3 className="font-bold text-base line-clamp-1">{rawMat.ItemDescription}</h3>
                 <p className="text-xs text-slate-500 font-mono mt-0.5">Code: {rawMat.Code}</p>

@@ -85,18 +85,150 @@ function InventoryRawMaterials() {
     const [modalActualCount, setModalActualCount] = useState(0);
     const [materialAcquisitionCost, setMaterialAcquisitionCost] = useState('');
 
-    // 🌟 FILE UPLOAD & IMAGE LIBRARY STATES
+    // 🌟 FILE UPLOAD STATES
     const [selectedFile, setSelectedFile] = useState(null);
     const [existingImgPreview, setExistingImgPreview] = useState('');
-    const [selectedExistingImage, setSelectedExistingImage] = useState(null);
-    const [isImagePickerModalOpen, setIsImagePickerModalOpen] = useState(false);
-    const [imagePickerSearch, setImagePickerSearch] = useState('');
-    const [dbImageLibrary, setDbImageLibrary] = useState([]);
+    const [isCompressingImg, setIsCompressingImg] = useState(false);
+    const [isSavingMat, setIsSavingMat] = useState(false);
 
     // Item-specific threshold states for Add/Edit
     const [criticalAlert, setCriticalAlert] = useState(0);
     const [restockWarning, setRestockWarning] = useState(10);
     const [maxStorage, setMaxStorage] = useState(1000);
+
+    // Condition states for Add / Edit Rackings item
+    const [isOldStocks, setIsOldStocks] = useState(false);
+    const [isNewStocks, setIsNewStocks] = useState(false);
+    const [isFabricated, setIsFabricated] = useState(false);
+
+    const handleToggleOldStocks = (e) => {
+        const checked = e.target.checked;
+        setIsOldStocks(checked);
+        if (checked) {
+            setIsNewStocks(false); // Old Stocks and New Stocks are mutually exclusive
+        }
+    };
+
+    const handleToggleNewStocks = (e) => {
+        const checked = e.target.checked;
+        setIsNewStocks(checked);
+        if (checked) {
+            setIsOldStocks(false); // New Stocks and Old Stocks are mutually exclusive
+        }
+    };
+
+    const handleToggleFabricated = (e) => {
+        setIsFabricated(e.target.checked);
+    };
+
+    const buildConditionString = () => {
+        const parts = [];
+        if (isNewStocks) parts.push("New Stocks");
+        else if (isOldStocks) parts.push("Old Stocks");
+        if (isFabricated) parts.push("Fabricated");
+        return parts.length > 0 ? parts.join(", ") : "Good";
+    };
+
+    // ⚡ Fast client-side image compressor (converts 10MB phone camera shots to lightweight ~150KB JPEGs in <100ms)
+    const compressImage = (file, maxWidth = 1200, maxHeight = 1200, quality = 0.82) => {
+        return new Promise((resolve) => {
+            if (!file || !file.type || !file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+                return resolve(file);
+            }
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth || height > maxHeight) {
+                        if (width > height) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        } else {
+                            width = Math.round((width * maxHeight) / height);
+                            height = maxHeight;
+                        }
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob(
+                        (blob) => {
+                            if (!blob || blob.size >= file.size) {
+                                return resolve(file);
+                            }
+                            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                                type: 'image/jpeg',
+                                lastModified: Date.now(),
+                            });
+                            resolve(compressedFile);
+                        },
+                        'image/jpeg',
+                        quality
+                    );
+                };
+                img.onerror = () => resolve(file);
+            };
+            reader.onerror = () => resolve(file);
+        });
+    };
+
+    const getCleanItemDescription = (desc, segment) => {
+        if (!desc) return '';
+        let cleaned = desc
+            .replace(/\s*\((new|old)\s*stocks?\)/gi, '')
+            .replace(/\s*-(new|old)\s*stocks?/gi, '')
+            .replace(/\s*\(fabricated\)/gi, '')
+            .replace(/\s*-fabricated/gi, '')
+            .trim();
+        if (segment && segment !== 'N/A') {
+            const escaped = segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const stripped = cleaned
+                .replace(new RegExp(`\\s*\\(${escaped}\\)`, 'gi'), '')
+                .replace(new RegExp(`\\s*-\\s*${escaped}`, 'gi'), '')
+                .trim();
+            if (stripped) {
+                cleaned = stripped;
+            }
+        }
+        return cleaned || desc;
+    };
+
+    const getItemConditions = (rawMat) => {
+        const tags = [];
+        const condStr = (rawMat?.Condition || '').toLowerCase().trim();
+        const descStr = (rawMat?.ItemDescription || '').toLowerCase();
+
+        if (condStr && condStr !== 'good' && condStr !== 'n/a') {
+            if (condStr.includes('old stocks') || condStr.includes('old stock')) tags.push('Old Stocks');
+            if (condStr.includes('new stocks') || condStr.includes('new stock')) tags.push('New Stocks');
+            if (condStr.includes('fabricated')) tags.push('Fabricated');
+
+            if (tags.length === 0 && rawMat.Condition) {
+                tags.push(rawMat.Condition);
+            }
+        } else {
+            if (descStr.includes('(old stocks)') || descStr.includes('(old stock)') || descStr.includes('-old stocks') || descStr.includes('-old stock')) {
+                tags.push('Old Stocks');
+            }
+            if (descStr.includes('(new stocks)') || descStr.includes('(new stock)') || descStr.includes('-new stocks') || descStr.includes('-new stock')) {
+                tags.push('New Stocks');
+            }
+            if (descStr.includes('(fabricated)') || descStr.includes('-fabricated')) {
+                tags.push('Fabricated');
+            }
+        }
+        return tags;
+    };
     // GLOBAL COLOR PALETTE STATES
     const [categoryColors, setCategoryColors] = useState({});
     const [segmentColors, setSegmentColors] = useState({});
@@ -237,30 +369,14 @@ function InventoryRawMaterials() {
             else if (response.data && Array.isArray(response.data.data)) setRawMaterialsList(response.data.data);
             else setRawMaterialsList([]);
             setError(null);
-            fetchImageLibrary();
         } catch (err) {
             setError("Failed to load data from the server.");
             setRawMaterialsList([]);
         } finally { setLoading(false); }
     };
 
-    const fetchImageLibrary = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('/api/raw-materials/image-library', {
-                headers: token ? { Authorization: `Bearer ${token}` } : {}
-            });
-            if (Array.isArray(res.data)) {
-                setDbImageLibrary(res.data);
-            }
-        } catch (err) {
-            console.error("Failed to load unique image library:", err);
-        }
-    };
-
     useEffect(() => {
         fetchRawMaterials();
-        fetchImageLibrary();
         fetchPaletteSettings();
 
         // 🔄 Sync immediately when an outbound reservation/slip is updated
@@ -317,66 +433,8 @@ function InventoryRawMaterials() {
         return <span className="text-xs bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800 px-2 py-0.5 rounded font-medium">🟢 Healthy</span>;
     };
 
-    const availableExistingImages = useMemo(() => {
-        if (dbImageLibrary && dbImageLibrary.length > 0) return dbImageLibrary;
-
-        const seenKeys = new Set();
-        const images = [];
-        rawMaterialsList.forEach(item => {
-            if (!item.ImageUrl || !item.ImageUrl.trim()) return;
-            const cleanDesc = (item.ItemDescription || '')
-                .replace(/\s*\((new|old)\s*stocks?\)/gi, '')
-                .replace(/\s*-(new|old)\s*stocks?/gi, '')
-                .replace(/\s*\(october stock\)/gi, '')
-                .trim();
-            const key = `${cleanDesc.toLowerCase()}___${(item.Segment || '').trim().toLowerCase()}`;
-            if (seenKeys.has(key)) return;
-            seenKeys.add(key);
-            images.push({
-                materialId: item._id,
-                code: item.Code,
-                itemDescription: cleanDesc || item.ItemDescription,
-                dimension: item.Dimension,
-                segment: item.Segment,
-                imageUrl: item.ImageUrl.trim(),
-                usedCount: 1,
-                usedBy: [{
-                    materialId: item._id,
-                    code: item.Code,
-                    itemDescription: item.ItemDescription,
-                    segment: item.Segment,
-                    dimension: item.Dimension
-                }]
-            });
-        });
-        return images;
-    }, [dbImageLibrary, rawMaterialsList]);
-
-    const filteredLibraryImages = useMemo(() => {
-        if (!imagePickerSearch.trim()) return availableExistingImages;
-        const q = imagePickerSearch.toLowerCase();
-        return availableExistingImages.filter(img =>
-            (img.itemDescription && img.itemDescription.toLowerCase().includes(q)) ||
-            (img.segment && img.segment.toLowerCase().includes(q)) ||
-            (img.code && img.code.toLowerCase().includes(q)) ||
-            (img.dimension && img.dimension.toLowerCase().includes(q)) ||
-            (Array.isArray(img.usedBy) && img.usedBy.some(u =>
-                (u.code && u.code.toLowerCase().includes(q)) ||
-                (u.itemDescription && u.itemDescription.toLowerCase().includes(q))
-            ))
-        );
-    }, [availableExistingImages, imagePickerSearch]);
-
-    const handleSelectExistingImage = (imgItem) => {
-        setSelectedExistingImage(imgItem);
-        setSelectedFile(null);
-        setExistingImgPreview(imgItem.imageUrl);
-        setIsImagePickerModalOpen(false);
-    };
-
     const handleClearImage = () => {
         setSelectedFile(null);
-        setSelectedExistingImage(null);
         setExistingImgPreview('');
     };
 
@@ -400,9 +458,11 @@ function InventoryRawMaterials() {
         setCriticalAlert(0);
         setRestockWarning(10);
         setMaxStorage(1000);
+        setIsOldStocks(false);
+        setIsNewStocks(false);
+        setIsFabricated(false);
         setExistingImgPreview('');
         setSelectedFile(null);
-        setSelectedExistingImage(null);
         setIsEditModalOpen(true);
     };
 
@@ -411,7 +471,32 @@ function InventoryRawMaterials() {
         setCurrentId(item._id);
         setMaterialCode(item.Code || '');
         setMaterialSegment(item.Segment || '');
-        setItemDescription(item.ItemDescription || '');
+        
+        // Parse and prefill condition state
+        const condStr = (item.Condition || '').toLowerCase().trim();
+        const descStr = (item.ItemDescription || '').toLowerCase();
+
+        let hasOld = false;
+        let hasNew = false;
+        let hasFab = false;
+
+        if (condStr && condStr !== 'good' && condStr !== 'n/a') {
+            hasOld = condStr.includes('old stocks') || condStr.includes('old stock');
+            hasNew = condStr.includes('new stocks') || condStr.includes('new stock');
+            hasFab = condStr.includes('fabricated');
+        } else {
+            hasOld = descStr.includes('(old stocks)') || descStr.includes('(old stock)') || descStr.includes('-old stocks') || descStr.includes('-old stock');
+            hasNew = descStr.includes('(new stocks)') || descStr.includes('(new stock)') || descStr.includes('-new stocks') || descStr.includes('-new stock');
+            hasFab = descStr.includes('(fabricated)') || descStr.includes('-fabricated');
+        }
+
+        setIsOldStocks(hasOld && !hasNew);
+        setIsNewStocks(hasNew);
+        setIsFabricated(hasFab);
+
+        const cleanDesc = getCleanItemDescription(item.ItemDescription || '', item.Segment);
+        setItemDescription(cleanDesc || item.ItemDescription || '');
+
         setMaterialDimension(item.Dimension || '');
         const parsedDim = parseToFormFields(item.Dimension || '');
         setDimHeight(parsedDim.height);
@@ -430,25 +515,35 @@ function InventoryRawMaterials() {
 
         setExistingImgPreview(item.ImageUrl || '');
         setSelectedFile(null);
-        setSelectedExistingImage(null);
         setIsEditModalOpen(true);
     };
 
-    const handleFileChange = (e) => {
+    const handleFileChange = async (e) => {
         if (e.target.files && e.target.files[0]) {
-            setSelectedFile(e.target.files[0]);
-            setSelectedExistingImage(null);
+            const file = e.target.files[0];
+            setIsCompressingImg(true);
+            try {
+                const compressed = await compressImage(file);
+                setSelectedFile(compressed);
+            } catch (err) {
+                console.error("Compression error, fallback to original file:", err);
+                setSelectedFile(file);
+            } finally {
+                setIsCompressingImg(false);
+            }
         }
     };
 
     const handleEditFormSubmit = async (e) => {
         e.preventDefault();
         try {
+            setIsSavingMat(true);
             const formData = new FormData();
             formData.append("Code", materialCode.trim());
             formData.append("Category", "");
             formData.append("Segment", materialSegment.trim());
             formData.append("ItemDescription", itemDescription.trim());
+            formData.append("Condition", buildConditionString());
             const finalDimension = isCustomDim 
                 ? materialDimension.trim() 
                 : buildDimensionString({
@@ -468,23 +563,35 @@ function InventoryRawMaterials() {
 
             if (selectedFile) {
                 formData.append("image", selectedFile);
-            } else if (selectedExistingImage) {
-                formData.append("selectedImageId", selectedExistingImage.materialId);
-                formData.append("ImageUrl", selectedExistingImage.imageUrl);
             } else if (!existingImgPreview) {
                 formData.append("ImageUrl", "");
             }
 
+            let updatedItem = null;
             if (isEditing) {
-                await axios.put(`/api/raw-materials/${currentId}`, formData, {
+                const res = await axios.put(`/api/raw-materials/${currentId}`, formData, {
                     headers: { "Content-Type": "multipart/form-data" }
                 });
+                updatedItem = res.data;
                 triggerSuccess("Successfully updated raw material profile details.");
             } else {
-                await axios.post(`/api/raw-materials`, formData, {
+                const res = await axios.post(`/api/raw-materials`, formData, {
                     headers: { "Content-Type": "multipart/form-data" }
                 });
+                updatedItem = res.data;
                 triggerSuccess("Successfully added new raw material item.");
+            }
+
+            // ⚡ REALTIME LOCAL UPDATE: Instantly reflect the updated item and fresh image in the table
+            if (updatedItem && updatedItem._id) {
+                const freshUrl = updatedItem.ImageUrl 
+                    ? `${updatedItem.ImageUrl}${updatedItem.ImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}` 
+                    : '';
+                if (isEditing) {
+                    setRawMaterialsList(prev => prev.map(m => m._id === currentId ? { ...m, ...updatedItem, ImageUrl: freshUrl } : m));
+                } else {
+                    setRawMaterialsList(prev => [{ ...updatedItem, ImageUrl: freshUrl }, ...prev]);
+                }
             }
 
             setIsEditModalOpen(false);
@@ -492,6 +599,8 @@ function InventoryRawMaterials() {
         } catch (err) {
             const errMsg = err.response?.data?.message || (isEditing ? "Error updating item." : "Error creating item.");
             triggerError(errMsg);
+        } finally {
+            setIsSavingMat(false);
         }
     };
 
@@ -554,6 +663,16 @@ function InventoryRawMaterials() {
             item.AccountTo
         ].some(val => val && val.toLowerCase().includes(searchTerm.toLowerCase()));
         return matchesSegment && matchesDescription && matchesHealth && matchesSearch && matchesZeroQty;
+    }).sort((a, b) => {
+        const descA = (a.ItemDescription || '').trim();
+        const descB = (b.ItemDescription || '').trim();
+        const cmp = descA.localeCompare(descB, undefined, { sensitivity: 'base', numeric: true });
+        if (cmp !== 0) return cmp;
+        const dimA = (a.Dimension || '').trim();
+        const dimB = (b.Dimension || '').trim();
+        const dimCmp = dimA.localeCompare(dimB, undefined, { sensitivity: 'base', numeric: true });
+        if (dimCmp !== 0) return dimCmp;
+        return (a.Code || '').localeCompare(b.Code || '', undefined, { sensitivity: 'base', numeric: true });
     });
 
     const activeCount = rawMaterialsList.filter(item => !item.isArchived).length;
@@ -776,7 +895,7 @@ function InventoryRawMaterials() {
                                     <th className="py-3 px-4 whitespace-nowrap">UOM</th>
                                     <th className="py-3 px-4 whitespace-nowrap text-right">Acquisition Cost</th>
                                     <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
-                                    <th className="py-3 px-4 whitespace-nowrap">Condition</th>
+                                    <th className="py-3 px-4 whitespace-nowrap">Stock Health</th>
                                     {!isViewer && (
                                         <th className="py-3 px-4 text-center whitespace-nowrap">
                                              Action
@@ -829,14 +948,47 @@ function InventoryRawMaterials() {
 
                                             <td className="py-3 px-4 min-w-[200px]">
                                                 <div className={`font-semibold whitespace-normal break-words transition-colors ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
-                                                    {rawMat.ItemDescription}
+                                                    {getCleanItemDescription(rawMat.ItemDescription, rawMat.Segment)}
                                                 </div>
-                                                {rawMat.Segment && rawMat.Segment !== 'N/A' && (
-                                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1 mt-0.5">
-                                                        <span>{currentSegConfig.prefix}</span>
-                                                        <span>{rawMat.Segment}</span>
-                                                    </span>
-                                                )}
+
+                                                {/* CONDITION BADGES (baba ng item description) */}
+                                                {(() => {
+                                                    const conditions = getItemConditions(rawMat);
+                                                    if (!conditions || conditions.length === 0) return null;
+                                                    return (
+                                                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                                            {conditions.map((cond, idx) => {
+                                                                let badgeStyle = isDark 
+                                                                    ? 'bg-slate-800 text-slate-300 border-slate-700' 
+                                                                    : 'bg-slate-100 text-slate-700 border-slate-200';
+                                                                
+                                                                if (cond === 'New Stocks') {
+                                                                    badgeStyle = isDark
+                                                                        ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/80'
+                                                                        : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                                                                } else if (cond === 'Old Stocks') {
+                                                                    badgeStyle = isDark
+                                                                        ? 'bg-amber-950/60 text-amber-300 border-amber-800/80'
+                                                                        : 'bg-amber-50 text-amber-700 border-amber-200';
+                                                                } else if (cond === 'Fabricated') {
+                                                                    badgeStyle = isDark
+                                                                        ? 'bg-purple-950/60 text-purple-300 border-purple-800/80'
+                                                                        : 'bg-purple-50 text-purple-700 border-purple-200';
+                                                                }
+
+                                                                return (
+                                                                    <span 
+                                                                        key={idx} 
+                                                                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded border leading-none inline-flex items-center gap-1 ${badgeStyle}`}
+                                                                    >
+                                                                        <span>{cond === 'New Stocks' ? '🟢' : cond === 'Old Stocks' ? '🟡' : cond === 'Fabricated' ? '🟣' : '🏷️'}</span>
+                                                                        <span>{cond}</span>
+                                                                    </span>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </td>
 
                                             <td 
@@ -1128,53 +1280,42 @@ function InventoryRawMaterials() {
                                 <div className="md:col-span-2">
                                     <div className="flex items-center justify-between mb-1.5">
                                         <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase`}>Item Image Upload</label>
-                                        {availableExistingImages.length > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setImagePickerSearch('');
-                                                    setIsImagePickerModalOpen(true);
-                                                }}
-                                                className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-                                                    isDark 
-                                                        ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80 hover:bg-indigo-900/60' 
-                                                        : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
-                                                }`}
-                                            >
-                                                <ImageIcon className="w-3.5 h-3.5 text-indigo-500" />
-                                                <span>Pick from DB ({availableExistingImages.length} available)</span>
-                                            </button>
-                                        )}
                                     </div>
 
-                                    {/* PREVIEW BOX OR UPLOAD BUTTONS */}
-                                    {(selectedFile || selectedExistingImage || existingImgPreview) ? (
+                                    {/* IMAGE PREVIEW OR UPLOAD BOX */}
+                                    {(selectedFile || existingImgPreview || isCompressingImg) ? (
                                         <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
                                             isDark ? 'bg-[#141622] border-slate-700' : 'bg-slate-50 border-slate-200'
                                         }`}>
                                             <div className="flex items-center gap-3 min-w-0">
-                                                <img
-                                                    src={selectedFile ? URL.createObjectURL(selectedFile) : (selectedExistingImage?.imageUrl || existingImgPreview)}
-                                                    alt="Preview"
-                                                    className={`w-14 h-14 rounded-lg object-cover border ${isDark ? 'border-slate-600' : 'border-slate-300'} shadow-sm shrink-0`}
-                                                />
+                                                {isCompressingImg ? (
+                                                    <div className="w-14 h-14 rounded-lg flex items-center justify-center bg-slate-200 dark:bg-slate-800 shrink-0">
+                                                        <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                                                    </div>
+                                                ) : (
+                                                    <img
+                                                        src={selectedFile ? URL.createObjectURL(selectedFile) : existingImgPreview}
+                                                        alt="Preview"
+                                                        className={`w-14 h-14 rounded-lg object-cover border ${isDark ? 'border-slate-600' : 'border-slate-300'} shadow-sm shrink-0`}
+                                                    />
+                                                )}
                                                 <div className="min-w-0">
-                                                    {selectedFile ? (
+                                                    {isCompressingImg ? (
+                                                        <>
+                                                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
+                                                                <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500 shrink-0" />
+                                                                <span>Optimizing photo...</span>
+                                                            </div>
+                                                            <span className="text-[10px] text-orange-500 font-medium">Compressing for instant upload</span>
+                                                        </>
+                                                    ) : selectedFile ? (
                                                         <>
                                                             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
                                                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                                                                 <span className="truncate">{selectedFile.name}</span>
                                                             </div>
-                                                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">New image selected from device</span>
-                                                        </>
-                                                    ) : selectedExistingImage ? (
-                                                        <>
-                                                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
-                                                                <ImageIcon className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                                                <span className="truncate">{selectedExistingImage.itemDescription}</span>
-                                                            </div>
-                                                            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                                                                Reusing DB photo ({selectedExistingImage.segment})
+                                                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                                                Optimized ({(selectedFile.size / 1024).toFixed(0)} KB) • Ready for upload
                                                             </span>
                                                         </>
                                                     ) : (
@@ -1189,20 +1330,15 @@ function InventoryRawMaterials() {
                                             </div>
 
                                             <div className="flex items-center gap-2 shrink-0">
-                                                {availableExistingImages.length > 0 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setImagePickerSearch('');
-                                                            setIsImagePickerModalOpen(true);
-                                                        }}
-                                                        className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer ${
-                                                            isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
-                                                        }`}
-                                                    >
-                                                        Change Photo
-                                                    </button>
-                                                )}
+                                                {/* Direct Replace from device */}
+                                                <label className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                                    isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                                                }`} title="Replace with new photo from device">
+                                                    <Upload className="w-3.5 h-3.5" />
+                                                    <span>Replace</span>
+                                                    <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                                                </label>
+
                                                 <button
                                                     type="button"
                                                     onClick={handleClearImage}
@@ -1214,86 +1350,12 @@ function InventoryRawMaterials() {
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-                                            {/* Option 1: Upload from Device */}
-                                            <label className={`flex flex-col items-center justify-center ${isDark ? 'bg-[#141622] border-slate-700 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100 border-slate-200'} border-2 border-dashed rounded-xl py-3 px-3 transition-all cursor-pointer text-center`}>
-                                                <Upload className={`w-5 h-5 mb-1 ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`} />
-                                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Upload New File</span>
-                                                <span className="text-[10px] text-slate-400">JPG, PNG, WEBP</span>
-                                                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                                            </label>
-
-                                            {/* Option 2: Select from DB Library */}
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setImagePickerSearch('');
-                                                    setIsImagePickerModalOpen(true);
-                                                }}
-                                                disabled={availableExistingImages.length === 0}
-                                                className={`flex flex-col items-center justify-center ${
-                                                    availableExistingImages.length === 0
-                                                        ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-                                                        : isDark 
-                                                            ? 'bg-indigo-950/30 border-indigo-800/60 hover:bg-indigo-950/50 text-indigo-300' 
-                                                            : 'bg-indigo-50/70 hover:bg-indigo-100 border-indigo-200 text-indigo-700'
-                                                } border-2 border-dashed rounded-xl py-3 px-3 transition-all cursor-pointer text-center`}
-                                            >
-                                                <ImageIcon className="w-5 h-5 mb-1 text-indigo-500" />
-                                                <span className="text-xs font-bold">Pick from DB Library</span>
-                                                <span className="text-[10px] opacity-75">{availableExistingImages.length} unique photos</span>
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* QUICK SELECT THUMBNAILS CAROUSEL STRIP */}
-                                    {availableExistingImages.length > 0 && (
-                                        <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800">
-                                            <div className="flex items-center justify-between mb-1.5">
-                                                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                                    <span>⚡ Quick Pick from DB (Unique Photos):</span>
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setImagePickerSearch('');
-                                                        setIsImagePickerModalOpen(true);
-                                                    }}
-                                                    className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                                                >
-                                                    View All ({availableExistingImages.length}) →
-                                                </button>
-                                            </div>
-                                            <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
-                                                {availableExistingImages.slice(0, 15).map((img, idx) => {
-                                                    const isSelected = selectedExistingImage?.imageUrl === img.imageUrl || (existingImgPreview === img.imageUrl && !selectedFile);
-                                                    return (
-                                                        <button
-                                                            key={idx}
-                                                            type="button"
-                                                            onClick={() => handleSelectExistingImage(img)}
-                                                            title={`${img.itemDescription} (${img.segment})`}
-                                                            className={`relative group shrink-0 w-11 h-11 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
-                                                                isSelected 
-                                                                    ? 'border-[#ff6600] ring-2 ring-[#ff6600]/40 scale-105' 
-                                                                    : 'border-slate-200 dark:border-slate-700 hover:border-indigo-400'
-                                                            }`}
-                                                        >
-                                                            <img
-                                                                src={img.imageUrl}
-                                                                alt={img.itemDescription}
-                                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform"
-                                                            />
-                                                            {isSelected && (
-                                                                <div className="absolute inset-0 bg-[#ff6600]/30 flex items-center justify-center">
-                                                                    <CheckCircle2 className="w-3.5 h-3.5 text-white drop-shadow" />
-                                                                </div>
-                                                            )}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
+                                        <label className={`flex flex-col items-center justify-center ${isDark ? 'bg-[#141622] border-slate-700 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100 border-slate-200'} border-2 border-dashed rounded-xl py-4 px-3 transition-all cursor-pointer text-center mt-1`}>
+                                            <Upload className={`w-6 h-6 mb-1.5 ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`} />
+                                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Upload Image from Device</span>
+                                            <span className="text-[10px] text-slate-400 mt-0.5">JPG, PNG, WEBP (Auto-optimized)</span>
+                                            <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                                        </label>
                                     )}
                                 </div>
 
@@ -1338,9 +1400,118 @@ function InventoryRawMaterials() {
                                     </div>
                                 </div>
 
-                                <div className={`p-3.5 rounded-xl border ${isDark ? 'bg-[#0b0d14]/70 border-slate-800' : 'bg-slate-50/80 border-slate-200/80'} space-y-3`}>
-                                    <div className="flex items-center justify-between">
-                                        <label className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'} uppercase tracking-wide flex items-center gap-1.5`}>
+                                {/* Condition Specifications Card */}
+                                <div className={`md:col-span-2 p-3.5 rounded-xl border ${isDark ? 'bg-[#0b0d14]/70 border-slate-800' : 'bg-slate-50/80 border-slate-200/80'} space-y-3`}>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <label className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'} uppercase tracking-wide flex items-center gap-1.5 whitespace-nowrap`}>
+                                            <span>Condition Specifications</span>
+                                        </label>
+                                        <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
+                                            (Old Stocks or New Stocks + Fabricated)
+                                        </span>
+                                    </div>
+
+                                    {/* Grid for Old Stocks, New Stocks, Fabricated */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                        {/* 1. Old Stocks */}
+                                        <label 
+                                            className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none transition-all ${
+                                                isOldStocks 
+                                                    ? (isDark ? 'bg-amber-950/40 border-amber-500/80 text-amber-300 ring-1 ring-amber-500/30' : 'bg-amber-50 border-amber-300 text-amber-800 ring-1 ring-amber-300/50')
+                                                    : (isDark ? 'bg-[#141622] border-slate-700 text-slate-400 hover:border-slate-600' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300')
+                                            }`}
+                                        >
+                                            <input 
+                                                type="checkbox" 
+                                                checked={isOldStocks} 
+                                                onChange={handleToggleOldStocks}
+                                                className="w-4 h-4 rounded accent-amber-600 cursor-pointer shrink-0" 
+                                            />
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-xs font-bold flex items-center gap-1 whitespace-nowrap">
+                                                    <span>🟡</span> Old Stocks
+                                                </span>
+                                                <span className="text-[10px] opacity-75 whitespace-nowrap">Existing / previous batch</span>
+                                            </div>
+                                        </label>
+
+                                        {/* 2. New Stocks */}
+                                        <label 
+                                            className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none transition-all ${
+                                                isNewStocks 
+                                                    ? (isDark ? 'bg-emerald-950/40 border-emerald-500/80 text-emerald-300 ring-1 ring-emerald-500/30' : 'bg-emerald-50 border-emerald-300 text-emerald-800 ring-1 ring-emerald-300/50')
+                                                    : (isDark ? 'bg-[#141622] border-slate-700 text-slate-400 hover:border-slate-600' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300')
+                                            }`}
+                                        >
+                                            <input 
+                                                type="checkbox" 
+                                                checked={isNewStocks} 
+                                                onChange={handleToggleNewStocks}
+                                                className="w-4 h-4 rounded accent-emerald-600 cursor-pointer shrink-0" 
+                                            />
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-xs font-bold flex items-center gap-1 whitespace-nowrap">
+                                                    <span>🟢</span> New Stocks
+                                                </span>
+                                                <span className="text-[10px] opacity-75 whitespace-nowrap">Fresh inbound delivery</span>
+                                            </div>
+                                        </label>
+
+                                        {/* 3. Fabricated */}
+                                        <label 
+                                            className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none transition-all ${
+                                                isFabricated 
+                                                    ? (isDark ? 'bg-purple-950/40 border-purple-500/80 text-purple-300 ring-1 ring-purple-500/30' : 'bg-purple-50 border-purple-300 text-purple-800 ring-1 ring-purple-300/50')
+                                                    : (isDark ? 'bg-[#141622] border-slate-700 text-slate-400 hover:border-slate-600' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300')
+                                            }`}
+                                        >
+                                            <input 
+                                                type="checkbox" 
+                                                checked={isFabricated} 
+                                                onChange={handleToggleFabricated}
+                                                className="w-4 h-4 rounded accent-purple-600 cursor-pointer shrink-0" 
+                                            />
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-xs font-bold flex items-center gap-1 whitespace-nowrap">
+                                                    <span>🟣</span> Fabricated
+                                                </span>
+                                                <span className="text-[10px] opacity-75 whitespace-nowrap">Custom fabricated item</span>
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    {/* Live Condition Preview Bar */}
+                                    <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} flex items-center justify-between text-xs`}>
+                                        <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">Condition Preview:</span>
+                                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                            {(!isOldStocks && !isNewStocks && !isFabricated) && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                                                    ⚪ Standard / Good
+                                                </span>
+                                            )}
+                                            {isOldStocks && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-xs whitespace-nowrap">
+                                                    🟡 Old Stocks
+                                                </span>
+                                            )}
+                                            {isNewStocks && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs whitespace-nowrap">
+                                                    🟢 New Stocks
+                                                </span>
+                                            )}
+                                            {isFabricated && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 shadow-xs whitespace-nowrap">
+                                                    🟣 Fabricated
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Dimension Specifications Card */}
+                                <div className={`md:col-span-2 p-3.5 rounded-xl border ${isDark ? 'bg-[#0b0d14]/70 border-slate-800' : 'bg-slate-50/80 border-slate-200/80'} space-y-3`}>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <label className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'} uppercase tracking-wide flex items-center gap-1.5 whitespace-nowrap`}>
                                             <span>Dimension Specifications</span>
                                         </label>
                                         <button
@@ -1366,7 +1537,7 @@ function InventoryRawMaterials() {
                                                     setIsCustomDim(false);
                                                 }
                                             }}
-                                            className={`text-[11px] font-semibold transition-colors cursor-pointer hover:underline ${
+                                            className={`text-[11px] font-semibold transition-colors cursor-pointer hover:underline whitespace-nowrap ${
                                                 isDark ? 'text-amber-400 hover:text-amber-300' : 'text-indigo-600 hover:text-indigo-800'
                                             }`}
                                         >
@@ -1383,7 +1554,7 @@ function InventoryRawMaterials() {
                                                 placeholder="e.g. M10*65 (4.8), 80*60mm, Φ14*47"
                                                 className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
                                             />
-                                            <p className="text-[11px] text-slate-500 mt-1">Manual freeform dimension mode (for bolts, shimplates, and special hardware).</p>
+                                            <p className="text-[11px] text-slate-500 mt-1 whitespace-nowrap">Manual freeform dimension mode (for bolts, shimplates, and special hardware).</p>
                                         </div>
                                     ) : (
                                         <div className="space-y-3">
@@ -1391,9 +1562,9 @@ function InventoryRawMaterials() {
                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                                                 {/* 1. Height (H) */}
                                                 <div>
-                                                    <label className="flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">
-                                                        <span className="w-4 h-4 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 flex items-center justify-center text-[10px]">H</span>
-                                                        Height (H)
+                                                    <label className="flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-1 whitespace-nowrap">
+                                                        <span className="w-4 h-4 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 flex items-center justify-center text-[10px] shrink-0 font-mono">H</span>
+                                                        <span className="whitespace-nowrap">Height (H)</span>
                                                     </label>
                                                     <div className="relative">
                                                         <input
@@ -1403,31 +1574,31 @@ function InventoryRawMaterials() {
                                                             placeholder="e.g. 5550"
                                                             className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-blue-500' : 'bg-white border-slate-200 text-slate-700 focus:border-blue-600'} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
                                                         />
-                                                        <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none">mm</span>
+                                                        <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none whitespace-nowrap">mm</span>
                                                     </div>
                                                 </div>
 
                                                 {/* 2. Width (W) or Length (L) */}
                                                 <div>
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <label className={`flex items-center gap-1 text-[11px] font-bold ${dimWidthType === 'L' ? 'text-teal-600 dark:text-teal-400' : 'text-emerald-600 dark:text-emerald-400'} uppercase`}>
-                                                            <span className={`w-4 h-4 rounded ${dimWidthType === 'L' ? 'bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300' : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300'} flex items-center justify-center text-[10px]`}>
+                                                    <div className="flex items-center justify-between mb-1 gap-1">
+                                                        <label className={`flex items-center gap-1 text-[11px] font-bold ${dimWidthType === 'L' ? 'text-teal-600 dark:text-teal-400' : 'text-emerald-600 dark:text-emerald-400'} uppercase whitespace-nowrap`}>
+                                                            <span className={`w-4 h-4 rounded ${dimWidthType === 'L' ? 'bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300' : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300'} flex items-center justify-center text-[10px] shrink-0 font-mono`}>
                                                                 {dimWidthType}
                                                             </span>
-                                                            {dimWidthType === 'L' ? 'Length (L)' : 'Width (W)'}
+                                                            <span className="whitespace-nowrap">{dimWidthType === 'L' ? 'Length (L)' : 'Width (W)'}</span>
                                                         </label>
-                                                        <div className="flex items-center rounded border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px]">
+                                                        <div className="flex items-center rounded border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] shrink-0">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setDimWidthType('W')}
-                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold ${dimWidthType === 'W' ? 'bg-emerald-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimWidthType === 'W' ? 'bg-emerald-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                                                             >
                                                                 W
                                                             </button>
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setDimWidthType('L')}
-                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold ${dimWidthType === 'L' ? 'bg-teal-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimWidthType === 'L' ? 'bg-teal-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                                                             >
                                                                 L
                                                             </button>
@@ -1441,15 +1612,15 @@ function InventoryRawMaterials() {
                                                             placeholder="e.g. 2700"
                                                             className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-emerald-500' : 'bg-white border-slate-200 text-slate-700 focus:border-emerald-600'} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
                                                         />
-                                                        <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none">mm</span>
+                                                        <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none whitespace-nowrap">mm</span>
                                                     </div>
                                                 </div>
 
                                                 {/* 3. Depth (D) */}
                                                 <div>
-                                                    <label className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase mb-1">
-                                                        <span className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center text-[10px]">D</span>
-                                                        Depth (D)
+                                                    <label className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase mb-1 whitespace-nowrap">
+                                                        <span className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center text-[10px] shrink-0 font-mono">D</span>
+                                                        <span className="whitespace-nowrap">Depth (D)</span>
                                                     </label>
                                                     <div className="relative">
                                                         <input
@@ -1459,14 +1630,14 @@ function InventoryRawMaterials() {
                                                             placeholder="e.g. 1050"
                                                             className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-amber-500' : 'bg-white border-slate-200 text-slate-700 focus:border-amber-600'} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
                                                         />
-                                                        <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none">mm</span>
+                                                        <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none whitespace-nowrap">mm</span>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             {/* Profile / Additional specifications */}
                                             <div>
-                                                <label className={`block text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>
+                                                <label className={`block text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1 whitespace-nowrap`}>
                                                     Profile / Thickness / Additional Specs (Optional)
                                                 </label>
                                                 <input
@@ -1478,10 +1649,10 @@ function InventoryRawMaterials() {
                                                 />
                                             </div>
 
-                                            {/* Live Preview Bar */}
+                                            {/* Live Dimension Preview Bar */}
                                             <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} flex items-center justify-between text-xs`}>
-                                                <span className="text-[11px] text-slate-400 font-medium">Dimension Preview:</span>
-                                                <div>
+                                                <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">Dimension Preview:</span>
+                                                <div className="whitespace-nowrap">
                                                     <RackDimensionCell
                                                         dimension={buildDimensionString({
                                                             height: dimHeight,
@@ -1499,7 +1670,7 @@ function InventoryRawMaterials() {
                                 </div>
 
                                 <div>
-                                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>UOM</label>
+                                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5 whitespace-nowrap`}>UOM</label>
                                     <div className="relative">
                                         <input
                                             type="text"
@@ -1518,8 +1689,8 @@ function InventoryRawMaterials() {
                                     </div>
                                 </div>
 
-                                <div className="md:col-span-2">
-                                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                                <div>
+                                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5 whitespace-nowrap`}>
                                         Acquisition Cost (Price)
                                     </label>
                                     <div className="relative">
@@ -1548,15 +1719,29 @@ function InventoryRawMaterials() {
                                 <button
                                     type="button"
                                     onClick={() => setIsEditModalOpen(false)}
-                                    className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer`}
+                                    disabled={isSavingMat || isCompressingImg}
+                                    className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer disabled:opacity-50`}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className={`${isDark ? 'bg-[#ff6600] hover:bg-[#ff6600]/90' : 'bg-[#18174e] hover:bg-[#18174e]/90'} text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md`}
+                                    disabled={isSavingMat || isCompressingImg}
+                                    className={`${isDark ? 'bg-[#ff6600] hover:bg-[#ff6600]/90' : 'bg-[#18174e] hover:bg-[#18174e]/90'} text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
                                 >
-                                    Save Changes
+                                    {isCompressingImg ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <span>Optimizing photo...</span>
+                                        </>
+                                    ) : isSavingMat ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <span>Saving...</span>
+                                        </>
+                                    ) : (
+                                        <span>{isEditing ? "Save Changes" : "Add Material"}</span>
+                                    )}
                                 </button>
                             </div>
 
@@ -1565,186 +1750,7 @@ function InventoryRawMaterials() {
                 </div>
             )}
 
-            {/* DATABASE IMAGE PICKER MODAL */}
-            {isImagePickerModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-5 animate-in fade-in duration-200">
-                    <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl w-full max-w-4xl max-h-[88vh] shadow-2xl relative flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden`}>
-                        
-                        {/* Header */}
-                        <div className={`p-4 sm:p-5 border-b ${isDark ? 'border-slate-800 bg-[#141622]' : 'border-slate-100 bg-slate-50/70'} flex items-center justify-between shrink-0`}>
-                            <div>
-                                <h3 className={`font-bold text-base sm:text-lg ${isDark ? 'text-white' : 'text-slate-900'} flex items-center gap-2`}>
-                                    Database Image Library
-                                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${isDark ? 'bg-indigo-900/50 text-indigo-300' : 'bg-indigo-100 text-indigo-700'}`}>
-                                        {availableExistingImages.length} unique {availableExistingImages.length === 1 ? 'photo' : 'photos'}
-                                    </span>
-                                </h3>
-                                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                    Unique product photos deduplicated across database. Select a photo to link with this item.
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setIsImagePickerModalOpen(false)}
-                                className={`p-2 rounded-lg transition-colors cursor-pointer ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
 
-                        {/* Search and Filters Bar */}
-                        <div className={`p-3 sm:px-5 border-b ${isDark ? 'border-slate-800 bg-[#0e1017]' : 'border-slate-100 bg-white'} shrink-0 flex flex-col sm:flex-row items-center gap-2.5 justify-between`}>
-                            <div className="relative w-full sm:max-w-md">
-                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                <input
-                                    type="text"
-                                    value={imagePickerSearch}
-                                    onChange={(e) => setImagePickerSearch(e.target.value)}
-                                    placeholder="Search by description, code, or segment..."
-                                    className={`w-full pl-9 pr-8 py-2 rounded-xl text-xs border ${
-                                        isDark 
-                                            ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-indigo-500' 
-                                            : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-indigo-600'
-                                    } focus:outline-none transition-colors`}
-                                    autoFocus
-                                />
-                                {imagePickerSearch && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setImagePickerSearch('')}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
-                                    >
-                                        <X className="w-3.5 h-3.5" />
-                                    </button>
-                                )}
-                            </div>
-
-                            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 self-end sm:self-center">
-                                Showing <span className="font-bold text-indigo-600 dark:text-indigo-400">{filteredLibraryImages.length}</span> of {availableExistingImages.length} items
-                            </span>
-                        </div>
-
-                        {/* Image Grid Content */}
-                        <div className="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar min-h-[280px]">
-                            {filteredLibraryImages.length === 0 ? (
-                                <div className="h-64 flex flex-col items-center justify-center text-center p-6">
-                                    <div className={`p-4 rounded-2xl mb-3 ${isDark ? 'bg-slate-800/60 text-slate-400' : 'bg-slate-100 text-slate-400'}`}>
-                                        <ImageIcon className="w-10 h-10" />
-                                    </div>
-                                    <h4 className="font-bold text-sm text-slate-700 dark:text-slate-200 mb-1">
-                                        No images found
-                                    </h4>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mb-3">
-                                        {imagePickerSearch ? `No database images match "${imagePickerSearch}". Try searching with a different term.` : 'No previous item images have been uploaded to the database yet.'}
-                                    </p>
-                                    {imagePickerSearch && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setImagePickerSearch('')}
-                                            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
-                                        >
-                                            Clear search filter
-                                        </button>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3.5">
-                                    {filteredLibraryImages.map((img, idx) => {
-                                        const isSelected = selectedExistingImage?.imageUrl === img.imageUrl || (existingImgPreview === img.imageUrl && !selectedFile);
-                                        return (
-                                            <div
-                                                key={idx}
-                                                onClick={() => handleSelectExistingImage(img)}
-                                                className={`group relative rounded-xl border p-2 flex flex-col justify-between transition-all duration-150 cursor-pointer ${
-                                                    isSelected
-                                                        ? isDark 
-                                                            ? 'border-[#ff6600] bg-[#ff6600]/10 ring-2 ring-[#ff6600]/40 shadow-lg' 
-                                                            : 'border-[#ff6600] bg-orange-50/60 ring-2 ring-[#ff6600]/40 shadow-md'
-                                                        : isDark 
-                                                            ? 'bg-[#141622] border-slate-800 hover:border-indigo-500/70 hover:bg-[#1a1d2e]' 
-                                                            : 'bg-white border-slate-200 hover:border-indigo-400 hover:bg-slate-50/90 shadow-xs'
-                                                }`}
-                                            >
-                                                {/* Image Thumbnail Container */}
-                                                <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/60 mb-2">
-                                                    <img
-                                                        src={img.imageUrl}
-                                                        alt={img.itemDescription || "Database Item"}
-                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                                                        loading="lazy"
-                                                    />
-                                                    
-                                                    {/* Selected Indicator Badge */}
-                                                    {isSelected && (
-                                                        <div className="absolute top-1.5 right-1.5 bg-[#ff6600] text-white p-1 rounded-full shadow-md flex items-center justify-center animate-in zoom-in-75">
-                                                            <CheckCircle2 className="w-3.5 h-3.5" />
-                                                        </div>
-                                                    )}
-
-                                                    {/* Segment Pill */}
-                                                    {img.segment && (
-                                                        <span className="absolute bottom-1.5 left-1.5 max-w-[85%] truncate text-[10px] font-semibold bg-slate-900/80 backdrop-blur-xs text-white px-1.5 py-0.5 rounded shadow">
-                                                            {img.segment}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Details */}
-                                                <div className="flex flex-col flex-1 justify-between">
-                                                    <div>
-                                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" title={img.itemDescription}>
-                                                            {img.itemDescription || 'Unnamed Item'}
-                                                        </p>
-                                                        {img.dimension && img.dimension !== 'N/A' && (
-                                                            <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                                                                {img.dimension}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-1">
-                                                        {img.usedCount > 1 ? (
-                                                            <span 
-                                                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/50 truncate max-w-[110px]"
-                                                                title={Array.isArray(img.usedBy) ? `Shared across ${img.usedCount} products:\n${img.usedBy.map(u => `• ${u.itemDescription}`).join('\n')}` : ''}
-                                                            >
-                                                                Used in {img.usedCount} items
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                                                                Single product
-                                                            </span>
-                                                        )}
-                                                        <span className={`text-[10px] font-semibold shrink-0 ${isSelected ? 'text-[#ff6600]' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                                                            {isSelected ? '✓ Selected' : 'Click to select'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className={`p-3.5 sm:px-5 border-t ${isDark ? 'border-slate-800 bg-[#141622]' : 'border-slate-100 bg-slate-50/80'} flex items-center justify-between shrink-0`}>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                                <span className="hidden sm:inline">Reusing existing pictures saves database and cloud storage.</span>
-                            </p>
-                            <button
-                                type="button"
-                                onClick={() => setIsImagePickerModalOpen(false)}
-                                className={`text-xs font-semibold px-4 py-2 rounded-xl transition-all cursor-pointer ${
-                                    isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                                }`}
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
 
 

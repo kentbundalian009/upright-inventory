@@ -32,7 +32,14 @@ export const getAllRawMaterials = async (req, res) => {
                 $cond: {
                   if: { $regexMatch: { input: "$ImageUrl", regex: "^https?://" } },
                   then: "$ImageUrl",
-                  else: { $concat: ["/api/raw-materials/", { $toString: "$_id" }, "/image"] }
+                  else: {
+                    $concat: [
+                      "/api/raw-materials/",
+                      { $toString: "$_id" },
+                      "/image?v=",
+                      { $toString: { $ifNull: [{ $toLong: "$updatedAt" }, { $toLong: "$createdAt" }] } }
+                    ]
+                  }
                 }
               },
               else: ""
@@ -79,6 +86,18 @@ export const getAllRawMaterials = async (req, res) => {
       material.ReserveDetails = reserveData ? reserveData.slips : [];
     }
 
+    materials.sort((a, b) => {
+      const descA = (a.ItemDescription || "").trim();
+      const descB = (b.ItemDescription || "").trim();
+      const cmp = descA.localeCompare(descB, undefined, { sensitivity: "base", numeric: true });
+      if (cmp !== 0) return cmp;
+      const dimA = (a.Dimension || "").trim();
+      const dimB = (b.Dimension || "").trim();
+      const dimCmp = dimA.localeCompare(dimB, undefined, { sensitivity: "base", numeric: true });
+      if (dimCmp !== 0) return dimCmp;
+      return (a.Code || "").localeCompare(b.Code || "", undefined, { sensitivity: "base", numeric: true });
+    });
+
     res.status(200).json(materials);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
@@ -87,7 +106,7 @@ export const getAllRawMaterials = async (req, res) => {
 
 export const getRawMaterialImage = async (req, res) => {
   try {
-    const material = await RawMaterial.findById(req.params.id).select("ImageUrl");
+    const material = await RawMaterial.findById(req.params.id).select("ImageUrl updatedAt");
     if (!material || !material.ImageUrl) {
       return res.status(404).send("Image not found");
     }
@@ -98,8 +117,15 @@ export const getRawMaterialImage = async (req, res) => {
       const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
       const imgBuffer = Buffer.from(parts[1], "base64");
 
+      const etag = `"${crypto.createHash("md5").update(material.ImageUrl).digest("hex")}"`;
+      res.set("ETag", etag);
       res.set("Content-Type", mime);
-      res.set("Cache-Control", "public, max-age=86400, immutable");
+      res.set("Cache-Control", "public, max-age=86400, must-revalidate");
+
+      if (req.headers["if-none-match"] === etag) {
+        return res.status(304).end();
+      }
+
       return res.send(imgBuffer);
     }
 
@@ -117,7 +143,7 @@ export const getRawMaterialById = async (req, res) => {
     }
     const obj = material.toObject();
     if (obj.ImageUrl && obj.ImageUrl.startsWith("data:")) {
-      obj.ImageUrl = `/api/raw-materials/${obj._id}/image`;
+      obj.ImageUrl = `/api/raw-materials/${obj._id}/image?v=${material.updatedAt ? new Date(material.updatedAt).getTime() : Date.now()}`;
     }
 
     // 📦 Calculate active reserve quantities for this single material
@@ -158,7 +184,7 @@ export const getUniqueImageLibrary = async (req, res) => {
   try {
     const materials = await RawMaterial.find(
       { ImageUrl: { $exists: true, $ne: "" }, isArchived: { $ne: true } },
-      "_id Code ItemDescription Segment Dimension ImageUrl createdAt"
+      "_id Code ItemDescription Segment Dimension ImageUrl createdAt updatedAt"
     ).sort({ createdAt: -1 }).lean();
 
     const groups = [];
@@ -198,7 +224,7 @@ export const getUniqueImageLibrary = async (req, res) => {
       } else {
         const streamUrl = rawUrl.startsWith("http")
           ? rawUrl
-          : `/api/raw-materials/${item._id}/image`;
+          : `/api/raw-materials/${item._id}/image?v=${item.updatedAt ? new Date(item.updatedAt).getTime() : Date.now()}`;
 
         const newGroup = {
           key: nameKey,
@@ -305,7 +331,7 @@ export const createRawMaterial = async (req, res) => {
       Dimension: Dimension?.trim() || "N/A",
       ActualCount: 0,
       UOM: UOM.trim(),
-      Condition: "Good",
+      Condition: req.body.Condition !== undefined ? req.body.Condition.trim() : "Good",
       AccountTo: AccountTo?.trim() || "N/A",
       AcquisitionCost: Number(AcquisitionCost) >= 0 ? Number(AcquisitionCost) : 0,
       CriticalAlert: !isNaN(parsedCritical) && parsedCritical >= 0 ? parsedCritical : 0,
@@ -314,7 +340,12 @@ export const createRawMaterial = async (req, res) => {
       isArchived: false
     });
 
-    res.status(201).json(newMaterial);
+    const resObj = newMaterial.toObject ? newMaterial.toObject() : { ...newMaterial };
+    if (resObj.ImageUrl && resObj.ImageUrl.startsWith("data:")) {
+      resObj.ImageUrl = `/api/raw-materials/${resObj._id}/image?v=${Date.now()}`;
+    }
+
+    res.status(201).json(resObj);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
@@ -403,7 +434,12 @@ export const updateRawMaterial = async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    res.status(200).json(updatedMaterial);
+    const resObj = updatedMaterial.toObject ? updatedMaterial.toObject() : { ...updatedMaterial };
+    if (resObj.ImageUrl && resObj.ImageUrl.startsWith("data:")) {
+      resObj.ImageUrl = `/api/raw-materials/${resObj._id}/image?v=${Date.now()}`;
+    }
+
+    res.status(200).json(resObj);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }

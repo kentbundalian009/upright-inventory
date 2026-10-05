@@ -43,8 +43,21 @@ export const uploadImageBuffer = async (
   const base64Data = `data:${mimetype};base64,${buffer.toString("base64")}`;
 
   if (!isCloudinaryConfigured()) {
-    console.warn("⚠️ [Cloudinary] API Secret is not set in .env. Falling back to base64 storage.");
-    return base64Data;
+    try {
+      const fs = await import("fs");
+      const path = await import("path");
+      const uploadsDir = path.resolve(process.cwd(), "uploads");
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      const ext = mimetype.includes("png") ? "png" : mimetype.includes("webp") ? "webp" : "jpg";
+      const filename = `image-${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
+      fs.writeFileSync(path.join(uploadsDir, filename), buffer);
+      return `/uploads/${filename}`;
+    } catch (saveErr) {
+      console.warn("⚠️ [Local Storage] Failed to save to /uploads, fallback to base64:", saveErr.message);
+      return base64Data;
+    }
   }
 
   try {
@@ -59,9 +72,21 @@ export const uploadImageBuffer = async (
 
     return uploadResult.secure_url;
   } catch (error) {
-    console.error("❌ [Cloudinary] Upload failed:", error.message || error);
-    // Fallback to base64 so user action does not completely fail
-    return base64Data;
+    console.error("❌ [Cloudinary] Upload failed, falling back to local file:", error.message || error);
+    try {
+      const fs = await import("fs");
+      const path = await import("path");
+      const uploadsDir = path.resolve(process.cwd(), "uploads");
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      const ext = mimetype.includes("png") ? "png" : mimetype.includes("webp") ? "webp" : "jpg";
+      const filename = `image-${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
+      fs.writeFileSync(path.join(uploadsDir, filename), buffer);
+      return `/uploads/${filename}`;
+    } catch (fallbackErr) {
+      return base64Data;
+    }
   }
 };
 

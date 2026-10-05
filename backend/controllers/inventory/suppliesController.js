@@ -3,7 +3,18 @@ import { uploadImageBuffer } from "../../lib/cloudinary.js";
 
 export const getAllSupplies = async (req, res) => {
   try {
-    const suppliesList = await Supplies.find().sort({ createdAt: -1 }).lean();
+    const suppliesList = await Supplies.find().lean();
+    suppliesList.sort((a, b) => {
+      const descA = (a.ItemDescription || "").trim();
+      const descB = (b.ItemDescription || "").trim();
+      const cmp = descA.localeCompare(descB, undefined, { sensitivity: "base", numeric: true });
+      if (cmp !== 0) return cmp;
+      const dimA = (a.Dimension || "").trim();
+      const dimB = (b.Dimension || "").trim();
+      const dimCmp = dimA.localeCompare(dimB, undefined, { sensitivity: "base", numeric: true });
+      if (dimCmp !== 0) return dimCmp;
+      return (a.Code || "").localeCompare(b.Code || "", undefined, { sensitivity: "base", numeric: true });
+    });
     res.status(200).json(suppliesList);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });

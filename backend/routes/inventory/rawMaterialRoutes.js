@@ -38,9 +38,6 @@ router.get("/:id/image", getRawMaterialImage);
 // 🔗 Public Read-Only Endpoint for Shared Link Viewers
 router.get("/shared", getAllRawMaterials);
 
-// 🖼️ Dedicated unique image library endpoint (deduplicated across all items in DB)
-router.get("/image-library", getUniqueImageLibrary);
-
 router.use(protectRoute);
 
 router.route("/")

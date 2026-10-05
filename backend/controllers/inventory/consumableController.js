@@ -72,6 +72,18 @@ export const getConsumables = async (req, res) => {
       }
     }
 
+    items.sort((a, b) => {
+      const descA = (a.ItemDescription || "").trim();
+      const descB = (b.ItemDescription || "").trim();
+      const cmp = descA.localeCompare(descB, undefined, { sensitivity: "base", numeric: true });
+      if (cmp !== 0) return cmp;
+      const dimA = (a.Dimension || "").trim();
+      const dimB = (b.Dimension || "").trim();
+      const dimCmp = dimA.localeCompare(dimB, undefined, { sensitivity: "base", numeric: true });
+      if (dimCmp !== 0) return dimCmp;
+      return (a.Code || "").localeCompare(b.Code || "", undefined, { sensitivity: "base", numeric: true });
+    });
+
     return res.status(200).json(items);
   } catch (err) {
     console.error("Error fetching consumables:", err);

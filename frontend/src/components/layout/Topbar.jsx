@@ -173,7 +173,6 @@ function Topbar() {
             ? 'bg-[#121420] border-slate-800 text-slate-300'
             : 'bg-slate-50 border-slate-200/70 text-slate-700'
         } border px-2.5 sm:px-3.5 py-1.5 rounded-full shadow-inner shrink-0`}>
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
           <span className="text-[11px] sm:text-xs font-semibold font-mono tracking-tight whitespace-nowrap">
             <span className="hidden xl:inline">{fullDateStr || "Monday, June 24, 2026"} • </span>
             <span className="hidden sm:inline xl:hidden">{shortDateStr || "Mon, Jun 24"} • </span>

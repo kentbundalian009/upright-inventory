@@ -451,6 +451,18 @@ function Reports() {
             );
         }
 
+        masterList.sort((a, b) => {
+            const descA = (a.ItemDescription || a.Category || a.Segment || '').trim();
+            const descB = (b.ItemDescription || b.Category || b.Segment || '').trim();
+            const cmp = descA.localeCompare(descB, undefined, { sensitivity: 'base', numeric: true });
+            if (cmp !== 0) return cmp;
+            const dimA = (a.Dimension || '').trim();
+            const dimB = (b.Dimension || '').trim();
+            const dimCmp = dimA.localeCompare(dimB, undefined, { sensitivity: 'base', numeric: true });
+            if (dimCmp !== 0) return dimCmp;
+            return (a.Code || '').localeCompare(b.Code || '', undefined, { sensitivity: 'base', numeric: true });
+        });
+
         return masterList;
     };
 
