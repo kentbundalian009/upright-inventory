@@ -1,4 +1,5 @@
 import RawMaterial from "../../models/RawMaterial.js";
+import PackingList from "../../models/PackingList.js";
 import { uploadImageBuffer } from "../../lib/cloudinary.js";
 import crypto from "crypto";
 
@@ -40,6 +41,44 @@ export const getAllRawMaterials = async (req, res) => {
         }
       }
     ]);
+    // 📦 Calculate active reserve quantities held from Outbound Materials (PackingList Reserves)
+    const activeReserves = await PackingList.find({
+      transactionType: "Reserve",
+      isVoided: { $ne: true }
+    }).select("plNo customer shipmentDate items.materialId items.qtyRequested items.actualCountShipped").lean();
+
+    const reserveMap = new Map();
+    for (const slip of activeReserves) {
+      for (const item of (slip.items || [])) {
+        if (!item.materialId) continue;
+        const matIdStr = item.materialId.toString();
+        const qty = Number(item.qtyRequested || item.actualCountShipped || 0);
+        if (qty <= 0) continue;
+
+        if (!reserveMap.has(matIdStr)) {
+          reserveMap.set(matIdStr, {
+            totalReserved: 0,
+            slips: []
+          });
+        }
+        const entry = reserveMap.get(matIdStr);
+        entry.totalReserved += qty;
+        entry.slips.push({
+          plNo: slip.plNo,
+          customer: slip.customer || "N/A",
+          qty,
+          shipmentDate: slip.shipmentDate
+        });
+      }
+    }
+
+    for (const material of materials) {
+      const matIdStr = material._id ? material._id.toString() : "";
+      const reserveData = reserveMap.get(matIdStr);
+      material.ReserveCount = reserveData ? reserveData.totalReserved : 0;
+      material.ReserveDetails = reserveData ? reserveData.slips : [];
+    }
+
     res.status(200).json(materials);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
@@ -80,6 +119,35 @@ export const getRawMaterialById = async (req, res) => {
     if (obj.ImageUrl && obj.ImageUrl.startsWith("data:")) {
       obj.ImageUrl = `/api/raw-materials/${obj._id}/image`;
     }
+
+    // 📦 Calculate active reserve quantities for this single material
+    const activeReserves = await PackingList.find({
+      transactionType: "Reserve",
+      isVoided: { $ne: true },
+      "items.materialId": material._id
+    }).select("plNo customer shipmentDate items.materialId items.qtyRequested items.actualCountShipped").lean();
+
+    let totalReserved = 0;
+    const slips = [];
+    for (const slip of activeReserves) {
+      for (const item of (slip.items || [])) {
+        if (item.materialId && item.materialId.toString() === material._id.toString()) {
+          const qty = Number(item.qtyRequested || item.actualCountShipped || 0);
+          if (qty > 0) {
+            totalReserved += qty;
+            slips.push({
+              plNo: slip.plNo,
+              customer: slip.customer || "N/A",
+              qty,
+              shipmentDate: slip.shipmentDate
+            });
+          }
+        }
+      }
+    }
+    obj.ReserveCount = totalReserved;
+    obj.ReserveDetails = slips;
+
     res.status(200).json(obj);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });

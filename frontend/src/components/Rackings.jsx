@@ -4,6 +4,8 @@ import axios from 'axios';
 import PageHeader from './layout/PageHeader';
 import TablePagination from './common/TablePagination';
 import { useTheme } from '../context/ThemeContext';
+import RackDimensionCell, { parseToFormFields, buildDimensionString } from './common/RackDimensionCell';
+import ReserveCountBadge from './common/ReserveCountBadge';
 
 // Lahat ng pagpipiliang kulay na gagamitin sa system globally
 const COLOR_OPTIONS = [
@@ -72,6 +74,12 @@ function InventoryRawMaterials() {
     const [materialSegment, setMaterialSegment] = useState('');
     const [itemDescription, setItemDescription] = useState('');
     const [materialDimension, setMaterialDimension] = useState('');
+    const [dimHeight, setDimHeight] = useState('');
+    const [dimWidth, setDimWidth] = useState('');
+    const [dimWidthType, setDimWidthType] = useState('W');
+    const [dimDepth, setDimDepth] = useState('');
+    const [dimProfile, setDimProfile] = useState('');
+    const [isCustomDim, setIsCustomDim] = useState(false);
     const [materialUom, setMaterialUom] = useState('');
     const [accountTo, setAccountTo] = useState('');
     const [modalActualCount, setModalActualCount] = useState(0);
@@ -254,6 +262,15 @@ function InventoryRawMaterials() {
         fetchRawMaterials();
         fetchImageLibrary();
         fetchPaletteSettings();
+
+        // 🔄 Sync immediately when an outbound reservation/slip is updated
+        const handlePackingListSync = () => {
+            fetchRawMaterials();
+        };
+        window.addEventListener('packingListUpdated', handlePackingListSync);
+        return () => {
+            window.removeEventListener('packingListUpdated', handlePackingListSync);
+        };
     }, []);
 
     const handleSavePaletteToDatabase = async () => {
@@ -287,7 +304,9 @@ function InventoryRawMaterials() {
     };
 
     const getRawMaterialHealthBadge = (item) => {
-        const actualCount = Number(item?.ActualCount) || 0;
+        const physical = Number(item?.ActualCount) || 0;
+        const reserved = Number(item?.ReserveCount) || 0;
+        const actualCount = Math.max(0, physical - reserved);
         const critical = item?.CriticalAlert !== undefined ? Number(item.CriticalAlert) : 0;
         const reorder = item?.RestockWarning !== undefined ? Number(item.RestockWarning) : 10;
         const overstock = item?.MaxStorage !== undefined ? Number(item.MaxStorage) : 1000;
@@ -368,6 +387,12 @@ function InventoryRawMaterials() {
         setMaterialSegment('');
         setItemDescription('');
         setMaterialDimension('');
+        setDimHeight('');
+        setDimWidth('');
+        setDimWidthType('W');
+        setDimDepth('');
+        setDimProfile('');
+        setIsCustomDim(false);
         setMaterialUom('');
         setAccountTo('');
         setModalActualCount(0);
@@ -388,6 +413,13 @@ function InventoryRawMaterials() {
         setMaterialSegment(item.Segment || '');
         setItemDescription(item.ItemDescription || '');
         setMaterialDimension(item.Dimension || '');
+        const parsedDim = parseToFormFields(item.Dimension || '');
+        setDimHeight(parsedDim.height);
+        setDimWidth(parsedDim.width);
+        setDimWidthType(parsedDim.widthType || 'W');
+        setDimDepth(parsedDim.depth);
+        setDimProfile(parsedDim.profile);
+        setIsCustomDim(parsedDim.isCustom);
         setMaterialUom(item.UOM || '');
         setAccountTo(item.AccountTo || '');
         setModalActualCount(item.ActualCount ?? 0);
@@ -417,7 +449,16 @@ function InventoryRawMaterials() {
             formData.append("Category", "");
             formData.append("Segment", materialSegment.trim());
             formData.append("ItemDescription", itemDescription.trim());
-            formData.append("Dimension", materialDimension.trim());
+            const finalDimension = isCustomDim 
+                ? materialDimension.trim() 
+                : buildDimensionString({
+                    height: dimHeight,
+                    width: dimWidth,
+                    widthType: dimWidthType,
+                    depth: dimDepth,
+                    profile: dimProfile
+                });
+            formData.append("Dimension", finalDimension !== '—' ? finalDimension.trim() : '');
             formData.append("UOM", materialUom.trim());
             formData.append("AccountTo", accountTo.trim());
             formData.append("AcquisitionCost", Number(materialAcquisitionCost) || 0);
@@ -492,16 +533,19 @@ function InventoryRawMaterials() {
     const filteredRawMaterials = currentDisplayList.filter(item => {
         const matchesSegment = selectedSegment === 'All Segments' || item.Segment === selectedSegment;
         const matchesDescription = selectedDescription === 'All Item Descriptions' || item.ItemDescription === selectedDescription;
-        const matchesZeroQty = !hideZeroQty || (item.ActualCount > 0);
+        const physical = Number(item?.ActualCount) || 0;
+        const reserved = Number(item?.ReserveCount) || 0;
+        const available = Math.max(0, physical - reserved);
+        const matchesZeroQty = !hideZeroQty || (available > 0);
         let statusText = 'Healthy';
         const crit = item.CriticalAlert !== undefined ? Number(item.CriticalAlert) : 0;
         const reord = item.RestockWarning !== undefined ? Number(item.RestockWarning) : 10;
         const overstk = item.MaxStorage !== undefined ? Number(item.MaxStorage) : 1000;
 
-        if (item.ActualCount <= crit) statusText = 'Critical';
-        else if (item.ActualCount <= reord) statusText = 'Re-Stock';
-        else if (item.ActualCount > overstk) statusText = 'Overstock';
-        const matchesHealth = selectedHealth === 'All Health Status' || statusText === selectedHealth || (selectedHealth === 'Zero' && (item.ActualCount === 0 || item.ActualCount === '0'));
+        if (available <= crit) statusText = 'Critical';
+        else if (available <= reord) statusText = 'Re-Stock';
+        else if (available > overstk) statusText = 'Overstock';
+        const matchesHealth = selectedHealth === 'All Health Status' || statusText === selectedHealth || (selectedHealth === 'Zero' && available === 0);
         const matchesSearch = !searchTerm || [
             item.Code,
             item.Segment,
@@ -728,6 +772,7 @@ function InventoryRawMaterials() {
                                     <th className="py-3 px-4 whitespace-nowrap">Item Description</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Dimension</th>
                                     <th className="py-3 px-4 whitespace-nowrap text-center">Actual Count</th>
+                                    <th className="py-3 px-4 whitespace-nowrap text-center">Reserve Count</th>
                                     <th className="py-3 px-4 whitespace-nowrap">UOM</th>
                                     <th className="py-3 px-4 whitespace-nowrap text-right">Acquisition Cost</th>
                                     <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
@@ -741,11 +786,11 @@ function InventoryRawMaterials() {
                             </thead>
                             <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                                 {loading ? (
-                                    <tr><td colSpan={isViewer ? "8" : "9"} className="text-center py-10 text-green-700 font-medium italic">
+                                    <tr><td colSpan={isViewer ? "9" : "10"} className="text-center py-10 text-green-700 font-medium italic">
                                         Fetching secure rackings data from database...
                                     </td></tr>
                                 ) : error ? (
-                                    <tr><td colSpan={isViewer ? "8" : "9"} className="text-center py-8 text-rose-600 font-semibold">{error}</td></tr>
+                                    <tr><td colSpan={isViewer ? "9" : "10"} className="text-center py-8 text-rose-600 font-semibold">{error}</td></tr>
                                 ) : paginatedRawMaterials.map((rawMat) => {
                                     const currentSegConfig = getSegmentStyles(rawMat.Segment);
 
@@ -795,14 +840,29 @@ function InventoryRawMaterials() {
                                             </td>
 
                                             <td 
-                                                className={`py-3 px-4 font-mono text-xs whitespace-normal break-words transition-colors ${
+                                                className={`py-3 px-4 min-w-[120px] whitespace-normal break-words transition-colors ${
                                                     isDark ? 'text-slate-300' : 'text-slate-600'
                                                 }`}
+                                                title={rawMat.Dimension}
                                             >
-                                                {rawMat.Dimension || '—'}
+                                                <RackDimensionCell dimension={rawMat.Dimension} isDark={isDark} />
                                             </td>
 
-                                            <td className={`py-3 px-4 text-center font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{rawMat.ActualCount}</td>
+                                            <td className="py-3 px-4 text-center">
+                                                <div className="flex flex-col items-center justify-center">
+                                                    <span className={`font-bold font-mono text-sm ${Math.max(0, (Number(rawMat.ActualCount) || 0) - (Number(rawMat.ReserveCount) || 0)) === 0 ? 'text-rose-500 font-extrabold' : (isDark ? 'text-white' : 'text-slate-900')}`}>
+                                                        {Math.max(0, (Number(rawMat.ActualCount) || 0) - (Number(rawMat.ReserveCount) || 0)).toLocaleString()}
+                                                    </span>
+                                                    {Number(rawMat.ReserveCount) > 0 && (
+                                                        <span className="text-[10px] text-slate-400 font-mono leading-tight mt-0.5 select-none" title={`Total Physical Stock: ${(Number(rawMat.ActualCount) || 0).toLocaleString()} | Reserved: ${Number(rawMat.ReserveCount).toLocaleString()}`}>
+                                                            (Total: {(Number(rawMat.ActualCount) || 0).toLocaleString()})
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="py-3 px-4 text-center">
+                                                <ReserveCountBadge rawMat={rawMat} isDark={isDark} />
+                                            </td>
                                             <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{rawMat.UOM}</td>
                                             <td className={`py-3 px-4 text-right font-mono text-xs whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                                                 ₱{(Number(rawMat.AcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -833,7 +893,7 @@ function InventoryRawMaterials() {
                                 })}
                                 {filteredRawMaterials.length === 0 && !loading && (
                                     <tr>
-                                        <td colSpan={isViewer ? "8" : "9"} className="text-center py-10 text-red-600 font-medium italic">
+                                        <td colSpan={isViewer ? "9" : "10"} className="text-center py-10 text-red-600 font-medium italic">
                                             No records match the selected filters or search queries.
                                         </td>
                                     </tr>
@@ -1278,15 +1338,164 @@ function InventoryRawMaterials() {
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Dimension</label>
-                                    <input
-                                        type="text"
-                                        value={materialDimension}
-                                        onChange={(e) => setMaterialDimension(e.target.value)}
-                                        placeholder="e.g. 100x50x2mm"
-                                        className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
-                                    />
+                                <div className={`p-3.5 rounded-xl border ${isDark ? 'bg-[#0b0d14]/70 border-slate-800' : 'bg-slate-50/80 border-slate-200/80'} space-y-3`}>
+                                    <div className="flex items-center justify-between">
+                                        <label className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'} uppercase tracking-wide flex items-center gap-1.5`}>
+                                            <span>Dimension Specifications</span>
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (!isCustomDim) {
+                                                    const built = buildDimensionString({
+                                                        height: dimHeight,
+                                                        width: dimWidth,
+                                                        widthType: dimWidthType,
+                                                        depth: dimDepth,
+                                                        profile: dimProfile
+                                                    });
+                                                    setMaterialDimension(built !== '—' ? built : '');
+                                                    setIsCustomDim(true);
+                                                } else {
+                                                    const parsed = parseToFormFields(materialDimension);
+                                                    setDimHeight(parsed.height);
+                                                    setDimWidth(parsed.width);
+                                                    setDimWidthType(parsed.widthType || 'W');
+                                                    setDimDepth(parsed.depth);
+                                                    setDimProfile(parsed.profile);
+                                                    setIsCustomDim(false);
+                                                }
+                                            }}
+                                            className={`text-[11px] font-semibold transition-colors cursor-pointer hover:underline ${
+                                                isDark ? 'text-amber-400 hover:text-amber-300' : 'text-indigo-600 hover:text-indigo-800'
+                                            }`}
+                                        >
+                                            {isCustomDim ? "Switch to H / W / D fields" : "Switch to Freeform / Manual"}
+                                        </button>
+                                    </div>
+
+                                    {isCustomDim ? (
+                                        <div>
+                                            <input
+                                                type="text"
+                                                value={materialDimension}
+                                                onChange={(e) => setMaterialDimension(e.target.value)}
+                                                placeholder="e.g. M10*65 (4.8), 80*60mm, Φ14*47"
+                                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                                            />
+                                            <p className="text-[11px] text-slate-500 mt-1">Manual freeform dimension mode (for bolts, shimplates, and special hardware).</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {/* Grid for H, W/L, D */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                                {/* 1. Height (H) */}
+                                                <div>
+                                                    <label className="flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">
+                                                        <span className="w-4 h-4 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 flex items-center justify-center text-[10px]">H</span>
+                                                        Height (H)
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            value={dimHeight}
+                                                            onChange={(e) => setDimHeight(e.target.value)}
+                                                            placeholder="e.g. 5550"
+                                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-blue-500' : 'bg-white border-slate-200 text-slate-700 focus:border-blue-600'} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
+                                                        />
+                                                        <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none">mm</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* 2. Width (W) or Length (L) */}
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <label className={`flex items-center gap-1 text-[11px] font-bold ${dimWidthType === 'L' ? 'text-teal-600 dark:text-teal-400' : 'text-emerald-600 dark:text-emerald-400'} uppercase`}>
+                                                            <span className={`w-4 h-4 rounded ${dimWidthType === 'L' ? 'bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300' : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300'} flex items-center justify-center text-[10px]`}>
+                                                                {dimWidthType}
+                                                            </span>
+                                                            {dimWidthType === 'L' ? 'Length (L)' : 'Width (W)'}
+                                                        </label>
+                                                        <div className="flex items-center rounded border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px]">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setDimWidthType('W')}
+                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold ${dimWidthType === 'W' ? 'bg-emerald-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                            >
+                                                                W
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setDimWidthType('L')}
+                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold ${dimWidthType === 'L' ? 'bg-teal-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                            >
+                                                                L
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            value={dimWidth}
+                                                            onChange={(e) => setDimWidth(e.target.value)}
+                                                            placeholder="e.g. 2700"
+                                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-emerald-500' : 'bg-white border-slate-200 text-slate-700 focus:border-emerald-600'} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
+                                                        />
+                                                        <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none">mm</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* 3. Depth (D) */}
+                                                <div>
+                                                    <label className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase mb-1">
+                                                        <span className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center text-[10px]">D</span>
+                                                        Depth (D)
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            value={dimDepth}
+                                                            onChange={(e) => setDimDepth(e.target.value)}
+                                                            placeholder="e.g. 1050"
+                                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-amber-500' : 'bg-white border-slate-200 text-slate-700 focus:border-amber-600'} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
+                                                        />
+                                                        <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none">mm</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Profile / Additional specifications */}
+                                            <div>
+                                                <label className={`block text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>
+                                                    Profile / Thickness / Additional Specs (Optional)
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={dimProfile}
+                                                    onChange={(e) => setDimProfile(e.target.value)}
+                                                    placeholder="e.g. (90*70*1.8mm) or (120*50*1.5) T TYPE"
+                                                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none`}
+                                                />
+                                            </div>
+
+                                            {/* Live Preview Bar */}
+                                            <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} flex items-center justify-between text-xs`}>
+                                                <span className="text-[11px] text-slate-400 font-medium">Dimension Preview:</span>
+                                                <div>
+                                                    <RackDimensionCell
+                                                        dimension={buildDimensionString({
+                                                            height: dimHeight,
+                                                            width: dimWidth,
+                                                            widthType: dimWidthType,
+                                                            depth: dimDepth,
+                                                            profile: dimProfile
+                                                        })}
+                                                        isDark={isDark}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div>

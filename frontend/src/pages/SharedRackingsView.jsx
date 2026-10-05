@@ -4,6 +4,8 @@ import { Search, Filter, X, Image as ImageIcon, RefreshCw, AlertTriangle } from 
 import { useTheme } from '../context/ThemeContext';
 import { trackSharedLinkClick } from '../utils/linkTracker';
 import TablePagination from '../components/common/TablePagination';
+import RackDimensionCell from '../components/common/RackDimensionCell';
+import ReserveCountBadge from '../components/common/ReserveCountBadge';
 
 const COLOR_OPTIONS = [
     { name: 'Emerald / Green', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800', prefix: '🟢' },
@@ -132,7 +134,9 @@ function SharedRackingsView() {
     };
 
     const getRawMaterialHealthBadge = (item) => {
-        const actualCount = Number(item?.ActualCount) || 0;
+        const physical = Number(item?.ActualCount) || 0;
+        const reserved = Number(item?.ReserveCount) || 0;
+        const actualCount = Math.max(0, physical - reserved);
         const critical = item?.CriticalAlert !== undefined ? Number(item.CriticalAlert) : 0;
         const reorder = item?.RestockWarning !== undefined ? Number(item.RestockWarning) : 10;
         const overstock = item?.MaxStorage !== undefined ? Number(item.MaxStorage) : 1000;
@@ -404,6 +408,7 @@ function SharedRackingsView() {
                                     <th className="py-3 px-4 whitespace-nowrap">Dimension</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Segment</th>
                                     <th className="py-3 px-4 whitespace-nowrap text-center">Actual Count</th>
+                                    <th className="py-3 px-4 whitespace-nowrap text-center">Reserve Count</th>
                                     <th className="py-3 px-4 whitespace-nowrap">UOM</th>
                                     <th className="py-3 px-4 whitespace-nowrap">Condition</th>
                                 </tr>
@@ -411,7 +416,7 @@ function SharedRackingsView() {
                             <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="7" className="text-center py-12 text-green-600 font-medium italic">
+                                        <td colSpan="8" className="text-center py-12 text-green-600 font-medium italic">
                                             <div className="flex items-center justify-center gap-2">
                                                 <RefreshCw className="w-4 h-4 animate-spin text-green-600" />
                                                 <span>Fetching secure rackings data from database...</span>
@@ -420,7 +425,7 @@ function SharedRackingsView() {
                                     </tr>
                                 ) : error ? (
                                     <tr>
-                                        <td colSpan="7" className="text-center py-8 text-rose-600 font-semibold">{error}</td>
+                                        <td colSpan="8" className="text-center py-8 text-rose-600 font-semibold">{error}</td>
                                     </tr>
                                 ) : paginatedRawMaterials.map((rawMat) => {
                                     const currentSegConfig = getSegmentStyles(rawMat.Segment);
@@ -466,7 +471,7 @@ function SharedRackingsView() {
                                                 className="py-3 px-4 min-w-[120px] whitespace-normal break-words" 
                                                 title={rawMat.Dimension}
                                             >
-                                                {rawMat.Dimension || '—'}
+                                                <RackDimensionCell dimension={rawMat.Dimension} isDark={isDark} />
                                             </td>
 
                                             <td className="py-3 px-4">
@@ -475,14 +480,26 @@ function SharedRackingsView() {
                                                 </span>
                                             </td>
 
-                                            <td className={`py-3 px-4 text-center font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                                {rawMat.ActualCount}
+                                            <td className="py-3 px-4 text-center">
+                                                <div className="flex flex-col items-center justify-center">
+                                                    <span className={`font-bold font-mono text-sm ${Math.max(0, (Number(rawMat.ActualCount) || 0) - (Number(rawMat.ReserveCount) || 0)) === 0 ? 'text-rose-500 font-extrabold' : (isDark ? 'text-white' : 'text-slate-900')}`}>
+                                                        {Math.max(0, (Number(rawMat.ActualCount) || 0) - (Number(rawMat.ReserveCount) || 0)).toLocaleString()}
+                                                    </span>
+                                                    {Number(rawMat.ReserveCount) > 0 && (
+                                                        <span className="text-[10px] text-slate-400 font-mono leading-tight mt-0.5 select-none" title={`Total Physical Stock: ${(Number(rawMat.ActualCount) || 0).toLocaleString()} | Reserved: ${Number(rawMat.ReserveCount).toLocaleString()}`}>
+                                                            (Total: {(Number(rawMat.ActualCount) || 0).toLocaleString()})
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+
+                                            <td className="py-3 px-4 text-center">
+                                                <ReserveCountBadge rawMat={rawMat} isDark={isDark} />
                                             </td>
 
                                             <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                                 {rawMat.UOM}
                                             </td>
-
                                             <td className="py-3 px-4">
                                                 {getRawMaterialHealthBadge(rawMat)}
                                             </td>
@@ -492,7 +509,7 @@ function SharedRackingsView() {
 
                                 {filteredRawMaterials.length === 0 && !loading && !error && (
                                     <tr>
-                                        <td colSpan="7" className="text-center py-10 text-red-600 font-medium italic">
+                                        <td colSpan="8" className="text-center py-10 text-red-600 font-medium italic">
                                             No records match the selected filters or search queries.
                                         </td>
                                     </tr>

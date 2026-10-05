@@ -11,10 +11,22 @@ import TablePagination from './common/TablePagination';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useTheme } from '../context/ThemeContext';
+import RackDimensionCell, { parseRackDimension } from './common/RackDimensionCell';
+import ReserveCountBadge from './common/ReserveCountBadge';
 
 const BASE_API_URL = import.meta.env.MODE === 'production'
     ? 'https://one-inventory.onrender.com/api'
     : 'http://localhost:5000/api';
+
+const formatDimensionForPdf = (dimStr) => {
+    if (!dimStr || typeof dimStr !== 'string') return '—';
+    const parsed = parseRackDimension(dimStr);
+    if (parsed.badges && parsed.badges.length > 0) {
+        const badgeText = parsed.badges.map(b => `${b.label}: ${b.value}`).join(' | ');
+        return parsed.extra ? `${badgeText}\n(${parsed.extra})` : badgeText;
+    }
+    return dimStr || '—';
+};
 
 function Reports() {
     const { isDark } = useTheme();
@@ -219,15 +231,24 @@ function Reports() {
                             it.materialId?.Code === item.Code
                         );
 
-                        if (matchedPLItem && pl.transactionType === "Outbound") {
-                            const qty = matchedPLItem.actualCountShipped || 0;
+                        if (matchedPLItem) {
+                            const qty = Number(matchedPLItem.actualCountShipped || matchedPLItem.qtyRequested || 0);
                             if (qty > 0) {
-                                outflows.push({
-                                    type: 'OUT',
-                                    qty: qty,
-                                    label: pl.customer || 'Outbound',
-                                    date: formatDate(txDate)
-                                });
+                                if (pl.transactionType === "Outbound") {
+                                    outflows.push({
+                                        type: 'OUT',
+                                        qty: qty,
+                                        label: pl.customer || 'Outbound',
+                                        date: formatDate(txDate)
+                                    });
+                                } else if (pl.transactionType === "Reserve") {
+                                    outflows.push({
+                                        type: 'RESERVE',
+                                        qty: qty,
+                                        label: `${pl.plNo || 'Reserve'}: ${pl.customer || 'Hold'}`,
+                                        date: formatDate(txDate)
+                                    });
+                                }
                             }
                         }
                     }
@@ -312,12 +333,16 @@ function Reports() {
 
             // "di sya masasama sa bilang dito sa Reports & Analytics dito Export Audit Ledger (PDF) dito only ha"
             // If archived, ActualCount is treated as 0 so it does not add to active stock count
-            const displayCount = item.isArchived ? 0 : Number(item.ActualCount ?? 0);
+            const physicalCount = item.isArchived ? 0 : Number(item.ActualCount ?? 0);
+            const reserveCount = activeModule === 'raw-materials' ? (Number(item.ReserveCount) || 0) : 0;
+            const availableCount = Math.max(0, physicalCount - reserveCount);
 
-            if (showZeroOnly && displayCount !== 0) {
+            const isZero = activeModule === 'raw-materials' ? (availableCount === 0) : (physicalCount === 0);
+
+            if (showZeroOnly && !isZero) {
                 return;
             }
-            if (hideZeroQty && displayCount === 0) {
+            if (hideZeroQty && isZero) {
                 return;
             }
 
@@ -331,7 +356,10 @@ function Reports() {
                 Brand: item.Brand || '—',
                 SerialNo: item.SerialNo || '—',
                 Damaged: Number(item.DamagedCount ?? item.Damaged ?? 0),
-                ActualCount: displayCount,
+                ActualCount: physicalCount,
+                ReserveCount: reserveCount,
+                ReserveDetails: item.ReserveDetails || [],
+                AvailableCount: availableCount,
                 CriticalAlert: item.CriticalAlert !== undefined ? Number(item.CriticalAlert) : 0,
                 RestockWarning: item.RestockWarning !== undefined ? Number(item.RestockWarning) : 10,
                 MaxStorage: item.MaxStorage !== undefined ? Number(item.MaxStorage) : 1000,
@@ -456,7 +484,13 @@ function Reports() {
         : activeModule === 'supplies'
             ? suppliesData
             : consumablesData;
-    const zeroCount = currentInventory.filter(item => !item.isArchived && Number(item.ActualCount ?? 0) === 0).length;
+    const zeroCount = currentInventory.filter(item => {
+        if (item.isArchived) return false;
+        if (activeModule === 'raw-materials') {
+            return Math.max(0, (Number(item.ActualCount) || 0) - (Number(item.ReserveCount) || 0)) === 0;
+        }
+        return Number(item.ActualCount ?? 0) === 0;
+    }).length;
 
     // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
@@ -662,8 +696,8 @@ function Reports() {
 
             const columns = isRackings
                 ? (isAcquisitionReport
-                    ? ["Item Description", "Segment", "Dimension", "Quantity", "UOM", "Acquisition Cost", "Total Acquisition Cost"]
-                    : ["Item Description", "Segment", "Dimension", "Quantity", "UOM", "Inflows (This Month)", "Outflows (This Month)"])
+                    ? ["Item Description", "Segment", "Dimension", "Actual Count", "Reserve", "UOM", "Acquisition Cost", "Total Acquisition Cost"]
+                    : ["Item Description", "Segment", "Dimension", "Actual Count", "Reserve", "UOM", "Inflows (This Month)", "Outflows (This Month)"])
                 : ["Item Description", "Segment", "Dimension", "Serial", "Quantity", "UOM"];
 
             // Group records by Segment across all modules (Rackings, Supplies, Consumables)
@@ -685,7 +719,7 @@ function Reports() {
                 rows.push([
                     {
                         content: `SEGMENT: ${groupName.toUpperCase()}   (${itemsInGroup.length} ${itemsInGroup.length === 1 ? 'ITEM' : 'ITEMS'})`,
-                        colSpan: isRackings ? 7 : 6,
+                        colSpan: isRackings ? 8 : 6,
                         styles: {
                             fillColor: [234, 239, 249],
                             textColor: [24, 23, 78],
@@ -709,9 +743,14 @@ function Reports() {
                         }).join('\n');
                     };
 
-                    const displayQty = item.isArchived ? '0' : (item.ActualCount !== undefined && item.ActualCount !== null ? Number(item.ActualCount).toLocaleString() : '0');
+                    const physicalCount = Number(item.ActualCount ?? 0);
+                    const reserveCount = Number(item.ReserveCount ?? 0);
+                    const netCount = Math.max(0, physicalCount - reserveCount);
+                    const displayActualQty = item.isArchived ? '0' : netCount.toLocaleString();
+                    const displayReserveQty = reserveCount > 0 ? reserveCount.toLocaleString() : '—';
+                    const formattedDimension = isRackings ? formatDimensionForPdf(item.Dimension) : (item.Dimension || '—');
 
-                    const countVal = Number(item.ActualCount ?? 0);
+                    const countVal = netCount;
                     const crit = item.CriticalAlert !== undefined ? Number(item.CriticalAlert) : 0;
                     const reord = item.RestockWarning !== undefined ? Number(item.RestockWarning) : 10;
                     const overstk = item.MaxStorage !== undefined ? Number(item.MaxStorage) : 1000;
@@ -726,15 +765,21 @@ function Reports() {
                         if (isAcquisitionReport) {
                             const costVal = Number(item.AcquisitionCost) || 0;
                             const totVal = viewMode === 'detailed'
-                                ? ((Number(item.ActualCount) || 0) * costVal)
+                                ? (physicalCount * costVal)
                                 : (Number(item.TotalAcquisitionCost) || 0);
                             itemRow = [
                                 item.isArchived ? `${item.ItemDescription || '—'} (Archived)` : (item.ItemDescription || '—'),
                                 item.Segment || 'Standard',
-                                item.Dimension || '—',
+                                formattedDimension,
                                 {
-                                    content: displayQty,
-                                    condition: conditionType
+                                    content: reserveCount > 0 ? `${displayActualQty}\n(Tot: ${physicalCount.toLocaleString()})` : displayActualQty,
+                                    condition: conditionType,
+                                    isReserve: false
+                                },
+                                {
+                                    content: displayReserveQty,
+                                    isReserve: true,
+                                    hasReserve: reserveCount > 0
                                 },
                                 item.UOM || 'PCS',
                                 viewMode === 'detailed' ? `PHP ${costVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—',
@@ -744,10 +789,16 @@ function Reports() {
                             itemRow = [
                                 item.isArchived ? `${item.ItemDescription || '—'} (Archived)` : (item.ItemDescription || '—'),
                                 item.Segment || 'Standard',
-                                item.Dimension || '—',
+                                formattedDimension,
                                 {
-                                    content: displayQty,
-                                    condition: conditionType
+                                    content: reserveCount > 0 ? `${displayActualQty}\n(Tot: ${physicalCount.toLocaleString()})` : displayActualQty,
+                                    condition: conditionType,
+                                    isReserve: false
+                                },
+                                {
+                                    content: displayReserveQty,
+                                    isReserve: true,
+                                    hasReserve: reserveCount > 0
                                 },
                                 item.UOM || 'PCS',
                                 formatLogs(item.inflows, false),
@@ -760,7 +811,7 @@ function Reports() {
                             item.Segment || 'Standard',
                             item.Dimension || '—',
                             item.SerialNo || '—',
-                            displayQty,
+                            displayActualQty,
                             item.UOM || 'PCS'
                         ];
                     }
@@ -773,7 +824,7 @@ function Reports() {
                 rows.push([
                     {
                         content: 'TOTAL ACQUISITION COST (ALL RACKINGS)',
-                        colSpan: 5,
+                        colSpan: 6,
                         styles: {
                             fontStyle: 'bold',
                             halign: 'right',
@@ -846,34 +897,46 @@ function Reports() {
                 },
                 willDrawCell: (data) => {
                     if (data.cell.colSpan > 1) return;
-                    if (data.section === 'body' && (isRackings ? data.column.index === 3 : data.column.index === 4)) {
+                    if (data.section === 'body') {
                         if (isRackings) {
-                            const cond = data.cell.raw?.condition;
-                            if (cond === 'critical') {
-                                data.cell.styles.fillColor = [254, 205, 211];      // Rich visible Rose-200
-                                data.cell.styles.textColor = [159, 18, 57];        // Rose-900 bold
-                            } else if (cond === 'reorder') {
-                                data.cell.styles.fillColor = [254, 215, 120];      // Rich visible Amber-200
-                                data.cell.styles.textColor = [120, 53, 15];        // Amber-950 bold
-                            } else if (cond === 'overstock') {
-                                data.cell.styles.fillColor = [191, 219, 254];      // Rich visible Blue-200
-                                data.cell.styles.textColor = [30, 58, 138];        // Blue-900 bold
-                            } else {
-                                data.cell.styles.fillColor = [167, 243, 208];      // Rich visible Emerald-200
-                                data.cell.styles.textColor = [6, 95, 70];          // Emerald-900 bold
+                            if (data.column.index === 3) {
+                                const cond = data.cell.raw?.condition;
+                                if (cond === 'critical') {
+                                    data.cell.styles.fillColor = [254, 205, 211];      // Rich visible Rose-200
+                                    data.cell.styles.textColor = [159, 18, 57];        // Rose-900 bold
+                                } else if (cond === 'reorder') {
+                                    data.cell.styles.fillColor = [254, 215, 120];      // Rich visible Amber-200
+                                    data.cell.styles.textColor = [120, 53, 15];        // Amber-950 bold
+                                } else if (cond === 'overstock') {
+                                    data.cell.styles.fillColor = [191, 219, 254];      // Rich visible Blue-200
+                                    data.cell.styles.textColor = [30, 58, 138];        // Blue-900 bold
+                                } else {
+                                    data.cell.styles.fillColor = [167, 243, 208];      // Rich visible Emerald-200
+                                    data.cell.styles.textColor = [6, 95, 70];          // Emerald-900 bold
+                                }
+                                data.cell.styles.fontStyle = 'bold';
+                            } else if (data.column.index === 4) {
+                                if (data.cell.raw?.hasReserve) {
+                                    data.cell.styles.fillColor = [254, 243, 199];      // Amber-100
+                                    data.cell.styles.textColor = [180, 83, 9];         // Amber-700
+                                    data.cell.styles.fontStyle = 'bold';
+                                } else {
+                                    data.cell.styles.textColor = [156, 163, 175];      // Gray-400
+                                }
                             }
-                            data.cell.styles.fontStyle = 'bold';
                         } else {
-                            const rawText = String(data.cell.text || '');
-                            const countVal = Number(rawText.replace(/,/g, ''));
-                            if (isNaN(countVal) || countVal === 0) {
-                                data.cell.styles.fillColor = [254, 205, 211];
-                                data.cell.styles.textColor = [159, 18, 57];
-                            } else {
-                                data.cell.styles.fillColor = [238, 242, 255];
-                                data.cell.styles.textColor = [24, 23, 78];
+                            if (data.column.index === 4) {
+                                const rawText = String(data.cell.text || '');
+                                const countVal = Number(rawText.replace(/,/g, ''));
+                                if (isNaN(countVal) || countVal === 0) {
+                                    data.cell.styles.fillColor = [254, 205, 211];
+                                    data.cell.styles.textColor = [159, 18, 57];
+                                } else {
+                                    data.cell.styles.fillColor = [238, 242, 255];
+                                    data.cell.styles.textColor = [24, 23, 78];
+                                }
+                                data.cell.styles.fontStyle = 'bold';
                             }
-                            data.cell.styles.fontStyle = 'bold';
                         }
                     }
                 },
@@ -881,8 +944,8 @@ function Reports() {
                     // Skip indicator drawing on section subheader rows
                     if (data.cell.colSpan > 1) return;
 
-                    // Left indicator bars for Inflows (col 5) and Outflows (col 6) - Rackings movements only
-                    if (isRackings && !isAcquisitionReport && data.section === 'body' && (data.column.index === 5 || data.column.index === 6)) {
+                    // Left indicator bars for Inflows (col 6) and Outflows (col 7) - Rackings movements only
+                    if (isRackings && !isAcquisitionReport && data.section === 'body' && (data.column.index === 6 || data.column.index === 7)) {
                         const lines = data.cell.text;
                         if (!lines || lines.length === 0 || lines[0] === 'No inflows recorded' || lines[0] === 'No outflows recorded') return;
 
@@ -926,7 +989,7 @@ function Reports() {
                         });
                     }
 
-                    // Full-box solid highlighting for Quantity cell (seamless full box without colored outline)
+                    // Full-box solid highlighting for Actual Count cell (column 3 in Rackings, column 4 in other modules)
                     if (data.section === 'body' && (isRackings ? data.column.index === 3 : data.column.index === 4)) {
                         let bg = [238, 242, 255];
                         let text = [24, 23, 78];
@@ -963,8 +1026,34 @@ function Reports() {
                         doc.setLineWidth(0.2);
                         doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'S');
 
-                        // 3. Centered text with high contrast bold font
+                        // 3. High contrast text
                         doc.setTextColor(...text);
+                        doc.setFont("helvetica", "bold");
+                        
+                        const textLines = Array.isArray(data.cell.text) ? data.cell.text : String(data.cell.text || '').split('\n');
+                        if (textLines.length > 1) {
+                            doc.setFontSize(7.5);
+                            doc.text(String(textLines[0]), data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) - 1.8, { align: 'center', baseline: 'middle' });
+                            doc.setFontSize(5.5);
+                            doc.setFont("helvetica", "normal");
+                            doc.setTextColor(100, 116, 139);
+                            doc.text(String(textLines[1]), data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 2.4, { align: 'center', baseline: 'middle' });
+                        } else {
+                            doc.setFontSize(data.cell.styles.fontSize || 8);
+                            doc.text(String(textLines[0] || ''), data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2), { align: 'center', baseline: 'middle' });
+                        }
+                    }
+
+                    // Reserve cell solid highlighting for Rackings (column 4)
+                    if (isRackings && data.section === 'body' && data.column.index === 4 && data.cell.raw?.hasReserve) {
+                        doc.setFillColor(254, 243, 199);
+                        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+
+                        doc.setDrawColor(230, 230, 230);
+                        doc.setLineWidth(0.2);
+                        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'S');
+
+                        doc.setTextColor(180, 83, 9);
                         doc.setFont("helvetica", "bold");
                         doc.setFontSize(data.cell.styles.fontSize || 8);
                         const cellText = Array.isArray(data.cell.text) ? data.cell.text.join('') : String(data.cell.text || '');
@@ -977,21 +1066,23 @@ function Reports() {
                 styles: { overflow: 'linebreak', cellPadding: 2.5, lineColor: [230, 230, 230], lineWidth: 0.2, rowPageBreak: 'avoid' },
                 columnStyles: isRackings ? (
                     isAcquisitionReport ? {
-                        0: { cellWidth: 75 },
-                        1: { cellWidth: 32 },
-                        2: { cellWidth: 28 },
-                        3: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
-                        4: { cellWidth: 18, halign: 'center' },
-                        5: { cellWidth: 47, halign: 'right' },
-                        6: { cellWidth: 47, halign: 'right', fontStyle: 'bold' }
-                    } : {
-                        0: { cellWidth: 76 },
-                        1: { cellWidth: 30 },
-                        2: { cellWidth: 27 },
+                        0: { cellWidth: 68 },
+                        1: { cellWidth: 26 },
+                        2: { cellWidth: 32 },
                         3: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
-                        4: { cellWidth: 14, halign: 'center' },
-                        5: { cellWidth: 52, fontSize: 7 },
-                        6: { cellWidth: 52, fontSize: 7 }
+                        4: { cellWidth: 16, halign: 'center' },
+                        5: { cellWidth: 14, halign: 'center' },
+                        6: { cellWidth: 46, halign: 'right' },
+                        7: { cellWidth: 49, halign: 'right', fontStyle: 'bold' }
+                    } : {
+                        0: { cellWidth: 68 },
+                        1: { cellWidth: 26 },
+                        2: { cellWidth: 32 },
+                        3: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
+                        4: { cellWidth: 16, halign: 'center' },
+                        5: { cellWidth: 13, halign: 'center' },
+                        6: { cellWidth: 48, fontSize: 7 },
+                        7: { cellWidth: 48, fontSize: 7 }
                     }
                 ) : {
                     0: { cellWidth: 95 },
@@ -1048,11 +1139,13 @@ function Reports() {
                 const monthPOs = purchaseOrders.filter(po => matchSelectedDate(po.deliveryDate || po.createdAt || po.date));
                 // Filter WIP Conversions
                 const monthWIP = wipConversions.filter(wip => matchSelectedDate(wip.conversionDate || wip.dateProcessed || wip.createdAt));
-                // Filter Outbound (Packing Lists)
+                // Filter Outbound Dispatches (Packing Lists)
                 const monthPLs = packingLists.filter(pl => !pl.isVoided && pl.transactionType === "Outbound" && matchSelectedDate(pl.shipmentDate || pl.createdAt));
+                // Filter Outbound Reservations (Reserved Slips)
+                const monthReserves = packingLists.filter(pl => !pl.isVoided && pl.transactionType === "Reserve" && matchSelectedDate(pl.shipmentDate || pl.createdAt));
 
-                if (monthPOs.length === 0 && monthWIP.length === 0 && monthPLs.length === 0) {
-                    alert(`No Rackings activities (Inbound, WIP, or Outbound) logged for ${targetMonthLabel} ${currentYearStr}.`);
+                if (monthPOs.length === 0 && monthWIP.length === 0 && monthPLs.length === 0 && monthReserves.length === 0) {
+                    alert(`No Rackings activities (Inbound, WIP, Outbound, or Reservations) logged for ${targetMonthLabel} ${currentYearStr}.`);
                     return;
                 }
 
@@ -1076,6 +1169,13 @@ function Reports() {
                     return acc + plTotal;
                 }, 0);
 
+                const totalReservedMonthQty = monthReserves.reduce((acc, pl) => {
+                    const plTotal = (pl.items || []).reduce((sum, it) => {
+                        return sum + Number(it.qtyRequested || it.actualCountShipped || 0);
+                    }, 0);
+                    return acc + plTotal;
+                }, 0);
+
                 // --- PAGE 1 METADATA BLOCK (Matching Export Audit Ledger) ---
                 doc.setTextColor(40, 40, 40);
                 doc.setFont("helvetica", "bold");
@@ -1083,7 +1183,7 @@ function Reports() {
 
                 doc.text("Report Module:", 14, 38);
                 doc.setFont("helvetica", "normal");
-                doc.text("Rackings Monthly Activity Summary (Inbound, WIP & Outbound)", 48, 38);
+                doc.text("Rackings Monthly Activity Summary (Inbound, WIP, Outbound & Reserves)", 48, 38);
 
                 doc.setFont("helvetica", "bold");
                 doc.text("Date Generated:", 185, 38);
@@ -1103,13 +1203,13 @@ function Reports() {
                 const kpiRows = [[
                     `Total: ${monthPOs.length} Deliveries\n${totalInboundQty.toLocaleString()} Units Received`,
                     `Total: ${monthWIP.length} Batches\nConsumed: ${totalConsumedQty.toLocaleString()}  |  Yield: ${totalProducedQty.toLocaleString()} Units`,
-                    `Total: ${monthPLs.length} Dispatches\n${totalOutboundQty.toLocaleString()} Units Shipped`
+                    `Outbound: ${monthPLs.length} Dispatches (${totalOutboundQty.toLocaleString()} Units)\nReserves: ${monthReserves.length} Slips (${totalReservedMonthQty.toLocaleString()} Units Held)`
                 ]];
 
                 autoTable(doc, {
                     startY: currentY,
                     margin: { top: 38, bottom: 20, left: 14, right: 14 },
-                    head: [["1. INBOUND DELIVERIES OVERVIEW", "2. WIP PRODUCTION & CONVERSIONS", "3. OUTBOUND SHIPMENTS OVERVIEW"]],
+                    head: [["1. INBOUND DELIVERIES OVERVIEW", "2. WIP PRODUCTION & CONVERSIONS", "3. OUTBOUND & RESERVATIONS OVERVIEW"]],
                     body: kpiRows,
                     theme: 'grid',
                     headStyles: { fillColor: [24, 23, 78], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center', cellPadding: { top: 2.8, bottom: 2.8, left: 2.5, right: 2.5 } },
@@ -1183,7 +1283,7 @@ function Reports() {
                                     poNum,
                                     poSupplier,
                                     itemDesc,
-                                    dimension,
+                                    formatDimensionForPdf(dimension),
                                     `${count.toLocaleString()} ${uom}`,
                                     poUser
                                 ]);
@@ -1238,13 +1338,13 @@ function Reports() {
                         const consumedStr = (wip.inputs || []).map(it => {
                             const { itemDesc, dimension, uom } = resolveMaterialInfo(it);
                             const qty = it.qtyUsed || 0;
-                            return `• ${itemDesc} [${dimension}] (${qty.toLocaleString()} ${uom})`;
+                            return `• ${itemDesc} [${formatDimensionForPdf(dimension)}] (${qty.toLocaleString()} ${uom})`;
                         }).join('\n') || 'None';
 
                         const producedStr = (wip.outputs || []).map(it => {
                             const { itemDesc, dimension, uom } = resolveMaterialInfo(it);
                             const qty = it.qtyProduced || 0;
-                            return `• ${itemDesc} [${dimension}] (${qty.toLocaleString()} ${uom})`;
+                            return `• ${itemDesc} [${formatDimensionForPdf(dimension)}] (${qty.toLocaleString()} ${uom})`;
                         }).join('\n') || 'None';
 
                         const returnedStr = (wip.materialsReturned || []).map(it => {
@@ -1314,7 +1414,7 @@ function Reports() {
                                     plNum,
                                     plCustomer,
                                     itemDesc,
-                                    dimension,
+                                    formatDimensionForPdf(dimension),
                                     `${count.toLocaleString()} ${uom}`,
                                     plRef,
                                     plUser
@@ -1359,6 +1459,77 @@ function Reports() {
                         }
                     }
                 });
+
+                currentY = doc.lastAutoTable.finalY + 8;
+
+                // --- SECTION 4: OUTBOUND ACTIVE RESERVATIONS ---
+                if (monthReserves.length > 0) {
+                    renderSectionBanner(`D. OUTBOUND ACTIVE RESERVATIONS & HELD ORDERS   (${monthReserves.length} SLIPS   |   ${totalReservedMonthQty.toLocaleString()} UNITS HELD)`);
+
+                    const resColumns = ["Reservation Date", "Slip / Tracking No", "Customer / Destination", "Item Description", "Dimension", "Reserved Qty", "Logistics / Carrier", "Prepared By"];
+                    const resRows = [];
+
+                    monthReserves.forEach(pl => {
+                        const plDate = formatShortDate(pl.shipmentDate || pl.createdAt);
+                        const plNum = pl.plNo || 'N/A';
+                        const plCustomer = `${pl.customer || 'N/A'}${pl.destinationAddress ? `\n(${pl.destinationAddress})` : ''}`;
+                        const plRef = `${pl.carrier || pl.logisticsProvider || ''}${pl.referencePlNo ? `\nRef: ${pl.referencePlNo}` : ''}` || '—';
+                        const plUser = pl.preparedBy || 'System User';
+
+                        const plItems = pl.items || [];
+                        if (plItems.length === 0) {
+                            resRows.push([plDate, plNum, plCustomer, "No items listed", "—", "0", plRef, plUser]);
+                        } else {
+                            plItems.forEach(it => {
+                                const { itemDesc, dimension, uom } = resolveMaterialInfo(it);
+                                const count = Number(it.qtyRequested || it.actualCountShipped || 0);
+                                resRows.push([
+                                    plDate,
+                                    plNum,
+                                    plCustomer,
+                                    itemDesc,
+                                    formatDimensionForPdf(dimension),
+                                    `${count.toLocaleString()} ${uom}`,
+                                    plRef,
+                                    plUser
+                                ]);
+                            });
+                        }
+                    });
+
+                    autoTable(doc, {
+                        startY: currentY,
+                        margin: { top: 38, bottom: 20, left: 14, right: 14 },
+                        head: [resColumns],
+                        body: resRows,
+                        theme: 'grid',
+                        headStyles: { fillColor: [180, 83, 9], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, valign: 'middle', cellPadding: 2.5 },
+                        bodyStyles: { fontSize: 7.5, textColor: [50, 50, 50], cellPadding: 2.5, valign: 'middle' },
+                        alternateRowStyles: { fillColor: [254, 252, 246] },
+                        styles: { overflow: 'linebreak', cellPadding: 2.5, lineColor: [240, 220, 180], lineWidth: 0.2, rowPageBreak: 'avoid' },
+                        columnStyles: {
+                            0: { cellWidth: 24, fontStyle: 'bold' },
+                            1: { cellWidth: 26, fontStyle: 'bold', textColor: [180, 83, 9] },
+                            2: { cellWidth: 42 },
+                            3: { cellWidth: 74 },
+                            4: { cellWidth: 35 },
+                            5: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
+                            6: { cellWidth: 22 },
+                            7: { cellWidth: 22 }
+                        },
+                        didDrawCell: (data) => {
+                            if (data.section === 'body' && data.column.index === 5) {
+                                doc.setFillColor(254, 243, 199);
+                                doc.rect(data.cell.x + 0.5, data.cell.y + 0.5, data.cell.width - 1, data.cell.height - 1, 'F');
+                                doc.setTextColor(180, 83, 9);
+                                doc.setFont("helvetica", "bold");
+                                doc.text(String(data.cell.text), data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 1, { align: 'center' });
+                            }
+                        }
+                    });
+
+                    currentY = doc.lastAutoTable.finalY + 8;
+                }
 
             } else if (activeModule === 'supplies') {
                 // SUPPLIES MOVEMENTS
@@ -2180,7 +2351,14 @@ function Reports() {
                                         {(activeModule === 'supplies' || activeModule === 'consumables') && (
                                             <th className="py-3.5 px-4 whitespace-nowrap">Serial</th>
                                         )}
-                                        <th className="py-3.5 px-4 text-center">Quantity</th>
+                                        {activeModule === 'raw-materials' ? (
+                                            <>
+                                                <th className="py-3.5 px-4 text-center whitespace-nowrap">Actual Count</th>
+                                                <th className="py-3.5 px-4 text-center whitespace-nowrap">Reserve Count</th>
+                                            </>
+                                        ) : (
+                                            <th className="py-3.5 px-4 text-center">Quantity</th>
+                                        )}
                                         <th className="py-3.5 px-4 text-center">UOM</th>
                                         {activeModule === 'raw-materials' && (
                                             showAcquisitionCost ? (
@@ -2233,8 +2411,12 @@ function Reports() {
                                                 </td>
 
                                                 {/* 3. Dimension */}
-                                                <td className={`px-4 py-3 whitespace-nowrap font-mono text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`} title={row.Dimension}>
-                                                    {row.Dimension || '—'}
+                                                <td className={`px-4 py-3 whitespace-normal break-words ${isDark ? 'text-slate-300' : 'text-slate-600'}`} title={row.Dimension}>
+                                                    {activeModule === 'raw-materials' ? (
+                                                        <RackDimensionCell dimension={row.Dimension} isDark={isDark} />
+                                                    ) : (
+                                                        <span className="font-mono text-xs">{row.Dimension || '—'}</span>
+                                                    )}
                                                 </td>
 
                                                 {/* Serial (Tools & Equipments / Consumables) */}
@@ -2244,9 +2426,11 @@ function Reports() {
                                                     </td>
                                                 )}
 
-                                                {/* 4. Quantity (Full-box condition color for Rackings) */}
+                                                {/* 4. Actual Count & Reserve Count for Rackings, Quantity for others */}
                                                 {activeModule === 'raw-materials' ? (() => {
-                                                    const count = Number(row.ActualCount ?? 0);
+                                                    const physicalCount = Number(row.ActualCount ?? 0);
+                                                    const reserveCount = Number(row.ReserveCount ?? 0);
+                                                    const netCount = Math.max(0, physicalCount - reserveCount);
                                                     const crit = row.CriticalAlert !== undefined ? Number(row.CriticalAlert) : 0;
                                                     const reord = row.RestockWarning !== undefined ? Number(row.RestockWarning) : 10;
                                                     const overstk = row.MaxStorage !== undefined ? Number(row.MaxStorage) : 1000;
@@ -2255,24 +2439,39 @@ function Reports() {
                                                         ? 'bg-emerald-950/70 text-emerald-300 font-bold'
                                                         : 'bg-emerald-100 text-emerald-950 font-bold';
 
-                                                    if (count <= crit) {
+                                                    if (netCount <= crit) {
                                                         fullBoxClasses = isDark
                                                             ? 'bg-rose-950/80 text-rose-300 font-bold'
                                                             : 'bg-rose-100 text-rose-950 font-bold';
-                                                    } else if (count <= reord) {
+                                                    } else if (netCount <= reord) {
                                                         fullBoxClasses = isDark
                                                             ? 'bg-amber-950/80 text-amber-300 font-bold'
                                                             : 'bg-amber-100 text-amber-950 font-bold';
-                                                    } else if (count > overstk) {
+                                                    } else if (netCount > overstk) {
                                                         fullBoxClasses = isDark
                                                             ? 'bg-blue-950/80 text-blue-300 font-bold'
                                                             : 'bg-blue-100 text-blue-950 font-bold';
                                                     }
 
                                                     return (
-                                                        <td className={`px-4 py-3 whitespace-nowrap text-center font-mono text-xs transition-colors ${fullBoxClasses}`}>
-                                                            {count.toLocaleString()}
-                                                        </td>
+                                                        <>
+                                                            <td className={`px-4 py-3 whitespace-nowrap text-center font-mono text-xs transition-colors ${fullBoxClasses}`}>
+                                                                <div className="flex flex-col items-center justify-center">
+                                                                    <span>{netCount.toLocaleString()}</span>
+                                                                    {reserveCount > 0 && (
+                                                                        <span 
+                                                                            className="text-[9.5px] opacity-75 font-mono leading-tight mt-0.5 select-none" 
+                                                                            title={`Total Physical Stock: ${physicalCount.toLocaleString()} | Reserved: ${reserveCount.toLocaleString()}`}
+                                                                        >
+                                                                            (Total: {physicalCount.toLocaleString()})
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                                                                <ReserveCountBadge rawMat={row} isDark={isDark} />
+                                                            </td>
+                                                        </>
                                                     );
                                                 })() : (
                                                     <td className="px-4 py-3 whitespace-nowrap text-center">
@@ -2396,7 +2595,10 @@ function Reports() {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3.5 text-center font-mono font-bold whitespace-nowrap">
-                                                {consolidatedData.reduce((sum, i) => sum + Number(i.ActualCount || 0), 0).toLocaleString()}
+                                                {consolidatedData.reduce((sum, i) => sum + Math.max(0, Number(i.ActualCount || 0) - Number(i.ReserveCount || 0)), 0).toLocaleString()}
+                                            </td>
+                                            <td className="px-4 py-3.5 text-center font-mono font-bold text-amber-500 whitespace-nowrap">
+                                                {consolidatedData.reduce((sum, i) => sum + Number(i.ReserveCount || 0), 0).toLocaleString()}
                                             </td>
                                             <td className="px-4 py-3.5 text-center text-slate-400 whitespace-nowrap">
                                                 TOTAL
