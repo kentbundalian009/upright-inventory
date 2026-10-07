@@ -4,7 +4,7 @@ import {
     ShieldAlert,
     Search, Download, Loader2, FileText,
     TrendingUp, TrendingDown, Calendar, X, Check, ArrowUpRight,
-    Archive, Sliders, Coins
+    Archive, Sliders, Coins, Image as ImageIcon
 } from 'lucide-react';
 import PageHeader from './layout/PageHeader';
 import TablePagination from './common/TablePagination';
@@ -28,6 +28,140 @@ const formatDimensionForPdf = (dimStr) => {
     return dimStr || '—';
 };
 
+const getCleanItemDescription = (desc, segment) => {
+    if (!desc) return '';
+    let cleaned = desc
+        .replace(/\s*\((new|old)\s*stocks?\)/gi, '')
+        .replace(/\s*-(new|old)\s*stocks?/gi, '')
+        .replace(/\s*\(fabricated\)/gi, '')
+        .replace(/\s*-fabricated/gi, '')
+        .trim();
+    if (segment && segment !== 'N/A') {
+        const escaped = segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const stripped = cleaned
+            .replace(new RegExp(`\\s*\\(${escaped}\\)`, 'gi'), '')
+            .replace(new RegExp(`\\s*-\\s*${escaped}`, 'gi'), '')
+            .trim();
+        if (stripped) {
+            cleaned = stripped;
+        }
+    }
+    return cleaned || desc;
+};
+
+const getItemConditions = (item) => {
+    const tags = [];
+    const condStr = (item?.Condition || '').toLowerCase().trim();
+    const descStr = (item?.ItemDescription || '').toLowerCase();
+
+    if (condStr && condStr !== 'good' && condStr !== 'n/a') {
+        if (condStr.includes('old stocks') || condStr.includes('old stock')) tags.push('Old Stocks');
+        if (condStr.includes('new stocks') || condStr.includes('new stock')) tags.push('New Stocks');
+        if (condStr.includes('fabricated')) tags.push('Fabricated');
+
+        if (tags.length === 0 && item.Condition) {
+            tags.push(item.Condition);
+        }
+    } else {
+        if (descStr.includes('(old stocks)') || descStr.includes('(old stock)') || descStr.includes('-old stocks') || descStr.includes('-old stock')) {
+            tags.push('Old Stocks');
+        }
+        if (descStr.includes('(new stocks)') || descStr.includes('(new stock)') || descStr.includes('-new stocks') || descStr.includes('-new stock')) {
+            tags.push('New Stocks');
+        }
+        if (descStr.includes('(fabricated)') || descStr.includes('-fabricated')) {
+            tags.push('Fabricated');
+        }
+    }
+    return tags;
+};
+
+const getBackendBaseUrl = () => {
+    if (import.meta.env.MODE === 'production') {
+        return 'https://one-inventory.onrender.com';
+    }
+    if (typeof window !== 'undefined') {
+        return `${window.location.protocol}//${window.location.hostname || 'localhost'}:5000`;
+    }
+    return 'http://localhost:5000';
+};
+
+const getImageSrc = (imageUrl) => {
+    if (!imageUrl) return '';
+    if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) return imageUrl;
+    const cleanPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+    return `${getBackendBaseUrl()}${cleanPath}`;
+};
+
+const loadImageBase64 = async (url) => {
+    if (!url) return null;
+    const resolvedUrl = getImageSrc(url);
+    if (!resolvedUrl) return null;
+
+    // Fast path: already a data URL
+    if (resolvedUrl.startsWith('data:')) {
+        return { dataUrl: resolvedUrl, width: 60, height: 60 };
+    }
+
+    // Method 1: Fetch as Blob -> FileReader data URL (CORS safe, no canvas tainting)
+    try {
+        const response = await fetch(resolvedUrl, { mode: 'cors' });
+        if (response.ok) {
+            const blob = await response.blob();
+            const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+            if (dataUrl && typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
+                return { dataUrl };
+            }
+        }
+    } catch (fetchErr) {
+        // Fallback to Image + Canvas
+    }
+
+    // Method 2: HTML Image + Canvas with cache-busting to prevent stale uncredentialed browser cache
+    return new Promise((resolve) => {
+        try {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            const cacheBuster = resolvedUrl.includes('?') 
+                ? `${resolvedUrl}&cb=${Date.now()}` 
+                : `${resolvedUrl}?cb=${Date.now()}`;
+            const timer = setTimeout(() => resolve(null), 3500);
+
+            img.onload = () => {
+                clearTimeout(timer);
+                try {
+                    const canvas = document.createElement('canvas');
+                    const maxDim = 120;
+                    const scale = Math.min(maxDim / img.width, maxDim / img.height, 1);
+                    canvas.width = Math.max(1, Math.round(img.width * scale));
+                    canvas.height = Math.max(1, Math.round(img.height * scale));
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve({
+                        dataUrl: canvas.toDataURL('image/jpeg', 0.85),
+                        width: canvas.width,
+                        height: canvas.height
+                    });
+                } catch (canvasErr) {
+                    resolve(null);
+                }
+            };
+            img.onerror = () => {
+                clearTimeout(timer);
+                resolve(null);
+            };
+            img.src = cacheBuster;
+        } catch (e) {
+            resolve(null);
+        }
+    });
+};
+
 function Reports() {
     const { isDark } = useTheme();
     const [activeModule, setActiveModule] = useState('raw-materials');
@@ -43,6 +177,8 @@ function Reports() {
     const [showZeroOnly, setShowZeroOnly] = useState(false);
     const [hideNoMovements, setHideNoMovements] = useState(false);
     const [showAcquisitionCost, setShowAcquisitionCost] = useState(false);
+    const [showInventoryOnly, setShowInventoryOnly] = useState(false);
+    const [previewImage, setPreviewImage] = useState(null);
 
     const [rawMaterialsData, setRawMaterialsData] = useState([]);
     const [suppliesData, setSuppliesData] = useState([]);
@@ -366,6 +502,8 @@ function Reports() {
                 isArchived: !!item.isArchived,
                 UOM: item.UOM || 'PCS',
                 AcquisitionCost: Number(item.AcquisitionCost) || 0,
+                ImageUrl: item.ImageUrl || '',
+                Condition: item.Condition || '',
                 inflows: inflows,
                 outflows: outflows
             });
@@ -433,7 +571,7 @@ function Reports() {
             masterList = Object.values(grouped);
         }
 
-        if (hideNoMovements && !showAcquisitionCost) {
+        if (hideNoMovements && !showAcquisitionCost && !showInventoryOnly) {
             masterList = masterList.filter(item =>
                 (item.inflows && item.inflows.length > 0) || (item.outflows && item.outflows.length > 0)
             );
@@ -511,7 +649,7 @@ function Reports() {
     // Reset pagination to page 1 on filter changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [activeModule, globalSearch, selectedYear, selectedMonth, viewMode, hideZeroQty, showZeroOnly, hideNoMovements, showAcquisitionCost]);
+    }, [activeModule, globalSearch, selectedYear, selectedMonth, viewMode, hideZeroQty, showZeroOnly, hideNoMovements, showAcquisitionCost, showInventoryOnly]);
 
     const totalRackingsAcquisitionCost = useMemo(() => {
         return rawMaterialsData
@@ -553,7 +691,7 @@ function Reports() {
         return { totalItems, totalInflowsQty, totalOutflowsQty };
     }, [consolidatedData]);
 
-    const handleDownloadPDF = () => {
+    const handleDownloadPDF = async () => {
         if (activeModule === 'discrepancy') {
             const logs = getDiscrepancyLogs();
             if (!logs || logs.length === 0) {
@@ -666,6 +804,7 @@ function Reports() {
             return;
         }
 
+        setLoading(true);
         try {
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
             const pageWidth = 297;
@@ -705,35 +844,125 @@ function Reports() {
 
             const isRackings = activeModule === 'raw-materials';
             const isAcquisitionReport = isRackings && showAcquisitionCost;
+            const isInventoryOnly = isRackings && showInventoryOnly;
+
+            let imageMap = {};
+            if (isInventoryOnly) {
+                try {
+                    const imagePromises = consolidatedData.map(async (item) => {
+                        if (item.ImageUrl) {
+                            const loaded = await loadImageBase64(item.ImageUrl);
+                            if (loaded) imageMap[item._id] = loaded;
+                        }
+                    });
+                    await Promise.all(imagePromises);
+                } catch (err) {
+                    console.warn("Failed to load images for PDF:", err);
+                }
+            }
 
             const columns = isRackings
-                ? (isAcquisitionReport
-                    ? ["Item Description", "Segment", "Dimension", "Actual Count", "Reserve", "UOM", "Acquisition Cost", "Total Acquisition Cost"]
-                    : ["Item Description", "Segment", "Dimension", "Actual Count", "Reserve", "UOM", "Inflows (This Month)", "Outflows (This Month)"])
+                ? (isInventoryOnly
+                    ? ["Image", "Item Description", "Dimension", "Actual Count", "Reserve Count", "UOM"]
+                    : isAcquisitionReport
+                        ? ["Item Description", "Segment", "Dimension", "Actual Count", "Reserve", "UOM", "Acquisition Cost", "Total Acquisition Cost"]
+                        : ["Item Description", "Segment", "Dimension", "Actual Count", "Reserve", "UOM", "Inflows (This Month)", "Outflows (This Month)"])
                 : ["Item Description", "Segment", "Dimension", "Serial", "Quantity", "UOM"];
 
-            // Group records by Segment across all modules (Rackings, Supplies, Consumables)
-            const groupedData = {};
-            consolidatedData.forEach(item => {
-                const rawVal = item.Segment;
-                const key = rawVal?.trim() || 'STANDARD SEGMENT';
-                if (!groupedData[key]) {
-                    groupedData[key] = [];
-                }
-                groupedData[key].push(item);
-            });
-
             const rows = [];
-            Object.keys(groupedData).sort().forEach(groupName => {
-                const itemsInGroup = groupedData[groupName];
+            if (isInventoryOnly) {
+                // Group records by Segment
+                const groupedData = {};
+                consolidatedData.forEach(item => {
+                    const rawVal = item.Segment;
+                    const key = rawVal?.trim() || 'STANDARD SEGMENT';
+                    if (!groupedData[key]) {
+                        groupedData[key] = [];
+                    }
+                    groupedData[key].push(item);
+                });
 
-                // Section Header Banner across all columns
-                rows.push([
-                    {
-                        content: `SEGMENT: ${groupName.toUpperCase()}   (${itemsInGroup.length} ${itemsInGroup.length === 1 ? 'ITEM' : 'ITEMS'})`,
-                        colSpan: isRackings ? 8 : 6,
-                        styles: {
-                            fillColor: [234, 239, 249],
+                Object.keys(groupedData).sort().forEach(groupName => {
+                    const itemsInGroup = groupedData[groupName];
+
+                    // Section Header Banner across all 6 columns
+                    rows.push([
+                        {
+                            content: `SEGMENT: ${groupName.toUpperCase()}   (${itemsInGroup.length} ${itemsInGroup.length === 1 ? 'ITEM' : 'ITEMS'})`,
+                            colSpan: 6,
+                            styles: {
+                                fillColor: [234, 239, 249],
+                                textColor: [24, 23, 78],
+                                fontStyle: 'bold',
+                                fontSize: 8.5,
+                                cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 }
+                            }
+                        }
+                    ]);
+
+                    itemsInGroup.forEach(item => {
+                        const physicalCount = Number(item.ActualCount ?? 0);
+                        const reserveCount = Number(item.ReserveCount ?? 0);
+                        const netCount = Math.max(0, physicalCount - reserveCount);
+                        const displayActualQty = item.isArchived ? '0' : netCount.toLocaleString();
+                        const displayReserveQty = reserveCount > 0 ? reserveCount.toLocaleString() : '—';
+                        const formattedDimension = formatDimensionForPdf(item.Dimension);
+
+                        const crit = item.CriticalAlert !== undefined ? Number(item.CriticalAlert) : 0;
+                        const reord = item.RestockWarning !== undefined ? Number(item.RestockWarning) : 10;
+                        const overstk = item.MaxStorage !== undefined ? Number(item.MaxStorage) : 1000;
+
+                        let conditionType = 'healthy';
+                        if (netCount <= crit) conditionType = 'critical';
+                        else if (netCount <= reord) conditionType = 'reorder';
+                        else if (netCount > overstk) conditionType = 'overstock';
+
+                        const cleanDesc = getCleanItemDescription(item.ItemDescription, item.Segment);
+                        const conditions = getItemConditions(item);
+                        const descText = conditions.length > 0
+                            ? `${cleanDesc}\n(${conditions.join(', ')})`
+                            : cleanDesc;
+
+                        rows.push([
+                            { content: '', rawItemId: item._id },
+                            item.isArchived ? `${descText} (Archived)` : descText,
+                            formattedDimension,
+                            {
+                                content: reserveCount > 0 ? `${displayActualQty}\n(Tot: ${physicalCount.toLocaleString()})` : displayActualQty,
+                                condition: conditionType,
+                                isReserve: false
+                            },
+                            {
+                                content: displayReserveQty,
+                                isReserve: true,
+                                hasReserve: reserveCount > 0
+                            },
+                            item.UOM || 'PCS'
+                        ]);
+                    });
+                });
+            } else {
+                // Group records by Segment across all modules (Rackings, Supplies, Consumables)
+                const groupedData = {};
+                consolidatedData.forEach(item => {
+                    const rawVal = item.Segment;
+                    const key = rawVal?.trim() || 'STANDARD SEGMENT';
+                    if (!groupedData[key]) {
+                        groupedData[key] = [];
+                    }
+                    groupedData[key].push(item);
+                });
+
+                Object.keys(groupedData).sort().forEach(groupName => {
+                    const itemsInGroup = groupedData[groupName];
+
+                    // Section Header Banner across all columns
+                    rows.push([
+                        {
+                            content: `SEGMENT: ${groupName.toUpperCase()}   (${itemsInGroup.length} ${itemsInGroup.length === 1 ? 'ITEM' : 'ITEMS'})`,
+                            colSpan: isRackings ? 8 : 6,
+                            styles: {
+                                fillColor: [234, 239, 249],
                             textColor: [24, 23, 78],
                             fontStyle: 'bold',
                             fontSize: 8.5,
@@ -831,6 +1060,7 @@ function Reports() {
                     rows.push(itemRow);
                 });
             });
+            }
 
             if (isAcquisitionReport) {
                 rows.push([
@@ -885,9 +1115,11 @@ function Reports() {
                     doc.setFontSize(13);
                     const reportHeaderTitle = showZeroOnly
                         ? `${titleModule.toUpperCase()} ZERO QUANTITY (OUT OF STOCK) AUDIT REPORT`
-                        : isAcquisitionReport
-                            ? `${titleModule.toUpperCase()} ACQUISITION COST & INVENTORY VALUATION AUDIT REPORT`
-                            : `${titleModule.toUpperCase()} CONSOLIDATED REGISTRY REPORT`;
+                        : isInventoryOnly
+                            ? `${titleModule.toUpperCase()} INVENTORY MASTERLIST REPORT`
+                            : isAcquisitionReport
+                                ? `${titleModule.toUpperCase()} ACQUISITION COST & INVENTORY VALUATION AUDIT REPORT`
+                                : `${titleModule.toUpperCase()} CONSOLIDATED REGISTRY REPORT`;
                     doc.text(reportHeaderTitle, centerX, 12, { align: 'center' });
 
                     doc.setFontSize(8.5);
@@ -895,9 +1127,11 @@ function Reports() {
                     doc.setTextColor(215, 220, 245);
                     const reportSubtitle = showZeroOnly
                         ? `Zero Stock Inventory Verification & Replenishment Audit  |  Covered: ${targetMonthLabel} ${currentYearStr}  |  Generated: ${formattedDate}`
-                        : isAcquisitionReport
-                            ? `Comprehensive Capital Asset & Acquisition Cost Valuation Ledger  |  Covered: ${targetMonthLabel} ${currentYearStr}  |  Generated: ${formattedDate}`
-                            : `Material Flow Logistics & Audit Trail Control Registry  |  Covered: ${targetMonthLabel} ${currentYearStr}  |  Generated: ${formattedDate}`;
+                        : isInventoryOnly
+                            ? `Alphabetical Inventory Balance & Physical Stock Ledger  |  Covered: ${targetMonthLabel} ${currentYearStr}  |  Generated: ${formattedDate}`
+                            : isAcquisitionReport
+                                ? `Comprehensive Capital Asset & Acquisition Cost Valuation Ledger  |  Covered: ${targetMonthLabel} ${currentYearStr}  |  Generated: ${formattedDate}`
+                                : `Material Flow Logistics & Audit Trail Control Registry  |  Covered: ${targetMonthLabel} ${currentYearStr}  |  Generated: ${formattedDate}`;
                     doc.text(reportSubtitle, centerX, 20, { align: 'center' });
 
                     doc.setFont("helvetica", "normal");
@@ -953,11 +1187,34 @@ function Reports() {
                     }
                 },
                 didDrawCell: (data) => {
-                    // Skip indicator drawing on section subheader rows
+                    // Skip drawing on section subheader rows
                     if (data.cell.colSpan > 1) return;
 
+                    // Image rendering for isInventoryOnly (column 0)
+                    if (isInventoryOnly && data.section === 'body' && data.column.index === 0) {
+                        const itemId = data.cell.raw?.rawItemId;
+                        const imgObj = imageMap[itemId];
+                        if (imgObj && imgObj.dataUrl) {
+                            const cellX = data.cell.x;
+                            const cellY = data.cell.y;
+                            const cellW = data.cell.width;
+                            const cellH = data.cell.height;
+                            const targetSize = Math.min(cellW - 2, cellH - 2, 11);
+                            const imgX = cellX + (cellW - targetSize) / 2;
+                            const imgY = cellY + (cellH - targetSize) / 2;
+                            try {
+                                doc.addImage(imgObj.dataUrl, 'JPEG', imgX, imgY, targetSize, targetSize);
+                            } catch (err) {}
+                        } else {
+                            doc.setTextColor(180, 180, 180);
+                            doc.setFontSize(7);
+                            doc.setFont("helvetica", "normal");
+                            doc.text("—", data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2), { align: 'center', baseline: 'middle' });
+                        }
+                    }
+
                     // Left indicator bars for Inflows (col 6) and Outflows (col 7) - Rackings movements only
-                    if (isRackings && !isAcquisitionReport && data.section === 'body' && (data.column.index === 6 || data.column.index === 7)) {
+                    if (isRackings && !isAcquisitionReport && !isInventoryOnly && data.section === 'body' && (data.column.index === 6 || data.column.index === 7)) {
                         const lines = data.cell.text;
                         if (!lines || lines.length === 0 || lines[0] === 'No inflows recorded' || lines[0] === 'No outflows recorded') return;
 
@@ -1075,9 +1332,23 @@ function Reports() {
                 headStyles: { fillColor: [24, 23, 78], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, valign: 'middle' },
                 bodyStyles: { fontSize: 7.5, textColor: [50, 50, 50], valign: 'middle' },
                 alternateRowStyles: { fillColor: [248, 250, 252] },
-                styles: { overflow: 'linebreak', cellPadding: 2.5, lineColor: [230, 230, 230], lineWidth: 0.2, rowPageBreak: 'avoid' },
+                styles: { 
+                    overflow: 'linebreak', 
+                    cellPadding: 2.5, 
+                    lineColor: [230, 230, 230], 
+                    lineWidth: 0.2, 
+                    rowPageBreak: 'avoid',
+                    ...(isInventoryOnly ? { minCellHeight: 13 } : {})
+                },
                 columnStyles: isRackings ? (
-                    isAcquisitionReport ? {
+                    isInventoryOnly ? {
+                        0: { cellWidth: 18, halign: 'center' },
+                        1: { cellWidth: 105 },
+                        2: { cellWidth: 55 },
+                        3: { cellWidth: 32, halign: 'center', fontStyle: 'bold' },
+                        4: { cellWidth: 32, halign: 'center' },
+                        5: { cellWidth: 27, halign: 'center' }
+                    } : isAcquisitionReport ? {
                         0: { cellWidth: 68 },
                         1: { cellWidth: 26 },
                         2: { cellWidth: 32 },
@@ -1107,13 +1378,17 @@ function Reports() {
             });
             const saveFileName = showZeroOnly
                 ? `${activeModuleStr}_ZERO_QTY_${viewMode.toUpperCase()}_${targetMonthLabel.toUpperCase()}_${currentYearStr}.pdf`
-                : isAcquisitionReport
-                    ? `${activeModuleStr}_ACQUISITION_COST_${viewMode.toUpperCase()}_${targetMonthLabel.toUpperCase()}_${currentYearStr}.pdf`
-                    : `${activeModuleStr}_${viewMode.toUpperCase()}_CONSOLIDATED_${targetMonthLabel.toUpperCase()}_${currentYearStr}.pdf`;
+                : isInventoryOnly
+                    ? `${activeModuleStr}_INVENTORY_ONLY_ALPHABETICAL_${targetMonthLabel.toUpperCase()}_${currentYearStr}.pdf`
+                    : isAcquisitionReport
+                        ? `${activeModuleStr}_ACQUISITION_COST_${viewMode.toUpperCase()}_${targetMonthLabel.toUpperCase()}_${currentYearStr}.pdf`
+                        : `${activeModuleStr}_${viewMode.toUpperCase()}_CONSOLIDATED_${targetMonthLabel.toUpperCase()}_${currentYearStr}.pdf`;
             doc.save(saveFileName);
         } catch (e) {
             console.error("🔴 PDF CRITICAL FAILURE REASON:", e);
             alert(`Failed to download Consolidated Registry: ${e.message}`);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -2072,7 +2347,10 @@ function Reports() {
                                             key={mod.id}
                                             onClick={() => {
                                                 setActiveModule(mod.id);
-                                                if (mod.id !== 'raw-materials') setShowAcquisitionCost(false);
+                                                if (mod.id !== 'raw-materials') {
+                                                    setShowAcquisitionCost(false);
+                                                    setShowInventoryOnly(false);
+                                                }
                                             }}
                                             className={`text-xs font-bold px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${isActive
                                                 ? (isDark ? 'bg-[#ff6600] text-white shadow-md' : 'bg-[#18174e] text-white shadow-md')
@@ -2146,8 +2424,8 @@ function Reports() {
                             </label>
                         )}
 
-                        {/* 3. Movements Only (Rackings only) - hidden when Acquisition Cost is checked */}
-                        {activeModule === 'raw-materials' && !showAcquisitionCost && (
+                        {/* 3. Movements Only (Rackings only) - hidden when Acquisition Cost or Inventory Only is checked */}
+                        {activeModule === 'raw-materials' && !showAcquisitionCost && !showInventoryOnly && (
                             <label
                                 className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${hideNoMovements
                                     ? (isDark ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100')
@@ -2159,7 +2437,10 @@ function Reports() {
                                     checked={hideNoMovements}
                                     onChange={(e) => {
                                         setHideNoMovements(e.target.checked);
-                                        if (e.target.checked) setShowAcquisitionCost(false);
+                                        if (e.target.checked) {
+                                            setShowAcquisitionCost(false);
+                                            setShowInventoryOnly(false);
+                                        }
                                     }}
                                     className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${hideNoMovements ? 'accent-indigo-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
                                 />
@@ -2182,11 +2463,36 @@ function Reports() {
                                         setShowAcquisitionCost(e.target.checked);
                                         if (e.target.checked) {
                                             setHideNoMovements(false);
+                                            setShowInventoryOnly(false);
                                         }
                                     }}
                                     className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${showAcquisitionCost ? 'accent-emerald-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
                                 />
                                 <span>Acquisition Cost</span>
+                            </label>
+                        )}
+
+                        {/* 5. Inventory Only (Rackings only) - beside Acquisition Cost */}
+                        {activeModule === 'raw-materials' && !hideNoMovements && (
+                            <label
+                                className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${showInventoryOnly
+                                    ? (isDark ? 'bg-blue-950/60 text-blue-300 border-blue-600 shadow-sm ring-1 ring-blue-500/50' : 'bg-blue-50 text-blue-700 border-blue-300 shadow-sm ring-1 ring-blue-400')
+                                    : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
+                                    }`}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={showInventoryOnly}
+                                    onChange={(e) => {
+                                        setShowInventoryOnly(e.target.checked);
+                                        if (e.target.checked) {
+                                            setHideNoMovements(false);
+                                            setShowAcquisitionCost(false);
+                                        }
+                                    }}
+                                    className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${showInventoryOnly ? 'accent-blue-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
+                                />
+                                <span>Inventory Only</span>
                             </label>
                         )}
                     </div>
@@ -2211,14 +2517,14 @@ function Reports() {
                         <button
                             onClick={handleDownloadPDF}
                             disabled={loading}
-                            title={showZeroOnly ? "Download PDF of all 0 quantity items" : showAcquisitionCost ? "Export Acquisition Cost & Valuation Ledger PDF" : "Export Consolidated Ledger PDF"}
+                            title={showZeroOnly ? "Download PDF of all 0 quantity items" : showInventoryOnly ? "Export Alphabetical Inventory Only Ledger PDF" : showAcquisitionCost ? "Export Acquisition Cost & Valuation Ledger PDF" : "Export Consolidated Ledger PDF"}
                             className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${showZeroOnly
                                 ? 'border-red-600 bg-red-600 text-white hover:bg-red-700'
                                 : (isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90')
                                 }`}
                         >
                             <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                            <span>{showZeroOnly ? 'Export 0 Qty Ledger (PDF)' : showAcquisitionCost ? 'Export Cost Ledger (PDF)' : 'Download (PDF)'}</span>
+                            <span>{showZeroOnly ? 'Export 0 Qty Ledger (PDF)' : showInventoryOnly ? 'Export Inventory Ledger (PDF)' : showAcquisitionCost ? 'Export Cost Ledger (PDF)' : 'Download (PDF)'}</span>
                         </button>
                     </div>
 
@@ -2357,33 +2663,46 @@ function Reports() {
                             <table className="w-full text-left border-collapse text-xs">
                                 <thead>
                                     <tr className={`font-bold uppercase text-[11px] tracking-wider whitespace-nowrap ${isDark ? 'bg-[#10121d] text-slate-300 border-b border-slate-800' : 'bg-[#18174e] text-white'}`}>
-                                        <th className="py-3.5 px-4 w-[280px]">Item Profile</th>
-                                        <th className="py-3.5 px-4">Segment</th>
-                                        <th className="py-3.5 px-4">Dimension</th>
-                                        {(activeModule === 'supplies' || activeModule === 'consumables') && (
-                                            <th className="py-3.5 px-4 whitespace-nowrap">Serial</th>
-                                        )}
-                                        {activeModule === 'raw-materials' ? (
+                                        {activeModule === 'raw-materials' && showInventoryOnly ? (
                                             <>
+                                                <th className="py-3.5 px-3 text-center whitespace-nowrap w-[60px]">Image</th>
+                                                <th className="py-3.5 px-4 whitespace-nowrap min-w-[220px]">Item Description</th>
+                                                <th className="py-3.5 px-4 whitespace-nowrap min-w-[120px]">Dimension</th>
                                                 <th className="py-3.5 px-4 text-center whitespace-nowrap">Actual Count</th>
                                                 <th className="py-3.5 px-4 text-center whitespace-nowrap">Reserve Count</th>
+                                                <th className="py-3.5 px-4 text-center whitespace-nowrap">UOM</th>
                                             </>
                                         ) : (
-                                            <th className="py-3.5 px-4 text-center">Quantity</th>
-                                        )}
-                                        <th className="py-3.5 px-4 text-center">UOM</th>
-                                        {activeModule === 'raw-materials' && (
-                                            showAcquisitionCost ? (
-                                                <>
-                                                    <th className="py-3.5 px-4 text-right whitespace-nowrap min-w-[140px]">Acquisition Cost</th>
-                                                    <th className="py-3.5 px-4 text-right whitespace-nowrap min-w-[170px]">Total Acquisition Cost</th>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <th className="py-3.5 px-4 min-w-[220px]">Inflows (This Month)</th>
-                                                    <th className="py-3.5 px-4 min-w-[220px]">Outflows (This Month)</th>
-                                                </>
-                                            )
+                                            <>
+                                                <th className="py-3.5 px-4 w-[280px]">Item Profile</th>
+                                                <th className="py-3.5 px-4">Segment</th>
+                                                <th className="py-3.5 px-4">Dimension</th>
+                                                {(activeModule === 'supplies' || activeModule === 'consumables') && (
+                                                    <th className="py-3.5 px-4 whitespace-nowrap">Serial</th>
+                                                )}
+                                                {activeModule === 'raw-materials' ? (
+                                                    <>
+                                                        <th className="py-3.5 px-4 text-center whitespace-nowrap">Actual Count</th>
+                                                        <th className="py-3.5 px-4 text-center whitespace-nowrap">Reserve Count</th>
+                                                    </>
+                                                ) : (
+                                                    <th className="py-3.5 px-4 text-center">Quantity</th>
+                                                )}
+                                                <th className="py-3.5 px-4 text-center">UOM</th>
+                                                {activeModule === 'raw-materials' && (
+                                                    showAcquisitionCost ? (
+                                                        <>
+                                                            <th className="py-3.5 px-4 text-right whitespace-nowrap min-w-[140px]">Acquisition Cost</th>
+                                                            <th className="py-3.5 px-4 text-right whitespace-nowrap min-w-[170px]">Total Acquisition Cost</th>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <th className="py-3.5 px-4 min-w-[220px]">Inflows (This Month)</th>
+                                                            <th className="py-3.5 px-4 min-w-[220px]">Outflows (This Month)</th>
+                                                        </>
+                                                    )
+                                                )}
+                                            </>
                                         )}
                                     </tr>
                                 </thead>
@@ -2396,194 +2715,317 @@ function Reports() {
                                                 ? (isDark ? 'bg-red-500/5 hover:bg-red-500/10' : 'bg-red-50/50 hover:bg-red-50')
                                                 : (isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/80')
                                                 }`}>
-                                                {/* 1. Item Profile (ItemDescription + Archived badge only, code removed) */}
-                                                <td className="px-4 py-3 whitespace-nowrap">
-                                                    <div className="flex flex-col min-w-0 max-w-[280px]">
-                                                        <span
-                                                            className={`font-semibold text-xs truncate ${isDark ? 'text-slate-100' : 'text-slate-800'}`}
-                                                            title={row.ItemDescription}
-                                                        >
-                                                            {row.ItemDescription}
-                                                        </span>
-                                                        {row.isArchived && (
-                                                            <div className="flex items-center gap-1.5 mt-0.5">
-                                                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 border border-amber-500/30 uppercase tracking-wide flex-shrink-0">
-                                                                    Archived
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </td>
-
-                                                {/* 2. Segment */}
-                                                <td className="px-4 py-3 whitespace-nowrap font-medium text-xs">
-                                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                                                        {row.Segment || 'Standard'}
-                                                    </span>
-                                                </td>
-
-                                                {/* 3. Dimension */}
-                                                <td className={`px-4 py-3 whitespace-normal break-words ${isDark ? 'text-slate-300' : 'text-slate-600'}`} title={row.Dimension}>
-                                                    {activeModule === 'raw-materials' ? (
-                                                        <RackDimensionCell dimension={row.Dimension} isDark={isDark} />
-                                                    ) : (
-                                                        <span className="font-mono text-xs">{row.Dimension || '—'}</span>
-                                                    )}
-                                                </td>
-
-                                                {/* Serial (Tools & Equipments / Consumables) */}
-                                                {(activeModule === 'supplies' || activeModule === 'consumables') && (
-                                                    <td className={`px-4 py-3 whitespace-nowrap font-mono text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`} title={row.SerialNo}>
-                                                        {row.SerialNo || '—'}
-                                                    </td>
-                                                )}
-
-                                                {/* 4. Actual Count & Reserve Count for Rackings, Quantity for others */}
-                                                {activeModule === 'raw-materials' ? (() => {
-                                                    const physicalCount = Number(row.ActualCount ?? 0);
-                                                    const reserveCount = Number(row.ReserveCount ?? 0);
-                                                    const netCount = Math.max(0, physicalCount - reserveCount);
-                                                    const crit = row.CriticalAlert !== undefined ? Number(row.CriticalAlert) : 0;
-                                                    const reord = row.RestockWarning !== undefined ? Number(row.RestockWarning) : 10;
-                                                    const overstk = row.MaxStorage !== undefined ? Number(row.MaxStorage) : 1000;
-
-                                                    let fullBoxClasses = isDark
-                                                        ? 'bg-emerald-950/70 text-emerald-300 font-bold'
-                                                        : 'bg-emerald-100 text-emerald-950 font-bold';
-
-                                                    if (netCount <= crit) {
-                                                        fullBoxClasses = isDark
-                                                            ? 'bg-rose-950/80 text-rose-300 font-bold'
-                                                            : 'bg-rose-100 text-rose-950 font-bold';
-                                                    } else if (netCount <= reord) {
-                                                        fullBoxClasses = isDark
-                                                            ? 'bg-amber-950/80 text-amber-300 font-bold'
-                                                            : 'bg-amber-100 text-amber-950 font-bold';
-                                                    } else if (netCount > overstk) {
-                                                        fullBoxClasses = isDark
-                                                            ? 'bg-blue-950/80 text-blue-300 font-bold'
-                                                            : 'bg-blue-100 text-blue-950 font-bold';
-                                                    }
-
-                                                    return (
-                                                        <>
-                                                            <td className={`px-4 py-3 whitespace-nowrap text-center font-mono text-xs transition-colors ${fullBoxClasses}`}>
-                                                                <div className="flex flex-col items-center justify-center">
-                                                                    <span>{netCount.toLocaleString()}</span>
-                                                                    {reserveCount > 0 && (
-                                                                        <span 
-                                                                            className="text-[9.5px] opacity-75 font-mono leading-tight mt-0.5 select-none" 
-                                                                            title={`Total Physical Stock: ${physicalCount.toLocaleString()} | Reserved: ${reserveCount.toLocaleString()}`}
-                                                                        >
-                                                                            (Total: {physicalCount.toLocaleString()})
-                                                                        </span>
-                                                                    )}
+                                                {activeModule === 'raw-materials' && showInventoryOnly ? (
+                                                    <>
+                                                        {/* 1. Image */}
+                                                        <td className="py-2 px-3 text-center whitespace-nowrap">
+                                                            {row.ImageUrl ? (
+                                                                <div className="relative inline-block">
+                                                                    <img
+                                                                        src={getImageSrc(row.ImageUrl)}
+                                                                        alt={row.ItemDescription || "Material"}
+                                                                        crossOrigin="anonymous"
+                                                                        loading="lazy"
+                                                                        onError={(e) => {
+                                                                            e.target.style.display = 'none';
+                                                                            if (e.target.nextElementSibling) {
+                                                                                e.target.nextElementSibling.style.display = 'flex';
+                                                                            }
+                                                                        }}
+                                                                        onClick={() => setPreviewImage(getImageSrc(row.ImageUrl))}
+                                                                        className={`w-10 h-10 object-cover rounded-lg cursor-pointer hover:scale-110 ${isDark ? 'hover:border-[#ff6600]' : 'hover:border-[#18174e]'} transition-all mx-auto shadow-sm`}
+                                                                    />
+                                                                    <div style={{ display: 'none' }} className={`w-10 h-10 rounded-lg ${isDark ? 'bg-slate-800 text-slate-500 border-slate-700' : 'bg-slate-100 text-slate-400 border-slate-200'} items-center justify-center border border-dashed mx-auto`}>
+                                                                        <ImageIcon className="w-4 h-4" />
+                                                                    </div>
                                                                 </div>
-                                                            </td>
-                                                            <td className="px-4 py-3 whitespace-nowrap text-center">
-                                                                <ReserveCountBadge rawMat={row} isDark={isDark} />
-                                                            </td>
-                                                        </>
-                                                    );
-                                                })() : (
-                                                    <td className="px-4 py-3 whitespace-nowrap text-center">
-                                                        {isDepleted ? (
-                                                            <span className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap font-mono ${isDark ? 'bg-rose-950/30 border-rose-800/40 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-700'
-                                                                }`}>
-                                                                <span>0</span>
+                                                            ) : (
+                                                                <div className={`w-10 h-10 rounded-lg ${isDark ? 'bg-slate-800 text-slate-500 border-slate-700' : 'bg-slate-100 text-slate-400 border-slate-200'} flex items-center justify-center border border-dashed mx-auto`}>
+                                                                    <ImageIcon className="w-4 h-4" />
+                                                                </div>
+                                                            )}
+                                                        </td>
+
+                                                        {/* 2. Item Description */}
+                                                        <td className="py-3 px-4 min-w-[200px]">
+                                                            <div className={`font-semibold whitespace-normal break-words transition-colors ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
+                                                                {getCleanItemDescription(row.ItemDescription, row.Segment)}
+                                                            </div>
+
+                                                            {/* Condition Badges */}
+                                                            {(() => {
+                                                                const conditions = getItemConditions(row);
+                                                                if (!conditions || conditions.length === 0) return null;
+                                                                return (
+                                                                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                                                        {conditions.map((cond, idx) => {
+                                                                            let badgeStyle = isDark
+                                                                                ? 'bg-slate-800 text-slate-300 border-slate-700'
+                                                                                : 'bg-slate-100 text-slate-700 border-slate-200';
+
+                                                                            if (cond === 'New Stocks') {
+                                                                                badgeStyle = isDark
+                                                                                    ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/80'
+                                                                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                                                                            } else if (cond === 'Old Stocks') {
+                                                                                badgeStyle = isDark
+                                                                                    ? 'bg-amber-950/60 text-amber-300 border-amber-800/80'
+                                                                                    : 'bg-amber-50 text-amber-700 border-amber-200';
+                                                                            } else if (cond === 'Fabricated') {
+                                                                                badgeStyle = isDark
+                                                                                    ? 'bg-purple-950/60 text-purple-300 border-purple-800/80'
+                                                                                    : 'bg-purple-50 text-purple-700 border-purple-200';
+                                                                            }
+
+                                                                            return (
+                                                                                <span
+                                                                                    key={idx}
+                                                                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded border leading-none inline-flex items-center gap-1 ${badgeStyle}`}
+                                                                                >
+                                                                                    <span>{cond === 'New Stocks' ? '🟢' : cond === 'Old Stocks' ? '🟡' : cond === 'Fabricated' ? '🟣' : '🏷️'}</span>
+                                                                                    <span>{cond}</span>
+                                                                                </span>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                );
+                                                            })()}
+
+                                                            {row.isArchived && (
+                                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 border border-amber-500/30 uppercase tracking-wide flex-shrink-0">
+                                                                        Archived
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </td>
+
+                                                        {/* 3. Dimension */}
+                                                        <td
+                                                            className={`py-3 px-4 min-w-[120px] whitespace-normal break-words transition-colors ${
+                                                                isDark ? 'text-slate-300' : 'text-slate-600'
+                                                            }`}
+                                                            title={row.Dimension}
+                                                        >
+                                                            <RackDimensionCell dimension={row.Dimension} isDark={isDark} />
+                                                        </td>
+
+                                                        {/* 4. Actual Count */}
+                                                        <td className="py-3 px-4 text-center">
+                                                            <div className="flex flex-col items-center justify-center">
+                                                                <span className={`font-bold font-mono text-sm ${Math.max(0, (Number(row.ActualCount) || 0) - (Number(row.ReserveCount) || 0)) === 0 ? 'text-rose-500 font-extrabold' : (isDark ? 'text-white' : 'text-slate-900')}`}>
+                                                                    {Math.max(0, (Number(row.ActualCount) || 0) - (Number(row.ReserveCount) || 0)).toLocaleString()}
+                                                                </span>
+                                                                {Number(row.ReserveCount) > 0 && (
+                                                                    <span className="text-[10px] text-slate-400 font-mono leading-tight mt-0.5 select-none" title={`Total Physical Stock: ${(Number(row.ActualCount) || 0).toLocaleString()} | Reserved: ${Number(row.ReserveCount).toLocaleString()}`}>
+                                                                        (Total: {(Number(row.ActualCount) || 0).toLocaleString()})
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        {/* 5. Reserve Count */}
+                                                        <td className="py-3 px-4 text-center">
+                                                            <ReserveCountBadge rawMat={row} isDark={isDark} />
+                                                        </td>
+
+                                                        {/* 6. UOM */}
+                                                        <td className={`py-3 px-4 text-center font-medium text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                                            {row.UOM || 'PCS'}
+                                                        </td>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        {/* 1. Item Profile (ItemDescription + Archived badge only, code removed) */}
+                                                        <td className="px-4 py-3 whitespace-nowrap">
+                                                            <div className="flex flex-col min-w-0 max-w-[280px]">
+                                                                <span
+                                                                    className={`font-semibold text-xs truncate ${isDark ? 'text-slate-100' : 'text-slate-800'}`}
+                                                                    title={row.ItemDescription}
+                                                                >
+                                                                    {row.ItemDescription}
+                                                                </span>
+                                                                {row.isArchived && (
+                                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 border border-amber-500/30 uppercase tracking-wide flex-shrink-0">
+                                                                            Archived
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        {/* 2. Segment */}
+                                                        <td className="px-4 py-3 whitespace-nowrap font-medium text-xs">
+                                                            <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                                                {row.Segment || 'Standard'}
                                                             </span>
-                                                        ) : (
-                                                            <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap font-mono ${isDark ? 'bg-indigo-950/30 border-indigo-800/40 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                                                                }`}>
-                                                                <span className="font-bold">{Number(row.ActualCount ?? 0).toLocaleString()}</span>
-                                                            </span>
+                                                        </td>
+
+                                                        {/* 3. Dimension */}
+                                                        <td className={`px-4 py-3 whitespace-normal break-words ${isDark ? 'text-slate-300' : 'text-slate-600'}`} title={row.Dimension}>
+                                                            {activeModule === 'raw-materials' ? (
+                                                                <RackDimensionCell dimension={row.Dimension} isDark={isDark} />
+                                                            ) : (
+                                                                <span className="font-mono text-xs">{row.Dimension || '—'}</span>
+                                                            )}
+                                                        </td>
+
+                                                        {/* Serial (Tools & Equipments / Consumables) */}
+                                                        {(activeModule === 'supplies' || activeModule === 'consumables') && (
+                                                            <td className={`px-4 py-3 whitespace-nowrap font-mono text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`} title={row.SerialNo}>
+                                                                {row.SerialNo || '—'}
+                                                            </td>
                                                         )}
-                                                    </td>
-                                                )}
 
-                                                {/* 5. UOM */}
-                                                <td className={`px-4 py-3 whitespace-nowrap text-center font-medium text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                                                    {row.UOM || 'PCS'}
-                                                </td>
+                                                        {/* 4. Actual Count & Reserve Count for Rackings, Quantity for others */}
+                                                        {activeModule === 'raw-materials' ? (() => {
+                                                            const physicalCount = Number(row.ActualCount ?? 0);
+                                                            const reserveCount = Number(row.ReserveCount ?? 0);
+                                                            const netCount = Math.max(0, physicalCount - reserveCount);
+                                                            const crit = row.CriticalAlert !== undefined ? Number(row.CriticalAlert) : 0;
+                                                            const reord = row.RestockWarning !== undefined ? Number(row.RestockWarning) : 10;
+                                                            const overstk = row.MaxStorage !== undefined ? Number(row.MaxStorage) : 1000;
 
-                                                {/* 6 & 7. Acquisition Cost & Total Acquisition Cost OR Inflows & Outflows (This Month) - Rackings only */}
-                                                {activeModule === 'raw-materials' && (
-                                                    showAcquisitionCost ? (
-                                                        <>
-                                                            <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-xs">
-                                                                {viewMode === 'detailed' ? (
-                                                                    <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
-                                                                        ₱{(Number(row.AcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            let fullBoxClasses = isDark
+                                                                ? 'bg-emerald-950/70 text-emerald-300 font-bold'
+                                                                : 'bg-emerald-100 text-emerald-950 font-bold';
+
+                                                            if (netCount <= crit) {
+                                                                fullBoxClasses = isDark
+                                                                    ? 'bg-rose-950/80 text-rose-300 font-bold'
+                                                                    : 'bg-rose-100 text-rose-950 font-bold';
+                                                            } else if (netCount <= reord) {
+                                                                fullBoxClasses = isDark
+                                                                    ? 'bg-amber-950/80 text-amber-300 font-bold'
+                                                                    : 'bg-amber-100 text-amber-950 font-bold';
+                                                            } else if (netCount > overstk) {
+                                                                fullBoxClasses = isDark
+                                                                    ? 'bg-blue-950/80 text-blue-300 font-bold'
+                                                                    : 'bg-blue-100 text-blue-950 font-bold';
+                                                            }
+
+                                                            return (
+                                                                <>
+                                                                    <td className={`px-4 py-3 whitespace-nowrap text-center font-mono text-xs transition-colors ${fullBoxClasses}`}>
+                                                                        <div className="flex flex-col items-center justify-center">
+                                                                            <span>{netCount.toLocaleString()}</span>
+                                                                            {reserveCount > 0 && (
+                                                                                <span 
+                                                                                    className="text-[9.5px] opacity-75 font-mono leading-tight mt-0.5 select-none" 
+                                                                                    title={`Total Physical Stock: ${physicalCount.toLocaleString()} | Reserved: ${reserveCount.toLocaleString()}`}
+                                                                                >
+                                                                                    (Total: {physicalCount.toLocaleString()})
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-4 py-3 whitespace-nowrap text-center">
+                                                                        <ReserveCountBadge rawMat={row} isDark={isDark} />
+                                                                    </td>
+                                                                </>
+                                                            );
+                                                        })() : (
+                                                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                                                                {isDepleted ? (
+                                                                    <span className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap font-mono ${isDark ? 'bg-rose-950/30 border-rose-800/40 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-700'
+                                                                        }`}>
+                                                                        <span>0</span>
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="text-slate-400 italic">—</span>
+                                                                    <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap font-mono ${isDark ? 'bg-indigo-950/30 border-indigo-800/40 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                                                        }`}>
+                                                                        <span className="font-bold">{Number(row.ActualCount ?? 0).toLocaleString()}</span>
+                                                                    </span>
                                                                 )}
                                                             </td>
-                                                            <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-xs font-bold text-red-600 dark:text-red-400">
-                                                                ₱{(viewMode === 'detailed'
-                                                                    ? ((Number(row.ActualCount) || 0) * (Number(row.AcquisitionCost) || 0))
-                                                                    : (Number(row.TotalAcquisitionCost) || 0)
-                                                                ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                            </td>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <td className="px-4 py-2.5 whitespace-nowrap">
-                                                                <div className="max-h-[85px] overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
-                                                                    {row.inflows && row.inflows.length > 0 ? (
-                                                                        row.inflows.map((inf, idx) => {
-                                                                            const isWip = inf.type === 'WIP_IN' || inf.type === 'WIP_RET';
-                                                                            const typeTag = inf.type === 'WIP_IN' ? 'WIP-IN' : inf.type === 'WIP_RET' ? 'WIP-RET' : 'IN';
-                                                                            return (
-                                                                                <div key={idx} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap ${isDark
-                                                                                    ? (isWip ? 'bg-amber-950/40 border-amber-800/60 text-amber-300' : 'bg-emerald-950/30 border-emerald-800/40 text-emerald-400')
-                                                                                    : (isWip ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-700')
-                                                                                    }`}>
-                                                                                    <span className="font-bold font-mono">
-                                                                                        {typeTag}: +{inf.qty}
-                                                                                    </span>
-                                                                                    <span className="opacity-40">|</span>
-                                                                                    <span className="truncate max-w-[110px]" title={inf.label}>{inf.label}</span>
-                                                                                    <span className="opacity-40">|</span>
-                                                                                    <span className="font-mono opacity-80">{inf.date}</span>
-                                                                                </div>
-                                                                            );
-                                                                        })
-                                                                    ) : (
-                                                                        <span className="text-[10px] text-slate-400 italic px-1">No inflows</span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
+                                                        )}
 
-                                                            <td className="px-4 py-2.5 whitespace-nowrap">
-                                                                <div className="max-h-[85px] overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
-                                                                    {row.outflows && row.outflows.length > 0 ? (
-                                                                        row.outflows.map((out, idx) => {
-                                                                            const isWip = out.type === 'WIP_OUT' || out.type === 'WIP';
-                                                                            const isReserve = out.type === 'RESERVE';
-                                                                            const typeTag = isWip ? 'WIP-OUT' : isReserve ? 'RESERVE' : 'OUT';
-                                                                            return (
-                                                                                <div key={idx} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap ${isDark
-                                                                                    ? (isWip ? 'bg-orange-950/40 border-orange-800/60 text-orange-300' : isReserve ? 'bg-purple-950/40 border-purple-800/60 text-purple-300' : 'bg-rose-950/30 border-rose-800/40 text-rose-400')
-                                                                                    : (isWip ? 'bg-orange-50 border-orange-200 text-orange-900' : isReserve ? 'bg-purple-50 border-purple-200 text-purple-800' : 'bg-rose-50 border-rose-200 text-rose-700')
-                                                                                    }`}>
-                                                                                    <span className="font-bold font-mono">
-                                                                                        {typeTag}: -{out.qty}
-                                                                                    </span>
-                                                                                    <span className="opacity-40">|</span>
-                                                                                    <span className="truncate max-w-[110px]" title={out.label}>{out.label}</span>
-                                                                                    <span className="opacity-40">|</span>
-                                                                                    <span className="font-mono opacity-80">{out.date}</span>
-                                                                                </div>
-                                                                            );
-                                                                        })
-                                                                    ) : (
-                                                                        <span className="text-[10px] text-slate-400 italic px-1">No outflows</span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                        </>
-                                                    )
+                                                        {/* 5. UOM */}
+                                                        <td className={`px-4 py-3 whitespace-nowrap text-center font-medium text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                                            {row.UOM || 'PCS'}
+                                                        </td>
+
+                                                        {/* 6 & 7. Acquisition Cost & Total Acquisition Cost OR Inflows & Outflows (This Month) - Rackings only */}
+                                                        {activeModule === 'raw-materials' && (
+                                                            showAcquisitionCost ? (
+                                                                <>
+                                                                    <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-xs">
+                                                                        {viewMode === 'detailed' ? (
+                                                                            <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                                                                                ₱{(Number(row.AcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="text-slate-400 italic">—</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-xs font-bold text-red-600 dark:text-red-400">
+                                                                        ₱{(viewMode === 'detailed'
+                                                                            ? ((Number(row.ActualCount) || 0) * (Number(row.AcquisitionCost) || 0))
+                                                                            : (Number(row.TotalAcquisitionCost) || 0)
+                                                                        ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                    </td>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <td className="px-4 py-2.5 whitespace-nowrap">
+                                                                        <div className="max-h-[85px] overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
+                                                                            {row.inflows && row.inflows.length > 0 ? (
+                                                                                row.inflows.map((inf, idx) => {
+                                                                                    const isWip = inf.type === 'WIP_IN' || inf.type === 'WIP_RET';
+                                                                                    const typeTag = inf.type === 'WIP_IN' ? 'WIP-IN' : inf.type === 'WIP_RET' ? 'WIP-RET' : 'IN';
+                                                                                    return (
+                                                                                        <div key={idx} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap ${isDark
+                                                                                            ? (isWip ? 'bg-amber-950/40 border-amber-800/60 text-amber-300' : 'bg-emerald-950/30 border-emerald-800/40 text-emerald-400')
+                                                                                            : (isWip ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-700')
+                                                                                            }`}>
+                                                                                            <span className="font-bold font-mono">
+                                                                                                {typeTag}: +{inf.qty}
+                                                                                            </span>
+                                                                                            <span className="opacity-40">|</span>
+                                                                                            <span className="truncate max-w-[110px]" title={inf.label}>{inf.label}</span>
+                                                                                            <span className="opacity-40">|</span>
+                                                                                            <span className="font-mono opacity-80">{inf.date}</span>
+                                                                                        </div>
+                                                                                    );
+                                                                                })
+                                                                            ) : (
+                                                                                <span className="text-[10px] text-slate-400 italic px-1">No inflows</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+
+                                                                    <td className="px-4 py-2.5 whitespace-nowrap">
+                                                                        <div className="max-h-[85px] overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
+                                                                            {row.outflows && row.outflows.length > 0 ? (
+                                                                                row.outflows.map((out, idx) => {
+                                                                                    const isWip = out.type === 'WIP_OUT' || out.type === 'WIP';
+                                                                                    const isReserve = out.type === 'RESERVE';
+                                                                                    const typeTag = isWip ? 'WIP-OUT' : isReserve ? 'RESERVE' : 'OUT';
+                                                                                    return (
+                                                                                        <div key={idx} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border whitespace-nowrap ${isDark
+                                                                                            ? (isWip ? 'bg-orange-950/40 border-orange-800/60 text-orange-300' : isReserve ? 'bg-purple-950/40 border-purple-800/60 text-purple-300' : 'bg-rose-950/30 border-rose-800/40 text-rose-400')
+                                                                                            : (isWip ? 'bg-orange-50 border-orange-200 text-orange-900' : isReserve ? 'bg-purple-50 border-purple-200 text-purple-800' : 'bg-rose-50 border-rose-200 text-rose-700')
+                                                                                            }`}>
+                                                                                            <span className="font-bold font-mono">
+                                                                                                {typeTag}: -{out.qty}
+                                                                                            </span>
+                                                                                            <span className="opacity-40">|</span>
+                                                                                            <span className="truncate max-w-[110px]" title={out.label}>{out.label}</span>
+                                                                                            <span className="opacity-40">|</span>
+                                                                                            <span className="font-mono opacity-80">{out.date}</span>
+                                                                                        </div>
+                                                                                    );
+                                                                                })
+                                                                            ) : (
+                                                                                <span className="text-[10px] text-slate-400 italic px-1">No outflows</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+                                                                </>
+                                                            )
+                                                        )}
+                                                    </>
                                                 )}
                                             </tr>
                                         );
@@ -2634,6 +3076,31 @@ function Reports() {
 
                 </div>
             </div>
+
+            {/* LIGHTBOX CONTAINER FOR FULL IMAGE PREVIEW */}
+            {previewImage && (
+                <div 
+                    className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[60] p-4" 
+                    onClick={() => setPreviewImage(null)}
+                >
+                    <div 
+                        className="relative bg-white dark:bg-[#141622] p-2 rounded-2xl max-w-2xl w-full shadow-2xl border dark:border-slate-700" 
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button 
+                            onClick={() => setPreviewImage(null)} 
+                            className="absolute top-4 right-4 bg-slate-900/80 text-white hover:bg-slate-800 p-2 rounded-full transition-all cursor-pointer z-10 shadow"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                        <img 
+                            src={previewImage} 
+                            alt="Large Display" 
+                            className="w-full h-auto max-h-[80vh] object-contain rounded-xl" 
+                        />
+                    </div>
+                </div>
+            )}
 
         </div>
     );
