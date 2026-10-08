@@ -75,9 +75,11 @@ function InventoryRawMaterials() {
     const [itemDescription, setItemDescription] = useState('');
     const [materialDimension, setMaterialDimension] = useState('');
     const [dimHeight, setDimHeight] = useState('');
+    const [dimHeightType, setDimHeightType] = useState('H');
     const [dimWidth, setDimWidth] = useState('');
     const [dimWidthType, setDimWidthType] = useState('W');
     const [dimDepth, setDimDepth] = useState('');
+    const [dimDepthType, setDimDepthType] = useState('D');
     const [dimProfile, setDimProfile] = useState('');
     const [isCustomDim, setIsCustomDim] = useState(false);
     const [materialUom, setMaterialUom] = useState('');
@@ -446,9 +448,11 @@ function InventoryRawMaterials() {
         setItemDescription('');
         setMaterialDimension('');
         setDimHeight('');
+        setDimHeightType('H');
         setDimWidth('');
         setDimWidthType('W');
         setDimDepth('');
+        setDimDepthType('D');
         setDimProfile('');
         setIsCustomDim(false);
         setMaterialUom('');
@@ -500,9 +504,11 @@ function InventoryRawMaterials() {
         setMaterialDimension(item.Dimension || '');
         const parsedDim = parseToFormFields(item.Dimension || '');
         setDimHeight(parsedDim.height);
+        setDimHeightType(parsedDim.heightType || 'H');
         setDimWidth(parsedDim.width);
         setDimWidthType(parsedDim.widthType || 'W');
         setDimDepth(parsedDim.depth);
+        setDimDepthType(parsedDim.depthType || 'D');
         setDimProfile(parsedDim.profile);
         setIsCustomDim(parsedDim.isCustom);
         setMaterialUom(item.UOM || '');
@@ -548,9 +554,11 @@ function InventoryRawMaterials() {
                 ? materialDimension.trim() 
                 : buildDimensionString({
                     height: dimHeight,
+                    heightType: dimHeightType,
                     width: dimWidth,
                     widthType: dimWidthType,
                     depth: dimDepth,
+                    depthType: dimDepthType,
                     profile: dimProfile
                 });
             formData.append("Dimension", finalDimension !== '—' ? finalDimension.trim() : '');
@@ -1520,9 +1528,11 @@ function InventoryRawMaterials() {
                                                 if (!isCustomDim) {
                                                     const built = buildDimensionString({
                                                         height: dimHeight,
+                                                        heightType: dimHeightType,
                                                         width: dimWidth,
                                                         widthType: dimWidthType,
                                                         depth: dimDepth,
+                                                        depthType: dimDepthType,
                                                         profile: dimProfile
                                                     });
                                                     setMaterialDimension(built !== '—' ? built : '');
@@ -1530,9 +1540,11 @@ function InventoryRawMaterials() {
                                                 } else {
                                                     const parsed = parseToFormFields(materialDimension);
                                                     setDimHeight(parsed.height);
+                                                    setDimHeightType(parsed.heightType || 'H');
                                                     setDimWidth(parsed.width);
                                                     setDimWidthType(parsed.widthType || 'W');
                                                     setDimDepth(parsed.depth);
+                                                    setDimDepthType(parsed.depthType || 'D');
                                                     setDimProfile(parsed.profile);
                                                     setIsCustomDim(false);
                                                 }
@@ -1541,7 +1553,7 @@ function InventoryRawMaterials() {
                                                 isDark ? 'text-amber-400 hover:text-amber-300' : 'text-indigo-600 hover:text-indigo-800'
                                             }`}
                                         >
-                                            {isCustomDim ? "Switch to H / W / D fields" : "Switch to Freeform / Manual"}
+                                            {isCustomDim ? "Switch to Standard (H/T, W/L, D/P) fields" : "Switch to Freeform / Manual"}
                                         </button>
                                     </div>
 
@@ -1560,19 +1572,39 @@ function InventoryRawMaterials() {
                                         <div className="space-y-3">
                                             {/* Grid for H, W/L, D */}
                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                                {/* 1. Height (H) */}
+                                                {/* 1. Height (H) or Thread (T) */}
                                                 <div>
-                                                    <label className="flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-1 whitespace-nowrap">
-                                                        <span className="w-4 h-4 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 flex items-center justify-center text-[10px] shrink-0 font-mono">H</span>
-                                                        <span className="whitespace-nowrap">Height (H)</span>
-                                                    </label>
+                                                    <div className="flex items-center justify-between mb-1 gap-1">
+                                                        <label className={`flex items-center gap-1 text-[11px] font-bold ${dimHeightType === 'T' ? 'text-indigo-600 dark:text-indigo-400' : 'text-blue-600 dark:text-blue-400'} uppercase whitespace-nowrap`}>
+                                                            <span className={`w-4 h-4 rounded ${dimHeightType === 'T' ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300' : 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'} flex items-center justify-center text-[10px] shrink-0 font-mono`}>
+                                                                {dimHeightType}
+                                                            </span>
+                                                            <span className="whitespace-nowrap">{dimHeightType === 'T' ? 'Thread (T)' : 'Height (H)'}</span>
+                                                        </label>
+                                                        <div className="flex items-center rounded border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] shrink-0">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setDimHeightType('H')}
+                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimHeightType === 'H' ? 'bg-blue-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                            >
+                                                                H
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setDimHeightType('T')}
+                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimHeightType === 'T' ? 'bg-indigo-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                            >
+                                                                T
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                     <div className="relative">
                                                         <input
                                                             type="text"
                                                             value={dimHeight}
                                                             onChange={(e) => setDimHeight(e.target.value)}
-                                                            placeholder="e.g. 5550"
-                                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-blue-500' : 'bg-white border-slate-200 text-slate-700 focus:border-blue-600'} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
+                                                            placeholder={dimHeightType === 'T' ? "e.g. 10" : "e.g. 5550"}
+                                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-700'} ${dimHeightType === 'T' ? (isDark ? 'focus:border-indigo-500' : 'focus:border-indigo-600') : (isDark ? 'focus:border-blue-500' : 'focus:border-blue-600')} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
                                                         />
                                                         <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none whitespace-nowrap">mm</span>
                                                     </div>
@@ -1610,25 +1642,45 @@ function InventoryRawMaterials() {
                                                             value={dimWidth}
                                                             onChange={(e) => setDimWidth(e.target.value)}
                                                             placeholder="e.g. 2700"
-                                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-emerald-500' : 'bg-white border-slate-200 text-slate-700 focus:border-emerald-600'} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
+                                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-700'} ${dimWidthType === 'L' ? (isDark ? 'focus:border-teal-500' : 'focus:border-teal-600') : (isDark ? 'focus:border-emerald-500' : 'focus:border-emerald-600')} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
                                                         />
                                                         <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none whitespace-nowrap">mm</span>
                                                     </div>
                                                 </div>
 
-                                                {/* 3. Depth (D) */}
+                                                {/* 3. Depth (D) or Pitch (P) */}
                                                 <div>
-                                                    <label className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase mb-1 whitespace-nowrap">
-                                                        <span className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center text-[10px] shrink-0 font-mono">D</span>
-                                                        <span className="whitespace-nowrap">Depth (D)</span>
-                                                    </label>
+                                                    <div className="flex items-center justify-between mb-1 gap-1">
+                                                        <label className={`flex items-center gap-1 text-[11px] font-bold ${dimDepthType === 'P' ? 'text-purple-600 dark:text-purple-400' : 'text-amber-600 dark:text-amber-400'} uppercase whitespace-nowrap`}>
+                                                            <span className={`w-4 h-4 rounded ${dimDepthType === 'P' ? 'bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300' : 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300'} flex items-center justify-center text-[10px] shrink-0 font-mono`}>
+                                                                {dimDepthType}
+                                                            </span>
+                                                            <span className="whitespace-nowrap">{dimDepthType === 'P' ? 'Pitch (P)' : 'Depth (D)'}</span>
+                                                        </label>
+                                                        <div className="flex items-center rounded border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] shrink-0">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setDimDepthType('D')}
+                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimDepthType === 'D' ? 'bg-amber-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                            >
+                                                                D
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setDimDepthType('P')}
+                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimDepthType === 'P' ? 'bg-purple-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                            >
+                                                                P
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                     <div className="relative">
                                                         <input
                                                             type="text"
                                                             value={dimDepth}
                                                             onChange={(e) => setDimDepth(e.target.value)}
-                                                            placeholder="e.g. 1050"
-                                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-amber-500' : 'bg-white border-slate-200 text-slate-700 focus:border-amber-600'} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
+                                                            placeholder={dimDepthType === 'P' ? "e.g. 75" : "e.g. 1050"}
+                                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-700'} ${dimDepthType === 'P' ? (isDark ? 'focus:border-purple-500' : 'focus:border-purple-600') : (isDark ? 'focus:border-amber-500' : 'focus:border-amber-600')} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
                                                         />
                                                         <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none whitespace-nowrap">mm</span>
                                                     </div>
@@ -1656,9 +1708,11 @@ function InventoryRawMaterials() {
                                                     <RackDimensionCell
                                                         dimension={buildDimensionString({
                                                             height: dimHeight,
+                                                            heightType: dimHeightType,
                                                             width: dimWidth,
                                                             widthType: dimWidthType,
                                                             depth: dimDepth,
+                                                            depthType: dimDepthType,
                                                             profile: dimProfile
                                                         })}
                                                         isDark={isDark}
