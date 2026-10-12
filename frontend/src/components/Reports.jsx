@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import {
     ShieldAlert,
@@ -181,6 +181,9 @@ function Reports() {
     const [previewImage, setPreviewImage] = useState(null);
 
     const [rawMaterialsData, setRawMaterialsData] = useState([]);
+    const [selectedItemIds, setSelectedItemIds] = useState(() => new Set());
+    const selectAllFilterRef = useRef(null);
+    const selectAllHeaderRef = useRef(null);
     const [suppliesData, setSuppliesData] = useState([]);
     const [consumablesData, setConsumablesData] = useState([]);
 
@@ -229,7 +232,15 @@ function Reports() {
                 axios.get(`${BASE_API_URL}/consumables/transactions`, config).catch(() => null),
             ]);
 
-            if (resRaw?.status === 200) setRawMaterialsData(resRaw.data);
+            if (resRaw?.status === 200) {
+                setRawMaterialsData(resRaw.data);
+                setSelectedItemIds(prev => {
+                    if (!prev || prev.size === 0) {
+                        return new Set((resRaw.data || []).map(item => item._id));
+                    }
+                    return prev;
+                });
+            }
             if (resSupp?.status === 200) setSuppliesData(resSupp.data);
             if (resInbound?.status === 200) setPurchaseOrders(resInbound.data);
             if (resWIP?.status === 200) setWipConversions(resWIP.data);
@@ -247,6 +258,17 @@ function Reports() {
     useEffect(() => {
         fetchAllData();
     }, []);
+
+    useEffect(() => {
+        if (rawMaterialsData && rawMaterialsData.length > 0) {
+            setSelectedItemIds(prev => {
+                if (!prev || prev.size === 0) {
+                    return new Set(rawMaterialsData.map(item => item._id));
+                }
+                return prev;
+            });
+        }
+    }, [rawMaterialsData]);
 
     const getConsolidatedSummary = () => {
         let masterList = [];
@@ -642,6 +664,58 @@ function Reports() {
         return Number(item.ActualCount ?? 0) === 0;
     }).length;
 
+    // Selection metrics & handlers for Rackings only
+    const visibleRawMaterialItems = useMemo(() => {
+        if (activeModule !== 'raw-materials') return [];
+        return consolidatedData;
+    }, [activeModule, consolidatedData]);
+
+    const totalVisibleCount = visibleRawMaterialItems.length;
+
+    const selectedCount = useMemo(() => {
+        if (activeModule !== 'raw-materials') return 0;
+        return visibleRawMaterialItems.filter(item => selectedItemIds.has(item._id)).length;
+    }, [activeModule, visibleRawMaterialItems, selectedItemIds]);
+
+    const isAllSelected = totalVisibleCount > 0 && selectedCount === totalVisibleCount;
+    const isSomeSelected = selectedCount > 0 && selectedCount < totalVisibleCount;
+
+    useEffect(() => {
+        const isIndeterminate = isSomeSelected && !isAllSelected;
+        if (selectAllFilterRef.current) {
+            selectAllFilterRef.current.indeterminate = isIndeterminate;
+        }
+        if (selectAllHeaderRef.current) {
+            selectAllHeaderRef.current.indeterminate = isIndeterminate;
+        }
+    }, [isSomeSelected, isAllSelected]);
+
+    const handleToggleSelectAll = () => {
+        setSelectedItemIds(prev => {
+            const next = new Set(prev);
+            if (isAllSelected) {
+                // If all visible items are selected, uncheck all visible items
+                visibleRawMaterialItems.forEach(item => next.delete(item._id));
+            } else {
+                // Check all visible items
+                visibleRawMaterialItems.forEach(item => next.add(item._id));
+            }
+            return next;
+        });
+    };
+
+    const handleToggleItem = (id) => {
+        setSelectedItemIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
     // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -846,10 +920,20 @@ function Reports() {
             const isAcquisitionReport = isRackings && showAcquisitionCost;
             const isInventoryOnly = isRackings && showInventoryOnly;
 
+            const exportData = isRackings
+                ? consolidatedData.filter(item => selectedItemIds.has(item._id))
+                : consolidatedData;
+
+            if (isRackings && exportData.length === 0) {
+                alert("No items selected to export. Please check at least one item.");
+                setLoading(false);
+                return;
+            }
+
             let imageMap = {};
             if (isInventoryOnly) {
                 try {
-                    const imagePromises = consolidatedData.map(async (item) => {
+                    const imagePromises = exportData.map(async (item) => {
                         if (item.ImageUrl) {
                             const loaded = await loadImageBase64(item.ImageUrl);
                             if (loaded) imageMap[item._id] = loaded;
@@ -873,7 +957,7 @@ function Reports() {
             if (isInventoryOnly) {
                 // Group records by Segment
                 const groupedData = {};
-                consolidatedData.forEach(item => {
+                exportData.forEach(item => {
                     const rawVal = item.Segment;
                     const key = rawVal?.trim() || 'STANDARD SEGMENT';
                     if (!groupedData[key]) {
@@ -944,7 +1028,7 @@ function Reports() {
             } else {
                 // Group records by Segment across all modules (Rackings, Supplies, Consumables)
                 const groupedData = {};
-                consolidatedData.forEach(item => {
+                exportData.forEach(item => {
                     const rawVal = item.Segment;
                     const key = rawVal?.trim() || 'STANDARD SEGMENT';
                     if (!groupedData[key]) {
@@ -1063,9 +1147,11 @@ function Reports() {
             }
 
             if (isAcquisitionReport) {
+                const selectedTotal = exportData.reduce((sum, item) => sum + ((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)), 0);
+                const isAllSelectedInExport = exportData.length === rawMaterialsData.filter(i => !i.isArchived).length;
                 rows.push([
                     {
-                        content: 'TOTAL ACQUISITION COST (ALL RACKINGS)',
+                        content: isAllSelectedInExport ? 'TOTAL ACQUISITION COST (ALL RACKINGS)' : 'TOTAL ACQUISITION COST (SELECTED ITEMS)',
                         colSpan: 6,
                         styles: {
                             fontStyle: 'bold',
@@ -1076,7 +1162,7 @@ function Reports() {
                         }
                     },
                     {
-                        content: `PHP ${totalRackingsAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        content: `PHP ${selectedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                         colSpan: 2,
                         styles: {
                             fontStyle: 'bold',
@@ -2381,6 +2467,34 @@ function Reports() {
 
                     {/* LAYER 2: Quick Filter Checkboxes */}
                     <div className="flex items-center gap-2 flex-wrap pt-1.5">
+                        {/* 0. Select All - Rackings only (placed before Hide 0 Qty) */}
+                        {activeModule === 'raw-materials' && (
+                            <label
+                                className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${isAllSelected
+                                    ? (isDark ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80 shadow-sm' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 shadow-sm')
+                                    : isSomeSelected
+                                        ? (isDark ? 'bg-indigo-950/20 text-indigo-300 border-indigo-800/50' : 'bg-indigo-50/50 text-indigo-700 border-indigo-200/80 hover:bg-indigo-50')
+                                        : (isDark ? 'bg-[#141622] text-slate-300 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100')
+                                    }`}
+                                title={isAllSelected ? "Click to deselect all items" : "Click to select all visible items"}
+                            >
+                                <input
+                                    type="checkbox"
+                                    ref={selectAllFilterRef}
+                                    checked={isAllSelected}
+                                    onChange={handleToggleSelectAll}
+                                    className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${isAllSelected || isSomeSelected
+                                        ? (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')
+                                        : ''
+                                        }`}
+                                />
+                                <span>Select All</span>
+                                <span className="text-[11px] font-bold font-mono">
+                                    ({selectedCount}/{totalVisibleCount})
+                                </span>
+                            </label>
+                        )}
+
                         {/* 1. Hide 0 Qty - hidden when 0 Qty Only is checked */}
                         {!showZeroOnly && (
                             <label
@@ -2517,14 +2631,19 @@ function Reports() {
                         <button
                             onClick={handleDownloadPDF}
                             disabled={loading}
-                            title={showZeroOnly ? "Download PDF of all 0 quantity items" : showInventoryOnly ? "Export Alphabetical Inventory Only Ledger PDF" : showAcquisitionCost ? "Export Acquisition Cost & Valuation Ledger PDF" : "Export Consolidated Ledger PDF"}
+                            title={activeModule === 'raw-materials' && selectedCount < totalVisibleCount
+                                ? `Export ${selectedCount} selected items to PDF`
+                                : (showZeroOnly ? "Download PDF of all 0 quantity items" : showInventoryOnly ? "Export Alphabetical Inventory Only Ledger PDF" : showAcquisitionCost ? "Export Acquisition Cost & Valuation Ledger PDF" : "Export Consolidated Ledger PDF")}
                             className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${showZeroOnly
                                 ? 'border-red-600 bg-red-600 text-white hover:bg-red-700'
                                 : (isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90')
                                 }`}
                         >
                             <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                            <span>{showZeroOnly ? 'Export 0 Qty Ledger (PDF)' : showInventoryOnly ? 'Export Inventory Ledger (PDF)' : showAcquisitionCost ? 'Export Cost Ledger (PDF)' : 'Download (PDF)'}</span>
+                            <span>
+                                {showZeroOnly ? 'Export 0 Qty Ledger (PDF)' : showInventoryOnly ? 'Export Inventory Ledger (PDF)' : showAcquisitionCost ? 'Export Cost Ledger (PDF)' : 'Download (PDF)'}
+                                {activeModule === 'raw-materials' && selectedCount < totalVisibleCount ? ` (${selectedCount})` : ''}
+                            </span>
                         </button>
                     </div>
 
@@ -2663,6 +2782,21 @@ function Reports() {
                             <table className="w-full text-left border-collapse text-xs">
                                 <thead>
                                     <tr className={`font-bold uppercase text-[11px] tracking-wider whitespace-nowrap ${isDark ? 'bg-[#10121d] text-slate-300 border-b border-slate-800' : 'bg-[#18174e] text-white'}`}>
+                                        {activeModule === 'raw-materials' && (
+                                            <th className="py-3.5 px-3 text-center whitespace-nowrap w-[44px]">
+                                                <input
+                                                    type="checkbox"
+                                                    ref={selectAllHeaderRef}
+                                                    checked={isAllSelected}
+                                                    onChange={handleToggleSelectAll}
+                                                    className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${isAllSelected || isSomeSelected
+                                                        ? (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')
+                                                        : ''
+                                                        }`}
+                                                    title={isAllSelected ? "Deselect all rows" : "Select all rows"}
+                                                />
+                                            </th>
+                                        )}
                                         {activeModule === 'raw-materials' && showInventoryOnly ? (
                                             <>
                                                 <th className="py-3.5 px-3 text-center whitespace-nowrap w-[60px]">Image</th>
@@ -2709,12 +2843,27 @@ function Reports() {
                                 <tbody className={`divide-y text-xs ${isDark ? 'divide-slate-800/70 bg-[#090b10] text-slate-300' : 'divide-slate-100 bg-white text-slate-700'}`}>
                                     {paginatedTableData.map((row) => {
                                         const isDepleted = Number(row.ActualCount ?? 0) === 0;
+                                        const isSelected = selectedItemIds.has(row._id);
 
                                         return (
                                             <tr key={row._id} className={`transition-colors whitespace-nowrap ${isDepleted && showZeroOnly
                                                 ? (isDark ? 'bg-red-500/5 hover:bg-red-500/10' : 'bg-red-50/50 hover:bg-red-50')
                                                 : (isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/80')
-                                                }`}>
+                                                } ${activeModule === 'raw-materials' && !isSelected ? 'opacity-60' : ''}`}>
+                                                {activeModule === 'raw-materials' && (
+                                                    <td className="py-2.5 px-3 text-center whitespace-nowrap w-[44px]" onClick={(e) => e.stopPropagation()}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={() => handleToggleItem(row._id)}
+                                                            className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${isSelected
+                                                                ? (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')
+                                                                : ''
+                                                                }`}
+                                                            title={isSelected ? "Uncheck to exclude from PDF export" : "Check to include in PDF export"}
+                                                        />
+                                                    </td>
+                                                )}
                                                 {activeModule === 'raw-materials' && showInventoryOnly ? (
                                                     <>
                                                         {/* 1. Image */}
@@ -3035,7 +3184,7 @@ function Reports() {
                                     <tfoot>
                                         <tr className={`font-bold text-xs uppercase tracking-wider border-t-2 ${isDark ? 'bg-[#10121d] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-800 border-slate-200'
                                             }`}>
-                                            <td colSpan={3} className="px-4 py-3.5 whitespace-nowrap">
+                                            <td colSpan={4} className="px-4 py-3.5 whitespace-nowrap">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-slate-500 dark:text-slate-400 font-semibold">Total (All Rackings):</span>
                                                     <span className="font-mono font-black text-red-600 dark:text-red-400 text-sm">
