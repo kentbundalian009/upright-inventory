@@ -273,6 +273,7 @@ function InventoryDashboard() {
                     </div>
 
                 </div>
+
             </div>
         </div>
     );

@@ -13,6 +13,7 @@ import ViewerLinks from '../components/ViewerLinks';
 import MaintenanceScreen from '../components/common/MaintenanceScreen';
 
 import DashboardOverview from '../components/DashboardOverview';
+import Documents from '../components/Documents';
 import Rackings from '../components/Rackings';
 import InboundMaterials from '../components/InboundMaterials';
 import WorkInProgress from '../components/WorkInProgress';
@@ -109,6 +110,11 @@ function Dashboard() {
         switch (activeTab) {
             case 'dashboard': 
                 return <DashboardOverview />;
+
+            case 'documents':
+            case 'pending-remarks':
+            case 'operations-remarks':
+                return <Documents />;
 
             case 'user-management': 
                 return userRole === 'Admin' ? <UserManagement /> : <DashboardOverview />;

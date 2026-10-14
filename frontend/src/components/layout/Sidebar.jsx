@@ -21,7 +21,9 @@ import {
   Database,
   Power,
   Share2,
-  Boxes
+  Boxes,
+  ClipboardList,
+  FileText
 } from "lucide-react";
 
 const API_BASE_URL = '/api';
@@ -101,6 +103,7 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
   const getMenuItems = () => {
     const defaultMenuItems = [
       { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Inventory'], section: 'main' },
+      { id: 'documents', name: 'Documents', icon: FileText, roles: ['Admin', 'Inventory'], section: 'main' },
 
       { id: 'user-management', name: 'User Management', icon: Users, roles: ['Admin'], section: 'admin' },
       { id: 'user-activity', name: 'User Activity', icon: Activity, roles: ['Admin'], section: 'admin' },
