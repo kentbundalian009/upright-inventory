@@ -11,23 +11,23 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "autoprefixer": "^10.5.1",
     "axios": "^1.18.1",
+    "exceljs": "^4.4.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.21.0",
+    "oxlint": "^1.69.0",
+    "postcss": "^8.5.15",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.18.0",
     "recharts": "^3.9.0",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
-    "autoprefixer": "^10.5.1",
-    "oxlint": "^1.69.0",
-    "postcss": "^8.5.15",
     "tailwindcss": "^4.3.1",
     "vite": "^8.1.0"
-  },
-  "devDependencies": {}
+  }
 }

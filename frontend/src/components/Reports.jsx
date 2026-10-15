@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import {
     ShieldAlert,
-    Search, Download, Loader2, FileText,
+    Search, Download, Loader2, FileText, FileSpreadsheet,
     TrendingUp, TrendingDown, Calendar, X, Check, ArrowUpRight,
     Archive, Sliders, Coins, Image as ImageIcon
 } from 'lucide-react';
@@ -13,6 +13,7 @@ import autoTable from 'jspdf-autotable';
 import { useTheme } from '../context/ThemeContext';
 import RackDimensionCell, { parseRackDimension } from './common/RackDimensionCell';
 import ReserveCountBadge from './common/ReserveCountBadge';
+import { exportUprightAuditLedgerExcel } from '../utils/excelReportExport';
 
 const BASE_API_URL = import.meta.env.MODE === 'production'
     ? 'https://one-inventory.onrender.com/api'
@@ -1478,6 +1479,90 @@ function Reports() {
         }
     };
 
+    const handleDownloadExcel = async () => {
+        if (activeModule === 'discrepancy') {
+            const logs = getDiscrepancyLogs();
+            if (!logs || logs.length === 0) {
+                alert("No discrepancy or voided logs available to export.");
+                return;
+            }
+            setLoading(true);
+            try {
+                const targetMonthLabel = monthsList?.find(m => m.value === selectedMonth)?.label || selectedMonth || "Month";
+                const currentYearStr = selectedYear || new Date().getFullYear().toString();
+                const formattedDate = new Date().toLocaleString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+                await exportUprightAuditLedgerExcel({
+                    activeModule: 'discrepancy',
+                    titleModule: 'Discrepancy & Voided Logs',
+                    targetMonthLabel,
+                    currentYearStr,
+                    formattedDate,
+                    discrepancyLogs: logs
+                });
+            } catch (err) {
+                console.error("Failed to export Discrepancy Excel:", err);
+                alert(`Failed to export Discrepancy Excel Report: ${err.message}`);
+            } finally {
+                setLoading(false);
+            }
+            return;
+        }
+
+        if (!consolidatedData || consolidatedData.length === 0) {
+            alert("No data available to export for the selected filters.");
+            return;
+        }
+
+        const isRackings = activeModule === 'raw-materials';
+        const exportData = isRackings
+            ? consolidatedData.filter(item => selectedItemIds.has(item._id))
+            : consolidatedData;
+
+        if (isRackings && exportData.length === 0) {
+            alert("No items selected to export. Please check at least one item.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            let titleModule = reportModules?.find(m => m.id === activeModule)?.label || activeModule || "Inventory";
+            if (viewMode === 'category') titleModule += " (By Category Summary)";
+            if (viewMode === 'segment') titleModule += " (By Segment Summary)";
+            const targetMonthLabel = monthsList?.find(m => m.value === selectedMonth)?.label || selectedMonth || "Month";
+            const currentYearStr = selectedYear || new Date().getFullYear().toString();
+            const formattedDate = new Date().toLocaleString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            await exportUprightAuditLedgerExcel({
+                activeModule,
+                titleModule,
+                targetMonthLabel,
+                currentYearStr,
+                formattedDate,
+                exportData,
+                rawMaterialsData,
+                isRackings,
+                isInventoryOnly: isRackings && showInventoryOnly,
+                showAcquisitionCost: isRackings && showAcquisitionCost,
+                showZeroOnly,
+                viewMode,
+                formatDimension: formatDimensionForPdf,
+                getCleanItemDescription,
+                getItemConditions
+            });
+        } catch (e) {
+            console.error("🔴 EXCEL CRITICAL FAILURE REASON:", e);
+            alert(`Failed to download Upright Excel Registry: ${e.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleDownloadMonthlySummaryPDF = () => {
         const targetMonthLabel = monthsList?.find(m => m.value === selectedMonth)?.label || selectedMonth;
         const currentYearStr = selectedYear || new Date().getFullYear().toString();
@@ -2642,6 +2727,26 @@ function Reports() {
                             <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                             <span>
                                 {showZeroOnly ? 'Export 0 Qty Ledger (PDF)' : showInventoryOnly ? 'Export Inventory Ledger (PDF)' : showAcquisitionCost ? 'Export Cost Ledger (PDF)' : 'Download (PDF)'}
+                                {activeModule === 'raw-materials' && selectedCount < totalVisibleCount ? ` (${selectedCount})` : ''}
+                            </span>
+                        </button>
+
+                        {/* Export Audit Ledger (Excel) Button with Upright Branded Template */}
+                        <button
+                            onClick={handleDownloadExcel}
+                            disabled={loading}
+                            title={activeModule === 'raw-materials' && selectedCount < totalVisibleCount
+                                ? `Export ${selectedCount} selected items to Excel (Upright Branded Template)`
+                                : (showZeroOnly ? "Download Excel of all 0 quantity items (Upright Template)" : showInventoryOnly ? "Export Alphabetical Inventory Only Ledger Excel (Upright Template)" : showAcquisitionCost ? "Export Acquisition Cost & Valuation Ledger Excel (Upright Template)" : "Export Consolidated Ledger Excel (Upright Template)")}
+                            className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${
+                                isDark
+                                    ? 'border-emerald-700/80 bg-emerald-950/80 text-emerald-300 hover:bg-emerald-900/90 hover:border-emerald-500'
+                                    : 'border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800'
+                            }`}
+                        >
+                            <FileSpreadsheet className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-emerald-300" />
+                            <span>
+                                {showZeroOnly ? 'Export 0 Qty Ledger (Excel)' : showInventoryOnly ? 'Export Inventory (Excel)' : showAcquisitionCost ? 'Export Cost Ledger (Excel)' : 'Download (Excel)'}
                                 {activeModule === 'raw-materials' && selectedCount < totalVisibleCount ? ` (${selectedCount})` : ''}
                             </span>
                         </button>
