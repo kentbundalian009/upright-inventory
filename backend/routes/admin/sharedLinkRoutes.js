@@ -20,7 +20,7 @@ router.use(protectRoute);
 
 router
   .route("/")
-  .post(restrictTo("Admin", "Inventory"), createSharedLink)
+  .post(restrictTo("Admin", "Inventory", "Purchasing"), createSharedLink)
   .get(restrictTo("Admin"), getAllSharedLinks);
 
 router.put("/:id/terminate", restrictTo("Admin"), terminateSharedLink);

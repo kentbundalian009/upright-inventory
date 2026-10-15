@@ -7,6 +7,8 @@ import { useTheme } from '../context/ThemeContext';
 
 function InventoryConsumables({ setActiveTab }) {
   const { isDark } = useTheme();
+  const userRole = localStorage.getItem("SystemRole") || "Inventory";
+  const isPurchasing = userRole === 'Purchasing';
   const isViewer = false;
 
   const [consumablesList, setConsumablesList] = useState([]);
@@ -435,7 +437,7 @@ function InventoryConsumables({ setActiveTab }) {
               <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
             </label>
 
-            {!isViewer && (
+            {!isViewer && !isPurchasing && (
               <button
                 onClick={() => setIsPaletteModalOpen(true)}
                 title="Palette Settings"
@@ -447,7 +449,7 @@ function InventoryConsumables({ setActiveTab }) {
             )}
 
             {/* EDIT QTY BUTTON DIRECTLY IN TABLE */}
-            {!isViewer && !showArchivedOnly && (
+            {!isViewer && !isPurchasing && !showArchivedOnly && (
               <button
                 onClick={handleToggleEditQty}
                 title={isEditingQty ? "Cancel Edit Qty Mode" : "Directly Edit Actual Count Column"}
@@ -463,7 +465,7 @@ function InventoryConsumables({ setActiveTab }) {
               </button>
             )}
 
-            {!isViewer && (
+            {!isViewer && !isPurchasing && (
               <button
                 onClick={() => {
                   if (isEditingQty) {
@@ -495,7 +497,7 @@ function InventoryConsumables({ setActiveTab }) {
             )}
           </div>
 
-          <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isViewer ? 'md:grid-cols-3' : 'md:grid-cols-4'} md:pb-0`}>
+          <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isViewer || isPurchasing ? 'md:grid-cols-3' : 'md:grid-cols-4'} md:pb-0`}>
 
             <div className="min-w-[180px] w-full md:min-w-0">
               <div className="relative w-full">
@@ -516,7 +518,7 @@ function InventoryConsumables({ setActiveTab }) {
               </select>
             </div>
 
-            {!isViewer && (
+            {!isViewer && !isPurchasing && (
               <div className="min-w-[160px] w-full md:min-w-0">
                 <button onClick={openAddModal} disabled={showArchivedOnly} className={`flex items-center justify-center gap-2 ${isDark ? 'bg-[#ff6600] hover:bg-[#ff6600]/90' : 'bg-[#18174e] hover:bg-[#18174e]/90'} disabled:bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px]`}>
                   <span className="whitespace-nowrap">Add New Consumable Item</span>
@@ -663,8 +665,10 @@ function InventoryConsumables({ setActiveTab }) {
                             <div className="flex items-center justify-center gap-1.5">
                               {!item.isArchived ? (
                                 <>
-                                  <button onClick={() => openEditModal(item)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`} title="Edit Item"><Edit2 className="w-3.5 h-3.5" /></button>
-                                  <button onClick={() => handleArchiveConsumable(item)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-red-500 hover:bg-red-500 hover:text-white'} border rounded transition-all cursor-pointer`} title="Archive Item"><Archive className="w-3.5 h-3.5" /></button>
+                                  <button onClick={() => openEditModal(item)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`} title={isPurchasing ? "Edit Acquisition Cost" : "Edit Item"}><Edit2 className="w-3.5 h-3.5" /></button>
+                                  {!isPurchasing && (
+                                    <button onClick={() => handleArchiveConsumable(item)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-red-500 hover:bg-red-500 hover:text-white'} border rounded transition-all cursor-pointer`} title="Archive Item"><Archive className="w-3.5 h-3.5" /></button>
+                                  )}
                                 </>
                               ) : (
                                 <>
@@ -757,7 +761,7 @@ function InventoryConsumables({ setActiveTab }) {
             <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
               <div className="flex items-center gap-2">
                 <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-base`}>
-                  {isEditing ? 'Edit Consumable Item' : 'Add New Consumable Item'}
+                  {isPurchasing ? 'Edit Acquisition Cost' : (isEditing ? 'Edit Consumable Item' : 'Add New Consumable Item')}
                 </h3>
               </div>
               <button
@@ -769,6 +773,17 @@ function InventoryConsumables({ setActiveTab }) {
               </button>
             </div>
 
+            {isPurchasing && (
+              <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-900/50' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3`}>
+                <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
+                  * Purchasing Pricing Protocol *
+                </span>
+                <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
+                  You are editing the <strong>Acquisition Cost</strong> for this consumable item. All consumable specifications and records are locked as read-only.
+                </p>
+              </div>
+            )}
+
             {/* Form */}
             <form onSubmit={handleFormSubmit} className="space-y-4 mt-4">
               {error && (
@@ -777,7 +792,87 @@ function InventoryConsumables({ setActiveTab }) {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {isPurchasing ? (
+                <div className="space-y-4">
+                  {/* READ-ONLY ITEM PROFILE DISPLAY */}
+                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-200'} space-y-3`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Segment</span>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold border ${getSegmentStyles(itemSegment).classes || (isDark ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-white text-slate-800 border-slate-200')}`}>
+                          <span>{getSegmentStyles(itemSegment).prefix}</span>
+                          <span>{itemSegment || "N/A"}</span>
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">UOM & Actual Count</span>
+                        <span className={`text-xs font-mono font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                          {actualCount || 0} {itemUom || 'pcs'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Item Description</span>
+                      <h4 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-800'} leading-snug break-words`}>
+                        {itemDescription || "—"}
+                      </h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 text-xs">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Dimension</span>
+                        <span className={`font-mono text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{itemDimension || "—"}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Brand</span>
+                        <span className={`${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{itemBrand || "—"}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Serial No</span>
+                        <span className={`font-mono text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{itemSerial || "—"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* The ONLY Editable Input: Acquisition Cost */}
+                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#0f111a] border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className={`block text-xs font-bold uppercase tracking-wider ${isDark ? 'text-amber-400' : 'text-[#18174e]'}`}>
+                        Acquisition Cost (Price) *
+                      </label>
+                      <span className="text-[11px] text-slate-400 font-medium">Editable for Purchasing</span>
+                    </div>
+                    <div className="relative">
+                      <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-lg select-none pointer-events-none ${isDark ? 'text-amber-400' : 'text-[#18174e]'}`}>
+                        ₱
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={acquisitionCost}
+                        autoFocus
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                            setAcquisitionCost(val);
+                          }
+                        }}
+                        className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-[#18174e]'} border-2 rounded-xl pl-9 pr-4 py-2.5 text-base font-mono font-bold focus:outline-none transition-all shadow-inner`}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-800">
+                      <span className="text-[11px] text-slate-400">Formatted Cost Preview:</span>
+                      <span className="font-mono font-black text-sm text-red-600 dark:text-red-400">
+                        ₱{(Number(acquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 {/* 1. Segment */}
                 <div className="md:col-span-2">
@@ -888,6 +983,7 @@ function InventoryConsumables({ setActiveTab }) {
                 </div>
 
               </div>
+            )}
 
               {/* Action Buttons */}
               <div className={`flex items-center justify-end gap-2 mt-6 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
@@ -900,9 +996,9 @@ function InventoryConsumables({ setActiveTab }) {
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#ff6600] hover:bg-[#e05a00] text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                  className="bg-[#ff6600] hover:bg-[#e05a00] text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
                 >
-                  {isEditing ? 'Save Changes' : 'Save Details'}
+                  {isPurchasing ? 'Save Changes' : (isEditing ? 'Save Changes' : 'Save Details')}
                 </button>
               </div>
 

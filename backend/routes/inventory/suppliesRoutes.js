@@ -38,21 +38,21 @@ router.get("/:id/image", getSuppliesImage);
 router.use(protectRoute);
 
 router.route("/batch-counts")
-  .put(restrictTo("Inventory", "Admin"), batchUpdateSuppliesActualCounts);
+  .put(restrictTo("Inventory", "Admin", "Purchasing"), batchUpdateSuppliesActualCounts);
 
 router.route("/")
-  .get(restrictTo("Inventory", "Viewer", "Admin"), getAllSupplies)    
-  .post(restrictTo("Inventory", "Admin"), createSupplies);
+  .get(restrictTo("Inventory", "Viewer", "Admin", "Purchasing"), getAllSupplies)    
+  .post(restrictTo("Inventory", "Admin", "Purchasing"), createSupplies);
 
 router.route("/:id/unarchive")
-  .put(restrictTo("Inventory", "Admin"), unarchiveSupplies); 
+  .put(restrictTo("Inventory", "Admin", "Purchasing"), unarchiveSupplies); 
 
 router.route("/:id/permanent")
-  .delete(restrictTo("Inventory", "Admin"), permanentDeleteSupplies);
+  .delete(restrictTo("Inventory", "Admin", "Purchasing"), permanentDeleteSupplies);
 
 router.route("/:id")
-  .get(restrictTo("Inventory", "Viewer", "Admin"), getSuppliesById)   
-  .put(restrictTo("Inventory", "Admin"), updateSupplies)
-  .delete(restrictTo("Inventory", "Admin"), deleteSupplies); 
+  .get(restrictTo("Inventory", "Viewer", "Admin", "Purchasing"), getSuppliesById)   
+  .put(restrictTo("Inventory", "Admin", "Purchasing"), updateSupplies)
+  .delete(restrictTo("Inventory", "Admin", "Purchasing"), deleteSupplies); 
 
 export default router;

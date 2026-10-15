@@ -102,7 +102,7 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
 
   const getMenuItems = () => {
     const defaultMenuItems = [
-      { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Inventory'], section: 'main' },
+      { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Inventory', 'Purchasing'], section: 'main' },
       { id: 'documents', name: 'Documents', icon: FileText, roles: ['Admin', 'Inventory'], section: 'main' },
 
       { id: 'user-management', name: 'User Management', icon: Users, roles: ['Admin'], section: 'admin' },
@@ -115,14 +115,14 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
       { id: 'work-in-progress', name: 'Work In Progress (WIP)', icon: TrendingUp, roles: ['Inventory'], section: 'rackings' },
       { id: 'outbound-products', name: 'Outbound Materials', icon: Truck, roles: ['Inventory'], section: 'rackings' },
 
-      { id: 'raw-materials', name: 'Rackings', icon: Layers, roles: ['Inventory', 'Admin'], section: 'records' },
-      { id: 'supplies', name: 'Tools & Equipments', icon: Package, roles: ['Inventory', 'Admin'], section: 'records' },
-      { id: 'consumables-records', name: 'Consumables', icon: Boxes, roles: ['Inventory', 'Admin'], section: 'records' },
+      { id: 'raw-materials', name: 'Rackings', icon: Layers, roles: ['Inventory', 'Admin', 'Purchasing'], section: 'records' },
+      { id: 'supplies', name: 'Tools & Equipments', icon: Package, roles: ['Inventory', 'Admin', 'Purchasing'], section: 'records' },
+      { id: 'consumables-records', name: 'Consumables', icon: Boxes, roles: ['Inventory', 'Admin', 'Purchasing'], section: 'records' },
       { id: 'client-records', name: 'Information (Modules)', icon: Building2, roles: ['Inventory', 'Admin'], section: 'records' },
 
-      { id: 'reports', name: 'Reports', icon: FileSpreadsheet, roles: ['Inventory'], section: 'reports' },
+      { id: 'reports', name: 'Reports', icon: FileSpreadsheet, roles: ['Inventory', 'Purchasing'], section: 'reports' },
 
-      { id: 'settings', name: 'Settings', icon: Settings, roles: ['Admin', 'Inventory'], section: 'main' },
+      { id: 'settings', name: 'Settings', icon: Settings, roles: ['Admin', 'Inventory', 'Purchasing'], section: 'main' },
     ];
 
     return defaultMenuItems.filter(item => {

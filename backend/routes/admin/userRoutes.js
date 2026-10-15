@@ -38,7 +38,7 @@ router.post("/login", loginRateLimiter, loginUser);
 router.use(protectRoute);
 
 router.get("/profile/:id", getUserProfile); 
-router.put("/change-password/:id", restrictTo("Admin", "Inventory", "Viewer"), changePassword);
+router.put("/change-password/:id", restrictTo("Admin", "Inventory", "Viewer", "Purchasing"), changePassword);
 router.put("/:id", upload.single("image"), updateUser);
 
 router.get("/", restrictTo("Admin"), getAllUsers);

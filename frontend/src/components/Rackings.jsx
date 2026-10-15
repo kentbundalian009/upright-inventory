@@ -22,6 +22,7 @@ const COLOR_OPTIONS = [
 function InventoryRawMaterials() {
     const { isDark } = useTheme();
     const userRole = localStorage.getItem("SystemRole") || "Inventory";
+    const isPurchasing = userRole === 'Purchasing';
     const isViewer = false;
 
     // 1. DATABASE AT LIFECYCLE STATES
@@ -550,18 +551,20 @@ function InventoryRawMaterials() {
             formData.append("Segment", materialSegment.trim());
             formData.append("ItemDescription", itemDescription.trim());
             formData.append("Condition", buildConditionString());
-            const finalDimension = isCustomDim 
-                ? materialDimension.trim() 
-                : buildDimensionString({
-                    height: dimHeight,
-                    heightType: dimHeightType,
-                    width: dimWidth,
-                    widthType: dimWidthType,
-                    depth: dimDepth,
-                    depthType: dimDepthType,
-                    profile: dimProfile
-                });
-            formData.append("Dimension", finalDimension !== '—' ? finalDimension.trim() : '');
+            const finalDimension = isPurchasing
+                ? (materialDimension || '').trim()
+                : isCustomDim 
+                    ? materialDimension.trim() 
+                    : buildDimensionString({
+                        height: dimHeight,
+                        heightType: dimHeightType,
+                        width: dimWidth,
+                        widthType: dimWidthType,
+                        depth: dimDepth,
+                        depthType: dimDepthType,
+                        profile: dimProfile
+                    });
+            formData.append("Dimension", finalDimension !== '—' ? finalDimension.trim() : (materialDimension || ''));
             formData.append("UOM", materialUom.trim());
             formData.append("AccountTo", accountTo.trim());
             formData.append("AcquisitionCost", Number(materialAcquisitionCost) || 0);
@@ -571,8 +574,10 @@ function InventoryRawMaterials() {
 
             if (selectedFile) {
                 formData.append("image", selectedFile);
-            } else if (!existingImgPreview) {
+            } else if (!existingImgPreview && !isPurchasing) {
                 formData.append("ImageUrl", "");
+            } else if (existingImgPreview) {
+                formData.append("ImageUrl", existingImgPreview);
             }
 
             let updatedItem = null;
@@ -581,7 +586,7 @@ function InventoryRawMaterials() {
                     headers: { "Content-Type": "multipart/form-data" }
                 });
                 updatedItem = res.data;
-                triggerSuccess("Successfully updated raw material profile details.");
+                triggerSuccess(isPurchasing ? "Successfully updated acquisition cost." : "Successfully updated raw material profile details.");
             } else {
                 const res = await axios.post(`/api/raw-materials`, formData, {
                     headers: { "Content-Type": "multipart/form-data" }
@@ -773,7 +778,7 @@ function InventoryRawMaterials() {
                             </label>
 
                             {/* SHARE LINK BUTTON (Opens Modal for Viewer Name) */}
-                            {!isViewer && (
+                            {!isViewer && !isPurchasing && (
                                 <button
                                     onClick={openShareModal}
                                     title="Generate Shareable Link for Viewer"
@@ -788,9 +793,7 @@ function InventoryRawMaterials() {
                                 </button>
                             )}
 
-
-
-                            {!isViewer && (
+                            {!isViewer && !isPurchasing && (
                                 <button
                                     onClick={() => setIsPaletteModalOpen(true)}
                                     title="Palette Settings"
@@ -803,7 +806,7 @@ function InventoryRawMaterials() {
                                 </button>
                             )}
 
-                            {!isViewer && (
+                            {!isViewer && !isPurchasing && (
                                 <button
                                     onClick={() => setShowArchivedOnly(!showArchivedOnly)}
                                     title={showArchivedOnly ? "Show Active Materials" : "View Archive Vault"}
@@ -830,7 +833,7 @@ function InventoryRawMaterials() {
                         </div>
                     </div>
 
-                    <div className="flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid md:grid-cols-5 md:pb-0">
+                    <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isPurchasing ? 'md:grid-cols-4' : 'md:grid-cols-5'} md:pb-0`}>
 
                         <div className="min-w-[180px] w-full md:min-w-0">
                             <div className="relative w-full">
@@ -864,7 +867,7 @@ function InventoryRawMaterials() {
                             </select>
                         </div>
 
-                        {!isViewer && (
+                        {!isViewer && !isPurchasing && (
                             <div className="min-w-[160px] w-full md:min-w-0">
                                 <button
                                     onClick={openAddModal}
@@ -903,7 +906,7 @@ function InventoryRawMaterials() {
                                     <th className="py-3 px-4 whitespace-nowrap">UOM</th>
                                     <th className="py-3 px-4 whitespace-nowrap text-right">Acquisition Cost</th>
                                     <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
-                                    <th className="py-3 px-4 whitespace-nowrap">Stock Health</th>
+                                    {!isPurchasing && <th className="py-3 px-4 whitespace-nowrap">Stock Health</th>}
                                     {!isViewer && (
                                         <th className="py-3 px-4 text-center whitespace-nowrap">
                                              Action
@@ -913,11 +916,11 @@ function InventoryRawMaterials() {
                             </thead>
                             <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                                 {loading ? (
-                                    <tr><td colSpan={isViewer ? "9" : "10"} className="text-center py-10 text-green-700 font-medium italic">
+                                    <tr><td colSpan={isPurchasing ? "9" : (isViewer ? "9" : "10")} className="text-center py-10 text-green-700 font-medium italic">
                                         Fetching secure rackings data from database...
                                     </td></tr>
                                 ) : error ? (
-                                    <tr><td colSpan={isViewer ? "9" : "10"} className="text-center py-8 text-rose-600 font-semibold">{error}</td></tr>
+                                    <tr><td colSpan={isPurchasing ? "9" : (isViewer ? "9" : "10")} className="text-center py-8 text-rose-600 font-semibold">{error}</td></tr>
                                 ) : paginatedRawMaterials.map((rawMat) => {
                                     const currentSegConfig = getSegmentStyles(rawMat.Segment);
 
@@ -1030,14 +1033,16 @@ function InventoryRawMaterials() {
                                             <td className="py-3 px-4 text-right font-mono text-xs font-bold whitespace-nowrap text-red-600 dark:text-red-400">
                                                 ₱{((Number(rawMat.ActualCount) || 0) * (Number(rawMat.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </td>
-                                            <td className="py-3 px-4">{getRawMaterialHealthBadge(rawMat)}</td>
+                                            {!isPurchasing && <td className="py-3 px-4">{getRawMaterialHealthBadge(rawMat)}</td>}
                                             {!isViewer && (
                                                 <td className="py-3 px-4 text-center">
                                                     <div className="flex items-center justify-center gap-2">
                                                         {!showArchivedOnly ? (
                                                             <>
-                                                                <button onClick={() => openEditModal(rawMat)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Edit2 className="w-3.5 h-3.5" /></button>
-                                                                <button onClick={() => openArchiveConfirmation(rawMat)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Archive className="w-3.5 h-3.5" /></button>
+                                                                <button onClick={() => openEditModal(rawMat)} title={isPurchasing ? "Edit Acquisition Cost" : "Edit Item"} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Edit2 className="w-3.5 h-3.5" /></button>
+                                                                {!isPurchasing && (
+                                                                    <button onClick={() => openArchiveConfirmation(rawMat)} title="Archive Item" className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Archive className="w-3.5 h-3.5" /></button>
+                                                                )}
                                                             </>
                                                         ) : (
                                                             <>
@@ -1053,7 +1058,7 @@ function InventoryRawMaterials() {
                                 })}
                                 {filteredRawMaterials.length === 0 && !loading && (
                                     <tr>
-                                        <td colSpan={isViewer ? "9" : "10"} className="text-center py-10 text-red-600 font-medium italic">
+                                        <td colSpan={isPurchasing ? "9" : (isViewer ? "9" : "10")} className="text-center py-10 text-red-600 font-medium italic">
                                             No records match the selected filters or search queries.
                                         </td>
                                     </tr>
@@ -1162,9 +1167,16 @@ function InventoryRawMaterials() {
                     <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200'} border rounded-2xl w-full max-w-xl sm:max-w-2xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto`}>
 
                         <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
-                            <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-base`}>
-                                {isEditing ? "Update Rackings Details" : "Add New Rackings Item"}
-                            </h3>
+                            <div className="flex items-center gap-2">
+                                <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-base`}>
+                                    {isPurchasing ? "Update Acquisition Cost" : (isEditing ? "Update Rackings Details" : "Add New Rackings Item")}
+                                </h3>
+                                {isPurchasing && (
+                                    <span className="text-[10px] font-extrabold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                        Purchasing
+                                    </span>
+                                )}
+                            </div>
                             <button
                                 onClick={() => setIsEditModalOpen(false)}
                                 className={`${isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600'} p-1 cursor-pointer`}
@@ -1173,18 +1185,117 @@ function InventoryRawMaterials() {
                             </button>
                         </div>
 
-                        <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-900/50' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3`}>
-                            <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
-                                * System Inventory Protocol *
-                            </span>
-                            <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
-                                Manual quantity inputs are disabled to comply with audit protocols. Racking images and related media must be uploaded through the <strong>Rackings Components.</strong>
-                            </p>
-                        </div>
+                        {isPurchasing ? (
+                            <div className={`p-3 ${isDark ? 'bg-indigo-950/30 border-indigo-900/50' : 'bg-indigo-50 border-indigo-200/60'} rounded-xl border mt-3`}>
+                                <span className={`block text-xs font-bold ${isDark ? 'text-indigo-400' : 'text-indigo-800'} uppercase mb-1`}>
+                                    * Purchasing Cost Protocol *
+                                </span>
+                                <p className={`text-[11px] ${isDark ? 'text-indigo-300/80' : 'text-indigo-700'} leading-relaxed`}>
+                                    You can update the item acquisition cost. Specifications, dimensions, and visual assets are locked to preserve catalog consistency.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-900/50' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3`}>
+                                <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
+                                    * System Inventory Protocol *
+                                </span>
+                                <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
+                                    Manual quantity inputs are disabled to comply with audit protocols. Racking images and related media must be uploaded through the <strong>Rackings Components.</strong>
+                                </p>
+                            </div>
+                        )}
 
                         <form onSubmit={handleEditFormSubmit} className="space-y-4 mt-4">
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {isPurchasing ? (
+                                <div className="space-y-4">
+                                    {/* READ-ONLY ITEM PROFILE DISPLAY */}
+                                    <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-200'} flex flex-col sm:flex-row items-center sm:items-start gap-4`}>
+                                        {/* Image Display */}
+                                        <div className="shrink-0">
+                                            {existingImgPreview ? (
+                                                <img
+                                                    src={
+                                                        existingImgPreview.startsWith('http') || existingImgPreview.startsWith('data:')
+                                                            ? existingImgPreview
+                                                            : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${existingImgPreview}`
+                                                    }
+                                                    alt={itemDescription || "Rack Item"}
+                                                    onClick={() => setPreviewImage(existingImgPreview.startsWith('http') || existingImgPreview.startsWith('data:') ? existingImgPreview : `${window.location.hostname === 'localhost' ? 'http://localhost:5000' : ''}${existingImgPreview}`)}
+                                                    className={`w-24 h-24 sm:w-28 sm:h-28 object-cover rounded-xl border ${isDark ? 'border-slate-700' : 'border-slate-300'} shadow-sm cursor-pointer hover:scale-105 transition-transform`}
+                                                    title="Click to preview full image"
+                                                />
+                                            ) : (
+                                                <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-xl ${isDark ? 'bg-slate-800 text-slate-500 border-slate-700' : 'bg-slate-200 text-slate-400 border-slate-300'} flex flex-col items-center justify-center border border-dashed`}>
+                                                    <ImageIcon className="w-8 h-8 mb-1 opacity-50" />
+                                                    <span className="text-[10px] font-bold">No Image</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Specs Display */}
+                                        <div className="flex-1 min-w-0 space-y-2 text-center sm:text-left w-full">
+                                            <div>
+                                                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Segment</span>
+                                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold border ${getSegmentStyles(materialSegment).classes || (isDark ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-white text-slate-800 border-slate-200')}`}>
+                                                    <span>{getSegmentStyles(materialSegment).prefix}</span>
+                                                    <span>{materialSegment || "N/A"}</span>
+                                                </span>
+                                            </div>
+
+                                            <div>
+                                                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Item Description</span>
+                                                <h4 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-800'} leading-snug break-words`}>
+                                                    {itemDescription || "—"}
+                                                </h4>
+                                            </div>
+
+                                            <div>
+                                                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Dimension</span>
+                                                <div className="inline-block">
+                                                    <RackDimensionCell dimension={materialDimension} isDark={isDark} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* The ONLY Editable Input: Acquisition Cost */}
+                                    <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#0f111a] border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className={`block text-xs font-bold uppercase tracking-wider ${isDark ? 'text-amber-400' : 'text-[#18174e]'}`}>
+                                                Acquisition Cost (Price) *
+                                            </label>
+                                            <span className="text-[11px] text-slate-400 font-medium">Editable for Purchasing</span>
+                                        </div>
+                                        <div className="relative">
+                                            <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-lg select-none pointer-events-none ${isDark ? 'text-amber-400' : 'text-[#18174e]'}`}>
+                                                ₱
+                                            </span>
+                                            <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                placeholder="0.00"
+                                                value={materialAcquisitionCost}
+                                                autoFocus
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                                        setMaterialAcquisitionCost(val);
+                                                    }
+                                                }}
+                                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-[#18174e]'} border-2 rounded-xl pl-9 pr-4 py-2.5 text-base font-mono font-bold focus:outline-none transition-all shadow-inner`}
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-800">
+                                            <span className="text-[11px] text-slate-400">Formatted Cost Preview:</span>
+                                            <span className="font-mono font-black text-sm text-red-600 dark:text-red-400">
+                                                ₱{(Number(materialAcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                                 {/* Stock Threshold & Reorder Limits (Moved to top of modal) */}
                                 <div className={`md:col-span-2 rounded-xl p-4 border transition-colors ${
@@ -1766,8 +1877,8 @@ function InventoryRawMaterials() {
                                         />
                                     </div>
                                 </div>
-
                             </div>
+                        )}
 
                             <div className={`flex items-center justify-end gap-2 mt-6 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
                                 <button

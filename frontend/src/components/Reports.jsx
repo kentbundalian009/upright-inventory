@@ -165,6 +165,8 @@ const loadImageBase64 = async (url) => {
 
 function Reports() {
     const { isDark } = useTheme();
+    const userRole = localStorage.getItem("SystemRole") || "Inventory";
+    const isPurchasing = userRole === 'Purchasing';
     const [activeModule, setActiveModule] = useState('raw-materials');
     const [globalSearch, setGlobalSearch] = useState('');
     const [loading, setLoading] = useState(false);
@@ -270,6 +272,17 @@ function Reports() {
             });
         }
     }, [rawMaterialsData]);
+
+    useEffect(() => {
+        const baseItems = activeModule === 'raw-materials'
+            ? rawMaterialsData
+            : activeModule === 'supplies'
+                ? suppliesData
+                : consumablesData;
+        if (baseItems && baseItems.length > 0) {
+            setSelectedItemIds(new Set(baseItems.map(item => item._id)));
+        }
+    }, [activeModule]);
 
     const getConsolidatedSummary = () => {
         let masterList = [];
@@ -665,18 +678,19 @@ function Reports() {
         return Number(item.ActualCount ?? 0) === 0;
     }).length;
 
-    // Selection metrics & handlers for Rackings only
-    const visibleRawMaterialItems = useMemo(() => {
-        if (activeModule !== 'raw-materials') return [];
+    // Selection metrics & handlers (Rackings, and all modules for Purchasing)
+    const visibleSelectableItems = useMemo(() => {
+        if (activeModule !== 'raw-materials' && !isPurchasing) return [];
         return consolidatedData;
-    }, [activeModule, consolidatedData]);
+    }, [activeModule, consolidatedData, isPurchasing]);
 
-    const totalVisibleCount = visibleRawMaterialItems.length;
+    const visibleRawMaterialItems = visibleSelectableItems;
+    const totalVisibleCount = visibleSelectableItems.length;
 
     const selectedCount = useMemo(() => {
-        if (activeModule !== 'raw-materials') return 0;
-        return visibleRawMaterialItems.filter(item => selectedItemIds.has(item._id)).length;
-    }, [activeModule, visibleRawMaterialItems, selectedItemIds]);
+        if (activeModule !== 'raw-materials' && !isPurchasing) return 0;
+        return visibleSelectableItems.filter(item => selectedItemIds.has(item._id)).length;
+    }, [activeModule, visibleSelectableItems, selectedItemIds, isPurchasing]);
 
     const isAllSelected = totalVisibleCount > 0 && selectedCount === totalVisibleCount;
     const isSomeSelected = selectedCount > 0 && selectedCount < totalVisibleCount;
@@ -696,10 +710,10 @@ function Reports() {
             const next = new Set(prev);
             if (isAllSelected) {
                 // If all visible items are selected, uncheck all visible items
-                visibleRawMaterialItems.forEach(item => next.delete(item._id));
+                visibleSelectableItems.forEach(item => next.delete(item._id));
             } else {
                 // Check all visible items
-                visibleRawMaterialItems.forEach(item => next.add(item._id));
+                visibleSelectableItems.forEach(item => next.add(item._id));
             }
             return next;
         });
@@ -731,6 +745,17 @@ function Reports() {
             .filter(item => !item.isArchived)
             .reduce((sum, item) => sum + ((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)), 0);
     }, [rawMaterialsData]);
+
+    const currentModuleAcquisitionCost = useMemo(() => {
+        const inventory = activeModule === 'raw-materials'
+            ? rawMaterialsData
+            : activeModule === 'supplies'
+                ? suppliesData
+                : consumablesData;
+        return (inventory || [])
+            .filter(item => !item.isArchived)
+            .reduce((sum, item) => sum + ((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)), 0);
+    }, [activeModule, rawMaterialsData, suppliesData, consumablesData]);
 
     const totalFilteredAcquisitionCost = useMemo(() => {
         return consolidatedData.reduce((sum, item) => {
@@ -918,14 +943,14 @@ function Reports() {
             doc.setTextColor(40, 40, 40);
 
             const isRackings = activeModule === 'raw-materials';
-            const isAcquisitionReport = isRackings && showAcquisitionCost;
-            const isInventoryOnly = isRackings && showInventoryOnly;
+            const isAcquisitionReport = (isRackings && showAcquisitionCost) || isPurchasing;
+            const isInventoryOnly = !isPurchasing && isRackings && showInventoryOnly;
 
-            const exportData = isRackings
+            const exportData = (isRackings || isPurchasing)
                 ? consolidatedData.filter(item => selectedItemIds.has(item._id))
                 : consolidatedData;
 
-            if (isRackings && exportData.length === 0) {
+            if ((isRackings || isPurchasing) && exportData.length === 0) {
                 alert("No items selected to export. Please check at least one item.");
                 setLoading(false);
                 return;
@@ -952,7 +977,9 @@ function Reports() {
                     : isAcquisitionReport
                         ? ["Item Description", "Segment", "Dimension", "Actual Count", "Reserve", "UOM", "Acquisition Cost", "Total Acquisition Cost"]
                         : ["Item Description", "Segment", "Dimension", "Actual Count", "Reserve", "UOM", "Inflows (This Month)", "Outflows (This Month)"])
-                : ["Item Description", "Segment", "Dimension", "Serial", "Quantity", "UOM"];
+                : (isPurchasing
+                    ? ["Item Description", "Segment", "Dimension", "Serial", "Quantity", "UOM", "Acquisition Cost", "Total Acquisition Cost"]
+                    : ["Item Description", "Segment", "Dimension", "Serial", "Quantity", "UOM"]);
 
             const rows = [];
             if (isInventoryOnly) {
@@ -1045,7 +1072,7 @@ function Reports() {
                     rows.push([
                         {
                             content: `SEGMENT: ${groupName.toUpperCase()}   (${itemsInGroup.length} ${itemsInGroup.length === 1 ? 'ITEM' : 'ITEMS'})`,
-                            colSpan: isRackings ? 8 : 6,
+                            colSpan: (isRackings || isPurchasing) ? 8 : 6,
                             styles: {
                                 fillColor: [234, 239, 249],
                             textColor: [24, 23, 78],
@@ -1132,14 +1159,29 @@ function Reports() {
                             ];
                         }
                     } else {
-                        itemRow = [
-                            item.isArchived ? `${item.ItemDescription || '—'} (Archived)` : (item.ItemDescription || '—'),
-                            item.Segment || 'Standard',
-                            item.Dimension || '—',
-                            item.SerialNo || '—',
-                            displayActualQty,
-                            item.UOM || 'PCS'
-                        ];
+                        if (isPurchasing) {
+                            const costVal = Number(item.AcquisitionCost) || 0;
+                            const totVal = physicalCount * costVal;
+                            itemRow = [
+                                item.isArchived ? `${item.ItemDescription || '—'} (Archived)` : (item.ItemDescription || '—'),
+                                item.Segment || 'Standard',
+                                item.Dimension || '—',
+                                item.SerialNo || '—',
+                                displayActualQty,
+                                item.UOM || 'PCS',
+                                `PHP ${costVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                                `PHP ${totVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            ];
+                        } else {
+                            itemRow = [
+                                item.isArchived ? `${item.ItemDescription || '—'} (Archived)` : (item.ItemDescription || '—'),
+                                item.Segment || 'Standard',
+                                item.Dimension || '—',
+                                item.SerialNo || '—',
+                                displayActualQty,
+                                item.UOM || 'PCS'
+                            ];
+                        }
                     }
 
                     rows.push(itemRow);
@@ -1147,12 +1189,18 @@ function Reports() {
             });
             }
 
-            if (isAcquisitionReport) {
+            if (isAcquisitionReport || isPurchasing) {
                 const selectedTotal = exportData.reduce((sum, item) => sum + ((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)), 0);
-                const isAllSelectedInExport = exportData.length === rawMaterialsData.filter(i => !i.isArchived).length;
+                const currentInv = activeModule === 'raw-materials'
+                    ? rawMaterialsData
+                    : activeModule === 'supplies'
+                        ? suppliesData
+                        : consumablesData;
+                const isAllSelectedInExport = exportData.length === (currentInv || []).filter(i => !i.isArchived).length;
+                const moduleName = activeModule === 'raw-materials' ? 'RACKINGS' : activeModule === 'supplies' ? 'TOOLS & EQUIPMENTS' : 'CONSUMABLES';
                 rows.push([
                     {
-                        content: isAllSelectedInExport ? 'TOTAL ACQUISITION COST (ALL RACKINGS)' : 'TOTAL ACQUISITION COST (SELECTED ITEMS)',
+                        content: isAllSelectedInExport ? `TOTAL ACQUISITION COST (ALL ${moduleName})` : 'TOTAL ACQUISITION COST (SELECTED ITEMS)',
                         colSpan: 6,
                         styles: {
                             fontStyle: 'bold',
@@ -1170,7 +1218,7 @@ function Reports() {
                             halign: 'right',
                             fillColor: [234, 239, 249],
                             textColor: [225, 29, 72],
-                            fontSize: 8.5
+                            fontSize: 9
                         }
                     }
                 ]);
@@ -1517,11 +1565,11 @@ function Reports() {
         }
 
         const isRackings = activeModule === 'raw-materials';
-        const exportData = isRackings
+        const exportData = (isRackings || isPurchasing)
             ? consolidatedData.filter(item => selectedItemIds.has(item._id))
             : consolidatedData;
 
-        if (isRackings && exportData.length === 0) {
+        if ((isRackings || isPurchasing) && exportData.length === 0) {
             alert("No items selected to export. Please check at least one item.");
             return;
         }
@@ -1553,7 +1601,8 @@ function Reports() {
                 viewMode,
                 formatDimension: formatDimensionForPdf,
                 getCleanItemDescription,
-                getItemConditions
+                getItemConditions,
+                isPurchasing
             });
         } catch (e) {
             console.error("🔴 EXCEL CRITICAL FAILURE REASON:", e);
@@ -2534,16 +2583,16 @@ function Reports() {
                                 })}
                             </div>
 
-                            {/* TOTAL ACQUISITION COST BADGE FOR RACKINGS */}
-                            {activeModule === 'raw-materials' && (
-                                <div className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border select-none transition-all flex-shrink-0 ${showAcquisitionCost
+                            {/* TOTAL ACQUISITION COST BADGE */}
+                            {(activeModule === 'raw-materials' || isPurchasing) && (
+                                <div className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border select-none transition-all flex-shrink-0 ${showAcquisitionCost || isPurchasing
                                     ? (isDark ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/70 shadow-sm' : 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-sm')
                                     : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200')
                                     }`}>
-                                    <Coins className={`w-3.5 h-3.5 ${showAcquisitionCost ? 'text-emerald-500' : (isDark ? 'text-slate-400' : 'text-slate-500')}`} />
+                                    <Coins className={`w-3.5 h-3.5 ${showAcquisitionCost || isPurchasing ? 'text-emerald-500' : (isDark ? 'text-slate-400' : 'text-slate-500')}`} />
                                     <span>Total Acquisition Cost:</span>
                                     <span className="font-mono font-black text-red-600 dark:text-red-400">
-                                        ₱{totalRackingsAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        ₱{(isPurchasing ? currentModuleAcquisitionCost : totalRackingsAcquisitionCost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                 </div>
                             )}
@@ -2552,8 +2601,8 @@ function Reports() {
 
                     {/* LAYER 2: Quick Filter Checkboxes */}
                     <div className="flex items-center gap-2 flex-wrap pt-1.5">
-                        {/* 0. Select All - Rackings only (placed before Hide 0 Qty) */}
-                        {activeModule === 'raw-materials' && (
+                        {/* 0. Select All (Rackings, or all modules for Purchasing) */}
+                        {(activeModule === 'raw-materials' || isPurchasing) && (
                             <label
                                 className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${isAllSelected
                                     ? (isDark ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80 shadow-sm' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 shadow-sm')
@@ -2581,7 +2630,7 @@ function Reports() {
                         )}
 
                         {/* 1. Hide 0 Qty - hidden when 0 Qty Only is checked */}
-                        {!showZeroOnly && (
+                        {(!showZeroOnly || isPurchasing) && (
                             <label
                                 className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${hideZeroQty
                                     ? (isDark ? 'bg-red-950/40 border-red-900/60 text-red-400' : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100')
@@ -2601,8 +2650,8 @@ function Reports() {
                             </label>
                         )}
 
-                        {/* 2. 0 Qty Only - hidden when Hide 0 Qty is checked */}
-                        {!hideZeroQty && (
+                        {/* 2. 0 Qty Only - hidden for purchasing */}
+                        {!isPurchasing && !hideZeroQty && (
                             <label
                                 className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${showZeroOnly
                                     ? (isDark ? 'bg-rose-950/40 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100')
@@ -2623,8 +2672,8 @@ function Reports() {
                             </label>
                         )}
 
-                        {/* 3. Movements Only (Rackings only) - hidden when Acquisition Cost or Inventory Only is checked */}
-                        {activeModule === 'raw-materials' && !showAcquisitionCost && !showInventoryOnly && (
+                        {/* 3. Movements Only (Rackings only) - hidden for purchasing */}
+                        {!isPurchasing && activeModule === 'raw-materials' && !showAcquisitionCost && !showInventoryOnly && (
                             <label
                                 className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${hideNoMovements
                                     ? (isDark ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100')
@@ -2647,8 +2696,8 @@ function Reports() {
                             </label>
                         )}
 
-                        {/* 4. Acquisition Cost (Rackings only) - hidden when Movements Only is checked */}
-                        {activeModule === 'raw-materials' && !hideNoMovements && (
+                        {/* 4. Acquisition Cost (Rackings only) - hidden for purchasing */}
+                        {!isPurchasing && activeModule === 'raw-materials' && !hideNoMovements && (
                             <label
                                 className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${showAcquisitionCost
                                     ? (isDark ? 'bg-emerald-950/60 text-emerald-300 border-emerald-600 shadow-sm ring-1 ring-emerald-500/50' : 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-sm ring-1 ring-emerald-400')
@@ -2671,8 +2720,8 @@ function Reports() {
                             </label>
                         )}
 
-                        {/* 5. Inventory Only (Rackings only) - beside Acquisition Cost */}
-                        {activeModule === 'raw-materials' && !hideNoMovements && (
+                        {/* 5. Inventory Only (Rackings only) - hidden for purchasing */}
+                        {!isPurchasing && activeModule === 'raw-materials' && !hideNoMovements && (
                             <label
                                 className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${showInventoryOnly
                                     ? (isDark ? 'bg-blue-950/60 text-blue-300 border-blue-600 shadow-sm ring-1 ring-blue-500/50' : 'bg-blue-50 text-blue-700 border-blue-300 shadow-sm ring-1 ring-blue-400')
@@ -2698,36 +2747,38 @@ function Reports() {
 
                     {/* LAYER 3: PDF Export Action Buttons */}
                     <div className="flex items-center gap-2 flex-wrap pt-1.5">
-                        {/* Movements Summary (PDF) Button */}
-                        <button
-                            onClick={handleDownloadMonthlySummaryPDF}
-                            disabled={loading}
-                            title={`Export Monthly Summary Activity Report for ${monthsList.find(m => m.value === selectedMonth)?.label} ${selectedYear}`}
-                            className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 shadow-sm disabled:opacity-50 ${isDark
-                                ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80 hover:bg-indigo-900/60'
-                                : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
-                                }`}
-                        >
-                            <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                            <span>Movements Summary (PDF)</span>
-                        </button>
+                        {/* Movements Summary (PDF) Button - hidden for purchasing */}
+                        {!isPurchasing && (
+                            <button
+                                onClick={handleDownloadMonthlySummaryPDF}
+                                disabled={loading}
+                                title={`Export Monthly Summary Activity Report for ${monthsList.find(m => m.value === selectedMonth)?.label} ${selectedYear}`}
+                                className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 shadow-sm disabled:opacity-50 ${isDark
+                                    ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80 hover:bg-indigo-900/60'
+                                    : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                                    }`}
+                            >
+                                <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                                <span>Movements Summary (PDF)</span>
+                            </button>
+                        )}
 
                         {/* Export Audit Ledger (PDF) Button */}
                         <button
                             onClick={handleDownloadPDF}
                             disabled={loading}
-                            title={activeModule === 'raw-materials' && selectedCount < totalVisibleCount
+                            title={(activeModule === 'raw-materials' || isPurchasing) && selectedCount < totalVisibleCount
                                 ? `Export ${selectedCount} selected items to PDF`
                                 : (showZeroOnly ? "Download PDF of all 0 quantity items" : showInventoryOnly ? "Export Alphabetical Inventory Only Ledger PDF" : showAcquisitionCost ? "Export Acquisition Cost & Valuation Ledger PDF" : "Export Consolidated Ledger PDF")}
-                            className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${showZeroOnly
+                            className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${showZeroOnly && !isPurchasing
                                 ? 'border-red-600 bg-red-600 text-white hover:bg-red-700'
                                 : (isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90')
                                 }`}
                         >
                             <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                             <span>
-                                {showZeroOnly ? 'Export 0 Qty Ledger (PDF)' : showInventoryOnly ? 'Export Inventory Ledger (PDF)' : showAcquisitionCost ? 'Export Cost Ledger (PDF)' : 'Download (PDF)'}
-                                {activeModule === 'raw-materials' && selectedCount < totalVisibleCount ? ` (${selectedCount})` : ''}
+                                {isPurchasing ? 'Download (PDF)' : (showZeroOnly ? 'Export 0 Qty Ledger (PDF)' : showInventoryOnly ? 'Export Inventory Ledger (PDF)' : showAcquisitionCost ? 'Export Cost Ledger (PDF)' : 'Download (PDF)')}
+                                {(activeModule === 'raw-materials' || isPurchasing) && selectedCount < totalVisibleCount ? ` (${selectedCount})` : ''}
                             </span>
                         </button>
 
@@ -2735,7 +2786,7 @@ function Reports() {
                         <button
                             onClick={handleDownloadExcel}
                             disabled={loading}
-                            title={activeModule === 'raw-materials' && selectedCount < totalVisibleCount
+                            title={(activeModule === 'raw-materials' || isPurchasing) && selectedCount < totalVisibleCount
                                 ? `Export ${selectedCount} selected items to Excel (Upright Branded Template)`
                                 : (showZeroOnly ? "Download Excel of all 0 quantity items (Upright Template)" : showInventoryOnly ? "Export Alphabetical Inventory Only Ledger Excel (Upright Template)" : showAcquisitionCost ? "Export Acquisition Cost & Valuation Ledger Excel (Upright Template)" : "Export Consolidated Ledger Excel (Upright Template)")}
                             className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${
@@ -2746,8 +2797,8 @@ function Reports() {
                         >
                             <FileSpreadsheet className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-emerald-300" />
                             <span>
-                                {showZeroOnly ? 'Export 0 Qty Ledger (Excel)' : showInventoryOnly ? 'Export Inventory (Excel)' : showAcquisitionCost ? 'Export Cost Ledger (Excel)' : 'Download (Excel)'}
-                                {activeModule === 'raw-materials' && selectedCount < totalVisibleCount ? ` (${selectedCount})` : ''}
+                                {isPurchasing ? 'Download (Excel)' : (showZeroOnly ? 'Export 0 Qty Ledger (Excel)' : showInventoryOnly ? 'Export Inventory (Excel)' : showAcquisitionCost ? 'Export Cost Ledger (Excel)' : 'Download (Excel)')}
+                                {(activeModule === 'raw-materials' || isPurchasing) && selectedCount < totalVisibleCount ? ` (${selectedCount})` : ''}
                             </span>
                         </button>
                     </div>
@@ -2887,7 +2938,7 @@ function Reports() {
                             <table className="w-full text-left border-collapse text-xs">
                                 <thead>
                                     <tr className={`font-bold uppercase text-[11px] tracking-wider whitespace-nowrap ${isDark ? 'bg-[#10121d] text-slate-300 border-b border-slate-800' : 'bg-[#18174e] text-white'}`}>
-                                        {activeModule === 'raw-materials' && (
+                                        {(activeModule === 'raw-materials' || isPurchasing) && (
                                             <th className="py-3.5 px-3 text-center whitespace-nowrap w-[44px]">
                                                 <input
                                                     type="checkbox"
@@ -2928,17 +2979,24 @@ function Reports() {
                                                     <th className="py-3.5 px-4 text-center">Quantity</th>
                                                 )}
                                                 <th className="py-3.5 px-4 text-center">UOM</th>
-                                                {activeModule === 'raw-materials' && (
-                                                    showAcquisitionCost ? (
-                                                        <>
-                                                            <th className="py-3.5 px-4 text-right whitespace-nowrap min-w-[140px]">Acquisition Cost</th>
-                                                            <th className="py-3.5 px-4 text-right whitespace-nowrap min-w-[170px]">Total Acquisition Cost</th>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <th className="py-3.5 px-4 min-w-[220px]">Inflows (This Month)</th>
-                                                            <th className="py-3.5 px-4 min-w-[220px]">Outflows (This Month)</th>
-                                                        </>
+                                                {isPurchasing ? (
+                                                    <>
+                                                        <th className="py-3.5 px-4 text-right whitespace-nowrap min-w-[140px]">Acquisition Cost</th>
+                                                        <th className="py-3.5 px-4 text-right whitespace-nowrap min-w-[170px]">Total Acquisition Cost</th>
+                                                    </>
+                                                ) : (
+                                                    activeModule === 'raw-materials' && (
+                                                        showAcquisitionCost ? (
+                                                            <>
+                                                                <th className="py-3.5 px-4 text-right whitespace-nowrap min-w-[140px]">Acquisition Cost</th>
+                                                                <th className="py-3.5 px-4 text-right whitespace-nowrap min-w-[170px]">Total Acquisition Cost</th>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <th className="py-3.5 px-4 min-w-[220px]">Inflows (This Month)</th>
+                                                                <th className="py-3.5 px-4 min-w-[220px]">Outflows (This Month)</th>
+                                                            </>
+                                                        )
                                                     )
                                                 )}
                                             </>
@@ -2954,8 +3012,8 @@ function Reports() {
                                             <tr key={row._id} className={`transition-colors whitespace-nowrap ${isDepleted && showZeroOnly
                                                 ? (isDark ? 'bg-red-500/5 hover:bg-red-500/10' : 'bg-red-50/50 hover:bg-red-50')
                                                 : (isDark ? 'hover:bg-[#141622]' : 'hover:bg-slate-50/80')
-                                                } ${activeModule === 'raw-materials' && !isSelected ? 'opacity-60' : ''}`}>
-                                                {activeModule === 'raw-materials' && (
+                                                } ${(activeModule === 'raw-materials' || isPurchasing) && !isSelected ? 'opacity-60' : ''}`}>
+                                                {(activeModule === 'raw-materials' || isPurchasing) && (
                                                     <td className="py-2.5 px-3 text-center whitespace-nowrap w-[44px]" onClick={(e) => e.stopPropagation()}>
                                                         <input
                                                             type="checkbox"
@@ -2965,7 +3023,7 @@ function Reports() {
                                                                 ? (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')
                                                                 : ''
                                                                 }`}
-                                                            title={isSelected ? "Uncheck to exclude from PDF export" : "Check to include in PDF export"}
+                                                            title={isSelected ? "Uncheck to exclude from export" : "Check to include in export"}
                                                         />
                                                     </td>
                                                 )}
@@ -3200,9 +3258,21 @@ function Reports() {
                                                             {row.UOM || 'PCS'}
                                                         </td>
 
-                                                        {/* 6 & 7. Acquisition Cost & Total Acquisition Cost OR Inflows & Outflows (This Month) - Rackings only */}
-                                                        {activeModule === 'raw-materials' && (
-                                                            showAcquisitionCost ? (
+                                                        {/* 6 & 7. Acquisition Cost & Total Acquisition Cost OR Inflows & Outflows (This Month) */}
+                                                        {isPurchasing ? (
+                                                            <>
+                                                                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-xs">
+                                                                    <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                                                                        ₱{(Number(row.AcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-xs font-bold text-red-600 dark:text-red-400">
+                                                                    ₱{((Number(row.ActualCount) || 0) * (Number(row.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                </td>
+                                                            </>
+                                                        ) : (
+                                                            activeModule === 'raw-materials' && (
+                                                                showAcquisitionCost ? (
                                                                 <>
                                                                     <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-xs">
                                                                         {viewMode === 'detailed' ? (
@@ -3278,6 +3348,7 @@ function Reports() {
                                                                     </td>
                                                                 </>
                                                             )
+                                                        )
                                                         )}
                                                     </>
                                                 )}
@@ -3285,29 +3356,37 @@ function Reports() {
                                         );
                                     })}
                                 </tbody>
-                                {activeModule === 'raw-materials' && showAcquisitionCost && consolidatedData.length > 0 && (
+                                {((activeModule === 'raw-materials' && showAcquisitionCost) || isPurchasing) && consolidatedData.length > 0 && (
                                     <tfoot>
                                         <tr className={`font-bold text-xs uppercase tracking-wider border-t-2 ${isDark ? 'bg-[#10121d] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-800 border-slate-200'
                                             }`}>
-                                            <td colSpan={4} className="px-4 py-3.5 whitespace-nowrap">
+                                            <td colSpan={activeModule === 'raw-materials' ? 4 : 5} className="px-4 py-3.5 whitespace-nowrap">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Total (All Rackings):</span>
+                                                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Total (All {activeModule === 'raw-materials' ? 'Rackings' : activeModule === 'supplies' ? 'Tools & Equipments' : 'Consumables'}):</span>
                                                     <span className="font-mono font-black text-red-600 dark:text-red-400 text-sm">
-                                                        ₱{totalRackingsAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        ₱{(isPurchasing ? currentModuleAcquisitionCost : totalRackingsAcquisitionCost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     </span>
-                                                    {totalFilteredAcquisitionCost !== totalRackingsAcquisitionCost && (
+                                                    {totalFilteredAcquisitionCost !== (isPurchasing ? currentModuleAcquisitionCost : totalRackingsAcquisitionCost) && (
                                                         <span className="text-[10px] font-normal lowercase text-slate-400">
                                                             (current filtered: ₱{totalFilteredAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                                                         </span>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3.5 text-center font-mono font-bold whitespace-nowrap">
-                                                {consolidatedData.reduce((sum, i) => sum + Math.max(0, Number(i.ActualCount || 0) - Number(i.ReserveCount || 0)), 0).toLocaleString()}
-                                            </td>
-                                            <td className="px-4 py-3.5 text-center font-mono font-bold text-amber-500 whitespace-nowrap">
-                                                {consolidatedData.reduce((sum, i) => sum + Number(i.ReserveCount || 0), 0).toLocaleString()}
-                                            </td>
+                                            {activeModule === 'raw-materials' ? (
+                                                <>
+                                                    <td className="px-4 py-3.5 text-center font-mono font-bold whitespace-nowrap">
+                                                        {consolidatedData.reduce((sum, i) => sum + Math.max(0, Number(i.ActualCount || 0) - Number(i.ReserveCount || 0)), 0).toLocaleString()}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-center font-mono font-bold text-amber-500 whitespace-nowrap">
+                                                        {consolidatedData.reduce((sum, i) => sum + Number(i.ReserveCount || 0), 0).toLocaleString()}
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                <td className="px-4 py-3.5 text-center font-mono font-bold whitespace-nowrap">
+                                                    {consolidatedData.reduce((sum, i) => sum + Number(i.ActualCount || 0), 0).toLocaleString()}
+                                                </td>
+                                            )}
                                             <td className="px-4 py-3.5 text-center text-slate-400 whitespace-nowrap">
                                                 TOTAL
                                             </td>

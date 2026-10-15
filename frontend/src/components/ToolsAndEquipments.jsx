@@ -8,6 +8,7 @@ import { useTheme } from '../context/ThemeContext';
 function InventorySupplies() {
   const { isDark } = useTheme();
   const userRole = localStorage.getItem("SystemRole") || "Inventory";
+  const isPurchasing = userRole === 'Purchasing';
   const isViewer = false;
 
   const [suppliesList, setSuppliesList] = useState([]);
@@ -563,7 +564,7 @@ function InventorySupplies() {
               <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
             </label>
 
-            {!isViewer && (
+            {!isViewer && !isPurchasing && (
               <button
                 onClick={() => setIsPaletteModalOpen(true)}
                 title="Palette Settings"
@@ -575,7 +576,7 @@ function InventorySupplies() {
             )}
 
             {/* EDIT QTY BUTTON DIRECTLY IN TABLE */}
-            {!isViewer && !showArchivedOnly && (
+            {!isViewer && !isPurchasing && !showArchivedOnly && (
               <button
                 onClick={handleToggleEditQty}
                 title={isEditingQty ? "Cancel Edit Qty Mode" : "Directly Edit Actual Count Column"}
@@ -591,7 +592,7 @@ function InventorySupplies() {
               </button>
             )}
 
-            {!isViewer && (
+            {!isViewer && !isPurchasing && (
               <button
                 onClick={() => {
                   if (isEditingQty) {
@@ -623,7 +624,7 @@ function InventorySupplies() {
             )}
           </div>
 
-          <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isViewer ? 'md:grid-cols-3' : 'md:grid-cols-4'} md:pb-0`}>
+          <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isViewer || isPurchasing ? 'md:grid-cols-3' : 'md:grid-cols-4'} md:pb-0`}>
 
             <div className="min-w-[180px] w-full md:min-w-0">
               <div className="relative w-full">
@@ -644,7 +645,7 @@ function InventorySupplies() {
               </select>
             </div>
 
-            {!isViewer && (
+            {!isViewer && !isPurchasing && (
               <div className="min-w-[160px] w-full md:min-w-0">
                 <button onClick={openAddModal} disabled={showArchivedOnly} className={`flex items-center justify-center gap-2 ${isDark ? 'bg-[#ff6600] hover:bg-[#ff6600]/90' : 'bg-[#18174e] hover:bg-[#18174e]/90'} disabled:bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px]`}>
                   <span className="whitespace-nowrap">Add New Tools & Equipments</span>
@@ -676,9 +677,11 @@ function InventorySupplies() {
                     Actual Count{isEditingQty ? ' (Editing)' : ''}
                   </th>
                   <th className="py-3 px-4 whitespace-nowrap">UOM</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap">
-                    Breakdown{isEditingQty ? ' (Editing)' : ''}
-                  </th>
+                  {!isPurchasing && (
+                    <th className="py-3 px-4 text-center whitespace-nowrap">
+                      Breakdown{isEditingQty ? ' (Editing)' : ''}
+                    </th>
+                  )}
                   <th className="py-3 px-4 whitespace-nowrap text-right">Acquisition Cost</th>
                   <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
                   {!isViewer && (
@@ -691,13 +694,13 @@ function InventorySupplies() {
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                 {loading ? (
                   <tr>
-                    <td colSpan={isViewer ? "9" : "10"} className="text-center py-10 text-green-500 font-medium italic">
+                    <td colSpan={isPurchasing ? "9" : (isViewer ? "9" : "10")} className="text-center py-10 text-green-500 font-medium italic">
                       Fetching secure rackings data from database...
                     </td>
                   </tr>
                 ) : filteredSupplies.length === 0 ? (
                   <tr>
-                    <td colSpan={isViewer ? "9" : "10"} className="text-center py-10 text-red-500 font-medium italic">
+                    <td colSpan={isPurchasing ? "9" : (isViewer ? "9" : "10")} className="text-center py-10 text-red-500 font-medium italic">
                       No records match the selected filters or search queries.
                     </td>
                   </tr>) : (
@@ -793,52 +796,54 @@ function InventorySupplies() {
                         </td>
 
                         {/* 7. Breakdown (Good Condition QTY & Damaged QTY) */}
-                        <td className="py-3 px-4 text-center whitespace-nowrap">
-                          {isEditingQty ? (
-                            <div className="inline-flex flex-col gap-1.5 items-center min-w-[170px]" onClick={(e) => e.stopPropagation()}>
-                              <div className="inline-flex items-center justify-between w-full gap-2 px-2 py-1 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                                <span className="whitespace-nowrap">Good Condition QTY:</span>
-                                <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" title="Auto-computed: Actual Count - Damaged QTY">
-                                  {goodConditionQty}
+                        {!isPurchasing && (
+                          <td className="py-3 px-4 text-center whitespace-nowrap">
+                            {isEditingQty ? (
+                              <div className="inline-flex flex-col gap-1.5 items-center min-w-[170px]" onClick={(e) => e.stopPropagation()}>
+                                <div className="inline-flex items-center justify-between w-full gap-2 px-2 py-1 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                  <span className="whitespace-nowrap">Good Condition QTY:</span>
+                                  <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" title="Auto-computed: Actual Count - Damaged QTY">
+                                    {goodConditionQty}
+                                  </span>
+                                </div>
+                                <div className={`inline-flex items-center justify-between w-full gap-2 px-2 py-1 rounded text-[11px] font-semibold border ${
+                                  damagedQty > 0
+                                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                                    : isDark ? 'bg-slate-800/60 text-slate-400 border-slate-700/60' : 'bg-slate-100 text-slate-500 border border-slate-200'
+                                }`}>
+                                  <span className="whitespace-nowrap">Damaged QTY:</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={totalQty}
+                                    value={editState !== undefined && typeof editState === 'object' && editState.damagedCount !== undefined ? editState.damagedCount : damagedQty}
+                                    onChange={(e) => handleDamagedQtyChange(supply._id, e.target.value)}
+                                    className={`w-14 text-center font-mono font-bold text-xs py-0.5 px-1 rounded border focus:outline-none transition-all ${
+                                      isDark
+                                        ? 'bg-[#141622] border-rose-500/50 text-white focus:ring-2 focus:ring-rose-400/40'
+                                        : 'bg-white border-rose-300 text-slate-900 focus:ring-2 focus:ring-rose-500/30'
+                                    }`}
+                                    title={`Max ${totalQty} based on Actual Count`}
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="inline-flex flex-col gap-1 items-center min-w-[140px]">
+                                <span className="inline-flex items-center justify-between w-full gap-2 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                  <span>Good Condition QTY:</span>
+                                  <span className="font-mono font-bold">{goodConditionQty}</span>
+                                </span>
+                                <span className={`inline-flex items-center justify-between w-full gap-2 px-2 py-0.5 rounded text-[11px] font-semibold ${damagedQty > 0
+                                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                                  : isDark ? 'bg-slate-800/60 text-slate-400 border border-slate-700/60' : 'bg-slate-100 text-slate-500 border border-slate-200'
+                                  }`}>
+                                  <span>Damaged QTY:</span>
+                                  <span className="font-mono font-bold">{damagedQty}</span>
                                 </span>
                               </div>
-                              <div className={`inline-flex items-center justify-between w-full gap-2 px-2 py-1 rounded text-[11px] font-semibold border ${
-                                damagedQty > 0
-                                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
-                                  : isDark ? 'bg-slate-800/60 text-slate-400 border-slate-700/60' : 'bg-slate-100 text-slate-500 border border-slate-200'
-                              }`}>
-                                <span className="whitespace-nowrap">Damaged QTY:</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max={totalQty}
-                                  value={editState !== undefined && typeof editState === 'object' && editState.damagedCount !== undefined ? editState.damagedCount : damagedQty}
-                                  onChange={(e) => handleDamagedQtyChange(supply._id, e.target.value)}
-                                  className={`w-14 text-center font-mono font-bold text-xs py-0.5 px-1 rounded border focus:outline-none transition-all ${
-                                    isDark
-                                      ? 'bg-[#141622] border-rose-500/50 text-white focus:ring-2 focus:ring-rose-400/40'
-                                      : 'bg-white border-rose-300 text-slate-900 focus:ring-2 focus:ring-rose-500/30'
-                                  }`}
-                                  title={`Max ${totalQty} based on Actual Count`}
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="inline-flex flex-col gap-1 items-center min-w-[140px]">
-                              <span className="inline-flex items-center justify-between w-full gap-2 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                <span>Good Condition QTY:</span>
-                                <span className="font-mono font-bold">{goodConditionQty}</span>
-                              </span>
-                              <span className={`inline-flex items-center justify-between w-full gap-2 px-2 py-0.5 rounded text-[11px] font-semibold ${damagedQty > 0
-                                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                                : isDark ? 'bg-slate-800/60 text-slate-400 border border-slate-700/60' : 'bg-slate-100 text-slate-500 border border-slate-200'
-                                }`}>
-                                <span>Damaged QTY:</span>
-                                <span className="font-mono font-bold">{damagedQty}</span>
-                              </span>
-                            </div>
-                          )}
-                        </td>
+                            )}
+                          </td>
+                        )}
 
                         {/* 8. Acquisition Cost */}
                         <td className={`py-3 px-4 text-right font-mono text-xs whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -856,8 +861,10 @@ function InventorySupplies() {
                             <div className="flex items-center justify-center gap-1.5">
                               {!supply.isArchived ? (
                                 <>
-                                  <button onClick={() => openEditModal(supply)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Edit2 className="w-3.5 h-3.5" /></button>
-                                  <button onClick={() => handleArchiveSupply(supply)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-red-500 hover:bg-red-500 hover:text-white'} border rounded transition-all cursor-pointer`}><Archive className="w-3.5 h-3.5" /></button>
+                                  <button onClick={() => openEditModal(supply)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`} title={isPurchasing ? "Edit Acquisition Cost" : "Edit Item"}><Edit2 className="w-3.5 h-3.5" /></button>
+                                  {!isPurchasing && (
+                                    <button onClick={() => handleArchiveSupply(supply)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-red-500 hover:bg-red-500 hover:text-white'} border rounded transition-all cursor-pointer`} title="Archive Item"><Archive className="w-3.5 h-3.5" /></button>
+                                  )}
                                 </>
                               ) : (
                                 <>
@@ -956,7 +963,7 @@ function InventorySupplies() {
             <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
               <div className="flex items-center gap-2">
                 <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-base`}>
-                  {isEditing ? 'Edit Supply Item' : 'Add New Supply Item'}
+                  {isPurchasing ? 'Edit Acquisition Cost' : (isEditing ? 'Edit Tools & Equipments Item' : 'Add New Tools & Equipments')}
                 </h3>
               </div>
               <button
@@ -968,6 +975,17 @@ function InventorySupplies() {
               </button>
             </div>
 
+            {isPurchasing && (
+              <div className={`p-3 ${isDark ? 'bg-amber-950/30 border-amber-900/50' : 'bg-amber-50 border-amber-200/60'} rounded-xl border mt-3`}>
+                <span className={`block text-xs font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} uppercase mb-1`}>
+                  * Purchasing Pricing Protocol *
+                </span>
+                <p className={`text-[11px] ${isDark ? 'text-amber-300/80' : 'text-amber-700'} leading-relaxed`}>
+                  You are editing the <strong>Acquisition Cost</strong> for this equipment. All equipment specifications and records are locked as read-only.
+                </p>
+              </div>
+            )}
+
             {/* Form */}
             <form onSubmit={handleFormSubmit} className="space-y-4 mt-4">
               {error && (
@@ -976,7 +994,87 @@ function InventorySupplies() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {isPurchasing ? (
+                <div className="space-y-4">
+                  {/* READ-ONLY ITEM PROFILE DISPLAY */}
+                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-200'} space-y-3`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Segment</span>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold border ${getSegmentStyles(supplySegment).classes || (isDark ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-white text-slate-800 border-slate-200')}`}>
+                          <span>{getSegmentStyles(supplySegment).prefix}</span>
+                          <span>{supplySegment || "N/A"}</span>
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">UOM & Actual Count</span>
+                        <span className={`text-xs font-mono font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                          {actualCount || 0} {supplyUom || 'pcs'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Item Description</span>
+                      <h4 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-800'} leading-snug break-words`}>
+                        {itemDescription || "—"}
+                      </h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 text-xs">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Dimension</span>
+                        <span className={`font-mono text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{supplyDimension || "—"}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Brand</span>
+                        <span className={`${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{supplyBrand || "—"}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Serial No</span>
+                        <span className={`font-mono text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{serialNo || "—"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* The ONLY Editable Input: Acquisition Cost */}
+                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#0f111a] border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className={`block text-xs font-bold uppercase tracking-wider ${isDark ? 'text-amber-400' : 'text-[#18174e]'}`}>
+                        Acquisition Cost (Price) *
+                      </label>
+                      <span className="text-[11px] text-slate-400 font-medium">Editable for Purchasing</span>
+                    </div>
+                    <div className="relative">
+                      <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-lg select-none pointer-events-none ${isDark ? 'text-amber-400' : 'text-[#18174e]'}`}>
+                        ₱
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={acquisitionCost}
+                        autoFocus
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                            setAcquisitionCost(val);
+                          }
+                        }}
+                        className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-[#18174e]'} border-2 rounded-xl pl-9 pr-4 py-2.5 text-base font-mono font-bold focus:outline-none transition-all shadow-inner`}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-800">
+                      <span className="text-[11px] text-slate-400">Formatted Cost Preview:</span>
+                      <span className="font-mono font-black text-sm text-red-600 dark:text-red-400">
+                        ₱{(Number(acquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 {/* 1. Segment */}
                 <div>
@@ -1142,6 +1240,7 @@ function InventorySupplies() {
                 </div>
 
               </div>
+            )}
 
               {/* Action Buttons */}
               <div className={`flex items-center justify-end gap-2 mt-6 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
@@ -1154,9 +1253,9 @@ function InventorySupplies() {
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#ff6600] hover:bg-[#e05a00] text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+                  className="bg-[#ff6600] hover:bg-[#e05a00] text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
                 >
-                  {isEditing ? 'Save Changes' : 'Save Details'}
+                  {isPurchasing ? 'Save Changes' : (isEditing ? 'Save Changes' : 'Save Details')}
                 </button>
               </div>
 

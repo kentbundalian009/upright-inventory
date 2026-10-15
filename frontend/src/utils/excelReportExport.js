@@ -71,7 +71,8 @@ export const exportUprightAuditLedgerExcel = async ({
     formatDimension = (d) => d || '—',
     getCleanItemDescription = (desc) => desc || '',
     getItemConditions = () => [],
-    discrepancyLogs = []
+    discrepancyLogs = [],
+    isPurchasing = false
 }) => {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'ONEINVENTORY - Upright Storage Solutions PH';
@@ -79,7 +80,7 @@ export const exportUprightAuditLedgerExcel = async ({
     workbook.created = new Date();
     workbook.modified = new Date();
 
-    const isAcquisitionReport = isRackings && showAcquisitionCost;
+    const isAcquisitionReport = (isRackings && showAcquisitionCost) || isPurchasing;
     const isDiscrepancy = activeModule === 'discrepancy';
 
     // Sheet Name (Max 31 chars in Excel)
@@ -143,14 +144,27 @@ export const exportUprightAuditLedgerExcel = async ({
         }
     } else {
         // Other Modules (Supplies, Finished Goods, Consumables)
-        columns = [
-            { header: 'Item Description', key: 'desc', width: 36 },
-            { header: 'Segment / Category', key: 'segment', width: 22 },
-            { header: 'Dimension / Spec', key: 'dimension', width: 22 },
-            { header: 'Serial / Code', key: 'serial', width: 20 },
-            { header: 'Available Qty', key: 'actualCount', width: 18 },
-            { header: 'UOM', key: 'uom', width: 12 }
-        ];
+        if (isPurchasing) {
+            columns = [
+                { header: 'Item Description', key: 'desc', width: 34 },
+                { header: 'Segment / Category', key: 'segment', width: 18 },
+                { header: 'Dimension / Spec', key: 'dimension', width: 20 },
+                { header: 'Serial / Code', key: 'serial', width: 18 },
+                { header: 'Available Qty', key: 'actualCount', width: 14 },
+                { header: 'UOM', key: 'uom', width: 10 },
+                { header: 'Acquisition Cost (PHP)', key: 'acqCost', width: 22 },
+                { header: 'Total Value (PHP)', key: 'totalValue', width: 24 }
+            ];
+        } else {
+            columns = [
+                { header: 'Item Description', key: 'desc', width: 36 },
+                { header: 'Segment / Category', key: 'segment', width: 22 },
+                { header: 'Dimension / Spec', key: 'dimension', width: 22 },
+                { header: 'Serial / Code', key: 'serial', width: 20 },
+                { header: 'Available Qty', key: 'actualCount', width: 18 },
+                { header: 'UOM', key: 'uom', width: 12 }
+            ];
+        }
     }
 
     const totalCols = columns.length;
@@ -542,14 +556,29 @@ export const exportUprightAuditLedgerExcel = async ({
                     }
                 } else {
                     // Non-rackings
-                    rowData = [
-                        { val: finalDesc, align: 'left', bold: true },
-                        { val: item.Segment || 'Standard', align: 'left' },
-                        { val: formattedDim, align: 'center' },
-                        { val: item.SerialNo || '—', align: 'center' },
-                        { val: netCount, align: 'center', bold: true, condition: conditionType },
-                        { val: item.UOM || 'PCS', align: 'center' }
-                    ];
+                    if (isPurchasing) {
+                        const costVal = Number(item.AcquisitionCost) || 0;
+                        const totVal = netCount * costVal;
+                        rowData = [
+                            { val: finalDesc, align: 'left', bold: true },
+                            { val: item.Segment || 'Standard', align: 'left' },
+                            { val: formattedDim, align: 'center' },
+                            { val: item.SerialNo || '—', align: 'center' },
+                            { val: netCount, align: 'center', bold: true, condition: conditionType },
+                            { val: item.UOM || 'PCS', align: 'center' },
+                            { val: costVal, align: 'right', isCurrency: true },
+                            { val: totVal, align: 'right', isCurrency: true, bold: true }
+                        ];
+                    } else {
+                        rowData = [
+                            { val: finalDesc, align: 'left', bold: true },
+                            { val: item.Segment || 'Standard', align: 'left' },
+                            { val: formattedDim, align: 'center' },
+                            { val: item.SerialNo || '—', align: 'center' },
+                            { val: netCount, align: 'center', bold: true, condition: conditionType },
+                            { val: item.UOM || 'PCS', align: 'center' }
+                        ];
+                    }
                 }
 
                 row.height = heightNeeded;
@@ -615,7 +644,7 @@ export const exportUprightAuditLedgerExcel = async ({
         // ==========================================
         // 5. SUMMARY & TOTALS ROW
         // ==========================================
-        if (isAcquisitionReport) {
+        if (isAcquisitionReport || isPurchasing) {
             const selectedTotal = exportData.reduce((sum, item) => {
                 const count = Number(item.ActualCount) || 0;
                 const cost = Number(item.AcquisitionCost) || 0;
@@ -628,7 +657,7 @@ export const exportUprightAuditLedgerExcel = async ({
 
             worksheet.mergeCells(`A${currentRowIndex}:F${currentRowIndex}`);
             const leftSumCell = worksheet.getCell(`A${currentRowIndex}`);
-            leftSumCell.value = isAllSelected ? 'TOTAL ACQUISITION COST (ALL RACKINGS)' : 'TOTAL ACQUISITION COST (SELECTED ITEMS)';
+            leftSumCell.value = isAllSelected ? `TOTAL ACQUISITION COST (ALL ${titleModule.toUpperCase()})` : 'TOTAL ACQUISITION COST (SELECTED ITEMS)';
             leftSumCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: UPRIGHT_COLORS.NAVY_PRIMARY } };
             leftSumCell.alignment = { vertical: 'middle', horizontal: 'right' };
             leftSumCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: UPRIGHT_COLORS.ICE_BLUE_BG } };

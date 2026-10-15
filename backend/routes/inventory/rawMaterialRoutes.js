@@ -41,18 +41,18 @@ router.get("/shared", getAllRawMaterials);
 router.use(protectRoute);
 
 router.route("/")
-  .get(restrictTo("Inventory", "Viewer", "Admin"), getAllRawMaterials)
-  .post(restrictTo("Inventory", "Admin"), upload.single("image"), createRawMaterial);
+  .get(restrictTo("Inventory", "Viewer", "Admin", "Purchasing"), getAllRawMaterials)
+  .post(restrictTo("Inventory", "Admin", "Purchasing"), upload.single("image"), createRawMaterial);
 
 router.route("/:id/unarchive")
-  .put(restrictTo("Inventory", "Admin"), unarchiveRawMaterial);
+  .put(restrictTo("Inventory", "Admin", "Purchasing"), unarchiveRawMaterial);
 
 router.route("/:id/permanent")
-  .delete(restrictTo("Inventory", "Admin"), permanentDeleteRawMaterial);
+  .delete(restrictTo("Inventory", "Admin", "Purchasing"), permanentDeleteRawMaterial);
 
 router.route("/:id")
-  .get(restrictTo("Inventory", "Viewer", "Admin"), getRawMaterialById)
-  .put(restrictTo("Inventory", "Admin"), upload.single("image"), updateRawMaterial)
-  .delete(restrictTo("Inventory", "Admin"), deleteRawMaterial);
+  .get(restrictTo("Inventory", "Viewer", "Admin", "Purchasing"), getRawMaterialById)
+  .put(restrictTo("Inventory", "Admin", "Purchasing"), upload.single("image"), updateRawMaterial)
+  .delete(restrictTo("Inventory", "Admin", "Purchasing"), deleteRawMaterial);
 
 export default router;

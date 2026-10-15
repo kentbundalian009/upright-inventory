@@ -114,7 +114,7 @@ function Dashboard() {
             case 'documents':
             case 'pending-remarks':
             case 'operations-remarks':
-                return <Documents />;
+                return userRole === 'Purchasing' ? <DashboardOverview /> : <Documents />;
 
             case 'user-management': 
                 return userRole === 'Admin' ? <UserManagement /> : <DashboardOverview />;
@@ -128,7 +128,7 @@ function Dashboard() {
                 return userRole === 'Admin' ? <ViewerLinks /> : <DashboardOverview />;
                 
             case 'raw-materials': return <Rackings />;
-            case 'client-records': return <InformationModules />;
+            case 'client-records': return userRole === 'Purchasing' ? <DashboardOverview /> : <InformationModules />;
             case 'consumables': 
             case 'consumable': return <ConsumablesMovements setActiveTab={setActiveTab} />;
             case 'supplies': return <ToolsAndEquipments />;
@@ -136,10 +136,10 @@ function Dashboard() {
             case 'inventoryconsumables':
             case 'inventory-consumables':
                 return <Consumables setActiveTab={setActiveTab} />;
-            case 'inbound-raw-mat': return <InboundMaterials />;
-            case 'work-in-progress': return <WorkInProgress />;
-            case 'outbound-products': return <OutboundMaterials />;
-            case 'supplies-movements': return <EquipmentMovements />;
+            case 'inbound-raw-mat': return userRole === 'Purchasing' ? <DashboardOverview /> : <InboundMaterials />;
+            case 'work-in-progress': return userRole === 'Purchasing' ? <DashboardOverview /> : <WorkInProgress />;
+            case 'outbound-products': return userRole === 'Purchasing' ? <DashboardOverview /> : <OutboundMaterials />;
+            case 'supplies-movements': return userRole === 'Purchasing' ? <DashboardOverview /> : <EquipmentMovements />;
             
             case 'settings': return <Settings />;
 
