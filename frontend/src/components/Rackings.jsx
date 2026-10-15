@@ -23,6 +23,8 @@ function InventoryRawMaterials() {
     const { isDark } = useTheme();
     const userRole = localStorage.getItem("SystemRole") || "Inventory";
     const isPurchasing = userRole === 'Purchasing';
+    const isInventory = userRole === 'Inventory';
+    const canViewCost = isPurchasing || userRole === 'Admin';
     const isViewer = false;
 
     // 1. DATABASE AT LIFECYCLE STATES
@@ -586,7 +588,7 @@ function InventoryRawMaterials() {
                     headers: { "Content-Type": "multipart/form-data" }
                 });
                 updatedItem = res.data;
-                triggerSuccess(isPurchasing ? "Successfully updated acquisition cost." : "Successfully updated raw material profile details.");
+                triggerSuccess("Successfully updated raw material profile details.");
             } else {
                 const res = await axios.post(`/api/raw-materials`, formData, {
                     headers: { "Content-Type": "multipart/form-data" }
@@ -700,6 +702,8 @@ function InventoryRawMaterials() {
         0
     );
 
+    const tableColSpan = isPurchasing ? 9 : (userRole === 'Admin' ? 10 : (isViewer ? 7 : 8));
+
     // Reset pagination to page 1 on filter changes
     useEffect(() => {
         setCurrentPage(1);
@@ -746,14 +750,16 @@ function InventoryRawMaterials() {
                             </div>
 
                             {/* TOTAL ACQUISITION COST BADGE IN TOOLBAR */}
-                            <div className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border select-none flex-shrink-0 transition-all ${
-                                isDark ? 'bg-[#141622] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'
-                            }`}>
-                                <span>Total Acquisition Cost:</span>
-                                <span className="font-mono font-black text-red-600 dark:text-red-400">
-                                    ₱{totalAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                            </div>
+                            {canViewCost && (
+                                <div className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border select-none flex-shrink-0 transition-all ${
+                                    isDark ? 'bg-[#141622] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'
+                                }`}>
+                                    <span>Total Acquisition Cost:</span>
+                                    <span className="font-mono font-black text-red-600 dark:text-red-400">
+                                        ₱{totalAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex items-center gap-2 flex-wrap">
@@ -904,8 +910,12 @@ function InventoryRawMaterials() {
                                     <th className="py-3 px-4 whitespace-nowrap text-center">Actual Count</th>
                                     <th className="py-3 px-4 whitespace-nowrap text-center">Reserve Count</th>
                                     <th className="py-3 px-4 whitespace-nowrap">UOM</th>
-                                    <th className="py-3 px-4 whitespace-nowrap text-right">Acquisition Cost</th>
-                                    <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
+                                    {canViewCost && (
+                                        <>
+                                            <th className="py-3 px-4 whitespace-nowrap text-right">Acquisition Cost</th>
+                                            <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
+                                        </>
+                                    )}
                                     {!isPurchasing && <th className="py-3 px-4 whitespace-nowrap">Stock Health</th>}
                                     {!isViewer && (
                                         <th className="py-3 px-4 text-center whitespace-nowrap">
@@ -916,11 +926,11 @@ function InventoryRawMaterials() {
                             </thead>
                             <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                                 {loading ? (
-                                    <tr><td colSpan={isPurchasing ? "9" : (isViewer ? "9" : "10")} className="text-center py-10 text-green-700 font-medium italic">
+                                    <tr><td colSpan={tableColSpan} className="text-center py-10 text-green-700 font-medium italic">
                                         Fetching secure rackings data from database...
                                     </td></tr>
                                 ) : error ? (
-                                    <tr><td colSpan={isPurchasing ? "9" : (isViewer ? "9" : "10")} className="text-center py-8 text-rose-600 font-semibold">{error}</td></tr>
+                                    <tr><td colSpan={tableColSpan} className="text-center py-8 text-rose-600 font-semibold">{error}</td></tr>
                                 ) : paginatedRawMaterials.map((rawMat) => {
                                     const currentSegConfig = getSegmentStyles(rawMat.Segment);
 
@@ -1027,12 +1037,16 @@ function InventoryRawMaterials() {
                                                 <ReserveCountBadge rawMat={rawMat} isDark={isDark} />
                                             </td>
                                             <td className={`py-3 px-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{rawMat.UOM}</td>
-                                            <td className={`py-3 px-4 text-right font-mono text-xs whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                                                ₱{(Number(rawMat.AcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </td>
-                                            <td className="py-3 px-4 text-right font-mono text-xs font-bold whitespace-nowrap text-red-600 dark:text-red-400">
-                                                ₱{((Number(rawMat.ActualCount) || 0) * (Number(rawMat.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </td>
+                                            {canViewCost && (
+                                                <>
+                                                    <td className={`py-3 px-4 text-right font-mono text-xs whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                                        ₱{(Number(rawMat.AcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-right font-mono text-xs font-bold whitespace-nowrap text-red-600 dark:text-red-400">
+                                                        ₱{((Number(rawMat.ActualCount) || 0) * (Number(rawMat.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                </>
+                                            )}
                                             {!isPurchasing && <td className="py-3 px-4">{getRawMaterialHealthBadge(rawMat)}</td>}
                                             {!isViewer && (
                                                 <td className="py-3 px-4 text-center">
@@ -1058,7 +1072,7 @@ function InventoryRawMaterials() {
                                 })}
                                 {filteredRawMaterials.length === 0 && !loading && (
                                     <tr>
-                                        <td colSpan={isPurchasing ? "9" : (isViewer ? "9" : "10")} className="text-center py-10 text-red-600 font-medium italic">
+                                        <td colSpan={tableColSpan} className="text-center py-10 text-red-600 font-medium italic">
                                             No records match the selected filters or search queries.
                                         </td>
                                     </tr>
@@ -1834,7 +1848,7 @@ function InventoryRawMaterials() {
                                     )}
                                 </div>
 
-                                <div>
+                                <div className={canViewCost ? "" : "md:col-span-2"}>
                                     <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5 whitespace-nowrap`}>UOM</label>
                                     <div className="relative">
                                         <input
@@ -1854,29 +1868,31 @@ function InventoryRawMaterials() {
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5 whitespace-nowrap`}>
-                                        Acquisition Cost (Price)
-                                    </label>
-                                    <div className="relative">
-                                        <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-bold text-base select-none pointer-events-none ${isDark ? 'text-amber-400' : 'text-[#18174e]'}`}>
-                                            ₱
-                                        </span>
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            placeholder="0.00"
-                                            value={materialAcquisitionCost}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                                                    setMaterialAcquisitionCost(val);
-                                                }
-                                            }}
-                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-8 pr-3 py-2 text-sm font-mono focus:outline-none`}
-                                        />
+                                {canViewCost && (
+                                    <div>
+                                        <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5 whitespace-nowrap`}>
+                                            Acquisition Cost (Price)
+                                        </label>
+                                        <div className="relative">
+                                            <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-bold text-base select-none pointer-events-none ${isDark ? 'text-amber-400' : 'text-[#18174e]'}`}>
+                                                ₱
+                                            </span>
+                                            <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                placeholder="0.00"
+                                                value={materialAcquisitionCost}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                                        setMaterialAcquisitionCost(val);
+                                                    }
+                                                }}
+                                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-8 pr-3 py-2 text-sm font-mono focus:outline-none`}
+                                            />
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         )}
 

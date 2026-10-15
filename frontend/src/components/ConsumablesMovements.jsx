@@ -53,6 +53,10 @@ const getCurrentTimeString = () => {
 
 function Consumable({ setActiveTab }) {
   const { isDark } = useTheme();
+  const userRole = localStorage.getItem("SystemRole") || "Inventory";
+  const isPurchasing = userRole === 'Purchasing';
+  const isInventory = userRole === 'Inventory';
+  const canViewCost = isPurchasing || userRole === 'Admin';
 
   // Data states
   const [consumables, setConsumables] = useState([]);
@@ -1898,13 +1902,15 @@ function Consumable({ setActiveTab }) {
                     <span>Open Records Page</span>
                   </button>
                 )}
-                <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border select-none ${isDark ? 'bg-[#141622] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'
-                  }`}>
-                  <span>Total Acquisition Cost:</span>
-                  <span className="font-mono font-black text-red-600 dark:text-red-400">
-                    ₱{browseTotalAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
+                {canViewCost && (
+                  <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border select-none ${isDark ? 'bg-[#141622] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'
+                    }`}>
+                    <span>Total Acquisition Cost:</span>
+                    <span className="font-mono font-black text-red-600 dark:text-red-400">
+                      ₱{browseTotalAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsNewItemModalOpen(true)}
@@ -1962,7 +1968,7 @@ function Consumable({ setActiveTab }) {
                     onChange={(e) => setBrowseSearchQuery(e.target.value)}
                     placeholder="Search consumables..."
                     className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
-                      } border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                    } border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
                   />
                 </div>
               </div>
@@ -1987,8 +1993,12 @@ function Consumable({ setActiveTab }) {
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">Actual Count</th>
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">Damaged</th>
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">UOM</th>
-                    <th className="py-2.5 px-3 text-right whitespace-nowrap">Acquisition Cost</th>
-                    <th className="py-2.5 px-3 text-right whitespace-nowrap">Total Acquisition Cost</th>
+                    {canViewCost && (
+                      <>
+                        <th className="py-2.5 px-3 text-right whitespace-nowrap">Acquisition Cost</th>
+                        <th className="py-2.5 px-3 text-right whitespace-nowrap">Total Acquisition Cost</th>
+                      </>
+                    )}
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
@@ -2039,13 +2049,17 @@ function Consumable({ setActiveTab }) {
 
                           <td className="py-2.5 px-3 text-center whitespace-nowrap">{item.UOM || '—'}</td>
 
-                          <td className={`py-2.5 px-3 text-right font-mono text-xs whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                            ₱{(Number(item.AcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
+                          {canViewCost && (
+                            <>
+                              <td className={`py-2.5 px-3 text-right font-mono text-xs whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                ₱{(Number(item.AcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
 
-                          <td className="py-2.5 px-3 text-right font-mono text-xs font-bold whitespace-nowrap text-red-600 dark:text-red-400">
-                            ₱{((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
+                              <td className="py-2.5 px-3 text-right font-mono text-xs font-bold whitespace-nowrap text-red-600 dark:text-red-400">
+                                ₱{((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </>
+                          )}
 
                           <td className="py-2.5 px-3 text-center whitespace-nowrap">
                             {isAdded ? (
@@ -2070,7 +2084,7 @@ function Consumable({ setActiveTab }) {
                     })
                   ) : (
                     <tr>
-                      <td colSpan="11" className="text-center py-8 text-slate-400 italic">
+                      <td colSpan={canViewCost ? "11" : "9"} className="text-center py-8 text-slate-400 italic">
                         No consumables found matching your search criteria.
                       </td>
                     </tr>
@@ -2135,7 +2149,7 @@ function Consumable({ setActiveTab }) {
                     <option value="">-- Pumili mula sa existing items para mag-autofill --</option>
                     {allExistingItems.map((item, idx) => (
                       <option key={item._id || idx} value={item._id || item.Code || item.ItemDescription}>
-                        {item.ItemDescription} {item.Segment ? `• ${item.Segment}` : ''} {item.Dimension && item.Dimension !== '—' ? `• ${item.Dimension}` : ''} {item.Category ? `• ${item.Category}` : ''} {item.Brand && item.Brand !== '—' ? `• ${item.Brand}` : ''} {item.AcquisitionCost ? `(₱${Number(item.AcquisitionCost).toFixed(2)})` : ''}
+                        {item.ItemDescription} {item.Segment ? `• ${item.Segment}` : ''} {item.Dimension && item.Dimension !== '—' ? `• ${item.Dimension}` : ''} {item.Category ? `• ${item.Category}` : ''} {item.Brand && item.Brand !== '—' ? `• ${item.Brand}` : ''} {canViewCost && item.AcquisitionCost ? `(₱${Number(item.AcquisitionCost).toFixed(2)})` : ''}
                       </option>
                     ))}
                   </select>
@@ -2246,7 +2260,7 @@ function Consumable({ setActiveTab }) {
               </div>
 
               {/* Grid Section 3: UOM & Acquisition Cost */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={`grid grid-cols-1 ${canViewCost ? 'md:grid-cols-2' : ''} gap-4`}>
                 <div>
                   <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
                     UOM *
@@ -2267,20 +2281,22 @@ function Consumable({ setActiveTab }) {
                   </datalist>
                 </div>
 
-                <div>
-                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
-                    Acquisition Cost (Price)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={newItemAcquisitionCost}
-                    onChange={(e) => setNewItemAcquisitionCost(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
-                  />
-                </div>
+                {canViewCost && (
+                  <div>
+                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                      Acquisition Cost (Price)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={newItemAcquisitionCost}
+                      onChange={(e) => setNewItemAcquisitionCost(e.target.value)}
+                      className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}

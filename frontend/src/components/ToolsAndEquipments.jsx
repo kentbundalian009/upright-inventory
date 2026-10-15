@@ -9,6 +9,8 @@ function InventorySupplies() {
   const { isDark } = useTheme();
   const userRole = localStorage.getItem("SystemRole") || "Inventory";
   const isPurchasing = userRole === 'Purchasing';
+  const isInventory = userRole === 'Inventory';
+  const canViewCost = isPurchasing || userRole === 'Admin';
   const isViewer = false;
 
   const [suppliesList, setSuppliesList] = useState([]);
@@ -515,6 +517,8 @@ function InventorySupplies() {
     return sum + (qty * (Number(item.AcquisitionCost) || 0));
   }, 0);
 
+  const tableColSpan = isPurchasing ? 9 : (userRole === 'Admin' ? 10 : (isViewer ? 7 : 8));
+
   return (
     <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased relative">
       <PageHeader activeTab="supplies" />
@@ -538,12 +542,14 @@ function InventorySupplies() {
             </div>
 
             {/* TOTAL ACQUISITION COST BADGE IN TOOLBAR */}
-            <div className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border select-none flex-shrink-0 transition-all ${isDark ? 'bg-[#141622] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
-              <span>Total Acquisition Cost:</span>
-              <span className="font-mono font-black text-red-600 dark:text-red-400">
-                ₱{totalAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
+            {canViewCost && (
+              <div className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border select-none flex-shrink-0 transition-all ${isDark ? 'bg-[#141622] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
+                <span>Total Acquisition Cost:</span>
+                <span className="font-mono font-black text-red-600 dark:text-red-400">
+                  ₱{totalAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* ROW 2: Actions Row (Hide 0 Qty under Filter, Palette Settings, Edit Qty, View Archive Vault) */}
@@ -682,8 +688,12 @@ function InventorySupplies() {
                       Breakdown{isEditingQty ? ' (Editing)' : ''}
                     </th>
                   )}
-                  <th className="py-3 px-4 whitespace-nowrap text-right">Acquisition Cost</th>
-                  <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
+                  {canViewCost && (
+                    <>
+                      <th className="py-3 px-4 whitespace-nowrap text-right">Acquisition Cost</th>
+                      <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
+                    </>
+                  )}
                   {!isViewer && (
                     <th className="py-3 px-4 text-center whitespace-nowrap">
                       Actions
@@ -694,13 +704,13 @@ function InventorySupplies() {
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
                 {loading ? (
                   <tr>
-                    <td colSpan={isPurchasing ? "9" : (isViewer ? "9" : "10")} className="text-center py-10 text-green-500 font-medium italic">
+                    <td colSpan={tableColSpan} className="text-center py-10 text-green-500 font-medium italic">
                       Fetching secure rackings data from database...
                     </td>
                   </tr>
                 ) : filteredSupplies.length === 0 ? (
                   <tr>
-                    <td colSpan={isPurchasing ? "9" : (isViewer ? "9" : "10")} className="text-center py-10 text-red-500 font-medium italic">
+                    <td colSpan={tableColSpan} className="text-center py-10 text-red-500 font-medium italic">
                       No records match the selected filters or search queries.
                     </td>
                   </tr>) : (
@@ -845,15 +855,18 @@ function InventorySupplies() {
                           </td>
                         )}
 
-                        {/* 8. Acquisition Cost */}
-                        <td className={`py-3 px-4 text-right font-mono text-xs whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                          ₱{(Number(supply.AcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
+                        {/* 8. Acquisition Cost & Total Acquisition Cost */}
+                        {canViewCost && (
+                          <>
+                            <td className={`py-3 px-4 text-right font-mono text-xs whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                              ₱{(Number(supply.AcquisitionCost) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
 
-                        {/* 9. Total Acquisition Cost */}
-                        <td className="py-3 px-4 text-right font-mono text-xs font-bold whitespace-nowrap text-red-600 dark:text-red-400">
-                          ₱{(totalQty * (Number(supply.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
+                            <td className="py-3 px-4 text-right font-mono text-xs font-bold whitespace-nowrap text-red-600 dark:text-red-400">
+                              ₱{(totalQty * (Number(supply.AcquisitionCost) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </>
+                        )}
 
                         {/* 12. Actions */}
                         {!isViewer && (
@@ -1226,18 +1239,20 @@ function InventorySupplies() {
                 </div>
 
                 {/* 8. Acquisition Cost */}
-                <div className="md:col-span-2">
-                  <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Acquisition Cost (Price)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={acquisitionCost}
-                    onChange={(e) => setAcquisitionCost(e.target.value)}
-                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
-                  />
-                </div>
+                {canViewCost && (
+                  <div className="md:col-span-2">
+                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Acquisition Cost (Price)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={acquisitionCost}
+                      onChange={(e) => setAcquisitionCost(e.target.value)}
+                      className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600]`}
+                    />
+                  </div>
+                )}
 
               </div>
             )}
