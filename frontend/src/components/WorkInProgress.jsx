@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Calendar, Trash2, ClipboardList, Search, X, Download, User, Layers, CheckCircle2, AlertCircle, Loader2, FileSpreadsheet } from 'lucide-react';
+import { FileText, Calendar, Trash2, ClipboardList, Search, X, Download, User, Layers, CheckCircle2, AlertCircle, Loader2, FileSpreadsheet, RotateCcw } from 'lucide-react';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -34,17 +34,77 @@ function InventoryWIP() {
     setModalPage(1);
   }, [selectedConversion, isModalOpen]);
 
-  // WIP / Conversion Form States
-  const [productionType, setProductionType] = useState('Fabricated');
-  const [dateProcessed, setDateProcessed] = useState(new Date().toISOString().split('T')[0]);
-  const [customer, setCustomer] = useState('');
+  // WIP / Conversion Form States with Automatic Draft Persistence
+  const DRAFT_STORAGE_KEY = 'oneinventory_draft_wip';
+
+  const [initialDraft] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.error("Error reading WIP draft:", e);
+      return null;
+    }
+  });
+
+  const [productionType, setProductionType] = useState(() => initialDraft?.productionType || 'Fabricated');
+  const [dateProcessed, setDateProcessed] = useState(() => initialDraft?.dateProcessed || new Date().toISOString().split('T')[0]);
+  const [customer, setCustomer] = useState(() => initialDraft?.customer || '');
   const [registeredCustomers, setRegisteredCustomers] = useState([]);
-  const [remarks, setRemarks] = useState('');
+  const [remarks, setRemarks] = useState(() => initialDraft?.remarks || '');
   const [preparedBy, setPreparedBy] = useState('System User');
 
   // Manifest Grids (State Containers)
-  const [inputMaterials, setInputMaterials] = useState([]);
-  const [outputItems, setOutputItems] = useState([]);
+  const [inputMaterials, setInputMaterials] = useState(() => (Array.isArray(initialDraft?.inputMaterials) ? initialDraft.inputMaterials : []));
+  const [outputItems, setOutputItems] = useState(() => (Array.isArray(initialDraft?.outputItems) ? initialDraft.outputItems : []));
+
+  // Check if form currently has unsaved draft data
+  const hasActiveDraft = Boolean(
+    (customer && customer.trim()) ||
+    (remarks && remarks.trim()) ||
+    (inputMaterials && inputMaterials.length > 0) ||
+    (outputItems && outputItems.length > 0)
+  );
+
+  // Auto-save draft to localStorage whenever form inputs change
+  useEffect(() => {
+    const hasData = Boolean(
+      (customer && customer.trim()) ||
+      (remarks && remarks.trim()) ||
+      (inputMaterials && inputMaterials.length > 0) ||
+      (outputItems && outputItems.length > 0)
+    );
+
+    if (hasData) {
+      try {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+          productionType,
+          dateProcessed,
+          customer,
+          remarks,
+          inputMaterials,
+          outputItems,
+          savedAt: new Date().toISOString()
+        }));
+      } catch (err) {
+        console.error("Failed to auto-save WIP draft:", err);
+      }
+    } else {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    }
+  }, [productionType, dateProcessed, customer, remarks, inputMaterials, outputItems]);
+
+  const handleClearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch (e) {}
+    setInputMaterials([]);
+    setOutputItems([]);
+    setCustomer('');
+    setRemarks('');
+    setProductionType('Fabricated');
+    setSuccessMessage("WIP draft cleared.");
+  };
 
   // Custom Inline Toast Message States
   const [successMessage, setSuccessMessage] = useState(null);
@@ -91,10 +151,25 @@ function InventoryWIP() {
         axios.get(CONVERSION_URL),
         axios.get(`${CLIENT_URL}?type=Customer`).catch(() => ({ data: [] }))
       ]);
-      setDbMaterials(matsRes.data || []);
+      const materials = matsRes.data || [];
+      setDbMaterials(materials);
       setConversionRecords(convsRes.data || []);
       if (clientsRes?.data) {
         setRegisteredCustomers(clientsRes.data);
+      }
+
+      // Sync latest available stock on any restored draft input materials
+      if (materials.length > 0) {
+        setInputMaterials(prevInputs => {
+          if (!prevInputs || prevInputs.length === 0) return prevInputs;
+          return prevInputs.map(item => {
+            const foundMat = materials.find(m => m._id === item.materialId);
+            if (foundMat && foundMat.ActualCount !== undefined) {
+              return { ...item, Available: foundMat.ActualCount };
+            }
+            return item;
+          });
+        });
       }
     } catch (err) {
       console.error("Error loading registry data:", err);
@@ -233,6 +308,9 @@ function InventoryWIP() {
       const res = await axios.post(CONVERSION_URL, payload);
       if (res.status === 200 || res.status === 201) {
         setSuccessMessage("WIP/Conversion executed successfully! Inventories realigned.");
+        try {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch (e) {}
         setInputMaterials([]);
         setOutputItems([]);
         setCustomer('');
@@ -789,19 +867,36 @@ function InventoryWIP() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         <div className={`lg:col-span-3 ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 sm:p-6 rounded-2xl border flex flex-col gap-6 shadow-sm`}>
-          <div className={`border-b ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'} pb-3 flex items-center justify-between gap-2 text-sm font-bold`}>
+          <div className={`border-b ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'} pb-3 flex flex-wrap items-center justify-between gap-2 text-sm font-bold`}>
             <div className="flex items-center gap-2 min-w-0">
               <Layers className="w-4 h-4 text-[#ff6600] flex-shrink-0" />
               <span className="truncate">Conversion Racking Materials</span>
             </div>
-            {(inputMaterials.length > 0 || outputItems.length > 0) && (
-              <button
-                type="button"
-                onClick={() => { setInputMaterials([]); setOutputItems([]); setRemarks(''); setSuccessMessage("Form grid cleared."); }}
-                className="text-xs font-bold text-rose-400 hover:underline cursor-pointer flex-shrink-0"
-              >
-                Clear Form Grid
-              </button>
+
+            {hasActiveDraft && (
+              <div className="flex items-center gap-2 animate-in fade-in duration-200">
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold border ${
+                  isDark
+                    ? 'bg-amber-950/40 text-amber-300 border-amber-800/60'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                } shadow-xs`}>
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                  <span>Draft Auto-Saved</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearDraft}
+                  className={`text-[11px] sm:text-xs font-semibold px-2.5 py-1 rounded-lg border flex items-center gap-1 transition-all cursor-pointer ${
+                    isDark
+                      ? 'text-rose-400 hover:text-white border-rose-900/40 hover:bg-rose-900/30'
+                      : 'text-rose-600 hover:text-rose-700 border-rose-200 hover:bg-rose-50'
+                  }`}
+                  title="Clear and discard current draft"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Discard Draft</span>
+                </button>
+              </div>
             )}
           </div>
 

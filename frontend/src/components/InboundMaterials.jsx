@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Truck, Calendar, ClipboardList, ListPlus, Trash2, Search, X, Download, User, Plus, CheckCircle2, AlertCircle, Loader2, Layers, FileSpreadsheet } from 'lucide-react';
+import { FileText, Truck, Calendar, ClipboardList, ListPlus, Trash2, Search, X, Download, User, Plus, CheckCircle2, AlertCircle, Loader2, Layers, FileSpreadsheet, RotateCcw } from 'lucide-react';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -45,15 +45,75 @@ function InventoryInboundRawMat() {
     setModalPage(1);
   }, [selectedPo, isModalOpen]);
 
-  // PO Form States
-  const [transactionType, setTransactionType] = useState('Inbound');
-  const [poNo, setPoNo] = useState('');
-  const [supplier, setSupplier] = useState('');
-  const [dateReceived, setDateReceived] = useState(getTodayDateString());
-  const [originAddress, setOriginAddress] = useState('');
-  const [manifestItems, setManifestItems] = useState([]);
+  // PO Form States with Automatic Draft Persistence
+  const DRAFT_STORAGE_KEY = 'oneinventory_draft_inbound';
+
+  const [initialDraft] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.error("Error reading inbound draft:", e);
+      return null;
+    }
+  });
+
+  const [transactionType, setTransactionType] = useState(() => initialDraft?.transactionType || 'Inbound');
+  const [poNo, setPoNo] = useState(() => initialDraft?.poNo || '');
+  const [supplier, setSupplier] = useState(() => initialDraft?.supplier || '');
+  const [dateReceived, setDateReceived] = useState(() => initialDraft?.dateReceived || getTodayDateString());
+  const [originAddress, setOriginAddress] = useState(() => initialDraft?.originAddress || '');
+  const [manifestItems, setManifestItems] = useState(() => (Array.isArray(initialDraft?.manifestItems) ? initialDraft.manifestItems : []));
 
   const [preparedBy, setPreparedBy] = useState('System User');
+
+  // Check if form currently has unsaved draft data
+  const hasActiveDraft = Boolean(
+    (poNo && poNo.trim()) ||
+    (supplier && supplier.trim()) ||
+    (originAddress && originAddress.trim()) ||
+    (manifestItems && manifestItems.length > 0)
+  );
+
+  // Auto-save draft to localStorage whenever form inputs change
+  useEffect(() => {
+    const hasData = Boolean(
+      (poNo && poNo.trim()) ||
+      (supplier && supplier.trim()) ||
+      (originAddress && originAddress.trim()) ||
+      (manifestItems && manifestItems.length > 0)
+    );
+
+    if (hasData) {
+      try {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+          transactionType,
+          poNo,
+          supplier,
+          dateReceived,
+          originAddress,
+          manifestItems,
+          savedAt: new Date().toISOString()
+        }));
+      } catch (err) {
+        console.error("Failed to auto-save inbound draft:", err);
+      }
+    } else {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    }
+  }, [transactionType, poNo, supplier, dateReceived, originAddress, manifestItems]);
+
+  const handleClearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch (e) {}
+    setPoNo('');
+    setSupplier('');
+    setDateReceived(getTodayDateString());
+    setOriginAddress('');
+    setManifestItems([]);
+    showSuccessToast("Inbound draft cleared.");
+  };
 
   // Autocomplete / Datalist Extractors
   const [uniqueSuppliers, setUniqueSuppliers] = useState([]);
@@ -221,6 +281,9 @@ function InventoryInboundRawMat() {
       const res = await axios.post(PO_URL, payload);
       if (res.status === 200 || res.status === 201) {
         showSuccessToast("Purchase Order Saved Successfully!");
+        try {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch (e) {}
         setManifestItems([]);
         setPoNo('');
         setSupplier('');
@@ -748,11 +811,37 @@ function InventoryInboundRawMat() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         <div className={`lg:col-span-3 min-w-0 ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-6 rounded-2xl border flex flex-col gap-6 shadow-sm`}>
-          <div className={`border-b ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'} pb-3 flex items-center justify-between gap-2 text-sm font-bold`}>
+          <div className={`border-b ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'} pb-3 flex flex-wrap items-center justify-between gap-2 text-sm font-bold`}>
             <div className="flex items-center gap-2">
               <ListPlus className="w-4 h-4 text-[#ff6600]" />
               <span>Inbound Racking Materials</span>
             </div>
+
+            {hasActiveDraft && (
+              <div className="flex items-center gap-2 animate-in fade-in duration-200">
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold border ${
+                  isDark
+                    ? 'bg-amber-950/40 text-amber-300 border-amber-800/60'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                } shadow-xs`}>
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                  <span>Draft Auto-Saved</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearDraft}
+                  className={`text-[11px] sm:text-xs font-semibold px-2.5 py-1 rounded-lg border flex items-center gap-1 transition-all cursor-pointer ${
+                    isDark
+                      ? 'text-rose-400 hover:text-white border-rose-900/40 hover:bg-rose-900/30'
+                      : 'text-rose-600 hover:text-rose-700 border-rose-200 hover:bg-rose-50'
+                  }`}
+                  title="Clear and discard current draft"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Discard Draft</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleInitiateConfirm} className="flex flex-col gap-5">

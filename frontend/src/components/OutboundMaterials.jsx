@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
-import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2, Layers, Pencil, Copy, FileSpreadsheet } from 'lucide-react';
+import { FileText, ClipboardList, Calendar, Trash2, Search, X, Download, User, ArrowLeftRight, Eye, ShieldAlert, CheckCircle2, AlertCircle, Loader2, Layers, Pencil, Copy, FileSpreadsheet, RotateCcw } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import PageHeader from './layout/PageHeader';
@@ -39,14 +39,79 @@ function InventoryOutboundProducts() {
   const [passkeyInput, setPasskeyInput] = useState('');
   const [voidReasonInput, setVoidReasonInput] = useState('');
 
-  const [transactionType, setTransactionType] = useState('Reserve');
-  const [shipmentDate, setShipmentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [customer, setCustomer] = useState('');
-  const [carrier, setCarrier] = useState('');
-  const [destinationAddress, setDestinationAddress] = useState('');
-  const [manifestItems, setManifestItems] = useState([]);
-  const [referencePlNo, setReferencePlNo] = useState('');
+  // Outbound Form States with Automatic Draft Persistence
+  const DRAFT_STORAGE_KEY = 'oneinventory_draft_outbound';
+
+  const [initialDraft] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.error("Error reading outbound draft:", e);
+      return null;
+    }
+  });
+
+  const [transactionType, setTransactionType] = useState(() => initialDraft?.transactionType || 'Reserve');
+  const [shipmentDate, setShipmentDate] = useState(() => initialDraft?.shipmentDate || new Date().toISOString().split('T')[0]);
+  const [customer, setCustomer] = useState(() => initialDraft?.customer || '');
+  const [carrier, setCarrier] = useState(() => initialDraft?.carrier || '');
+  const [destinationAddress, setDestinationAddress] = useState(() => initialDraft?.destinationAddress || '');
+  const [manifestItems, setManifestItems] = useState(() => (Array.isArray(initialDraft?.manifestItems) ? initialDraft.manifestItems : []));
+  const [referencePlNo, setReferencePlNo] = useState(() => initialDraft?.referencePlNo || '');
   const [preparedBy, setPreparedBy] = useState('System User');
+
+  // Check if form currently has unsaved draft data
+  const hasActiveDraft = Boolean(
+    (customer && customer.trim()) ||
+    (carrier && carrier.trim()) ||
+    (destinationAddress && destinationAddress.trim()) ||
+    (referencePlNo && referencePlNo.trim()) ||
+    (manifestItems && manifestItems.length > 0)
+  );
+
+  // Auto-save draft to localStorage whenever form inputs change
+  useEffect(() => {
+    const hasData = Boolean(
+      (customer && customer.trim()) ||
+      (carrier && carrier.trim()) ||
+      (destinationAddress && destinationAddress.trim()) ||
+      (referencePlNo && referencePlNo.trim()) ||
+      (manifestItems && manifestItems.length > 0)
+    );
+
+    if (hasData) {
+      try {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+          transactionType,
+          shipmentDate,
+          customer,
+          carrier,
+          destinationAddress,
+          referencePlNo,
+          manifestItems,
+          savedAt: new Date().toISOString()
+        }));
+      } catch (err) {
+        console.error("Failed to auto-save outbound draft:", err);
+      }
+    } else {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    }
+  }, [transactionType, shipmentDate, customer, carrier, destinationAddress, referencePlNo, manifestItems]);
+
+  const handleClearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch (e) {}
+    setManifestItems([]);
+    setCustomer('');
+    setCarrier('');
+    setDestinationAddress('');
+    setReferencePlNo('');
+    setTransactionType('Outbound');
+    showSuccessToast("Outbound draft cleared.");
+  };
 
   const [selectedMaterialSegment, setSelectedMaterialSegment] = useState('All Segments');
   const [isBrowseModalOpen, setIsBrowseModalOpen] = useState(false);
@@ -414,6 +479,9 @@ function InventoryOutboundProducts() {
           ? `Reservation ${referencePlNo} updated successfully!`
           : `Material ${transactionType} Slip generated and stock updated!`);
         showSuccessToast(successMsg);
+        try {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch (e) {}
         setManifestItems([]); setCustomer(''); setCarrier(''); setDestinationAddress(''); setReferencePlNo('');
         setTransactionType('Outbound');
         setIsConfirmModalOpen(false);
@@ -1152,19 +1220,36 @@ function InventoryOutboundProducts() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         <div className={`lg:col-span-3 ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100'} p-4 sm:p-6 rounded-2xl border flex flex-col gap-6 shadow-sm`}>
-          <div className={`border-b ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'} pb-3 flex items-center justify-between gap-2 text-sm font-bold`}>
+          <div className={`border-b ${isDark ? 'border-slate-800 text-slate-200' : 'border-slate-100 text-slate-600'} pb-3 flex flex-wrap items-center justify-between gap-2 text-sm font-bold`}>
             <div className="flex items-center gap-2 min-w-0">
               <ArrowLeftRight className="w-4 h-4 text-[#ff6600] flex-shrink-0" />
               <span className="truncate">Outbound Racking Materials</span>
             </div>
-            {manifestItems.length > 0 && (
-              <button
-                type="button"
-                onClick={() => { setManifestItems([]); setReferencePlNo(''); setTransactionType('Outbound'); showSuccessToast("Form grid cleared."); }}
-                className="text-xs font-bold text-rose-400 hover:underline cursor-pointer flex-shrink-0"
-              >
-                Clear Form Grid
-              </button>
+
+            {hasActiveDraft && (
+              <div className="flex items-center gap-2 animate-in fade-in duration-200">
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold border ${
+                  isDark
+                    ? 'bg-amber-950/40 text-amber-300 border-amber-800/60'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                } shadow-xs`}>
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                  <span>Draft Auto-Saved</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearDraft}
+                  className={`text-[11px] sm:text-xs font-semibold px-2.5 py-1 rounded-lg border flex items-center gap-1 transition-all cursor-pointer ${
+                    isDark
+                      ? 'text-rose-400 hover:text-white border-rose-900/40 hover:bg-rose-900/30'
+                      : 'text-rose-600 hover:text-rose-700 border-rose-200 hover:bg-rose-50'
+                  }`}
+                  title="Clear and discard current draft"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Discard Draft</span>
+                </button>
+              </div>
             )}
           </div>
 
