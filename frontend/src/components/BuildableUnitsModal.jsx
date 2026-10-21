@@ -30,32 +30,42 @@ const getImageSrc = (imageUrl) => {
 // Default initial starter recipes
 const DEFAULT_RECIPES = [
   {
-    id: 'default-4-layer-rack',
-    name: 'Standard 4-Layer Rack (8 Beams, 8 Deckings, 2 Posts)',
-    description: 'Medium Duty Shelving Unit (4 Levels, 2 Upright Frames / Posts)',
+    id: 'default-bodega-blue-orange-4l',
+    name: 'Bodega Racks Frame Set Standard BLUE + ORANGE (4 Layer)',
+    description: 'Bodega Racks Unit (4 Levels, 8 Beams, 8 Deckings, 1 Upright Frame)',
     components: [
-      { id: 'comp-1', role: 'Beam', materialId: '', searchHint: 'beam', divisor: 8 },
-      { id: 'comp-2', role: 'Decking', materialId: '', searchHint: 'decking', divisor: 8 },
-      { id: 'comp-3', role: 'Post / Upright', materialId: '', searchHint: 'post', divisor: 2 }
+      { id: 'comp-1', role: 'Steel Decking "BLUE+ORANGE" -(New Stock)', materialId: '6a6db426778d106c83bfc935', searchHint: 'decking', divisor: 8 },
+      { id: 'comp-2', role: 'Step Beam "ORANGE"-', materialId: '6a6db884778d106c83bfcbc7', searchHint: 'beam', divisor: 8 },
+      { id: 'comp-3', role: 'Upright Frame "BLUE" -', materialId: '6a6dae6d778d106c83bfc5f1', searchHint: 'upright', divisor: 1 }
     ]
   },
   {
-    id: 'default-3-layer-rack',
-    name: 'Standard 3-Layer Rack (6 Beams, 6 Deckings, 2 Posts)',
-    description: 'Medium Duty Shelving Unit (3 Levels, 2 Upright Frames / Posts)',
+    id: 'default-bodega-black-4l',
+    name: 'Bodega Racks Frame Set Standard Black (4 Layer)',
+    description: 'Bodega Racks Unit (4 Levels, 8 Beams, 8 Deckings, 1 Upright Frame)',
     components: [
-      { id: 'comp-1', role: 'Beam', materialId: '', searchHint: 'beam', divisor: 6 },
-      { id: 'comp-2', role: 'Decking', materialId: '', searchHint: 'decking', divisor: 6 },
-      { id: 'comp-3', role: 'Post / Upright', materialId: '', searchHint: 'post', divisor: 2 }
+      { id: 'comp-1', role: 'Step Beam "BLACK"- satndard', materialId: '6a6db79b778d106c83bfcb0d', searchHint: 'beam', divisor: 8 },
+      { id: 'comp-2', role: 'Steel Decking BLACK+BLACK -(New Stock)', materialId: '6a6db35e778d106c83bfc890', searchHint: 'decking', divisor: 8 },
+      { id: 'comp-3', role: 'Upright Frame "BLACK" -', materialId: '6a6daf32778d106c83bfc64f', searchHint: 'upright', divisor: 1 }
     ]
   },
   {
-    id: 'default-pallet-starter',
-    name: 'Heavy Duty Pallet Starter Bay (8 Beams, 4 Posts)',
-    description: 'Pallet Rack Starter Bay (2 Upright Frames = 4 Posts, 8 Beams)',
+    id: 'default-bodega-gray-4l',
+    name: 'Bodega Racks Frame Set Standard Gray (4 Layer)',
+    description: 'Bodega Racks Unit (4 Levels, 8 Beams, 8 Deckings, 1 Upright Frame)',
     components: [
-      { id: 'comp-1', role: 'Beam', materialId: '', searchHint: 'beam', divisor: 8 },
-      { id: 'comp-2', role: 'Post / Upright', materialId: '', searchHint: 'post', divisor: 4 }
+      { id: 'comp-1', role: 'Step Beam "GRAY"-', materialId: '6a6db6cd778d106c83bfca91', searchHint: 'beam', divisor: 8 },
+      { id: 'comp-2', role: 'Steel Decking GRAY+GRAY -(New Stock)', materialId: '6a6db2c9778d106c83bfc822', searchHint: 'decking', divisor: 8 },
+      { id: 'comp-3', role: 'Upright Frame "GRAY" -', materialId: '6a6dae99778d106c83bfc620', searchHint: 'upright', divisor: 1 }
+    ]
+  },
+  {
+    id: 'default-boltless-standard-4l',
+    name: 'Boltless Frame Set Standard (4 Layer)',
+    description: 'Boltless Shelving Unit (4 Levels, 1 Post Wraps, 1 Steel Decking Boxes)',
+    components: [
+      { id: 'comp-1', role: 'Post', materialId: '6a4f14174f85c7add05c8624', searchHint: 'post', divisor: 1 },
+      { id: 'comp-2', role: 'Steel Decking w/ bracket', materialId: '6a4f2c1b4f85c7add05c8625', searchHint: 'decking', divisor: 1 }
     ]
   }
 ];
@@ -67,7 +77,13 @@ export default function BuildableUnitsModal({ isOpen, onClose, rawMaterials = []
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const isDummy = parsed.every(r =>
+            r.id === 'default-4-layer-rack' || r.id === 'default-3-layer-rack' || r.id === 'default-pallet-starter' ||
+            (r.components && r.components.every(c => !c.materialId))
+          );
+          if (!isDummy) return parsed;
+        }
       }
     } catch (e) {
       console.error("Failed to load recipes from localStorage:", e);

@@ -20,6 +20,8 @@ import systemRoutes from "./routes/admin/systemRoutes.js";
 import backupRoutes from "./routes/admin/backupRoutes.js";
 import linkClickRoutes from "./routes/admin/linkClickRoutes.js";
 import sharedLinkRoutes from "./routes/admin/sharedLinkRoutes.js";
+import rackingsUnitRoutes from "./routes/inventory/rackingsUnitRoutes.js";
+
 import { initBackupScheduler } from "./lib/backupScheduler.js";
 
 // API Routes Imports - Inventory
@@ -71,6 +73,7 @@ app.use("/api/system", systemRoutes);
 app.use("/api/backup", backupRoutes);
 app.use("/api/logs", linkClickRoutes);
 app.use("/api/shared-links", sharedLinkRoutes);
+app.use("/api/rackings-unit", rackingsUnitRoutes);
 
 
 app.use('/uploads', express.static('uploads'));

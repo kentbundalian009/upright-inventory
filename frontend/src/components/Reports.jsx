@@ -20,41 +20,153 @@ const RACKINGS_UNIT_STORAGE_KEY = 'oneinventory_unit_calculator_records_v1';
 
 const DEFAULT_UNIT_RECORDS = [
     {
-        id: 'unit-rec-1',
-        unitName: 'Standard 4-Layer Bodega Rack',
+        id: 'unit-bodega-blue-orange-4l',
+        unitName: 'Bodega Racks Frame Set Standard BLUE + ORANGE (4 Layer)',
         segment: 'BODEGA RACKS',
-        description: '4 Shelving Levels Storage Bay with 2 Upright Frames',
+        description: 'Bodega Racks Frame Set Standard BLUE + ORANGE (4 Layer)',
         uom: 'UNIT',
-        createdAt: new Date().toISOString(),
+        createdAt: '2026-10-21T04:00:00.000Z',
         components: [
-            { id: 'c1', role: 'Beam', searchHint: 'beam', divisor: 8, pcsPerUnit: 8 },
-            { id: 'c2', role: 'Decking', searchHint: 'decking', divisor: 8, pcsPerUnit: 8 },
-            { id: 'c3', role: 'Post / Upright', searchHint: 'post', divisor: 2, pcsPerUnit: 2 }
+            {
+                id: 'c-b-bo-1',
+                materialId: '6a6db426778d106c83bfc935',
+                role: 'Steel Decking "BLUE+ORANGE" -(New Stock)',
+                searchHint: 'decking',
+                divisor: 8,
+                pcsPerUnit: 8,
+                uom: 'PCS',
+                dimension: 'L: 670mm | D: 560mm'
+            },
+            {
+                id: 'c-b-bo-2',
+                materialId: '6a6db884778d106c83bfcbc7',
+                role: 'Step Beam "ORANGE"-',
+                searchHint: 'beam',
+                divisor: 8,
+                pcsPerUnit: 8,
+                uom: 'PCS',
+                dimension: 'L: 1340.5mm | P: 60mm'
+            },
+            {
+                id: 'c-b-bo-3',
+                materialId: '6a6dae6d778d106c83bfc5f1',
+                role: 'Upright Frame "BLUE" -',
+                searchHint: 'upright',
+                divisor: 1,
+                pcsPerUnit: 1,
+                uom: 'UNITS',
+                dimension: 'H: 2000mm'
+            }
         ]
     },
     {
-        id: 'unit-rec-2',
-        unitName: 'Standard 3-Layer Medium Rack',
-        segment: 'MEDIUM RACKS',
-        description: 'Medium Duty 3 Shelving Tiers with 2 Posts',
+        id: 'unit-bodega-black-4l',
+        unitName: 'Bodega Racks Frame Set Standard Black (4 Layer)',
+        segment: 'BODEGA RACKS',
+        description: 'Bodega Racks Frame Set Standard Black (4 Layer)',
         uom: 'UNIT',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        createdAt: '2026-10-21T04:01:00.000Z',
         components: [
-            { id: 'c1', role: 'Step Beam', searchHint: 'beam', divisor: 6, pcsPerUnit: 6 },
-            { id: 'c2', role: 'Steel Decking', searchHint: 'decking', divisor: 6, pcsPerUnit: 6 },
-            { id: 'c3', role: 'Upright Post', searchHint: 'post', divisor: 2, pcsPerUnit: 2 }
+            {
+                id: 'c-b-bk-1',
+                materialId: '6a6db79b778d106c83bfcb0d',
+                role: 'Step Beam "BLACK"- satndard',
+                searchHint: 'beam',
+                divisor: 8,
+                pcsPerUnit: 8,
+                uom: 'PCS',
+                dimension: 'L: 1840.5mm | P: 60mm'
+            },
+            {
+                id: 'c-b-bk-2',
+                materialId: '6a6db35e778d106c83bfc890',
+                role: 'Steel Decking BLACK+BLACK -(New Stock)',
+                searchHint: 'decking',
+                divisor: 8,
+                pcsPerUnit: 8,
+                uom: 'PCS',
+                dimension: 'L: 920mm | D: 560mm'
+            },
+            {
+                id: 'c-b-bk-3',
+                materialId: '6a6daf32778d106c83bfc64f',
+                role: 'Upright Frame "BLACK" -',
+                searchHint: 'upright',
+                divisor: 1,
+                pcsPerUnit: 1,
+                uom: 'UNITS',
+                dimension: 'H: 2000mm'
+            }
         ]
     },
     {
-        id: 'unit-rec-3',
-        unitName: 'Heavy Duty Selective Pallet Starter Bay',
-        segment: 'HEAVY/SELECTIVE DUTY',
-        description: 'Heavy Duty Pallet Racking Starter Bay (4 Posts, 8 Beams)',
+        id: 'unit-bodega-gray-4l',
+        unitName: 'Bodega Racks Frame Set Standard Gray (4 Layer)',
+        segment: 'BODEGA RACKS',
+        description: 'Bodega Racks Frame Set Standard Gray (4 Layer)',
         uom: 'UNIT',
-        createdAt: new Date(Date.now() - 172800000).toISOString(),
+        createdAt: '2026-10-21T04:02:00.000Z',
         components: [
-            { id: 'c1', role: 'Beams', searchHint: 'beam', divisor: 8, pcsPerUnit: 8 },
-            { id: 'c2', role: 'Upright Posts', searchHint: 'post', divisor: 4, pcsPerUnit: 4 }
+            {
+                id: 'c-b-gy-1',
+                materialId: '6a6db6cd778d106c83bfca91',
+                role: 'Step Beam "GRAY"-',
+                searchHint: 'beam',
+                divisor: 8,
+                pcsPerUnit: 8,
+                uom: 'PCS',
+                dimension: 'L: 1840.5mm | P: 60mm'
+            },
+            {
+                id: 'c-b-gy-2',
+                materialId: '6a6db2c9778d106c83bfc822',
+                role: 'Steel Decking GRAY+GRAY -(New Stock)',
+                searchHint: 'decking',
+                divisor: 8,
+                pcsPerUnit: 8,
+                uom: 'PCS',
+                dimension: 'L: 920mm | D: 560mm'
+            },
+            {
+                id: 'c-b-gy-3',
+                materialId: '6a6dae99778d106c83bfc620',
+                role: 'Upright Frame "GRAY" -',
+                searchHint: 'upright',
+                divisor: 1,
+                pcsPerUnit: 1,
+                uom: 'UNITS',
+                dimension: 'H: 2000mm'
+            }
+        ]
+    },
+    {
+        id: 'unit-boltless-standard-4l',
+        unitName: 'Boltless Frame Set Standard (4 Layer)',
+        segment: 'BOLTLESS SHELVINGS',
+        description: 'Boltless Frame Set Standard (4 Layer)',
+        uom: 'UNIT',
+        createdAt: '2026-10-21T04:03:00.000Z',
+        components: [
+            {
+                id: 'c-bt-1',
+                materialId: '6a4f14174f85c7add05c8624',
+                role: 'Post',
+                searchHint: 'post',
+                divisor: 1,
+                pcsPerUnit: 1,
+                uom: 'WRAPS',
+                dimension: 'L: 2000mm'
+            },
+            {
+                id: 'c-bt-2',
+                materialId: '6a4f2c1b4f85c7add05c8625',
+                role: 'Steel Decking w/ bracket',
+                searchHint: 'decking',
+                divisor: 1,
+                pcsPerUnit: 1,
+                uom: 'BOXES',
+                dimension: 'L: 1200mm | D: 400mm'
+            }
         ]
     }
 ];
@@ -268,13 +380,19 @@ function Reports() {
         { id: 'consumables', label: 'Consumables' },
     ];
 
-    // Rackings Unit Records State (synced from localStorage)
+    // Rackings Unit Records State (synced from localStorage & MongoDB)
     const [unitRecords, setUnitRecords] = useState(() => {
         try {
             const saved = localStorage.getItem(RACKINGS_UNIT_STORAGE_KEY);
             if (saved) {
                 const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    const isDummy = parsed.every(r =>
+                        r.id === 'unit-rec-1' || r.id === 'unit-rec-2' || r.id === 'unit-rec-3' ||
+                        (r.components && r.components.every(c => !c.materialId))
+                    );
+                    if (!isDummy) return parsed;
+                }
             }
         } catch (e) {
             console.error("Failed to load unit records in Reports:", e);
@@ -357,20 +475,46 @@ function Reports() {
         }
     }, [activeModule]);
 
-    // Sync unit records from localStorage whenever switching to rackings-unit
+    // Sync unit records from localStorage & MongoDB whenever switching to rackings-unit
     useEffect(() => {
         if (activeModule === 'rackings-unit') {
-            try {
-                const saved = localStorage.getItem(RACKINGS_UNIT_STORAGE_KEY);
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        setUnitRecords(parsed);
+            const syncRecords = async () => {
+                try {
+                    const saved = localStorage.getItem(RACKINGS_UNIT_STORAGE_KEY);
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            const isDummy = parsed.every(r =>
+                                r.id === 'unit-rec-1' || r.id === 'unit-rec-2' || r.id === 'unit-rec-3' ||
+                                (r.components && r.components.every(c => !c.materialId))
+                            );
+                            if (!isDummy) {
+                                setUnitRecords(parsed);
+                                return;
+                            }
+                        }
                     }
+
+                    // Try fetching from backend
+                    const res = await axios.get('/api/rackings-unit');
+                    if (res.data && res.data.success && Array.isArray(res.data.records) && res.data.records.length > 0) {
+                        const isDummy = res.data.records.every(r =>
+                            r.id === 'unit-rec-1' || r.id === 'unit-rec-2' || r.id === 'unit-rec-3' ||
+                            (r.components && r.components.every(c => !c.materialId))
+                        );
+                        if (!isDummy) {
+                            setUnitRecords(res.data.records);
+                            localStorage.setItem(RACKINGS_UNIT_STORAGE_KEY, JSON.stringify(res.data.records));
+                            return;
+                        }
+                    }
+
+                    setUnitRecords(DEFAULT_UNIT_RECORDS);
+                } catch (e) {
+                    console.error("Failed to sync unit records in Reports:", e);
                 }
-            } catch (e) {
-                console.error("Failed to sync unit records:", e);
-            }
+            };
+            syncRecords();
         }
     }, [activeModule]);
 
