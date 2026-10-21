@@ -23,7 +23,8 @@ import {
   Share2,
   Boxes,
   ClipboardList,
-  FileText
+  FileText,
+  Calculator
 } from "lucide-react";
 
 const API_BASE_URL = '/api';
@@ -116,6 +117,7 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
       { id: 'outbound-products', name: 'Outbound Materials', icon: Truck, roles: ['Inventory'], section: 'rackings' },
 
       { id: 'raw-materials', name: 'Rackings', icon: Layers, roles: ['Inventory', 'Admin', 'Purchasing'], section: 'records' },
+      { id: 'rackings-unit', name: 'Rackings Unit', icon: Layers, roles: ['Inventory', 'Admin', 'Purchasing'], section: 'records' },
       { id: 'supplies', name: 'Tools & Equipments', icon: Package, roles: ['Inventory', 'Admin', 'Purchasing'], section: 'records' },
       { id: 'consumables-records', name: 'Consumables', icon: Boxes, roles: ['Inventory', 'Admin', 'Purchasing'], section: 'records' },
       { id: 'client-records', name: 'Information (Modules)', icon: Building2, roles: ['Inventory', 'Admin'], section: 'records' },

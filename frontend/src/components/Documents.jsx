@@ -4,7 +4,9 @@ import {
     AlignCenter, AlignRight, AlignJustify, List, ListOrdered, 
     CheckSquare, Download, Printer, RotateCcw, Undo, Redo, 
     Eye, Edit3, Plus, Calendar, FileText, 
-    Highlighter, Minus, Table, Layers, X, FileDown, FolderPlus
+    Highlighter, Minus, Table, Layers, X, FileDown, FolderPlus,
+    Image as ImageIcon, Crop, MoveUp, MoveDown, Trash2, Stamp, 
+    Sparkles, Shield, PenTool, Scissors
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -12,35 +14,78 @@ import html2canvas from 'html2canvas';
 import toast from 'react-hot-toast';
 import PageHeader from './layout/PageHeader';
 import { useTheme } from '../context/ThemeContext';
+import ImageCropperModal from './ImageCropperModal';
 
 const STORAGE_KEY = 'oneinventory_documents_v1';
+
+// Clean, modern DIV-based signature block (NEVER a table, sitting at the very bottom)
+const MODERN_SIGNATURE_HTML = `
+<div class="signature-section" style="margin-top: 50px; margin-bottom: 25px; width: 100%; clear: both; page-break-inside: avoid !important; break-inside: avoid !important; display: block;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; width: 100%; max-width: 100%;">
+        <div style="width: 44%; text-align: center; box-sizing: border-box;">
+            <div style="border-bottom: 2px solid #0f172a; width: 85%; margin: 0 auto 8px auto; height: 1px;"></div>
+            <div style="font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">
+                Toolkeeper
+            </div>
+            <div style="font-size: 11px; font-weight: 500; color: #64748b; margin-top: 2px;">
+                Signature over Printed Name
+            </div>
+        </div>
+        <div style="width: 44%; text-align: center; box-sizing: border-box;">
+            <div style="border-bottom: 2px solid #0f172a; width: 85%; margin: 0 auto 8px auto; height: 1px;"></div>
+            <div style="font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">
+                Inventory Assistant
+            </div>
+            <div style="font-size: 11px; font-weight: 500; color: #64748b; margin-top: 2px;">
+                Signature over Printed Name
+            </div>
+        </div>
+    </div>
+    <div style="clear: both; height: 0;"></div>
+</div>
+`.trim();
+
+// Upgrade existing saved tabs to replace any table signatures with clean div signatures
+const upgradeTabSignatures = (html) => {
+    if (!html) return html;
+    
+    // Replace any table containing Toolkeeper or Inventory Assistant or Prepared & Endorsed By with the modern div block
+    const tableRegex = /<table[^>]*>[\s\S]*?(?:Toolkeeper|Inventory Assistant|Prepared & Endorsed By|Acknowledged & Received By)[\s\S]*?<\/table>/gi;
+    if (tableRegex.test(html)) {
+        return html.replace(tableRegex, MODERN_SIGNATURE_HTML);
+    }
+    return html;
+};
 
 const DEFAULT_DOC_STATE = {
     documentTitle: "Documents",
     activeTabId: "tab-1",
+    showWatermark: true,
+    showHeaderLogo: true,
     tabs: [
         {
             id: "tab-1",
             name: "Document 1",
             htmlContent: `
-                <h1 style="color: #18174e; font-size: 24px; font-weight: bold; margin-bottom: 6px; text-align: left;">
+                <h1 style="color: #18174e; font-size: 22px; font-weight: bold; margin: 0 0 4px 0; letter-spacing: 0.5px;">
                     OPERATIONAL REMARKS & ENDORSEMENT
                 </h1>
-                <p style="color: #64748b; font-size: 13px; margin-bottom: 18px; border-bottom: 2px solid #ff6600; padding-bottom: 8px;">
-                    <strong>Date:</strong> ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} &nbsp;|&nbsp; 
+                <p style="color: #64748b; font-size: 12px; margin-bottom: 18px; border-bottom: 2px solid #ff6600; padding-bottom: 8px;">
+                    <strong>Subject:</strong> Toolroom Daily Log & Material Handover &nbsp;|&nbsp; 
                     <strong>Shift:</strong> Day Shift (08:00 AM - 05:00 PM)
                 </p>
 
-                <h3 style="color: #18174e; font-size: 16px; font-weight: bold; margin-top: 14px; margin-bottom: 8px;">
-                    1. Pending Action Items & Remarks:
+                <h3 style="color: #18174e; font-size: 15px; font-weight: bold; margin-top: 14px; margin-bottom: 8px;">
+                    1. Toolroom Handover & Operations Log:
                 </h3>
                 <ul>
+                    <li style="margin-bottom: 6px;"><strong>[TOOLROOM]:</strong> Complete daily audit for fabrication hand tools, impact drills, and safety gear.</li>
                     <li style="margin-bottom: 6px;"><strong>[RACKINGS]:</strong> Recount and verify pallet variance in Racking Bay B-04 before dispatch.</li>
                     <li style="margin-bottom: 6px;"><strong>[SUPPLIES]:</strong> Expected supplier delivery for bubble wraps & packaging tapes arriving tomorrow morning.</li>
                     <li style="margin-bottom: 6px;"><strong>[WIP]:</strong> Fabrication batch #84 acrylic sheets pending QA inspection.</li>
                 </ul>
 
-                <h3 style="color: #18174e; font-size: 16px; font-weight: bold; margin-top: 20px; margin-bottom: 8px;">
+                <h3 style="color: #18174e; font-size: 15px; font-weight: bold; margin-top: 20px; margin-bottom: 8px;">
                     2. Shift Handover Notes:
                 </h3>
                 <p style="margin-bottom: 12px; line-height: 1.6;">
@@ -49,22 +94,7 @@ const DEFAULT_DOC_STATE = {
 
                 <hr style="border: none; border-top: 1px dashed #cbd5e1; margin: 30px 0 20px 0;" />
 
-                <table style="width: 100%; border-collapse: collapse; margin-top: 25px;">
-                    <tr>
-                        <td style="width: 50%; padding: 15px; text-align: center; vertical-align: bottom;">
-                            <div style="border-bottom: 1px solid #94a3b8; width: 80%; margin: 0 auto 6px auto;"></div>
-                            <span style="font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase;">
-                                Prepared & Endorsed By
-                            </span>
-                        </td>
-                        <td style="width: 50%; padding: 15px; text-align: center; vertical-align: bottom;">
-                            <div style="border-bottom: 1px solid #94a3b8; width: 80%; margin: 0 auto 6px auto;"></div>
-                            <span style="font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase;">
-                                Acknowledged & Received By
-                            </span>
-                        </td>
-                    </tr>
-                </table>
+                ${MODERN_SIGNATURE_HTML}
             `
         }
     ]
@@ -73,6 +103,27 @@ const DEFAULT_DOC_STATE = {
 function Documents() {
     const { isDark } = useTheme();
 
+    // Date & Time state for header and print visibility
+    const [currentDateTime, setCurrentDateTime] = useState(() => {
+        const now = new Date();
+        return {
+            date: now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+        };
+    });
+
+    useEffect(() => {
+        const updateTime = () => {
+            const now = new Date();
+            setCurrentDateTime({
+                date: now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+            });
+        };
+        const timer = setInterval(updateTime, 30000);
+        return () => clearInterval(timer);
+    }, []);
+
     // Load saved document state from localStorage
     const [docData, setDocData] = useState(() => {
         try {
@@ -80,7 +131,15 @@ function Documents() {
             if (saved) {
                 const parsed = JSON.parse(saved);
                 if (parsed && Array.isArray(parsed.tabs) && parsed.tabs.length > 0) {
-                    return parsed;
+                    return {
+                        ...parsed,
+                        showWatermark: parsed.showWatermark !== undefined ? parsed.showWatermark : true,
+                        showHeaderLogo: parsed.showHeaderLogo !== undefined ? parsed.showHeaderLogo : true,
+                        tabs: parsed.tabs.map(t => ({
+                            ...t,
+                            htmlContent: upgradeTabSignatures(t.htmlContent)
+                        }))
+                    };
                 }
             }
         } catch (e) {
@@ -94,9 +153,30 @@ function Documents() {
     const [newTabName, setNewTabName] = useState("");
     const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
 
+    // Watermark & Centered Header Logo toggles
+    const [showWatermark, setShowWatermark] = useState(() => {
+        return docData.showWatermark !== undefined ? docData.showWatermark : true;
+    });
+    const [showHeaderLogo, setShowHeaderLogo] = useState(() => {
+        return docData.showHeaderLogo !== undefined ? docData.showHeaderLogo : true;
+    });
+
+    // Image manipulation & Cropping state
+    const [selectedImageEl, setSelectedImageEl] = useState(null);
+    const [imgToolbarPos, setImgToolbarPos] = useState(null);
+    const [isCropperOpen, setIsCropperOpen] = useState(false);
+    const [cropImageSrc, setCropImageSrc] = useState(null);
+
+    // References
+    const fileInputRef = useRef(null);
+    const paperContainerRef = useRef(null);
+
     // Color pickers dropdown state
     const [showTextColorPalette, setShowTextColorPalette] = useState(false);
     const [showBgColorPalette, setShowBgColorPalette] = useState(false);
+
+    // On-screen visual page break offsets (dat makita nadin kase sa documents)
+    const [pageBreakOffsets, setPageBreakOffsets] = useState([]);
 
     // Ref to contentEditable paper canvas
     const editorRef = useRef(null);
@@ -105,11 +185,58 @@ function Documents() {
     // Active Tab
     const activeTab = docData.tabs.find(t => t.id === docData.activeTabId) || docData.tabs[0];
 
-    // Load active tab HTML into editorRef when active tab changes
+    // Calculate real-time A4 page boundaries for on-screen document canvas
+    useEffect(() => {
+        const updatePageBreaks = () => {
+            if (!paperContainerRef.current) return;
+            const containerWidth = paperContainerRef.current.clientWidth;
+            if (!containerWidth) return;
+
+            // A4 Aspect Ratio: 297mm / 210mm = 1.4142857
+            const a4HeightPx = Math.round(containerWidth * (297 / 210));
+            const totalHeight = paperContainerRef.current.scrollHeight;
+
+            const numPages = Math.floor(totalHeight / a4HeightPx);
+            const offsets = [];
+            for (let i = 1; i <= numPages; i++) {
+                offsets.push({
+                    pageIndex: i,
+                    top: i * a4HeightPx
+                });
+            }
+            setPageBreakOffsets(offsets);
+        };
+
+        updatePageBreaks();
+
+        const resizeObserver = new ResizeObserver(() => {
+            updatePageBreaks();
+        });
+
+        if (paperContainerRef.current) {
+            resizeObserver.observe(paperContainerRef.current);
+        }
+        if (editorRef.current) {
+            resizeObserver.observe(editorRef.current);
+        }
+
+        return () => resizeObserver.disconnect();
+    }, [activeTab.id, docData.tabs, isEditing]);
+
+    // Sync watermark and header logo toggles to docData
+    useEffect(() => {
+        setDocData(prev => ({
+            ...prev,
+            showWatermark,
+            showHeaderLogo
+        }));
+    }, [showWatermark, showHeaderLogo]);
+
+    // Load active tab HTML into editorRef when active tab changes (with signature upgrade)
     useEffect(() => {
         if (editorRef.current && activeTab) {
             isInternalUpdate.current = true;
-            editorRef.current.innerHTML = activeTab.htmlContent || "";
+            editorRef.current.innerHTML = upgradeTabSignatures(activeTab.htmlContent || "");
             isInternalUpdate.current = false;
         }
     }, [activeTab.id]);
@@ -222,6 +349,344 @@ function Documents() {
             month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
         });
         formatDoc('insertHTML', `<strong>[${dateStr}]:</strong> `);
+    };
+
+    // Update position of floating image toolbar relative to paper canvas
+    const updateImgToolbarPosition = (imgEl) => {
+        if (!imgEl || !paperContainerRef.current) return;
+        const imgRect = imgEl.getBoundingClientRect();
+        const paperRect = paperContainerRef.current.getBoundingClientRect();
+
+        const top = Math.max(10, (imgRect.top - paperRect.top) - 48);
+        const left = Math.max(10, Math.min(paperRect.width - 360, (imgRect.left - paperRect.left) + (imgRect.width / 2) - 180));
+
+        setImgToolbarPos({ top, left });
+    };
+
+    // Reposition floating toolbar on scroll or resize
+    useEffect(() => {
+        const handleReposition = () => {
+            if (selectedImageEl) {
+                updateImgToolbarPosition(selectedImageEl);
+            }
+        };
+        window.addEventListener('resize', handleReposition);
+        window.addEventListener('scroll', handleReposition, true);
+        return () => {
+            window.removeEventListener('resize', handleReposition);
+            window.removeEventListener('scroll', handleReposition, true);
+        };
+    }, [selectedImageEl]);
+
+    // Handle clicks inside editor canvas to select/deselect images
+    const handleEditorClick = (e) => {
+        if (e.target && e.target.tagName === 'IMG') {
+            e.stopPropagation();
+            if (selectedImageEl && selectedImageEl !== e.target) {
+                selectedImageEl.style.outline = 'none';
+            }
+            e.target.style.outline = '2px solid #ff6600';
+            e.target.style.outlineOffset = '3px';
+            setSelectedImageEl(e.target);
+            updateImgToolbarPosition(e.target);
+        } else {
+            if (selectedImageEl) {
+                selectedImageEl.style.outline = 'none';
+                setSelectedImageEl(null);
+                setImgToolbarPos(null);
+            }
+        }
+    };
+
+    // Double-click image to immediately open cropper
+    const handleEditorDoubleClick = (e) => {
+        if (e.target && e.target.tagName === 'IMG') {
+            e.stopPropagation();
+            e.preventDefault();
+            setSelectedImageEl(e.target);
+            setCropImageSrc(e.target.src);
+            setIsCropperOpen(true);
+        }
+    };
+
+    // Trigger file picker for inserting image
+    const handleInsertImageClick = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+            fileInputRef.current.click();
+        }
+    };
+
+    // File selected from device
+    const handleImageFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            toast.error("Please select a valid image file (PNG, JPG, WebP, etc.).");
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error("Image size too large. Please select an image under 10MB.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) => {
+            const dataUrl = uploadEvent.target?.result;
+            if (!dataUrl) return;
+
+            if (!isEditing) setIsEditing(true);
+            if (editorRef.current) editorRef.current.focus();
+
+            const imgHtml = `
+                <div class="doc-image-wrapper" style="text-align: center; margin: 16px 0; page-break-inside: avoid !important; break-inside: avoid !important;">
+                    <img 
+                        src="${dataUrl}" 
+                        alt="Inserted Image" 
+                        draggable="true" 
+                        style="max-width: 100%; max-height: 480px; height: auto; border-radius: 4px; display: inline-block; cursor: pointer;" 
+                    />
+                </div>
+                <p><br /></p>
+            `;
+            document.execCommand('insertHTML', false, imgHtml);
+            handleInput();
+            toast.success("Image inserted! Click the image to move, resize, or crop.");
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // Insert Upright Logo centered
+    const handleInsertUprightLogo = () => {
+        if (!isEditing) setIsEditing(true);
+        if (editorRef.current) editorRef.current.focus();
+
+        const logoHtml = `
+            <div class="doc-image-wrapper" style="text-align: center; margin: 18px 0; page-break-inside: avoid !important; break-inside: avoid !important;">
+                <img 
+                    src="/upright.png" 
+                    alt="Upright Logo" 
+                    draggable="true" 
+                    style="height: 64px; max-height: 80px; width: auto; object-fit: contain; display: inline-block; cursor: pointer;" 
+                />
+            </div>
+            <p><br /></p>
+        `;
+        document.execCommand('insertHTML', false, logoHtml);
+        handleInput();
+        toast.success("Upright logo inserted at center!");
+    };
+
+    // Insert Toolkeeper and Inventory Assistant signature lines (Clean DIV-based, NO table, placed at the very bottom)
+    const handleInsertSignatures = () => {
+        if (!isEditing) setIsEditing(true);
+        if (editorRef.current) {
+            // Clean up any existing signature sections or legacy tables containing Toolkeeper or Inventory Assistant
+            const candidates = Array.from(editorRef.current.querySelectorAll('.signature-section, table'));
+            candidates.forEach(el => {
+                const text = el.innerText || '';
+                if (text.includes('Toolkeeper') || text.includes('Inventory Assistant') || text.includes('Prepared & Endorsed By')) {
+                    el.remove();
+                }
+            });
+
+            // Append cleanly at the very end ("yun last nayan")
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = MODERN_SIGNATURE_HTML;
+            editorRef.current.appendChild(wrapper.firstElementChild);
+            handleInput();
+            toast.success("Signature block for Toolkeeper & Inventory Assistant placed at the bottom!");
+        }
+    };
+
+    // Insert manual Page Break
+    const handleInsertPageBreak = () => {
+        if (!isEditing) setIsEditing(true);
+        if (editorRef.current) editorRef.current.focus();
+
+        const breakHtml = `
+            <div class="doc-page-break" style="page-break-before: always; break-before: page; margin: 32px 0 24px 0; border-top: 2px dashed #ff6600; text-align: center; padding-top: 6px; user-select: none;">
+                <span style="background-color: #18174e; color: #ffffff; font-size: 10px; font-weight: bold; padding: 3px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 1px; border: 1px solid #ff6600;">
+                    ✂ PAGE BREAK (Starts on next page)
+                </span>
+            </div>
+            <p><br /></p>
+        `;
+        document.execCommand('insertHTML', false, breakHtml);
+        handleInput();
+        toast.success("Page break inserted!");
+    };
+
+    // Clipboard Paste handler for images
+    const handleEditorPaste = (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                e.preventDefault();
+                const blob = items[i].getAsFile();
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const dataUrl = event.target?.result;
+                    const imgHtml = `
+                        <div class="doc-image-wrapper" style="text-align: center; margin: 16px 0; page-break-inside: avoid !important; break-inside: avoid !important;">
+                            <img 
+                                src="${dataUrl}" 
+                                alt="Pasted Image" 
+                                draggable="true" 
+                                style="max-width: 100%; max-height: 480px; height: auto; border-radius: 4px; display: inline-block; cursor: pointer;" 
+                            />
+                        </div>
+                        <p><br /></p>
+                    `;
+                    document.execCommand('insertHTML', false, imgHtml);
+                    handleInput();
+                    toast.success("Pasted image inserted!");
+                };
+                reader.readAsDataURL(blob);
+                return;
+            }
+        }
+    };
+
+    // Drag-and-drop handler for image files
+    const handleEditorDrop = (e) => {
+        const files = e.dataTransfer?.files;
+        if (files && files.length > 0) {
+            const file = files[0];
+            if (file.type.startsWith('image/')) {
+                e.preventDefault();
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const dataUrl = event.target?.result;
+                    const imgHtml = `
+                        <div class="doc-image-wrapper" style="text-align: center; margin: 16px 0; page-break-inside: avoid !important; break-inside: avoid !important;">
+                            <img 
+                                src="${dataUrl}" 
+                                alt="Dropped Image" 
+                                draggable="true" 
+                                style="max-width: 100%; max-height: 480px; height: auto; border-radius: 4px; display: inline-block; cursor: pointer;" 
+                            />
+                        </div>
+                        <p><br /></p>
+                    `;
+                    document.execCommand('insertHTML', false, imgHtml);
+                    handleInput();
+                    toast.success("Dropped image inserted!");
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    };
+
+    // Align selected image
+    const handleAlignSelectedImage = (alignment) => {
+        if (!selectedImageEl) return;
+        const parent = selectedImageEl.parentElement;
+
+        if (alignment === 'left') {
+            selectedImageEl.style.display = 'block';
+            selectedImageEl.style.marginLeft = '0';
+            selectedImageEl.style.marginRight = 'auto';
+            selectedImageEl.style.float = 'none';
+            if (parent && parent !== editorRef.current) parent.style.textAlign = 'left';
+        } else if (alignment === 'center') {
+            selectedImageEl.style.display = 'block';
+            selectedImageEl.style.marginLeft = 'auto';
+            selectedImageEl.style.marginRight = 'auto';
+            selectedImageEl.style.float = 'none';
+            if (parent && parent !== editorRef.current) parent.style.textAlign = 'center';
+        } else if (alignment === 'right') {
+            selectedImageEl.style.display = 'block';
+            selectedImageEl.style.marginLeft = 'auto';
+            selectedImageEl.style.marginRight = '0';
+            selectedImageEl.style.float = 'none';
+            if (parent && parent !== editorRef.current) parent.style.textAlign = 'right';
+        } else if (alignment === 'float-left') {
+            selectedImageEl.style.display = 'inline-block';
+            selectedImageEl.style.float = 'left';
+            selectedImageEl.style.margin = '4px 16px 12px 0';
+            if (parent && parent !== editorRef.current) parent.style.textAlign = 'left';
+        } else if (alignment === 'float-right') {
+            selectedImageEl.style.display = 'inline-block';
+            selectedImageEl.style.float = 'right';
+            selectedImageEl.style.margin = '4px 0 12px 16px';
+            if (parent && parent !== editorRef.current) parent.style.textAlign = 'right';
+        }
+        handleInput();
+        updateImgToolbarPosition(selectedImageEl);
+    };
+
+    // Resize selected image
+    const handleResizeSelectedImage = (pct) => {
+        if (!selectedImageEl) return;
+        selectedImageEl.style.width = pct;
+        selectedImageEl.style.maxWidth = '100%';
+        selectedImageEl.style.height = 'auto';
+        handleInput();
+        updateImgToolbarPosition(selectedImageEl);
+    };
+
+    // Move selected image up or down in document hierarchy
+    const handleMoveSelectedImage = (direction) => {
+        if (!selectedImageEl || !editorRef.current) return;
+        let targetBlock = selectedImageEl;
+        while (targetBlock && targetBlock.parentElement && targetBlock.parentElement !== editorRef.current) {
+            targetBlock = targetBlock.parentElement;
+        }
+
+        if (!targetBlock) return;
+
+        if (direction === 'up') {
+            const prev = targetBlock.previousElementSibling;
+            if (prev) {
+                editorRef.current.insertBefore(targetBlock, prev);
+                handleInput();
+                updateImgToolbarPosition(selectedImageEl);
+                toast.success("Moved image up");
+            } else {
+                toast.error("Image is already at the top");
+            }
+        } else if (direction === 'down') {
+            const next = targetBlock.nextElementSibling;
+            if (next) {
+                editorRef.current.insertBefore(next, targetBlock);
+                handleInput();
+                updateImgToolbarPosition(selectedImageEl);
+                toast.success("Moved image down");
+            } else {
+                toast.error("Image is already at the bottom");
+            }
+        }
+    };
+
+    // Delete selected image
+    const handleDeleteSelectedImage = () => {
+        if (!selectedImageEl) return;
+        const parent = selectedImageEl.parentElement;
+        if (parent && parent !== editorRef.current && parent.childNodes.length === 1) {
+            parent.remove();
+        } else {
+            selectedImageEl.remove();
+        }
+        setSelectedImageEl(null);
+        setImgToolbarPos(null);
+        handleInput();
+        toast.success("Image removed");
+    };
+
+    // Apply crop from ImageCropperModal
+    const handleApplyCrop = (croppedBase64) => {
+        if (selectedImageEl) {
+            selectedImageEl.src = croppedBase64;
+            handleInput();
+            updateImgToolbarPosition(selectedImageEl);
+            toast.success("Image cropped successfully!");
+        }
+        setIsCropperOpen(false);
     };
 
     // Clear Document Canvas to Blank
@@ -449,99 +914,97 @@ function Documents() {
         setIsDownloadingPDF(true);
         toast.loading("Generating document PDF...", { id: "pdf-download" });
 
-        let iframe = null;
         try {
-            iframe = document.createElement('iframe');
-            iframe.style.position = 'fixed';
-            iframe.style.top = '-10000px';
-            iframe.style.left = '-10000px';
-            iframe.style.width = '794px';
-            iframe.style.minHeight = '1123px';
-            iframe.style.border = 'none';
-            iframe.style.backgroundColor = '#ffffff';
-            document.body.appendChild(iframe);
+            if (!paperContainerRef.current) {
+                toast.error("Document canvas not found.");
+                return;
+            }
 
-            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-            iframeDoc.open();
-            iframeDoc.write(`
-                <!DOCTYPE html>
-                <html>
-                    <head>
-                        <meta charset="utf-8">
-                        <title>${docData.documentTitle || 'Document'}</title>
-                        <style>
-                            * { box-sizing: border-box; }
-                            body {
-                                font-family: Arial, Helvetica, sans-serif;
-                                margin: 0;
-                                padding: 36px 40px;
-                                color: #1e293b;
-                                background-color: #ffffff;
-                                line-height: 1.6;
-                                font-size: 13px;
-                                width: 794px;
-                            }
-                            h1 { font-size: 22px; color: #18174e; margin: 0 0 10px 0; font-weight: bold; }
-                            h2 { font-size: 18px; color: #18174e; margin: 16px 0 8px 0; font-weight: bold; }
-                            h3 { font-size: 15px; color: #18174e; margin: 14px 0 6px 0; font-weight: bold; }
-                            h4 { font-size: 13px; color: #18174e; margin: 12px 0 4px 0; font-weight: bold; }
-                            p { margin: 0 0 10px 0; }
-                            ul, ol { margin: 0 0 12px 24px; padding: 0; }
-                            li { margin-bottom: 6px; }
-                            table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-                            th { background-color: #18174e; color: #ffffff; padding: 8px 10px; font-size: 12px; border: 1px solid #cbd5e1; text-align: left; }
-                            td { padding: 8px 10px; font-size: 12px; border: 1px solid #cbd5e1; }
-                            tr:nth-child(even) td { background-color: #f8fafc; }
-                            hr { border: none; border-top: 1px solid #cbd5e1; margin: 24px 0; }
-                            input[type="checkbox"] { width: 14px; height: 14px; margin-right: 6px; }
-                        </style>
-                    </head>
-                    <body>
-                        ${editorRef.current ? editorRef.current.innerHTML : (activeTab.htmlContent || '')}
-                    </body>
-                </html>
-            `);
-            iframeDoc.close();
+            // 1. Deselect any active image to remove outlines or quick toolbars from the capture
+            if (selectedImageEl) {
+                selectedImageEl.style.outline = 'none';
+            }
+            setSelectedImageEl(null);
+            setImgToolbarPos(null);
 
-            await new Promise(resolve => setTimeout(resolve, 250));
+            // 2. Ensure all images inside the paper are fully loaded
+            const images = Array.from(paperContainerRef.current.querySelectorAll('img'));
+            await Promise.all(images.map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise(res => {
+                    img.onload = res;
+                    img.onerror = res;
+                    setTimeout(res, 2000);
+                });
+            }));
 
-            const canvas = await html2canvas(iframeDoc.body, {
-                scale: 2,
+            await new Promise(resolve => setTimeout(resolve, 150));
+
+            // 3. Capture paperContainerRef directly (Exact 1:1 WYSIWYG matching what the user sees on screen)
+            const element = paperContainerRef.current;
+
+            const canvas = await html2canvas(element, {
+                scale: 2, // 2x high resolution
                 useCORS: true,
                 backgroundColor: '#ffffff',
                 logging: false,
-                width: 794
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: document.documentElement.offsetWidth,
+                windowHeight: document.documentElement.offsetHeight,
+                ignoreElements: (el) => {
+                    return (
+                        el.classList?.contains('doc-page-divider') ||
+                        el.classList?.contains('doc-img-quick-toolbar') ||
+                        el.hasAttribute('data-html2canvas-ignore')
+                    );
+                }
             });
 
-            if (iframe && iframe.parentNode) {
-                iframe.parentNode.removeChild(iframe);
-                iframe = null;
-            }
+            // 4. Exact standard A4 slicing matching the on-screen visual page breaks
+            const canvasWidth = canvas.width;
+            const totalCanvasHeight = canvas.height;
+            const a4Ratio = 297 / 210; // Exact standard A4 ratio
+            const pageCanvasHeight = Math.round(canvasWidth * a4Ratio);
 
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            // Compute total pages, ignoring negligible trailing blank slivers under 40px
+            const remainder = totalCanvasHeight % pageCanvasHeight;
+            const totalPages = Math.max(1, Math.floor(totalCanvasHeight / pageCanvasHeight) + (remainder > 40 ? 1 : 0));
+
             const pdf = new jsPDF({
                 orientation: 'portrait',
                 unit: 'mm',
                 format: 'a4'
             });
 
-            const pageWidth = 210;
-            const pageHeight = 297;
-            const margin = 10;
-            const contentWidth = pageWidth - (margin * 2);
-            const contentHeight = (canvas.height * contentWidth) / canvas.width;
+            for (let p = 0; p < totalPages; p++) {
+                if (p > 0) {
+                    pdf.addPage();
+                }
 
-            let heightLeft = contentHeight;
-            let position = margin;
+                // Create discrete page canvas slice
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = canvasWidth;
+                pageCanvas.height = pageCanvasHeight;
+                const pctx = pageCanvas.getContext('2d');
 
-            pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
-            heightLeft -= (pageHeight - (margin * 2));
+                // Fill with pure white background
+                pctx.fillStyle = '#ffffff';
+                pctx.fillRect(0, 0, canvasWidth, pageCanvasHeight);
 
-            while (heightLeft > 0) {
-                position = heightLeft - contentHeight + margin;
-                pdf.addPage();
-                pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight);
-                heightLeft -= (pageHeight - (margin * 2));
+                const srcY = p * pageCanvasHeight;
+                const srcHeight = Math.min(pageCanvasHeight, totalCanvasHeight - srcY);
+
+                if (srcHeight > 0) {
+                    pctx.drawImage(
+                        canvas,
+                        0, srcY, canvasWidth, srcHeight,
+                        0, 0, canvasWidth, srcHeight
+                    );
+                }
+
+                const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.98);
+                pdf.addImage(pageImgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
             }
 
             const cleanTitle = (docData.documentTitle || activeTab.name || "Documents").replace(/[^a-zA-Z0-9]/g, '_');
@@ -549,10 +1012,7 @@ function Documents() {
             toast.success("Document PDF downloaded successfully!", { id: "pdf-download" });
 
         } catch (err) {
-            console.warn("Iframe canvas export error, using fallbackDirectJsPDF:", err);
-            if (iframe && iframe.parentNode) {
-                iframe.parentNode.removeChild(iframe);
-            }
+            console.error("Direct canvas export error, using fallbackDirectJsPDF:", err);
             fallbackDirectJsPDF();
         } finally {
             setIsDownloadingPDF(false);
@@ -561,6 +1021,11 @@ function Documents() {
 
     // Native Browser Print
     const handlePrint = () => {
+        if (selectedImageEl) {
+            selectedImageEl.style.outline = 'none';
+        }
+        setSelectedImageEl(null);
+        setImgToolbarPos(null);
         window.print();
     };
 
@@ -982,8 +1447,42 @@ function Documents() {
                         </button>
                     </div>
 
-                    {/* INSERTS: Table, Divider, Date Stamp */}
-                    <div className="flex items-center gap-1 pl-1">
+                    {/* INSERTS: Image, Upright Logo, Table, Divider, Date, Watermark & Header Toggles */}
+                    <div className="flex items-center gap-1 pl-1 flex-wrap">
+                        {/* Hidden File Input for Device Image Selection */}
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleImageFileChange}
+                        />
+
+                        {/* Insert Image Button */}
+                        <button
+                            type="button"
+                            onClick={handleInsertImageClick}
+                            className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                            title="Insert image from device"
+                        >
+                            <ImageIcon className="w-4 h-4 text-[#ff6600]" />
+                            <span className="hidden md:inline">Insert Image</span>
+                        </button>
+
+                        {/* Insert Centered Upright Logo Button */}
+                        <button
+                            type="button"
+                            onClick={handleInsertUprightLogo}
+                            className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                            title="Insert centered Upright logo at cursor"
+                        >
+                            <Shield className="w-4 h-4 text-[#18174e] dark:text-[#ff6600]" />
+                            <span className="hidden md:inline">Upright Logo</span>
+                        </button>
+
+                        <span className="text-slate-300 dark:text-slate-700">|</span>
+
+                        {/* Insert Table */}
                         <button
                             type="button"
                             onClick={handleInsertTable}
@@ -993,6 +1492,8 @@ function Documents() {
                             <Table className="w-4 h-4" />
                             <span className="hidden md:inline">Table</span>
                         </button>
+
+                        {/* Insert Divider Line */}
                         <button
                             type="button"
                             onClick={() => formatDoc('insertHorizontalRule')}
@@ -1002,6 +1503,8 @@ function Documents() {
                             <Minus className="w-4 h-4" />
                             <span className="hidden md:inline">Line</span>
                         </button>
+
+                        {/* Insert Timestamp */}
                         <button
                             type="button"
                             onClick={handleInsertDateStamp}
@@ -1011,21 +1514,366 @@ function Documents() {
                             <Calendar className="w-4 h-4 text-[#ff6600]" />
                             <span className="hidden md:inline">Date</span>
                         </button>
+
+                        {/* Insert Signatures (Toolkeeper & Inventory Assistant) */}
+                        <button
+                            type="button"
+                            onClick={handleInsertSignatures}
+                            className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                            title="Insert Toolkeeper & Inventory Assistant signature lines at bottom"
+                        >
+                            <PenTool className="w-4 h-4 text-[#ff6600]" />
+                            <span className="hidden md:inline">Signatures</span>
+                        </button>
+
+                        {/* Insert Manual Page Break Button */}
+                        <button
+                            type="button"
+                            onClick={handleInsertPageBreak}
+                            className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                            title="Insert manual Page Break (Starts next section on a new page)"
+                        >
+                            <Scissors className="w-4 h-4 text-[#ff6600]" />
+                            <span className="hidden md:inline">Page Break</span>
+                        </button>
+
+                        <span className="text-slate-300 dark:text-slate-700">|</span>
+
+                        {/* Watermark Toggle (Gitna) */}
+                        <button
+                            type="button"
+                            onClick={() => setShowWatermark(prev => !prev)}
+                            className={`p-1.5 rounded transition-all cursor-pointer flex items-center gap-1 text-xs font-semibold ${
+                                showWatermark
+                                    ? 'bg-[#18174e]/10 text-[#18174e] dark:bg-[#ff6600]/20 dark:text-[#ff6600]'
+                                    : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                            }`}
+                            title="Toggle Upright logo watermark sa gitna (center)"
+                        >
+                            <Stamp className="w-4 h-4" />
+                            <span className="hidden lg:inline">Watermark {showWatermark ? 'ON' : 'OFF'}</span>
+                        </button>
+
+                        {/* Header Logo Toggle */}
+                        <button
+                            type="button"
+                            onClick={() => setShowHeaderLogo(prev => !prev)}
+                            className={`p-1.5 rounded transition-all cursor-pointer flex items-center gap-1 text-xs font-semibold ${
+                                showHeaderLogo
+                                    ? 'bg-[#18174e]/10 text-[#18174e] dark:bg-[#ff6600]/20 dark:text-[#ff6600]'
+                                    : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                            }`}
+                            title="Toggle Upright centered header banner"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            <span className="hidden lg:inline">Header {showHeaderLogo ? 'ON' : 'OFF'}</span>
+                        </button>
                     </div>
                 </div>
+
+                {/* 3.5 ACTIVE IMAGE CONTROLS STRIP (Whenever an image in document is clicked) */}
+                {selectedImageEl && (
+                    <div className={`px-4 md:px-6 py-2 border-b flex flex-wrap items-center justify-between gap-2 text-xs transition-all animate-fadeIn ${
+                        isDark ? 'bg-[#141829] border-[#ff6600]/40 text-slate-200' : 'bg-orange-50/90 border-[#ff6600]/30 text-slate-800'
+                    }`}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-[#ff6600] flex items-center gap-1 uppercase tracking-wider text-[11px]">
+                                <ImageIcon className="w-3.5 h-3.5" />
+                                Image Controls:
+                            </span>
+                            <span className="text-slate-400">|</span>
+                            <span className="text-slate-500 dark:text-slate-400 text-[11px]">Align:</span>
+                            <button 
+                                type="button"
+                                onClick={() => handleAlignSelectedImage('left')} 
+                                className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer" 
+                                title="Align Left"
+                            >
+                                <AlignLeft className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={() => handleAlignSelectedImage('center')} 
+                                className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer" 
+                                title="Align Center"
+                            >
+                                <AlignCenter className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={() => handleAlignSelectedImage('right')} 
+                                className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer" 
+                                title="Align Right"
+                            >
+                                <AlignRight className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={() => handleAlignSelectedImage('float-left')} 
+                                className="px-1.5 py-0.5 rounded font-bold text-[10px] hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer border border-slate-300 dark:border-slate-700" 
+                                title="Float Left with text wrap"
+                            >
+                                Wrap Left
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={() => handleAlignSelectedImage('float-right')} 
+                                className="px-1.5 py-0.5 rounded font-bold text-[10px] hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer border border-slate-300 dark:border-slate-700" 
+                                title="Float Right with text wrap"
+                            >
+                                Wrap Right
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-slate-500 dark:text-slate-400 text-[11px]">Move:</span>
+                            <button 
+                                type="button"
+                                onClick={() => handleMoveSelectedImage('up')} 
+                                className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 flex items-center gap-1 font-semibold cursor-pointer border border-slate-300 dark:border-slate-700" 
+                                title="Move image above previous block"
+                            >
+                                <MoveUp className="w-3.5 h-3.5" />
+                                <span>Move Up</span>
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={() => handleMoveSelectedImage('down')} 
+                                className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 flex items-center gap-1 font-semibold cursor-pointer border border-slate-300 dark:border-slate-700" 
+                                title="Move image below next block"
+                            >
+                                <MoveDown className="w-3.5 h-3.5" />
+                                <span>Move Down</span>
+                            </button>
+                            <span className="text-slate-400">|</span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setCropImageSrc(selectedImageEl.src);
+                                    setIsCropperOpen(true);
+                                }}
+                                className="flex items-center gap-1 px-3 py-1 rounded-md bg-[#ff6600] text-white font-bold hover:bg-[#e05a00] cursor-pointer shadow-xs active:scale-95 transition-all"
+                                title="Crop and adjust this image"
+                            >
+                                <Crop className="w-3.5 h-3.5" />
+                                <span>Crop Image</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteSelectedImage}
+                                className="p-1 rounded text-rose-500 hover:bg-rose-500/10 cursor-pointer"
+                                title="Delete Image"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* 4. THE DOCUMENT CANVAS WORKSPACE */}
                 <div className={`w-full py-8 px-2 sm:px-6 md:px-12 flex justify-center items-start min-h-[850px] overflow-x-auto ${
                     isDark ? 'bg-[#08090e]' : 'bg-[#eef1f6]'
                 }`}>
-                    <div className="relative w-full max-w-[850px] min-h-[1100px] bg-white text-slate-900 rounded-sm shadow-2xl p-8 sm:p-14 md:p-16 border border-slate-200 flex flex-col font-sans transition-all duration-200">
+                    <div 
+                        ref={paperContainerRef}
+                        className="documents-printable-paper relative w-full max-w-[850px] min-h-[1100px] bg-white text-slate-900 rounded-sm shadow-2xl p-8 sm:p-14 md:p-16 border border-slate-200 flex flex-col font-sans transition-all duration-200 overflow-hidden"
+                    >
+                        {/* Visual On-Screen Page Break Dividers (dat makita nadin kase sa documents) */}
+                        {pageBreakOffsets.map(pb => (
+                            <div
+                                key={`page-boundary-${pb.pageIndex}`}
+                                className="doc-page-divider absolute left-0 right-0 pointer-events-none select-none z-20 print:hidden flex items-center justify-center transition-all duration-150"
+                                style={{ top: `${pb.top}px` }}
+                            >
+                                <div className="w-full border-t-2 border-dashed border-[#ff6600]/80 relative flex items-center justify-center">
+                                    <span className="bg-[#18174e] text-white text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5 transform -translate-y-1/2 uppercase tracking-wider border border-[#ff6600]/50">
+                                        <Scissors className="w-3.5 h-3.5 text-[#ff6600]" />
+                                        <span>Page {pb.pageIndex} Ends &nbsp;|&nbsp; Page {pb.pageIndex + 1} Starts Here</span>
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                        {/* Floating Quick Action Toolbar for Selected Image */}
+                        {selectedImageEl && imgToolbarPos && (
+                            <div 
+                                className="doc-img-quick-toolbar absolute z-30 flex items-center gap-1 p-1.5 rounded-xl bg-[#18174e] text-white shadow-2xl border border-slate-700 text-xs animate-fadeIn"
+                                style={{
+                                    top: `${imgToolbarPos.top}px`,
+                                    left: `${imgToolbarPos.left}px`
+                                }}
+                            >
+                                {/* Alignment */}
+                                <div className="flex items-center gap-0.5 border-r border-white/20 pr-1">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => handleAlignSelectedImage('left')}
+                                        className="p-1 rounded hover:bg-white/20 cursor-pointer"
+                                        title="Align Left"
+                                    >
+                                        <AlignLeft className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => handleAlignSelectedImage('center')}
+                                        className="p-1 rounded hover:bg-white/20 cursor-pointer"
+                                        title="Align Center"
+                                    >
+                                        <AlignCenter className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => handleAlignSelectedImage('right')}
+                                        className="p-1 rounded hover:bg-white/20 cursor-pointer"
+                                        title="Align Right"
+                                    >
+                                        <AlignRight className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => handleAlignSelectedImage('float-left')}
+                                        className="px-1.5 py-0.5 rounded text-[10px] font-bold hover:bg-white/20 cursor-pointer"
+                                        title="Wrap Text Left"
+                                    >
+                                        Wrap L
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => handleAlignSelectedImage('float-right')}
+                                        className="px-1.5 py-0.5 rounded text-[10px] font-bold hover:bg-white/20 cursor-pointer"
+                                        title="Wrap Text Right"
+                                    >
+                                        Wrap R
+                                    </button>
+                                </div>
+
+                                {/* Move Up / Down */}
+                                <div className="flex items-center gap-0.5 border-r border-white/20 pr-1">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => handleMoveSelectedImage('up')}
+                                        className="p-1 rounded hover:bg-white/20 cursor-pointer"
+                                        title="Move Image Up"
+                                    >
+                                        <MoveUp className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => handleMoveSelectedImage('down')}
+                                        className="p-1 rounded hover:bg-white/20 cursor-pointer"
+                                        title="Move Image Down"
+                                    >
+                                        <MoveDown className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+
+                                {/* Size Presets */}
+                                <div className="flex items-center gap-0.5 border-r border-white/20 pr-1">
+                                    {['25%', '50%', '75%', '100%'].map(sz => (
+                                        <button
+                                            key={sz}
+                                            type="button"
+                                            onClick={() => handleResizeSelectedImage(sz)}
+                                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold hover:bg-white/20 cursor-pointer"
+                                            title={`Resize to ${sz} width`}
+                                        >
+                                            {sz}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Crop Button */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setCropImageSrc(selectedImageEl.src);
+                                        setIsCropperOpen(true);
+                                    }}
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-[#ff6600] hover:bg-[#e05a00] font-bold text-white text-[11px] cursor-pointer shadow-xs active:scale-95 transition-all"
+                                    title="Crop this image"
+                                >
+                                    <Crop className="w-3.5 h-3.5" />
+                                    <span>Crop</span>
+                                </button>
+
+                                {/* Delete */}
+                                <button
+                                    type="button"
+                                    onClick={handleDeleteSelectedImage}
+                                    className="p-1 rounded hover:bg-rose-500/30 text-rose-300 hover:text-white cursor-pointer"
+                                    title="Delete Image"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+
+                                {/* Deselect */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (selectedImageEl) selectedImageEl.style.outline = 'none';
+                                        setSelectedImageEl(null);
+                                        setImgToolbarPos(null);
+                                    }}
+                                    className="p-1 rounded hover:bg-white/20 text-slate-400 hover:text-white cursor-pointer"
+                                    title="Deselect"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
+
+                        {/* 1. Centered Upright Watermark in Document Body (Naka center, hinde slant, walang text) */}
+                        {showWatermark && (
+                            <div 
+                                className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden"
+                                style={{ pointerEvents: 'none' }}
+                            >
+                                <img 
+                                    src="/upright.png" 
+                                    alt="Upright Watermark" 
+                                    className="w-[300px] sm:w-[380px] md:w-[440px] max-w-[65%] object-contain opacity-[0.065] select-none"
+                                />
+                            </div>
+                        )}
+
+                        {/* 2. Top-Right Upright Logo Header Banner with Toolroom Department & Date/Time */}
+                        {showHeaderLogo && (
+                            <div className="relative z-10 flex items-center justify-between pb-4 mb-6 border-b-2 border-[#18174e] select-none print:flex">
+                                <div className="flex flex-col text-left">
+                                    <div className="text-base sm:text-lg font-black text-[#18174e] tracking-tight uppercase leading-tight">
+                                        UPRIGHT STORAGE SOLUTIONS PH
+                                    </div>
+                                    <div className="text-xs sm:text-sm font-bold text-[#ff6600] tracking-normal uppercase mt-0.5">
+                                        Toolroom Department
+                                    </div>
+                                    <div className="text-[11px] font-medium text-slate-500 mt-1 flex items-center gap-1.5 print:text-black">
+                                        <span><strong>Date:</strong> {currentDateTime.date}</span>
+                                        <span>•</span>
+                                        <span><strong>Time:</strong> {currentDateTime.time}</span>
+                                    </div>
+                                </div>
+                                <div className="shrink-0 pl-3">
+                                    <img 
+                                        src="/upright.png" 
+                                        alt="Upright Logo" 
+                                        className="h-12 sm:h-14 md:h-16 object-contain"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. The ContentEditable Document Canvas */}
                         <div
                             ref={editorRef}
                             contentEditable={isEditing}
                             onInput={handleInput}
+                            onClick={handleEditorClick}
+                            onDoubleClick={handleEditorDoubleClick}
+                            onPaste={handleEditorPaste}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={handleEditorDrop}
                             suppressContentEditableWarning={true}
                             spellCheck={true}
-                            className={`w-full h-full min-h-[960px] outline-hidden leading-relaxed text-slate-800 text-sm md:text-base font-normal ${
+                            className={`relative z-10 w-full h-full min-h-[960px] outline-hidden leading-relaxed text-slate-800 text-sm md:text-base font-normal ${
                                 isEditing ? 'cursor-text focus:outline-hidden' : 'cursor-default select-text'
                             }`}
                             style={{
@@ -1037,6 +1885,14 @@ function Documents() {
                 </div>
 
             </div>
+
+            {/* MODAL: IMAGE CROPPER */}
+            <ImageCropperModal
+                isOpen={isCropperOpen}
+                imageSrc={cropImageSrc}
+                onClose={() => setIsCropperOpen(false)}
+                onApplyCrop={handleApplyCrop}
+            />
 
             {/* MODAL: CREATE NEW DOCUMENT TAB */}
             {showAddTabModal && (

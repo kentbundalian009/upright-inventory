@@ -20,7 +20,8 @@ import {
   Share2,
   Boxes,
   ClipboardList,
-  FileText
+  FileText,
+  Calculator
 } from "lucide-react";
 
 function PageHeader({ activeTab, title, description, icon, badge, actions, children }) {
@@ -161,6 +162,16 @@ function PageHeader({ activeTab, title, description, icon, badge, actions, child
       title: 'Reports & Analytics',
       description: 'Generate and view detailed audit ledger reports, monthly summaries, and exports.',
       icon: FileSpreadsheet
+    },
+    'rackings-unit': {
+      title: 'Rackings Unit',
+      description: 'Calculate complete buildable units, assign material formulas with simple dropdowns, and maintain a permanent record of unit assemblies.',
+      icon: Layers
+    },
+    'unit-calculator': {
+      title: 'Rackings Unit',
+      description: 'Calculate complete buildable units, assign material formulas with simple dropdowns, and maintain a permanent record of unit assemblies.',
+      icon: Layers
     }
   };
 

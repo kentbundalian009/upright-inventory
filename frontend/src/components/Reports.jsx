@@ -4,7 +4,7 @@ import {
     ShieldAlert,
     Search, Download, Loader2, FileText, FileSpreadsheet,
     TrendingUp, TrendingDown, Calendar, X, Check, ArrowUpRight,
-    Archive, Sliders, Coins, Image as ImageIcon
+    Archive, Sliders, Coins, Image as ImageIcon, Layers, Box, Filter
 } from 'lucide-react';
 import PageHeader from './layout/PageHeader';
 import TablePagination from './common/TablePagination';
@@ -14,6 +14,61 @@ import { useTheme } from '../context/ThemeContext';
 import RackDimensionCell, { parseRackDimension } from './common/RackDimensionCell';
 import ReserveCountBadge from './common/ReserveCountBadge';
 import { exportUprightAuditLedgerExcel } from '../utils/excelReportExport';
+import BuildableUnitsModal from './BuildableUnitsModal';
+
+const RACKINGS_UNIT_STORAGE_KEY = 'oneinventory_unit_calculator_records_v1';
+
+const DEFAULT_UNIT_RECORDS = [
+    {
+        id: 'unit-rec-1',
+        unitName: 'Standard 4-Layer Bodega Rack',
+        segment: 'BODEGA RACKS',
+        description: '4 Shelving Levels Storage Bay with 2 Upright Frames',
+        uom: 'UNIT',
+        createdAt: new Date().toISOString(),
+        components: [
+            { id: 'c1', role: 'Beam', searchHint: 'beam', divisor: 8, pcsPerUnit: 8 },
+            { id: 'c2', role: 'Decking', searchHint: 'decking', divisor: 8, pcsPerUnit: 8 },
+            { id: 'c3', role: 'Post / Upright', searchHint: 'post', divisor: 2, pcsPerUnit: 2 }
+        ]
+    },
+    {
+        id: 'unit-rec-2',
+        unitName: 'Standard 3-Layer Medium Rack',
+        segment: 'MEDIUM RACKS',
+        description: 'Medium Duty 3 Shelving Tiers with 2 Posts',
+        uom: 'UNIT',
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        components: [
+            { id: 'c1', role: 'Step Beam', searchHint: 'beam', divisor: 6, pcsPerUnit: 6 },
+            { id: 'c2', role: 'Steel Decking', searchHint: 'decking', divisor: 6, pcsPerUnit: 6 },
+            { id: 'c3', role: 'Upright Post', searchHint: 'post', divisor: 2, pcsPerUnit: 2 }
+        ]
+    },
+    {
+        id: 'unit-rec-3',
+        unitName: 'Heavy Duty Selective Pallet Starter Bay',
+        segment: 'HEAVY/SELECTIVE DUTY',
+        description: 'Heavy Duty Pallet Racking Starter Bay (4 Posts, 8 Beams)',
+        uom: 'UNIT',
+        createdAt: new Date(Date.now() - 172800000).toISOString(),
+        components: [
+            { id: 'c1', role: 'Beams', searchHint: 'beam', divisor: 8, pcsPerUnit: 8 },
+            { id: 'c2', role: 'Upright Posts', searchHint: 'post', divisor: 4, pcsPerUnit: 4 }
+        ]
+    }
+];
+
+const UNIT_COLOR_OPTIONS = [
+    { name: 'Emerald / Green', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800', prefix: '🟢' },
+    { name: 'Blue / Indigo', classes: 'bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800', prefix: '🔵' },
+    { name: 'Amber / Orange', classes: 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800', prefix: '🟡' },
+    { name: 'Rose / Red', classes: 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800', prefix: '🔴' },
+    { name: 'Orange', classes: 'bg-orange-50 text-orange-700 border-orange-200/60 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-800', prefix: '🟠' },
+    { name: 'Purple / Violet', classes: 'bg-purple-50 text-purple-700 border-purple-200/60 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800', prefix: '🟣' },
+    { name: 'Slate / Muted Gray', classes: 'bg-slate-50 text-slate-700 border-slate-200/60 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', prefix: '⚪' },
+    { name: 'Cyan / Teal', classes: 'bg-cyan-50 text-cyan-700 border-cyan-200/60 dark:bg-cyan-950/60 dark:text-cyan-300 dark:border-cyan-800', prefix: '🌐' }
+];
 
 const BASE_API_URL = import.meta.env.MODE === 'production'
     ? 'https://one-inventory.onrender.com/api'
@@ -182,6 +237,7 @@ function Reports() {
     const [showAcquisitionCost, setShowAcquisitionCost] = useState(false);
     const [showInventoryOnly, setShowInventoryOnly] = useState(false);
     const [previewImage, setPreviewImage] = useState(null);
+    const [isAssemblyModalOpen, setIsAssemblyModalOpen] = useState(false);
 
     const [rawMaterialsData, setRawMaterialsData] = useState([]);
     const [selectedItemIds, setSelectedItemIds] = useState(() => new Set());
@@ -207,9 +263,26 @@ function Reports() {
 
     const reportModules = [
         { id: 'raw-materials', label: 'Rackings' },
+        { id: 'rackings-unit', label: 'Rackings Unit' },
         { id: 'supplies', label: 'Tools & Equipments' },
         { id: 'consumables', label: 'Consumables' },
     ];
+
+    // Rackings Unit Records State (synced from localStorage)
+    const [unitRecords, setUnitRecords] = useState(() => {
+        try {
+            const saved = localStorage.getItem(RACKINGS_UNIT_STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch (e) {
+            console.error("Failed to load unit records in Reports:", e);
+        }
+        return DEFAULT_UNIT_RECORDS;
+    });
+
+    const [selectedUnitCategory, setSelectedUnitCategory] = useState('All Categories');
 
     const getAuthConfig = () => {
         const token = localStorage.getItem("token");
@@ -284,13 +357,547 @@ function Reports() {
         }
     }, [activeModule]);
 
+    // Sync unit records from localStorage whenever switching to rackings-unit
+    useEffect(() => {
+        if (activeModule === 'rackings-unit') {
+            try {
+                const saved = localStorage.getItem(RACKINGS_UNIT_STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        setUnitRecords(parsed);
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to sync unit records:", e);
+            }
+        }
+    }, [activeModule]);
+
+    // Map of materials by ID for fast lookup
+    const materialsMap = useMemo(() => {
+        const map = new Map();
+        (rawMaterialsData || []).forEach(m => {
+            if (m && m._id) {
+                map.set(m._id, m);
+                map.set(String(m._id), m);
+            }
+        });
+        return map;
+    }, [rawMaterialsData]);
+
+    // Matching helper to associate component with database raw material
+    const findMatchingMaterial = (comp, preferredSegment = null) => {
+        if (!comp) return null;
+        if (comp.materialId) {
+            const byId = materialsMap.get(comp.materialId) || materialsMap.get(String(comp.materialId));
+            if (byId) return byId;
+        }
+
+        const role = (comp.role || '').trim();
+        const hint = (comp.searchHint || '').trim();
+        if (!role && !hint) return null;
+
+        const clean = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const cleanRole = clean(role);
+        const cleanHint = clean(hint);
+
+        const pool = (preferredSegment && preferredSegment !== 'All Categories' && preferredSegment !== 'All Segments')
+            ? [
+                ...rawMaterialsData.filter(m => (m?.Segment || '').trim().toLowerCase() === preferredSegment.trim().toLowerCase()),
+                ...rawMaterialsData.filter(m => (m?.Segment || '').trim().toLowerCase() !== preferredSegment.trim().toLowerCase())
+            ]
+            : rawMaterialsData;
+
+        // 1. Exact string match
+        if (role) {
+            const exact = pool.find(m => (m.ItemDescription || '').trim().toLowerCase() === role.toLowerCase());
+            if (exact) return exact;
+        }
+
+        // 2. Clean alphanumeric exact match
+        if (cleanRole) {
+            const cleanExact = pool.find(m => clean(m.ItemDescription) === cleanRole);
+            if (cleanExact) return cleanExact;
+        }
+
+        // 3. Substring match
+        if (cleanRole && cleanRole.length >= 4) {
+            const sub = pool.find(m => {
+                const cDesc = clean(m.ItemDescription);
+                return cDesc && (cDesc.includes(cleanRole) || cleanRole.includes(cDesc));
+            });
+            if (sub) return sub;
+        }
+
+        // 4. Fallback searchHint match
+        if (cleanHint) {
+            const hintMatch = pool.find(m => {
+                const cDesc = clean(m.ItemDescription);
+                const cSeg = clean(m.Segment);
+                return cDesc.includes(cleanHint) || cSeg.includes(cleanHint);
+            });
+            if (hintMatch) return hintMatch;
+        }
+
+        return null;
+    };
+
+    // Live calculation metrics for any unit record
+    const computeRecordMetrics = (rec) => {
+        const comps = rec.components || [];
+        let totalPcs = 0;
+        let maxCompleteUnits = Infinity;
+
+        const rowDetails = comps.map(c => {
+            const mat = findMatchingMaterial(c, rec.segment);
+
+            const physical = Number(mat?.ActualCount) || 0;
+            const reserved = Number(mat?.ReserveCount) || 0;
+            const stock = Math.max(0, physical - reserved);
+            const pcsPerUnit = Math.max(1, Number(c.pcsPerUnit || c.divisor || 1));
+
+            totalPcs += pcsPerUnit;
+
+            const unitsCapable = mat ? Math.floor(stock / pcsPerUnit) : 0;
+            if (unitsCapable < maxCompleteUnits) {
+                maxCompleteUnits = unitsCapable;
+            }
+
+            const uom = mat?.UOM || c.uom || 'PCS';
+            const dimension = mat?.Dimension || c.dimension || '—';
+
+            return {
+                comp: c,
+                mat,
+                stock,
+                pcsPerUnit,
+                unitsCapable,
+                uom,
+                dimension
+            };
+        });
+
+        if (comps.length === 0 || maxCompleteUnits === Infinity) {
+            maxCompleteUnits = 0;
+        }
+
+        const totalPcsForUnits = maxCompleteUnits * totalPcs;
+
+        return {
+            totalPcs,
+            maxCompleteUnits,
+            totalPcsForUnits,
+            rowDetails
+        };
+    };
+
+    // Distinct Categories / Segments for Rackings Unit
+    const unitCategories = useMemo(() => {
+        const cats = new Set();
+        (unitRecords || []).forEach(r => {
+            const s = (r.segment || '').trim();
+            if (s) cats.add(s);
+        });
+        (rawMaterialsData || []).forEach(m => {
+            const s = (m?.Segment || '').trim();
+            if (s && s !== 'N/A' && s !== 'Standard') cats.add(s);
+        });
+        const arr = Array.from(cats).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+        return ['All Categories', ...arr];
+    }, [unitRecords, rawMaterialsData]);
+
+    // Segment styling for unit badges
+    const getUnitSegmentStyles = (segment) => {
+        if (!segment) return { classes: "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", prefix: "⚪" };
+        const cleaned = segment.trim().toUpperCase();
+        const index = unitCategories.findIndex(seg => seg.trim().toUpperCase() === cleaned);
+        return UNIT_COLOR_OPTIONS[(index !== -1 ? index : 0) % UNIT_COLOR_OPTIONS.length];
+    };
+
+    // Filtered unit records based on search and selected category
+    const filteredUnitRecords = useMemo(() => {
+        let result = unitRecords || [];
+        if (selectedUnitCategory && selectedUnitCategory !== 'All Categories') {
+            result = result.filter(r => (r.segment || '').trim().toLowerCase() === selectedUnitCategory.trim().toLowerCase());
+        }
+        if (globalSearch && globalSearch.trim()) {
+            const q = globalSearch.trim().toLowerCase();
+            result = result.filter(r => {
+                const name = (r.unitName || '').toLowerCase();
+                const desc = (r.description || '').toLowerCase();
+                const seg = (r.segment || '').toLowerCase();
+                const compMatch = (r.components || []).some(c => {
+                    const role = (c.role || '').toLowerCase();
+                    const hint = (c.searchHint || '').toLowerCase();
+                    return role.includes(q) || hint.includes(q);
+                });
+                return name.includes(q) || desc.includes(q) || seg.includes(q) || compMatch;
+            });
+        }
+        return result;
+    }, [unitRecords, selectedUnitCategory, globalSearch]);
+
+    // PDF Download for Rackings Unit (grouped per category with embedded images)
+    const handleDownloadRackingsUnitPDF = async (categoryFilter = null) => {
+        setLoading(true);
+        try {
+            const doc = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pageWidth = 297;
+            const pageHeight = 210;
+            const centerX = pageWidth / 2;
+            const centerY = pageHeight / 2;
+
+            const targetCategory = categoryFilter || (selectedUnitCategory !== 'All Categories' ? selectedUnitCategory : null);
+            const recordsToExport = targetCategory && targetCategory !== 'All Categories'
+                ? (unitRecords || []).filter(r => (r.segment || '').trim().toLowerCase() === targetCategory.trim().toLowerCase())
+                : (filteredUnitRecords || []);
+
+            if (recordsToExport.length === 0) {
+                alert(`No Rackings Unit configurations found to export.`);
+                setLoading(false);
+                return;
+            }
+
+            // 1. Preload unit images AND racking component material images
+            const imageMap = {};
+            const imagePromises = [];
+
+            recordsToExport.forEach((rec) => {
+                if (rec.imageUrl) {
+                    imagePromises.push(
+                        loadImageBase64(rec.imageUrl).then(loaded => {
+                            if (loaded) imageMap[rec.id] = loaded;
+                        })
+                    );
+                }
+                (rec.components || []).forEach(c => {
+                    const mat = findMatchingMaterial(c, rec.segment);
+                    const compImgUrl = c.imageUrl || mat?.ImageUrl;
+                    if (compImgUrl) {
+                        const key = `mat-${mat?._id || c.materialId || c.id || c.role}`;
+                        if (!imageMap[key]) {
+                            imagePromises.push(
+                                loadImageBase64(compImgUrl).then(loaded => {
+                                    if (loaded) {
+                                        imageMap[key] = loaded;
+                                        if (compImgUrl) imageMap[compImgUrl] = loaded;
+                                        if (mat?._id) imageMap[String(mat._id)] = loaded;
+                                        if (c.role) imageMap[`role-${c.role}`] = loaded;
+                                    }
+                                })
+                            );
+                        }
+                    }
+                });
+            });
+            await Promise.all(imagePromises);
+
+            // 2. Group records per category/segment
+            const grouped = {};
+            recordsToExport.forEach(rec => {
+                const cat = (rec.segment || 'STANDARD RACKS').trim().toUpperCase();
+                if (!grouped[cat]) grouped[cat] = [];
+                grouped[cat].push(rec);
+            });
+
+            const columns = [
+                "Image",
+                "Item Description",
+                "Rackings",
+                "Dimension",
+                "Formula Quantity",
+                "Stock Quantity (Need / Total)",
+                "Total Units"
+            ];
+
+            const rows = [];
+
+            Object.keys(grouped).sort().forEach(catName => {
+                const recs = grouped[catName];
+
+                // Calculate total units formable in this category
+                let catTotalUnits = 0;
+                recs.forEach(r => {
+                    const m = computeRecordMetrics(r);
+                    catTotalUnits += (m.maxCompleteUnits || 0);
+                });
+
+                // Section Banner for Category
+                rows.push([
+                    {
+                        content: `CATEGORY: ${catName}   (${recs.length} ${recs.length === 1 ? 'UNIT CONFIGURATION' : 'UNIT CONFIGURATIONS'} | ${catTotalUnits.toLocaleString()} TOTAL UNITS FORMABLE)`,
+                        colSpan: 7,
+                        styles: {
+                            fillColor: [234, 239, 249],
+                            textColor: [24, 23, 78],
+                            fontStyle: 'bold',
+                            fontSize: 8.5,
+                            cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 }
+                        }
+                    }
+                ]);
+
+                recs.forEach(rec => {
+                    const metrics = computeRecordMetrics(rec);
+                    const comps = rec.components || [];
+
+                    // Rackings component descriptions
+                    const compNames = comps.map(c => {
+                        const mat = findMatchingMaterial(c, rec.segment);
+                        return mat ? mat.ItemDescription : (c.role || 'Component');
+                    }).join('\n\n');
+
+                    // Dimensions
+                    const compDims = comps.map(c => {
+                        const mat = findMatchingMaterial(c, rec.segment);
+                        const dimStr = mat?.Dimension || c.dimension || '—';
+                        return formatDimensionForPdf(dimStr);
+                    }).join('\n\n');
+
+                    // Formula Quantity
+                    const compFormulas = comps.map((c, idx) => {
+                        const detail = metrics.rowDetails?.[idx];
+                        const uom = detail?.uom || c.uom || 'PCS';
+                        const pcs = c.pcsPerUnit || c.divisor || 1;
+                        return `${pcs} ${uom}`;
+                    }).join('\n\n');
+
+                    // Stock Quantity (Need / Total)
+                    const compStock = comps.map((c, idx) => {
+                        const detail = metrics.rowDetails?.[idx];
+                        const uom = detail?.uom || c.uom || 'PCS';
+                        const pcs = Number(c.pcsPerUnit || c.divisor || 1);
+                        const usedPcs = pcs * metrics.maxCompleteUnits;
+                        const totalStock = detail ? Number(detail.stock || 0) : 0;
+                        return `${usedPcs.toLocaleString()} / ${totalStock.toLocaleString()} ${uom}`;
+                    }).join('\n\n');
+
+                    const totalUnitsText = `${metrics.maxCompleteUnits.toLocaleString()} ${rec.uom || 'UNITS'}`;
+
+                    const itemDescText = rec.description && rec.description !== rec.unitName
+                        ? `${rec.unitName}\n${rec.description}`
+                        : (rec.unitName || rec.description || '—');
+
+                    rows.push([
+                        { content: '', recId: rec.id },
+                        itemDescText,
+                        { content: compNames || '—', components: comps, segment: rec.segment },
+                        compDims || '—',
+                        { content: compFormulas || '—', styles: { halign: 'center', fontStyle: 'bold' } },
+                        { content: compStock || '—', styles: { halign: 'center', fontStyle: 'bold' } },
+                        { content: totalUnitsText, styles: { halign: 'center', fontStyle: 'bold' } }
+                    ]);
+                });
+            });
+
+            // Run autoTable
+            autoTable(doc, {
+                startY: 56,
+                margin: { top: 38, bottom: 20, left: 14, right: 14 },
+                head: [columns],
+                body: rows,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [24, 23, 78],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 8,
+                    halign: 'center',
+                    valign: 'middle'
+                },
+                bodyStyles: {
+                    fontSize: 7.5,
+                    textColor: [40, 40, 40],
+                    valign: 'middle',
+                    cellPadding: 3
+                },
+                alternateRowStyles: {
+                    fillColor: [250, 252, 255]
+                },
+                columnStyles: {
+                    0: { cellWidth: 22, halign: 'center', minCellHeight: 22 },
+                    1: { cellWidth: 46, fontStyle: 'bold' },
+                    2: { cellWidth: 62, cellPadding: { left: 12, right: 3, top: 3.5, bottom: 3.5 } },
+                    3: { cellWidth: 44 },
+                    4: { cellWidth: 28, halign: 'center' },
+                    5: { cellWidth: 38, halign: 'center' },
+                    6: { cellWidth: 29, halign: 'center' }
+                },
+                didDrawPage: (data) => {
+                    // Watermark
+                    try {
+                        doc.saveGraphicsState();
+                        doc.setGState(new doc.GState({ opacity: 0.05 }));
+                        const logoSize = 75;
+                        doc.addImage('/cropped_circle_image.png', 'PNG', centerX - (logoSize / 2), centerY - (logoSize / 2), logoSize, logoSize);
+                        doc.restoreGraphicsState();
+                    } catch (e) {}
+
+                    // Top Header Banner
+                    doc.setFillColor(24, 23, 78);
+                    doc.rect(0, 0, pageWidth, 28, 'F');
+
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(13);
+                    doc.text("RACKINGS UNIT ASSEMBLY & FEASIBILITY REPORT", centerX, 12, { align: 'center' });
+
+                    const formattedDate = new Date().toLocaleString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+                    const catSub = targetCategory ? `Category: ${targetCategory}` : 'All Categories';
+
+                    doc.setFontSize(8.5);
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(215, 220, 245);
+                    doc.text(`Live Warehouse Bill of Materials (BOM) & Inventory Formability Audit  |  ${catSub}  |  Generated: ${formattedDate}`, centerX, 20, { align: 'center' });
+
+                    // Footer
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(8);
+                    doc.setTextColor(120, 120, 120);
+                    doc.text("CONFIDENTIAL - SYSTEM CENTRAL LEDGER USE ONLY - AUTHORIZED ACCESS ONLY", 14, pageHeight - 8);
+
+                    const pageNumber = `Page ${data.pageNumber}`;
+                    doc.text(pageNumber, pageWidth - 14, pageHeight - 8, { align: 'right' });
+                },
+                didDrawCell: (data) => {
+                    if (data.cell.colSpan > 1) return;
+
+                    // Render Rackings Unit Image in Column 0
+                    if (data.section === 'body' && data.column.index === 0) {
+                        const recId = data.cell.raw?.recId;
+                        const imgObj = imageMap[recId];
+                        if (imgObj && imgObj.dataUrl) {
+                            const cellX = data.cell.x;
+                            const cellY = data.cell.y;
+                            const cellW = data.cell.width;
+                            const cellH = data.cell.height;
+                            const targetSize = Math.min(cellW - 3, cellH - 3, 17);
+                            const imgX = cellX + (cellW - targetSize) / 2;
+                            const imgY = cellY + (cellH - targetSize) / 2;
+                            try {
+                                doc.addImage(imgObj.dataUrl, 'JPEG', imgX, imgY, targetSize, targetSize);
+                                doc.setDrawColor(200, 205, 215);
+                                doc.setLineWidth(0.2);
+                                doc.roundedRect(imgX, imgY, targetSize, targetSize, 0.5, 0.5, 'S');
+                            } catch (err) {
+                                try {
+                                    doc.addImage(imgObj.dataUrl, 'PNG', imgX, imgY, targetSize, targetSize);
+                                    doc.setDrawColor(200, 205, 215);
+                                    doc.setLineWidth(0.2);
+                                    doc.roundedRect(imgX, imgY, targetSize, targetSize, 0.5, 0.5, 'S');
+                                } catch (e2) {}
+                            }
+                        } else {
+                            doc.setTextColor(180, 180, 180);
+                            doc.setFontSize(7);
+                            doc.setFont("helvetica", "normal");
+                            doc.text("No Image", data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2), { align: 'center', baseline: 'middle' });
+                        }
+                    }
+
+                    // Render Component Racking Material Images in Column 2 (Rackings)
+                    if (data.section === 'body' && data.column.index === 2) {
+                        const comps = data.cell.raw?.components || [];
+                        if (comps.length > 0) {
+                            const cellX = data.cell.x;
+                            const cellY = data.cell.y;
+                            const cellH = data.cell.height;
+                            const blockH = cellH / comps.length;
+                            const imgSize = Math.min(7.5, Math.max(5, blockH - 2.5));
+
+                            comps.forEach((c, idx) => {
+                                const mat = findMatchingMaterial(c, data.cell.raw?.segment);
+                                const compImgUrl = c.imageUrl || mat?.ImageUrl;
+                                const key = `mat-${mat?._id || c.materialId || c.id || c.role}`;
+                                const compImg = imageMap[key]
+                                    || (compImgUrl ? imageMap[compImgUrl] : null)
+                                    || (mat?._id ? imageMap[String(mat._id)] : null)
+                                    || (c.role ? imageMap[`role-${c.role}`] : null);
+
+                                const imgX = cellX + 2;
+                                const imgY = cellY + (idx * blockH) + (blockH - imgSize) / 2;
+
+                                if (compImg && compImg.dataUrl) {
+                                    try {
+                                        doc.addImage(compImg.dataUrl, 'JPEG', imgX, imgY, imgSize, imgSize);
+                                        doc.setDrawColor(200, 205, 215);
+                                        doc.setLineWidth(0.15);
+                                        doc.roundedRect(imgX, imgY, imgSize, imgSize, 0.4, 0.4, 'S');
+                                    } catch (err) {
+                                        try {
+                                            doc.addImage(compImg.dataUrl, 'PNG', imgX, imgY, imgSize, imgSize);
+                                            doc.setDrawColor(200, 205, 215);
+                                            doc.setLineWidth(0.15);
+                                            doc.roundedRect(imgX, imgY, imgSize, imgSize, 0.4, 0.4, 'S');
+                                        } catch (e2) {}
+                                    }
+                                } else {
+                                    // Subtle part icon placeholder
+                                    doc.setFillColor(241, 245, 249);
+                                    doc.roundedRect(imgX, imgY, imgSize, imgSize, 0.4, 0.4, 'F');
+                                    doc.setDrawColor(226, 232, 240);
+                                    doc.setLineWidth(0.15);
+                                    doc.roundedRect(imgX, imgY, imgSize, imgSize, 0.4, 0.4, 'S');
+                                    doc.setTextColor(160, 170, 185);
+                                    doc.setFontSize(4.5);
+                                    doc.setFont("helvetica", "normal");
+                                    doc.text("PART", imgX + (imgSize / 2), imgY + (imgSize / 2), { align: 'center', baseline: 'middle' });
+                                }
+                            });
+                        }
+                    }
+                }
+            });
+
+            // Top Summary info below header on page 1
+            doc.setPage(1);
+            doc.setTextColor(40, 40, 40);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9.5);
+            doc.text("Report Scope:", 14, 40);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Rackings Unit Bill of Materials (${recordsToExport.length} Unit Configs)`, 48, 40);
+
+            doc.setFont("helvetica", "bold");
+            doc.text("Date Generated:", 185, 40);
+            doc.setFont("helvetica", "normal");
+            doc.text(`${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}`, 220, 40);
+
+            doc.setFont("helvetica", "bold");
+            doc.text("Selected Category:", 14, 47);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(24, 23, 78);
+            doc.text(targetCategory || "All Categories (Consolidated)", 48, 47);
+            doc.setTextColor(40, 40, 40);
+
+            const safeCat = (targetCategory || 'ALL_CATEGORIES').replace(/[^a-zA-Z0-9_-]/g, '_');
+            doc.save(`RACKINGS_UNIT_REPORT_${safeCat}_${Date.now()}.pdf`);
+        } catch (err) {
+            console.error("Failed to generate Rackings Unit PDF:", err);
+            alert(`Error generating Rackings Unit PDF: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const getConsolidatedSummary = () => {
         let masterList = [];
         const baseInventory = activeModule === 'raw-materials'
             ? rawMaterialsData
             : activeModule === 'supplies'
                 ? suppliesData
-                : consumablesData;
+                : activeModule === 'consumables'
+                    ? consumablesData
+                    : [];
 
         baseInventory.forEach(item => {
             let inflows = [];
@@ -738,7 +1345,7 @@ function Reports() {
     // Reset pagination to page 1 on filter changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [activeModule, globalSearch, selectedYear, selectedMonth, viewMode, hideZeroQty, showZeroOnly, hideNoMovements, showAcquisitionCost, showInventoryOnly]);
+    }, [activeModule, globalSearch, selectedYear, selectedMonth, viewMode, hideZeroQty, showZeroOnly, hideNoMovements, showAcquisitionCost, showInventoryOnly, selectedUnitCategory]);
 
     const totalRackingsAcquisitionCost = useMemo(() => {
         return rawMaterialsData
@@ -766,7 +1373,11 @@ function Reports() {
         }, 0);
     }, [consolidatedData, viewMode]);
 
-    const activeTableData = activeModule === 'discrepancy' ? getDiscrepancyLogs() : consolidatedData;
+    const activeTableData = activeModule === 'discrepancy'
+        ? getDiscrepancyLogs()
+        : activeModule === 'rackings-unit'
+            ? filteredUnitRecords
+            : consolidatedData;
     const totalTableRows = activeTableData.length;
     const indexOfLastRow = currentPage * rowsPerPage;
     const indexOfFirstRow = indexOfLastRow - rowsPerPage;
@@ -897,6 +1508,10 @@ function Reports() {
                 alert("Failed to export Discrepancy PDF Report.");
             }
             return;
+        }
+
+        if (activeModule === 'rackings-unit') {
+            return handleDownloadRackingsUnitPDF();
         }
 
         if (!consolidatedData || consolidatedData.length === 0) {
@@ -2596,210 +3211,336 @@ function Reports() {
                                     </span>
                                 </div>
                             )}
+
+                            {/* TOTAL FORMABLE UNITS BADGE (Rackings Unit) */}
+                            {activeModule === 'rackings-unit' && (
+                                <div className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border select-none transition-all flex-shrink-0 ${
+                                    isDark ? 'bg-orange-950/40 text-orange-300 border-orange-800/70 shadow-sm' : 'bg-orange-50 text-orange-800 border-orange-200 shadow-sm'
+                                }`}>
+                                    <Box className="w-3.5 h-3.5 text-orange-500" />
+                                    <span>Total Formable Units:</span>
+                                    <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
+                                        {(filteredUnitRecords || []).reduce((sum, r) => sum + (computeRecordMetrics(r).maxCompleteUnits || 0), 0).toLocaleString()} UNITS
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* LAYER 2: Quick Filter Checkboxes */}
+                    {/* LAYER 2: Quick Filter Checkboxes OR Category Filter Pills */}
                     <div className="flex items-center gap-2 flex-wrap pt-1.5">
-                        {/* 0. Select All (Rackings, or all modules for Purchasing) */}
-                        {(activeModule === 'raw-materials' || isPurchasing) && (
-                            <label
-                                className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${isAllSelected
-                                    ? (isDark ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80 shadow-sm' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 shadow-sm')
-                                    : isSomeSelected
-                                        ? (isDark ? 'bg-indigo-950/20 text-indigo-300 border-indigo-800/50' : 'bg-indigo-50/50 text-indigo-700 border-indigo-200/80 hover:bg-indigo-50')
-                                        : (isDark ? 'bg-[#141622] text-slate-300 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100')
-                                    }`}
-                                title={isAllSelected ? "Click to deselect all items" : "Click to select all visible items"}
-                            >
-                                <input
-                                    type="checkbox"
-                                    ref={selectAllFilterRef}
-                                    checked={isAllSelected}
-                                    onChange={handleToggleSelectAll}
-                                    className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${isAllSelected || isSomeSelected
-                                        ? (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')
-                                        : ''
-                                        }`}
-                                />
-                                <span>Select All</span>
-                                <span className="text-[11px] font-bold font-mono">
-                                    ({selectedCount}/{totalVisibleCount})
+                        {activeModule === 'rackings-unit' ? (
+                            /* Category Filter Pills for Rackings Unit */
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1">
+                                    <Filter className="w-3.5 h-3.5 text-orange-500" />
+                                    <span>Category:</span>
                                 </span>
-                            </label>
-                        )}
+                                {unitCategories.map(cat => {
+                                    const isSelected = selectedUnitCategory === cat;
+                                    const count = cat === 'All Categories'
+                                        ? (unitRecords || []).length
+                                        : (unitRecords || []).filter(r => (r.segment || '').trim().toLowerCase() === cat.trim().toLowerCase()).length;
+                                    return (
+                                        <button
+                                            key={cat}
+                                            type="button"
+                                            onClick={() => setSelectedUnitCategory(cat)}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                                isSelected
+                                                    ? (isDark ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white border-orange-500 shadow-md ring-1 ring-orange-500/50' : 'bg-gradient-to-r from-[#18174e] to-[#2b2980] text-white border-[#18174e] shadow-md ring-1 ring-[#18174e]/50')
+                                                    : (isDark ? 'bg-[#141622] text-slate-300 border-slate-700 hover:bg-slate-800 hover:text-white' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:text-slate-900')
+                                            }`}
+                                        >
+                                            <span>{cat}</span>
+                                            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                                                isSelected
+                                                    ? 'bg-white/20 text-white'
+                                                    : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
+                                            }`}>
+                                                {count}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <>
+                                {/* 0. Select All (Rackings, or all modules for Purchasing) */}
+                                {(activeModule === 'raw-materials' || isPurchasing) && (
+                                    <label
+                                        className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${isAllSelected
+                                            ? (isDark ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80 shadow-sm' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 shadow-sm')
+                                            : isSomeSelected
+                                                ? (isDark ? 'bg-indigo-950/20 text-indigo-300 border-indigo-800/50' : 'bg-indigo-50/50 text-indigo-700 border-indigo-200/80 hover:bg-indigo-50')
+                                                : (isDark ? 'bg-[#141622] text-slate-300 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100')
+                                            }`}
+                                        title={isAllSelected ? "Click to deselect all items" : "Click to select all visible items"}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            ref={selectAllFilterRef}
+                                            checked={isAllSelected}
+                                            onChange={handleToggleSelectAll}
+                                            className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${isAllSelected || isSomeSelected
+                                                ? (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')
+                                                : ''
+                                                }`}
+                                        />
+                                        <span>Select All</span>
+                                        <span className="text-[11px] font-bold font-mono">
+                                            ({selectedCount}/{totalVisibleCount})
+                                        </span>
+                                    </label>
+                                )}
 
-                        {/* 1. Hide 0 Qty - hidden when 0 Qty Only is checked */}
-                        {(!showZeroOnly || isPurchasing) && (
-                            <label
-                                className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${hideZeroQty
-                                    ? (isDark ? 'bg-red-950/40 border-red-900/60 text-red-400' : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100')
-                                    : (isDark ? 'bg-[#141622] border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100')
-                                    }`}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={hideZeroQty}
-                                    onChange={(e) => {
-                                        setHideZeroQty(e.target.checked);
-                                        if (e.target.checked) setShowZeroOnly(false);
-                                    }}
-                                    className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${hideZeroQty ? 'accent-red-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
-                                />
-                                <span>Hide 0 Qty</span>
-                            </label>
-                        )}
+                                {/* 1. Hide 0 Qty - hidden when 0 Qty Only is checked */}
+                                {(!showZeroOnly || isPurchasing) && (
+                                    <label
+                                        className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${hideZeroQty
+                                            ? (isDark ? 'bg-red-950/40 border-red-900/60 text-red-400' : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100')
+                                            : (isDark ? 'bg-[#141622] border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100')
+                                            }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={hideZeroQty}
+                                            onChange={(e) => {
+                                                setHideZeroQty(e.target.checked);
+                                                if (e.target.checked) setShowZeroOnly(false);
+                                            }}
+                                            className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${hideZeroQty ? 'accent-red-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
+                                        />
+                                        <span>Hide 0 Qty</span>
+                                    </label>
+                                )}
 
-                        {/* 2. 0 Qty Only - hidden for purchasing */}
-                        {!isPurchasing && !hideZeroQty && (
-                            <label
-                                className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${showZeroOnly
-                                    ? (isDark ? 'bg-rose-950/40 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100')
-                                    : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
-                                    }`}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={showZeroOnly}
-                                    onChange={(e) => {
-                                        setShowZeroOnly(e.target.checked);
-                                        if (e.target.checked) setHideZeroQty(false);
-                                    }}
-                                    className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${showZeroOnly ? 'accent-rose-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
-                                />
-                                <span>0 Qty Only</span>
-                                <span className="text-[11px] font-bold font-mono">({zeroCount})</span>
-                            </label>
-                        )}
+                                {/* 2. 0 Qty Only - hidden for purchasing */}
+                                {!isPurchasing && !hideZeroQty && (
+                                    <label
+                                        className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${showZeroOnly
+                                            ? (isDark ? 'bg-rose-950/40 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100')
+                                            : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
+                                            }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={showZeroOnly}
+                                            onChange={(e) => {
+                                                setShowZeroOnly(e.target.checked);
+                                                if (e.target.checked) setHideZeroQty(false);
+                                            }}
+                                            className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${showZeroOnly ? 'accent-rose-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
+                                        />
+                                        <span>0 Qty Only</span>
+                                        <span className="text-[11px] font-bold font-mono">({zeroCount})</span>
+                                    </label>
+                                )}
 
-                        {/* 3. Movements Only (Rackings only) - hidden for purchasing */}
-                        {!isPurchasing && activeModule === 'raw-materials' && !showAcquisitionCost && !showInventoryOnly && (
-                            <label
-                                className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${hideNoMovements
-                                    ? (isDark ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100')
-                                    : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
-                                    }`}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={hideNoMovements}
-                                    onChange={(e) => {
-                                        setHideNoMovements(e.target.checked);
-                                        if (e.target.checked) {
-                                            setShowAcquisitionCost(false);
-                                            setShowInventoryOnly(false);
-                                        }
-                                    }}
-                                    className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${hideNoMovements ? 'accent-indigo-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
-                                />
-                                <span>Movements Only</span>
-                            </label>
-                        )}
+                                {/* 3. Movements Only (Rackings only) - hidden for purchasing */}
+                                {!isPurchasing && activeModule === 'raw-materials' && !showAcquisitionCost && !showInventoryOnly && (
+                                    <label
+                                        className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${hideNoMovements
+                                            ? (isDark ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100')
+                                            : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
+                                            }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={hideNoMovements}
+                                            onChange={(e) => {
+                                                setHideNoMovements(e.target.checked);
+                                                if (e.target.checked) {
+                                                    setShowAcquisitionCost(false);
+                                                    setShowInventoryOnly(false);
+                                                }
+                                            }}
+                                            className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${hideNoMovements ? 'accent-indigo-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
+                                        />
+                                        <span>Movements Only</span>
+                                    </label>
+                                )}
 
-                        {/* 4. Acquisition Cost (Rackings only) - hidden for purchasing */}
-                        {!isPurchasing && activeModule === 'raw-materials' && !hideNoMovements && (
-                            <label
-                                className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${showAcquisitionCost
-                                    ? (isDark ? 'bg-emerald-950/60 text-emerald-300 border-emerald-600 shadow-sm ring-1 ring-emerald-500/50' : 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-sm ring-1 ring-emerald-400')
-                                    : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
-                                    }`}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={showAcquisitionCost}
-                                    onChange={(e) => {
-                                        setShowAcquisitionCost(e.target.checked);
-                                        if (e.target.checked) {
-                                            setHideNoMovements(false);
-                                            setShowInventoryOnly(false);
-                                        }
-                                    }}
-                                    className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${showAcquisitionCost ? 'accent-emerald-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
-                                />
-                                <span>Acquisition Cost</span>
-                            </label>
-                        )}
+                                {/* 4. Acquisition Cost (Rackings only) - hidden for purchasing */}
+                                {!isPurchasing && activeModule === 'raw-materials' && !hideNoMovements && (
+                                    <label
+                                        className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${showAcquisitionCost
+                                            ? (isDark ? 'bg-emerald-950/60 text-emerald-300 border-emerald-600 shadow-sm ring-1 ring-emerald-500/50' : 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-sm ring-1 ring-emerald-400')
+                                            : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
+                                            }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={showAcquisitionCost}
+                                            onChange={(e) => {
+                                                setShowAcquisitionCost(e.target.checked);
+                                                if (e.target.checked) {
+                                                    setHideNoMovements(false);
+                                                    setShowInventoryOnly(false);
+                                                }
+                                            }}
+                                            className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${showAcquisitionCost ? 'accent-emerald-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
+                                        />
+                                        <span>Acquisition Cost</span>
+                                    </label>
+                                )}
 
-                        {/* 5. Inventory Only (Rackings only) - hidden for purchasing */}
-                        {!isPurchasing && activeModule === 'raw-materials' && !hideNoMovements && (
-                            <label
-                                className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${showInventoryOnly
-                                    ? (isDark ? 'bg-blue-950/60 text-blue-300 border-blue-600 shadow-sm ring-1 ring-blue-500/50' : 'bg-blue-50 text-blue-700 border-blue-300 shadow-sm ring-1 ring-blue-400')
-                                    : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
-                                    }`}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={showInventoryOnly}
-                                    onChange={(e) => {
-                                        setShowInventoryOnly(e.target.checked);
-                                        if (e.target.checked) {
-                                            setHideNoMovements(false);
-                                            setShowAcquisitionCost(false);
-                                        }
-                                    }}
-                                    className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${showInventoryOnly ? 'accent-blue-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
-                                />
-                                <span>Inventory Only</span>
-                            </label>
+                                {/* 5. Inventory Only (Rackings only) - hidden for purchasing */}
+                                {!isPurchasing && activeModule === 'raw-materials' && !hideNoMovements && (
+                                    <label
+                                        className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${showInventoryOnly
+                                            ? (isDark ? 'bg-blue-950/60 text-blue-300 border-blue-600 shadow-sm ring-1 ring-blue-500/50' : 'bg-blue-50 text-blue-700 border-blue-300 shadow-sm ring-1 ring-blue-400')
+                                            : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
+                                            }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={showInventoryOnly}
+                                            onChange={(e) => {
+                                                setShowInventoryOnly(e.target.checked);
+                                                if (e.target.checked) {
+                                                    setHideNoMovements(false);
+                                                    setShowAcquisitionCost(false);
+                                                }
+                                            }}
+                                            className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${showInventoryOnly ? 'accent-blue-600' : (isDark ? 'accent-[#ff6600]' : 'accent-[#18174e]')}`}
+                                        />
+                                        <span>Inventory Only</span>
+                                    </label>
+                                )}
+                            </>
                         )}
                     </div>
 
                     {/* LAYER 3: PDF Export Action Buttons */}
                     <div className="flex items-center gap-2 flex-wrap pt-1.5">
-                        {/* Movements Summary (PDF) Button - hidden for purchasing */}
-                        {!isPurchasing && (
-                            <button
-                                onClick={handleDownloadMonthlySummaryPDF}
-                                disabled={loading}
-                                title={`Export Monthly Summary Activity Report for ${monthsList.find(m => m.value === selectedMonth)?.label} ${selectedYear}`}
-                                className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 shadow-sm disabled:opacity-50 ${isDark
-                                    ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80 hover:bg-indigo-900/60'
-                                    : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                        {activeModule === 'rackings-unit' ? (
+                            <>
+                                {/* Download Rackings Unit PDF Button (with image embedding) */}
+                                <button
+                                    type="button"
+                                    onClick={() => handleDownloadRackingsUnitPDF()}
+                                    disabled={loading}
+                                    title={`Download ${selectedUnitCategory !== 'All Categories' ? selectedUnitCategory : 'All Categories'} Rackings Unit Report with images (PDF)`}
+                                    className={`flex items-center gap-2 text-xs font-bold p-2 sm:px-3.5 sm:py-2 rounded-lg border transition-all cursor-pointer shadow-md flex-shrink-0 disabled:opacity-50 ${
+                                        isDark
+                                            ? 'border-orange-500 bg-gradient-to-r from-orange-600 to-amber-600 text-white hover:from-orange-500 hover:to-amber-500 shadow-orange-950/40'
+                                            : 'border-orange-600 bg-gradient-to-r from-orange-600 to-amber-600 text-white hover:from-orange-700 hover:to-amber-700 shadow-orange-200'
                                     }`}
-                            >
-                                <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                                <span>Movements Summary (PDF)</span>
-                            </button>
+                                >
+                                    <Download className="w-4 h-4 text-white" />
+                                    <span>Download Rackings Unit (PDF)</span>
+                                    {selectedUnitCategory !== 'All Categories' && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/20 font-normal">
+                                            {selectedUnitCategory}
+                                        </span>
+                                    )}
+                                </button>
+
+                                {/* If filtered by category, also offer export of all categories */}
+                                {selectedUnitCategory !== 'All Categories' && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDownloadRackingsUnitPDF('All Categories')}
+                                        disabled={loading}
+                                        title="Download All Categories Consolidated PDF"
+                                        className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-2 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${
+                                            isDark
+                                                ? 'bg-[#141622] text-slate-300 border-slate-700 hover:bg-slate-800'
+                                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        <Download className="w-3.5 h-3.5 text-slate-400" />
+                                        <span>Download All Categories (PDF)</span>
+                                    </button>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                {/* Movements Summary (PDF) Button - hidden for purchasing */}
+                                {!isPurchasing && (
+                                    <button
+                                        onClick={handleDownloadMonthlySummaryPDF}
+                                        disabled={loading}
+                                        title={`Export Monthly Summary Activity Report for ${monthsList.find(m => m.value === selectedMonth)?.label} ${selectedYear}`}
+                                        className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 shadow-sm disabled:opacity-50 ${isDark
+                                            ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80 hover:bg-indigo-900/60'
+                                            : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                                            }`}
+                                    >
+                                        <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                                        <span>Movements Summary (PDF)</span>
+                                    </button>
+                                )}
+
+                                {/* Export Audit Ledger (PDF) Button */}
+                                <button
+                                    onClick={handleDownloadPDF}
+                                    disabled={loading}
+                                    title={(activeModule === 'raw-materials' || isPurchasing) && selectedCount < totalVisibleCount
+                                        ? `Export ${selectedCount} selected items to PDF`
+                                        : (showZeroOnly ? "Download PDF of all 0 quantity items" : showInventoryOnly ? "Export Alphabetical Inventory Only Ledger PDF" : showAcquisitionCost ? "Export Acquisition Cost & Valuation Ledger PDF" : "Export Consolidated Ledger PDF")}
+                                    className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${showZeroOnly && !isPurchasing
+                                        ? 'border-red-600 bg-red-600 text-white hover:bg-red-700'
+                                        : (isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90')
+                                        }`}
+                                >
+                                    <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                                    <span>
+                                        {isPurchasing ? 'Download (PDF)' : (showZeroOnly ? 'Export 0 Qty Ledger (PDF)' : showInventoryOnly ? 'Export Inventory Ledger (PDF)' : showAcquisitionCost ? 'Export Cost Ledger (PDF)' : 'Download (PDF)')}
+                                        {(activeModule === 'raw-materials' || isPurchasing) && selectedCount < totalVisibleCount ? ` (${selectedCount})` : ''}
+                                    </span>
+                                </button>
+
+                                {/* Export Audit Ledger (Excel) Button with Upright Branded Template */}
+                                <button
+                                    onClick={handleDownloadExcel}
+                                    disabled={loading}
+                                    title={(activeModule === 'raw-materials' || isPurchasing) && selectedCount < totalVisibleCount
+                                        ? `Export ${selectedCount} selected items to Excel (Upright Branded Template)`
+                                        : (showZeroOnly ? "Download Excel of all 0 quantity items (Upright Template)" : showInventoryOnly ? "Export Alphabetical Inventory Only Ledger Excel (Upright Template)" : showAcquisitionCost ? "Export Acquisition Cost & Valuation Ledger Excel (Upright Template)" : "Export Consolidated Ledger Excel (Upright Template)")}
+                                    className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${
+                                        isDark
+                                            ? 'border-emerald-700/80 bg-emerald-950/80 text-emerald-300 hover:bg-emerald-900/90 hover:border-emerald-500'
+                                            : 'border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800'
+                                    }`}
+                                >
+                                    <FileSpreadsheet className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-emerald-300" />
+                                    <span>
+                                        {isPurchasing ? 'Download (Excel)' : (showZeroOnly ? 'Export 0 Qty Ledger (Excel)' : showInventoryOnly ? 'Export Inventory (Excel)' : showAcquisitionCost ? 'Export Cost Ledger (Excel)' : 'Download (Excel)')}
+                                        {(activeModule === 'raw-materials' || isPurchasing) && selectedCount < totalVisibleCount ? ` (${selectedCount})` : ''}
+                                    </span>
+                                </button>
+                            </>
                         )}
 
-                        {/* Export Audit Ledger (PDF) Button */}
+                        {/* Show Rackings Unit Button */}
                         <button
-                            onClick={handleDownloadPDF}
-                            disabled={loading}
-                            title={(activeModule === 'raw-materials' || isPurchasing) && selectedCount < totalVisibleCount
-                                ? `Export ${selectedCount} selected items to PDF`
-                                : (showZeroOnly ? "Download PDF of all 0 quantity items" : showInventoryOnly ? "Export Alphabetical Inventory Only Ledger PDF" : showAcquisitionCost ? "Export Acquisition Cost & Valuation Ledger PDF" : "Export Consolidated Ledger PDF")}
-                            className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${showZeroOnly && !isPurchasing
-                                ? 'border-red-600 bg-red-600 text-white hover:bg-red-700'
-                                : (isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90')
-                                }`}
-                        >
-                            <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                            <span>
-                                {isPurchasing ? 'Download (PDF)' : (showZeroOnly ? 'Export 0 Qty Ledger (PDF)' : showInventoryOnly ? 'Export Inventory Ledger (PDF)' : showAcquisitionCost ? 'Export Cost Ledger (PDF)' : 'Download (PDF)')}
-                                {(activeModule === 'raw-materials' || isPurchasing) && selectedCount < totalVisibleCount ? ` (${selectedCount})` : ''}
-                            </span>
-                        </button>
-
-                        {/* Export Audit Ledger (Excel) Button with Upright Branded Template */}
-                        <button
-                            onClick={handleDownloadExcel}
-                            disabled={loading}
-                            title={(activeModule === 'raw-materials' || isPurchasing) && selectedCount < totalVisibleCount
-                                ? `Export ${selectedCount} selected items to Excel (Upright Branded Template)`
-                                : (showZeroOnly ? "Download Excel of all 0 quantity items (Upright Template)" : showInventoryOnly ? "Export Alphabetical Inventory Only Ledger Excel (Upright Template)" : showAcquisitionCost ? "Export Acquisition Cost & Valuation Ledger Excel (Upright Template)" : "Export Consolidated Ledger Excel (Upright Template)")}
-                            className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${
-                                isDark
-                                    ? 'border-emerald-700/80 bg-emerald-950/80 text-emerald-300 hover:bg-emerald-900/90 hover:border-emerald-500'
-                                    : 'border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800'
+                            type="button"
+                            onClick={() => setActiveModule(activeModule === 'rackings-unit' ? 'raw-materials' : 'rackings-unit')}
+                            title="Show Rackings Unit: Live Bill of Materials (BOM), required component formulas, and formability calculations"
+                            className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${activeModule === 'rackings-unit'
+                                ? (isDark ? 'border-orange-500 bg-orange-600 text-white shadow-md' : 'border-orange-600 bg-orange-600 text-white shadow-md')
+                                : (isDark ? 'border-orange-700/70 bg-orange-950/60 text-orange-300 hover:bg-orange-900/80 hover:border-orange-500' : 'border-orange-300 bg-orange-50 text-orange-800 hover:bg-orange-100 hover:border-orange-400')
                             }`}
                         >
-                            <FileSpreadsheet className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-emerald-300" />
-                            <span>
-                                {isPurchasing ? 'Download (Excel)' : (showZeroOnly ? 'Export 0 Qty Ledger (Excel)' : showInventoryOnly ? 'Export Inventory (Excel)' : showAcquisitionCost ? 'Export Cost Ledger (Excel)' : 'Download (Excel)')}
-                                {(activeModule === 'raw-materials' || isPurchasing) && selectedCount < totalVisibleCount ? ` (${selectedCount})` : ''}
-                            </span>
+                            <Box className={`w-4 h-4 sm:w-3.5 sm:h-3.5 ${activeModule === 'rackings-unit' ? 'text-white' : 'text-orange-500'}`} />
+                            <span>{activeModule === 'rackings-unit' ? 'Back to Rackings' : 'Show Rackings Unit'}</span>
+                        </button>
+
+                        {/* Buildable Units (BOM) Feasibility Calculator Button */}
+                        <button
+                            type="button"
+                            onClick={() => setIsAssemblyModalOpen(true)}
+                            title="Calculate how many complete units can be formed from available materials (User-Controlled Formula)"
+                            className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${
+                                isDark
+                                    ? 'border-amber-700/70 bg-amber-950/60 text-amber-300 hover:bg-amber-900/80 hover:border-amber-500'
+                                    : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:border-amber-400'
+                            }`}
+                        >
+                            <Layers className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-amber-500" />
+                            <span>Buildable Units (BOM)</span>
                         </button>
                     </div>
 
@@ -2927,6 +3668,235 @@ function Reports() {
                                         <tr>
                                             <td colSpan="7" className="text-center p-12 text-slate-500 font-medium italic">
                                                 No voided or discrepancy transaction logs recorded.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : activeModule === 'rackings-unit' ? (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr className={`font-bold uppercase text-[11px] tracking-wider whitespace-nowrap ${isDark ? 'bg-[#10121d] text-slate-300 border-b border-slate-800' : 'bg-[#18174e] text-white'}`}>
+                                        <th className="py-3.5 px-3 text-center whitespace-nowrap w-[70px]">Image</th>
+                                        <th className="py-3.5 px-4 whitespace-nowrap min-w-[200px]">Item Description</th>
+                                        <th className="py-3.5 px-4 whitespace-nowrap min-w-[190px]">Rackings</th>
+                                        <th className="py-3.5 px-4 whitespace-nowrap min-w-[150px]">Dimension</th>
+                                        <th className="py-3.5 px-4 text-center whitespace-nowrap min-w-[130px]">Formula Quantity</th>
+                                        <th className="py-3.5 px-4 text-center whitespace-nowrap min-w-[160px]">Stock Quantity (Need / Total)</th>
+                                        <th className="py-3.5 px-4 text-center whitespace-nowrap min-w-[120px]">Total Units</th>
+                                    </tr>
+                                </thead>
+                                <tbody className={`divide-y text-xs ${isDark ? 'divide-slate-800/70 bg-[#090b10] text-slate-300' : 'divide-slate-100 bg-white text-slate-700'}`}>
+                                    {paginatedTableData.length > 0 ? (
+                                        paginatedTableData.map((rec) => {
+                                            const metrics = computeRecordMetrics(rec);
+                                            const segStyles = getUnitSegmentStyles(rec.segment);
+                                            return (
+                                                <tr
+                                                    key={rec.id}
+                                                    className={`transition-colors whitespace-nowrap ${
+                                                        isDark
+                                                            ? 'hover:bg-slate-800/40 border-l-4 border-l-transparent'
+                                                            : 'hover:bg-slate-50 border-l-4 border-l-transparent'
+                                                    }`}
+                                                >
+                                                    {/* 1. Image */}
+                                                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                                                        <div className="flex items-center justify-center">
+                                                            {rec.imageUrl ? (
+                                                                <img
+                                                                    src={getImageSrc(rec.imageUrl)}
+                                                                    alt={rec.unitName || 'Rackings Unit'}
+                                                                    className="w-11 h-11 rounded-lg object-cover border border-slate-300 dark:border-slate-700 shrink-0 cursor-zoom-in hover:scale-105 transition-transform shadow-sm"
+                                                                    onClick={() => setPreviewImage(getImageSrc(rec.imageUrl))}
+                                                                    title="Click to view full image"
+                                                                />
+                                                            ) : (
+                                                                <div className={`w-11 h-11 rounded-lg flex items-center justify-center border border-dashed shrink-0 ${
+                                                                    isDark ? 'bg-slate-800/70 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-300 text-slate-400'
+                                                                }`}>
+                                                                    <ImageIcon className="w-5 h-5" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* 2. Item Description */}
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex flex-col gap-1 min-w-[180px]">
+                                                            <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                                                                {rec.unitName || rec.description}
+                                                            </span>
+                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border tracking-wide uppercase ${segStyles.classes}`}>
+                                                                    {rec.segment || 'STANDARD RACKS'}
+                                                                </span>
+                                                                {rec.description && rec.description !== rec.unitName && (
+                                                                    <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[240px]" title={rec.description}>
+                                                                        {rec.description}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    {/* 3. Rackings (Components with Material Photos) */}
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex flex-col gap-1.5 min-w-[220px]">
+                                                            {(rec.components || []).map((c, cIdx) => {
+                                                                const detail = metrics.rowDetails?.[cIdx];
+                                                                const mat = detail?.mat;
+                                                                const matDesc = mat ? mat.ItemDescription : (c.role || 'Component');
+                                                                const matImg = mat?.ImageUrl || c.imageUrl;
+                                                                return (
+                                                                    <div
+                                                                        key={cIdx}
+                                                                        className={`h-7 flex items-center gap-2 px-1.5 rounded-md text-xs font-semibold border ${
+                                                                            isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                                                                        }`}
+                                                                        title={matDesc}
+                                                                    >
+                                                                        {matImg ? (
+                                                                            <img
+                                                                                src={getImageSrc(matImg)}
+                                                                                alt={matDesc}
+                                                                                className="w-5 h-5 rounded object-cover border border-slate-300 dark:border-slate-600 shrink-0 cursor-zoom-in hover:scale-125 transition-transform shadow-xs"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setPreviewImage(getImageSrc(matImg));
+                                                                                }}
+                                                                                title="Click to view full photo"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border border-dashed ${
+                                                                                isDark ? 'bg-slate-800/80 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-300 text-slate-400'
+                                                                            }`}>
+                                                                                <Layers className="w-3 h-3" />
+                                                                            </div>
+                                                                        )}
+                                                                        <span className="truncate max-w-[200px]">{matDesc}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* 4. Dimension */}
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex flex-col gap-1.5 min-w-[150px]">
+                                                            {(rec.components || []).map((c, cIdx) => {
+                                                                const detail = metrics.rowDetails?.[cIdx];
+                                                                const dimension = detail?.dimension || c.dimension || '—';
+                                                                const parsed = parseRackDimension(dimension);
+                                                                return (
+                                                                    <div
+                                                                        key={cIdx}
+                                                                        className={`h-7 flex items-center px-2.5 rounded-md text-xs border ${
+                                                                            isDark ? 'bg-[#141622] border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                                                                        }`}
+                                                                        title={dimension}
+                                                                    >
+                                                                        {parsed.badges && parsed.badges.length > 0 ? (
+                                                                            <div className="flex items-center gap-1 overflow-hidden">
+                                                                                {parsed.badges.map((b, bIdx) => (
+                                                                                    <span
+                                                                                        key={bIdx}
+                                                                                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium border leading-none ${
+                                                                                            b.type === 'H' ? (isDark ? 'bg-blue-950/60 text-blue-300 border-blue-800' : 'bg-blue-50 text-blue-700 border-blue-200') :
+                                                                                            b.type === 'W' ? (isDark ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800' : 'bg-emerald-50 text-emerald-700 border-emerald-200') :
+                                                                                            b.type === 'L' ? (isDark ? 'bg-teal-950/60 text-teal-300 border-teal-800' : 'bg-teal-50 text-teal-700 border-teal-200') :
+                                                                                            b.type === 'D' ? (isDark ? 'bg-amber-950/60 text-amber-300 border-amber-800' : 'bg-amber-50 text-amber-800 border-amber-200') :
+                                                                                            (isDark ? 'bg-purple-950/60 text-purple-300 border-purple-800' : 'bg-purple-50 text-purple-800 border-purple-200')
+                                                                                        }`}
+                                                                                    >
+                                                                                        <span className="font-bold mr-0.5 uppercase">{b.label}:</span>
+                                                                                        <span>{b.value}</span>
+                                                                                    </span>
+                                                                                ))}
+                                                                                {parsed.extra && (
+                                                                                    <span className="text-[10px] text-slate-400 truncate max-w-[90px]" title={parsed.extra}>
+                                                                                        {parsed.extra}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="font-mono text-xs truncate">{dimension}</span>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* 5. Formula Quantity */}
+                                                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                                                        <div className="flex flex-col gap-1.5 min-w-[130px]">
+                                                            {(rec.components || []).map((c, cIdx) => {
+                                                                const detail = metrics.rowDetails?.[cIdx];
+                                                                const uom = detail?.uom || c.uom || 'PCS';
+                                                                return (
+                                                                    <div
+                                                                        key={cIdx}
+                                                                        className={`h-7 flex items-center justify-center px-2.5 rounded-md text-xs font-mono font-bold border ${
+                                                                            isDark ? 'bg-[#141622] border-slate-700 text-amber-400' : 'bg-amber-50/70 border-amber-200 text-amber-700'
+                                                                        }`}
+                                                                    >
+                                                                        <span>{c.pcsPerUnit || c.divisor} {uom}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* 6. Stock Quantity (Need / Total) */}
+                                                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                                                        <div className="flex flex-col gap-1.5 min-w-[160px]">
+                                                            {(rec.components || []).map((c, cIdx) => {
+                                                                const detail = metrics.rowDetails?.[cIdx];
+                                                                const uom = detail?.uom || c.uom || 'PCS';
+                                                                const usedPcs = (Number(c.pcsPerUnit || c.divisor || 1)) * metrics.maxCompleteUnits;
+                                                                const totalStock = detail ? Number(detail.stock || 0) : 0;
+                                                                const remainder = Math.max(0, totalStock - usedPcs);
+                                                                return (
+                                                                    <div
+                                                                        key={cIdx}
+                                                                        className={`h-7 flex items-center justify-center px-2.5 rounded-md text-xs font-mono font-bold border ${
+                                                                            metrics.maxCompleteUnits > 0
+                                                                                ? (isDark ? 'bg-[#141622] border-slate-700 text-emerald-400' : 'bg-emerald-50/70 border-emerald-200 text-emerald-700')
+                                                                                : (isDark ? 'bg-[#141622] border-slate-700 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400')
+                                                                        }`}
+                                                                        title={`Need: ${usedPcs.toLocaleString()} ${uom} | Total Stock: ${totalStock.toLocaleString()} ${uom}${remainder > 0 ? ` | Butal: ${remainder.toLocaleString()} ${uom}` : ''}`}
+                                                                    >
+                                                                        <span>{usedPcs.toLocaleString()}/{totalStock.toLocaleString()} {uom}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* 7. Total Units */}
+                                                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                                                        <div className="flex flex-col gap-1.5 min-w-[120px]">
+                                                            <div
+                                                                className={`h-7 flex items-center justify-center px-2.5 rounded-md text-xs font-mono font-bold border ${
+                                                                    metrics.maxCompleteUnits > 0
+                                                                        ? (isDark ? 'bg-[#141622] border-slate-700 text-emerald-400' : 'bg-emerald-50/70 border-emerald-200 text-emerald-700')
+                                                                        : (isDark ? 'bg-[#141622] border-slate-700 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400')
+                                                                }`}
+                                                            >
+                                                                <span>{metrics.maxCompleteUnits.toLocaleString()} {rec.uom || 'UNITS'}</span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={7} className="text-center py-12 text-slate-400 italic text-xs">
+                                                No Rackings Unit calculation records found matching your filters.
                                             </td>
                                         </tr>
                                     )}
@@ -3434,6 +4404,14 @@ function Reports() {
                     </div>
                 </div>
             )}
+
+            {/* BUILDABLE UNITS & BOM FEASIBILITY CALCULATOR MODAL */}
+            <BuildableUnitsModal
+                isOpen={isAssemblyModalOpen}
+                onClose={() => setIsAssemblyModalOpen(false)}
+                rawMaterials={rawMaterialsData}
+                isDark={isDark}
+            />
 
         </div>
     );

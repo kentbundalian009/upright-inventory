@@ -26,6 +26,7 @@ import InformationModules from '../components/InformationModules';
 
 import Settings from '../components/Settings';
 import Reports from '../components/Reports';
+import RackingsUnit from '../components/RackingsUnit';
 import SharedRackingsView from './SharedRackingsView';
 import { trackSharedLinkClick } from '../utils/linkTracker';
 
@@ -140,6 +141,9 @@ function Dashboard() {
             case 'work-in-progress': return userRole === 'Purchasing' ? <DashboardOverview /> : <WorkInProgress />;
             case 'outbound-products': return userRole === 'Purchasing' ? <DashboardOverview /> : <OutboundMaterials />;
             case 'supplies-movements': return userRole === 'Purchasing' ? <DashboardOverview /> : <EquipmentMovements />;
+            case 'rackings-unit':
+            case 'unit-calculator': 
+                return <RackingsUnit />;
             
             case 'settings': return <Settings />;
 
