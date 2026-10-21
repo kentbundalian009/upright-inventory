@@ -20,7 +20,6 @@ import {
   Share2,
   Boxes,
   ClipboardList,
-  FileText,
   Calculator
 } from "lucide-react";
 
@@ -32,16 +31,6 @@ function PageHeader({ activeTab, title, description, icon, badge, actions, child
       title: 'Dashboard Overview',
       description: 'Centralized view of inventory metrics, key performance indicators, and recent operations.',
       icon: LayoutDashboard
-    },
-    'documents': {
-      title: 'Documents',
-      description: 'Create, format, and export operational remarks and documentation.',
-      icon: FileText
-    },
-    'pending-remarks': {
-      title: 'Documents',
-      description: 'Create, format, and export operational remarks and documentation.',
-      icon: FileText
     },
     'inventory-dashboard': {
       title: 'Inventory Dashboard',

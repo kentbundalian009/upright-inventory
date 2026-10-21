@@ -23,7 +23,6 @@ import {
   Share2,
   Boxes,
   ClipboardList,
-  FileText,
   Calculator
 } from "lucide-react";
 
@@ -104,7 +103,6 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
   const getMenuItems = () => {
     const defaultMenuItems = [
       { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Inventory', 'Purchasing'], section: 'main' },
-      { id: 'documents', name: 'Documents', icon: FileText, roles: ['Admin', 'Inventory'], section: 'main' },
 
       { id: 'user-management', name: 'User Management', icon: Users, roles: ['Admin'], section: 'admin' },
       { id: 'user-activity', name: 'User Activity', icon: Activity, roles: ['Admin'], section: 'admin' },
