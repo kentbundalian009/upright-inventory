@@ -266,16 +266,19 @@ function Sidebar({ activeTab, setActiveTab, userRole }) {
                     <div className="relative flex-shrink-0 flex items-center justify-center">
                       <IconComponent size={17} className={`transition-transform ${isActive ? 'text-[#ff8533] scale-105' : 'group-hover:scale-105'}`} />
                       {item.id === 'outbound-products' && pendingOutboundCount > 0 && isCollapsed && (
-                        <span className={`hidden md:flex absolute -top-1.5 -right-2 items-center justify-center min-w-[17px] h-[17px] px-0.5 text-[9px] font-black text-white bg-yellow-400 rounded-full ring-2 ${isDark ? 'ring-[#0a0b10]' : 'ring-[#18174e]'} shadow-sm shadow-yellow-400/40`}>
-                          {pendingOutboundCount > 99 ? '99+' : pendingOutboundCount}
-                        </span>
+                        <span className="hidden md:block absolute -top-1 -right-1 w-2 h-2 bg-[#ff0000] rounded-full" />
                       )}
                     </div>
 
-                    <span className={`truncate whitespace-nowrap flex-1 text-left ${isCollapsed ? 'md:hidden block' : 'block'}`}>{item.name}</span>
+                    <div className={`flex items-center gap-2 min-w-0 flex-1 text-left ${isCollapsed ? 'md:hidden' : 'flex'}`}>
+                      <span className="truncate whitespace-nowrap">{item.name}</span>
+                      {item.id === 'outbound-products' && pendingOutboundCount > 0 && (
+                        <span className="w-2 h-2 rounded-full bg-[#ff0000] shrink-0" />
+                      )}
+                    </div>
 
                     {item.id === 'outbound-products' && pendingOutboundCount > 0 && (
-                      <span className={`ml-auto items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-black text-white bg-yellow-400 rounded-full shadow-md shadow-yellow-400/30 shrink-0 ${isCollapsed ? 'md:hidden flex' : 'flex'}`}>
+                      <span className={`ml-auto text-xs font-bold text-white shrink-0 ${isCollapsed ? 'md:hidden inline-block' : 'inline-block'}`}>
                         {pendingOutboundCount > 99 ? '99+' : pendingOutboundCount}
                       </span>
                     )}
