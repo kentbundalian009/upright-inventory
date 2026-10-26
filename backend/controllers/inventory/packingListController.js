@@ -321,3 +321,70 @@ export const updatePackingList = async (req, res) => {
     res.status(500).json({ message: "Failed to update packing list", error: err.message });
   }
 };
+
+export const revertPackingListToReserve = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { revertedBy } = req.body || {};
+
+    const slip = await PackingList.findById(id);
+    if (!slip) {
+      return res.status(404).json({ message: "Packing list not found." });
+    }
+
+    // Only restore warehouse stock if this slip was an Outbound transaction and not already voided
+    // (if already voided, stock was already returned when voided)
+    if (slip.transactionType === "Outbound" && !slip.isVoided) {
+      for (const item of slip.items) {
+        if (!item.materialId) continue;
+        const returnCount = Number(item.actualCountShipped || item.qtyRequested || 0);
+        if (returnCount > 0) {
+          await RawMaterial.findByIdAndUpdate(item.materialId, {
+            $inc: { ActualCount: returnCount }
+          });
+        }
+      }
+    }
+
+    // If an automatic split balance slip was created for this slip, delete it to prevent duplicates
+    if (slip.plNo) {
+      await PackingList.deleteMany({
+        referencePlNo: { $regex: new RegExp(`^BALANCE OF ${slip.plNo}`, "i") }
+      });
+    }
+
+    slip.transactionType = "Reserve";
+    slip.isVoided = false;
+    slip.voidReason = "";
+    slip.voidedAt = undefined;
+    slip.voidedBy = "";
+
+    // Sync actualCountShipped with qtyRequested
+    if (Array.isArray(slip.items)) {
+      slip.items = slip.items.map(item => {
+        const itemObj = item.toObject ? item.toObject() : item;
+        return {
+          ...itemObj,
+          qtyRequested: itemObj.qtyRequested || itemObj.actualCountShipped || 1,
+          actualCountShipped: itemObj.qtyRequested || itemObj.actualCountShipped || 1
+        };
+      });
+    }
+
+    await slip.save();
+
+    const populatedPL = await PackingList.findById(slip._id)
+      .populate("items.materialId", "Code ItemDescription UOM Segment Dimension Dimensions Length Width Height ActualCount");
+
+    const responseObj = populatedPL.toObject ? populatedPL.toObject() : populatedPL;
+    responseObj.message = `Slip ${slip.plNo} successfully reverted to Reserve! Stock has been returned to inventory and packed rack is restored.`;
+
+    return res.status(200).json(responseObj);
+  } catch (err) {
+    res.status(500).json({
+      message: "Failed to revert packing list to reserve.",
+      error: err.message
+    });
+  }
+};
+

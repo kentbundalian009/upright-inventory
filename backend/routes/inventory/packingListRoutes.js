@@ -3,7 +3,8 @@ import {
   createPackingList, 
   getPackingLists, 
   updatePackingList,
-  cancelPackingList 
+  cancelPackingList,
+  revertPackingListToReserve
 } from "../../controllers/inventory/packingListController.js";
 import { protectRoute, restrictTo } from "../../middleware/authMiddleware.js";
 
@@ -18,5 +19,7 @@ router.route("/")
 router.route("/:id")
   .put(updatePackingList)
   .delete(cancelPackingList);
+
+router.put("/:id/revert-reserve", revertPackingListToReserve);
 
 export default router;

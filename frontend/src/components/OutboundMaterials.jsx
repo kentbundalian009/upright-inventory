@@ -38,6 +38,8 @@ function InventoryOutboundProducts() {
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [passkeyInput, setPasskeyInput] = useState('');
   const [voidReasonInput, setVoidReasonInput] = useState('');
+  const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
+  const [isReverting, setIsReverting] = useState(false);
 
   // Outbound Form States with Automatic Draft Persistence
   const DRAFT_STORAGE_KEY = 'oneinventory_draft_outbound';
@@ -978,12 +980,14 @@ function InventoryOutboundProducts() {
   const handleOpenVoidModal = (slip) => {
     setSelectedSlip(slip);
     setPasskeyInput('');
+    setVoidReasonInput('');
     setIsVoidModalOpen(true);
   };
 
   const handleExecuteCancellation = async () => {
+    if (!selectedSlip) return;
     const isReserve = selectedSlip.transactionType?.toLowerCase() === 'reserve';
-    if (!isReserve && passkeyInput !== MASTER_CANCELLATION_KEY) {
+    if (!isReserve && passkeyInput && passkeyInput.trim() !== MASTER_CANCELLATION_KEY) {
       showErrorToast("ACCESS DENIED: Invalid authorization token code.");
       return;
     }
@@ -998,16 +1002,48 @@ function InventoryOutboundProducts() {
       if (res.status === 200) {
         showSuccessToast(isReserve
           ? `Packed rack ${selectedSlip.plNo} cleared! All reserved stocks have been returned to inventory.`
-          : `Log Entry ${selectedSlip.plNo} successfully voided.`
+          : `Transaction ${selectedSlip.plNo} successfully voided.`
         );
         setIsVoidModalOpen(false);
         setIsModalOpen(false);
         setSelectedSlip(null);
-        fetchData();
+        await fetchData();
+        window.dispatchEvent(new Event('packingListUpdated'));
+        window.dispatchEvent(new Event('stockUpdated'));
       }
     } catch (err) {
       const errMessage = err.response?.data?.message || "Failed to execute cancellation request.";
       showErrorToast(errMessage);
+    }
+  };
+
+  const handleOpenRevertModal = (slip) => {
+    setSelectedSlip(slip);
+    setIsRevertModalOpen(true);
+  };
+
+  const handleExecuteRevert = async () => {
+    if (!selectedSlip) return;
+    try {
+      setIsReverting(true);
+      const res = await axios.put(`${PL_URL}/${selectedSlip._id}/revert-reserve`, {
+        revertedBy: preparedBy || "System User"
+      });
+      if (res.status === 200) {
+        showSuccessToast(res.data?.message || `Slip ${selectedSlip.plNo} successfully returned to Reserve!`);
+        setIsRevertModalOpen(false);
+        if (res.data) {
+          setSelectedSlip(res.data);
+        }
+        await fetchData();
+        window.dispatchEvent(new Event('packingListUpdated'));
+        window.dispatchEvent(new Event('stockUpdated'));
+      }
+    } catch (err) {
+      const errMessage = err.response?.data?.message || "Failed to return slip to Reserve.";
+      showErrorToast(errMessage);
+    } finally {
+      setIsReverting(false);
     }
   };
 
@@ -1324,18 +1360,23 @@ function InventoryOutboundProducts() {
               </div>
             )}
 
-            {/* COMPACT TRANSACTION TYPE CONTAINER */}
-            <div className={`px-3.5 py-2 rounded-xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 overflow-x-auto ${isDark ? 'bg-[#141622]/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+            {/* COMPACT DYNAMIC TRANSACTION TYPE CONTAINER */}
+            <div className={`px-3.5 py-2.5 rounded-xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 overflow-x-auto transition-all duration-200 ${transactionType === 'Reserve'
+              ? (isDark ? 'bg-amber-950/40 border-amber-500/80 shadow-xs' : 'bg-amber-50/95 border-amber-300 shadow-xs')
+              : (isDark ? 'bg-rose-950/40 border-rose-500/80 shadow-xs' : 'bg-red-50/95 border-red-300 shadow-xs')
               }`}>
               <div className="flex items-center gap-2 whitespace-nowrap shrink-0">
-                <span className={`text-xs font-bold uppercase tracking-wider whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                <span className={`text-xs font-black uppercase tracking-wider whitespace-nowrap ${transactionType === 'Reserve'
+                  ? (isDark ? 'text-amber-300' : 'text-amber-900')
+                  : (isDark ? 'text-rose-300' : 'text-red-950')
+                  }`}>
                   Transaction Type:
                 </span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-md border whitespace-nowrap ${transactionType === 'Outbound'
-                  ? (isDark ? 'bg-rose-950/60 text-rose-400 border-rose-800' : 'bg-rose-50 text-rose-700 border-rose-200')
-                  : (isDark ? 'bg-amber-950/60 text-amber-400 border-amber-800' : 'bg-amber-50 text-amber-700 border-amber-200')
+                <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-md border whitespace-nowrap shadow-2xs ${transactionType === 'Reserve'
+                  ? (isDark ? 'bg-amber-900/80 text-amber-200 border-amber-600' : 'bg-amber-200/90 text-amber-950 border-amber-400')
+                  : (isDark ? 'bg-rose-900/80 text-rose-200 border-rose-600' : 'bg-red-200/90 text-red-950 border-red-400')
                   }`}>
-                  {transactionType === 'Outbound' ? '🔴 Outbound (Deduct)' : '🟡 Reserve (Hold)'}
+                  {transactionType === 'Reserve' ? '🟡 Reserve (Hold)' : '🔴 Outbound (Deduct)'}
                 </span>
               </div>
 
@@ -1344,9 +1385,9 @@ function InventoryOutboundProducts() {
                 <button
                   type="button"
                   onClick={() => setTransactionType('Reserve')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${transactionType === 'Reserve'
-                    ? (isDark ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs' : 'bg-amber-500 text-white border-amber-600 shadow-xs')
-                    : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${transactionType === 'Reserve'
+                    ? (isDark ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm ring-2 ring-amber-400/50' : 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm ring-2 ring-amber-400/60')
+                    : (isDark ? 'bg-[#0e1017]/80 text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white/90 text-slate-600 border-slate-300 hover:bg-slate-100')
                     }`}
                 >
                   🟡 Reserve
@@ -1355,9 +1396,9 @@ function InventoryOutboundProducts() {
                 <button
                   type="button"
                   onClick={() => setTransactionType('Outbound')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${transactionType === 'Outbound'
-                    ? (isDark ? 'bg-rose-600 text-white border-rose-500 shadow-xs' : 'bg-red-600 text-white border-red-700 shadow-xs')
-                    : (isDark ? 'bg-[#0e1017] text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100')
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${transactionType === 'Outbound'
+                    ? (isDark ? 'bg-red-600 text-white border-rose-500 shadow-sm ring-2 ring-red-400/50' : 'bg-red-600 text-white border-red-700 shadow-sm ring-2 ring-red-400/60')
+                    : (isDark ? 'bg-[#0e1017]/80 text-slate-400 border-slate-700 hover:bg-slate-800' : 'bg-white/90 text-slate-600 border-slate-300 hover:bg-slate-100')
                     }`}
                 >
                   🔴 Outbound
@@ -1653,15 +1694,24 @@ function InventoryOutboundProducts() {
                   </table>
                 </div>
 
-                <button type="submit" className="w-full bg-[#ff6600] hover:bg-[#e05a00] text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer uppercase shadow-sm">
-                  {transactionType === 'Reserve' && referencePlNo
-                    ? `Update Reservation (${referencePlNo})`
-                    : transactionType === 'Reserve'
-                      ? 'Confirm Reservation Slip'
-                      : referencePlNo
-                        ? `Confirm Outbound & Fulfill (${referencePlNo})`
-                        : 'Confirm Outbound Slip'
-                  }
+                <button
+                  type="submit"
+                  className={`w-full font-black py-2.5 px-4 rounded-xl text-sm transition-all cursor-pointer uppercase shadow-md flex items-center justify-center gap-2 ${transactionType === 'Reserve'
+                    ? 'bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-slate-950 border border-amber-400'
+                    : 'bg-red-600 hover:bg-red-700 active:scale-[0.99] text-white border border-red-700'
+                    }`}
+                >
+                  <span>{transactionType === 'Reserve' ? '🟡' : '🔴'}</span>
+                  <span>
+                    {transactionType === 'Reserve' && referencePlNo
+                      ? `Update Reservation (${referencePlNo})`
+                      : transactionType === 'Reserve'
+                        ? 'Confirm Reservation Slip'
+                        : referencePlNo
+                          ? `Confirm Outbound & Fulfill (${referencePlNo})`
+                          : 'Confirm Outbound Slip'
+                    }
+                  </span>
                 </button>
               </div>
             )}
@@ -1699,35 +1749,45 @@ function InventoryOutboundProducts() {
 
           <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[440px] pr-1 custom-scrollbar">
             {displayedHistoryLogs.length > 0 ? (
-              displayedHistoryLogs.map((rec) => (
-                <div
-                  key={rec._id}
-                  onClick={() => { setSelectedSlip(rec); setIsModalOpen(true); }}
-                  className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
-                >
-                  <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
-                    <span className={`text-[9px] font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1 truncate max-w-[110px]`}>
-                      {rec.plNo}
-                      {rec.isVoided && <span className="text-[8px] bg-rose-950/60 text-rose-300 border border-rose-800 px-1 py-0.5 rounded font-black uppercase">VOIDED</span>}
+              displayedHistoryLogs.map((rec) => {
+                const isReserveRec = rec.transactionType?.toLowerCase() === 'reserve';
+                const isOutboundRec = rec.transactionType?.toLowerCase() === 'outbound';
+
+                return (
+                  <div
+                    key={rec._id}
+                    onClick={() => { setSelectedSlip(rec); setIsModalOpen(true); }}
+                    className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
+                  >
+                    <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
+                      <span className={`text-[9px] font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1 truncate max-w-[110px]`}>
+                        {rec.plNo}
+                        {rec.isVoided && <span className="text-[8px] bg-rose-950/60 text-rose-300 border border-rose-800 px-1 py-0.5 rounded font-black uppercase">VOIDED</span>}
+                      </span>
+                      <span className={`text-[10px] px-1.5 py-0.5 font-bold rounded-md border shrink-0 ${rec.isVoided
+                        ? 'bg-slate-800 text-slate-500 border-slate-700 line-through'
+                        : isReserveRec
+                          ? (isDark ? 'bg-amber-950/60 text-amber-300 border-amber-800' : 'bg-amber-50 text-amber-700 border-amber-200')
+                          : (isDark ? 'bg-rose-950/60 text-rose-300 border-rose-800' : 'bg-rose-50 text-rose-700 border-rose-200')
+                        }`}>
+                        {!rec.isVoided && (isReserveRec ? '🟡 ' : '🔴 ')}
+                        {rec.transactionType}
+                      </span>
+                    </div>
+
+                    <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`} title={rec.customer || 'No Customer'}>
+                      {rec.customer || 'No Customer'}
                     </span>
-                    <span className={`text-[10px] px-1.5 py-0.5 font-bold rounded-md border ${rec.isVoided
-                      ? 'bg-slate-800 text-slate-500 border-slate-700 line-through'
-                      : rec.transactionType?.toLowerCase() === 'reserve'
-                        ? (isDark ? 'bg-amber-950/60 text-amber-300 border-amber-800' : 'bg-amber-50 text-amber-600 border-amber-200')
-                        : (isDark ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800' : 'bg-emerald-50 text-emerald-600 border-emerald-200')
-                      }`}>
-                      {rec.transactionType}
-                    </span>
+
+                    <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
+                      <span>{rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString() : 'No Date'}</span>
+                      <span className="font-bold text-slate-400 truncate max-w-[120px]">
+                        {rec.carrier ? rec.carrier : `${rec.items?.length || 0} items`}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'} truncate`}>{rec.customer || 'N/A'}</span>
-                  <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
-                    <span>{rec.shipmentDate ? new Date(rec.shipmentDate).toLocaleDateString() : 'No Date'}</span>
-                    <span className="font-bold text-slate-400 truncate max-w-[120px]">
-                      {rec.carrier ? ` ${rec.carrier}` : `${rec.items?.length || 0} items`}
-                    </span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <span className="text-center pt-4 text-rose-500 italic font-medium text-xs">No matching records found.</span>
             )}
@@ -1780,7 +1840,7 @@ function InventoryOutboundProducts() {
                     onClick={handleExecuteCancellation}
                     className="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2 px-4 rounded-lg text-xs transition-colors cursor-pointer shadow-sm"
                   >
-                    Yes, Clear All Items & Return Stock
+                    Confirm Clear & Return Stock
                   </button>
                 </div>
               </>
@@ -1788,7 +1848,7 @@ function InventoryOutboundProducts() {
               <>
                 <div className={`border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3 flex items-center justify-between`}>
                   <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm tracking-wide flex items-center gap-2`}>
-                    Void Transaction Log
+                    Void Outbound Transaction
                   </h3>
                   <button
                     onClick={() => setIsVoidModalOpen(false)}
@@ -1798,7 +1858,18 @@ function InventoryOutboundProducts() {
                   </button>
                 </div>
 
-                <div className="mt-4 space-y-4">
+                <div className="mt-4 space-y-3">
+                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-rose-950/30 border-rose-800/60' : 'bg-red-50 border-red-200/80'}`}>
+                    <h4 className={`text-sm font-bold ${isDark ? 'text-rose-400' : 'text-red-800'} mb-1.5`}>
+                      Are you sure you want to void this outbound slip?
+                    </h4>
+                    <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Slip: <span className="font-mono font-bold text-rose-500">{selectedSlip.plNo}</span> — <span className="font-bold">{selectedSlip.customer}</span>
+                    </p>
+                    <p className={`text-xs leading-relaxed mt-2.5 font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                      ✓ All {selectedSlip.items?.length || 0} item line(s) will be returned to your active warehouse inventory stock.
+                    </p>
+                  </div>
 
                   <div>
                     <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>
@@ -1808,20 +1879,20 @@ function InventoryOutboundProducts() {
                       type="text"
                       value={voidReasonInput}
                       onChange={e => setVoidReasonInput(e.target.value)}
-                      placeholder="e.g., Wrong item quantity or customer mistake"
+                      placeholder="e.g., Erroneous dispatch or customer request"
                       className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-700 placeholder-slate-400'} border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#ff6600]`}
                     />
                   </div>
 
                   <div>
                     <label className={`block text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1`}>
-                      Management Reversal Passkey
+                      Management Passkey (Optional)
                     </label>
                     <input
                       type="password"
                       value={passkeyInput}
                       onChange={e => setPasskeyInput(e.target.value)}
-                      placeholder="Enter authorized key token"
+                      placeholder="Leave blank or enter token"
                       className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-700 placeholder-slate-400'} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#ff6600] font-mono`}
                     />
                   </div>
@@ -1833,14 +1904,14 @@ function InventoryOutboundProducts() {
                     onClick={() => setIsVoidModalOpen(false)}
                     className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer`}
                   >
-                    Keep Log Entry
+                    Keep Transaction
                   </button>
                   <button
                     type="button"
                     onClick={handleExecuteCancellation}
-                    className="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer"
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer shadow-sm"
                   >
-                    Confirm System Void
+                    Confirm Void Slip
                   </button>
                 </div>
               </>
@@ -1850,16 +1921,110 @@ function InventoryOutboundProducts() {
         </div>
       )}
 
+      {/* REVERT TO RESERVE MODAL */}
+      {isRevertModalOpen && selectedSlip && (
+        <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200`}>
+          <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200'} border rounded-xl w-full max-w-md p-6 shadow-2xl relative animate-in slide-in-from-top-5 duration-300`}>
+            <div className={`border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3 flex items-center justify-between`}>
+              <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-sm tracking-wide flex items-center gap-2`}>
+                <RotateCcw className="w-4 h-4 text-amber-500" />
+                Return to Reserve
+              </h3>
+              <button
+                onClick={() => setIsRevertModalOpen(false)}
+                className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer flex items-center`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <div className={`p-4 rounded-xl border ${isDark ? 'bg-amber-950/30 border-amber-800/60' : 'bg-amber-50 border-amber-200/80'}`}>
+                <h4 className={`text-sm font-bold ${isDark ? 'text-amber-400' : 'text-amber-800'} mb-1.5`}>
+                  Return this Outbound slip back to Reserve?
+                </h4>
+                <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  Slip: <span className="font-mono font-bold text-amber-500">{selectedSlip.plNo}</span> — <span className="font-bold">{selectedSlip.customer}</span>
+                </p>
+                <div className={`text-xs leading-relaxed mt-2.5 space-y-1 font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                  <p>✓ All {selectedSlip.items?.length || 0} line item(s) will immediately be returned to active inventory stock.</p>
+                  <p>✓ Transaction status will change from 🔴 Outbound back to 🟡 Reserve.</p>
+                  <p>✓ Any linked balance slip will be cleared to prevent duplicate stock entries.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className={`flex items-center justify-end gap-2 mt-6 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <button
+                type="button"
+                disabled={isReverting}
+                onClick={() => setIsRevertModalOpen(false)}
+                className={`${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'} font-semibold py-1.5 px-4 rounded-lg text-xs transition-colors cursor-pointer disabled:opacity-50`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isReverting}
+                onClick={handleExecuteRevert}
+                className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-bold py-1.5 px-4 rounded-lg text-xs transition-all cursor-pointer shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isReverting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Returning...</span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Confirm Return to Reserve</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isModalOpen && selectedSlip && (
         <div className={`fixed inset-0 ${isDark ? 'bg-slate-950/70' : 'bg-slate-900/40'} backdrop-blur-sm flex items-center justify-center z-50 p-4`}>
           <div className={`${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-2xl w-full max-w-3xl p-6 shadow-xl relative flex flex-col gap-4`}>
 
             {/* Header */}
-            <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
-              <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-lg`}>
-                {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? 'Reservation Slip' : 'Outbound No'}: {selectedSlip.plNo}
-              </h3>
-              <div className="flex items-center gap-2">
+            <div className={`flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3`}>
+              <div className="flex items-center gap-2 min-w-0">
+                <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'} text-lg truncate`}>
+                  {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? 'Reservation Slip' : 'Outbound No'}: {selectedSlip.plNo}
+                </h3>
+                {selectedSlip.isVoided && (
+                  <span className="text-[10px] bg-rose-950/60 text-rose-300 border border-rose-800 px-2 py-0.5 rounded font-black uppercase shrink-0">
+                    VOIDED
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {selectedSlip.transactionType?.toLowerCase() === 'outbound' && !selectedSlip.isVoided && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRevertModal(selectedSlip)}
+                    className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                    title="Return this outbound slip back to Reserve and restore inventory stock"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Return</span>
+                  </button>
+                )}
+                {!selectedSlip.isVoided && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenVoidModal(selectedSlip)}
+                    className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-sm"
+                    title={selectedSlip.transactionType?.toLowerCase() === 'reserve' ? 'Clear / Void Reservation' : 'Void Outbound Slip'}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Void</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => handleDownloadPDF(selectedSlip)}
@@ -1870,8 +2035,9 @@ function InventoryOutboundProducts() {
                   <span>Download (PDF)</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1 rounded-lg cursor-pointer transition-colors`}
+                  className={`${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'} p-1.5 rounded-lg cursor-pointer transition-colors flex items-center justify-center`}
                   title="Close"
                 >
                   <X className="w-5 h-5" />
@@ -1883,9 +2049,9 @@ function InventoryOutboundProducts() {
             <div className={`grid grid-cols-2 sm:grid-cols-3 text-sm gap-2.5 ${isDark ? 'bg-[#141622] border-slate-800' : 'bg-slate-50 border-slate-100'} p-4 rounded-xl border`}>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Transaction Type</span>
-                <span className={`px-2 py-0.5 rounded text-xs font-bold inline-block uppercase ${selectedSlip.transactionType?.toLowerCase() === 'reserve'
-                  ? (isDark ? 'bg-amber-950/60 text-amber-300 border border-amber-800' : 'bg-amber-50 text-amber-700 border border-amber-200')
-                  : (isDark ? 'bg-rose-950/60 text-rose-300 border border-rose-800' : 'bg-rose-50 text-rose-700 border border-rose-200')
+                <span className={`px-2.5 py-1 rounded text-xs font-black inline-flex items-center gap-1 uppercase ${selectedSlip.transactionType?.toLowerCase() === 'reserve'
+                  ? (isDark ? 'bg-amber-950/80 text-amber-300 border border-amber-700' : 'bg-amber-100 text-amber-900 border border-amber-300')
+                  : (isDark ? 'bg-rose-950/80 text-rose-300 border border-rose-700' : 'bg-red-100 text-red-900 border border-red-300')
                   }`}>
                   {selectedSlip.transactionType?.toLowerCase() === 'reserve' ? '🟡 Reserve' : '🔴 Outbound'}
                 </span>
