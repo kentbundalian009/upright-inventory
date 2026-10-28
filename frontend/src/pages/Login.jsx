@@ -81,7 +81,7 @@ function Login() {
     try {
       // ✅ MATALINONG URL: Gagamit ng Render URL sa production, at localhost naman kapag nag-dedevelop ka sa PC
       const API_BASE_URL = import.meta.env.MODE === 'production'
-        ? 'https://one-inventory.onrender.com'
+        ? 'https://upright-inventory.onrender.com'
         : 'http://localhost:5000';
 
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {

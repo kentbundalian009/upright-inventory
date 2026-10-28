@@ -45,7 +45,7 @@ function AdminSharedViewers() {
   const [copiedId, setCopiedId] = useState(null);
 
   const API_BASE_URL = import.meta.env.MODE === 'production'
-    ? 'https://one-inventory.onrender.com'
+    ? 'https://upright-inventory.onrender.com'
     : 'http://localhost:5000';
 
   const triggerSuccess = (message) => {

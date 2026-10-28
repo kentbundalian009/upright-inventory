@@ -71,7 +71,7 @@ function Topbar() {
       }
 
       const API_BASE_URL = import.meta.env.MODE === 'production'
-        ? 'https://one-inventory.onrender.com'
+        ? 'https://upright-inventory.onrender.com'
         : 'http://localhost:5000';
 
       const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
@@ -115,7 +115,7 @@ function Topbar() {
       const userId = parsedUser.id || parsedUser._id || (parsedUser.user && (parsedUser.user.id || parsedUser.user._id));
       if (userId && token) {
         const API_BASE_URL = import.meta.env.MODE === 'production'
-          ? 'https://one-inventory.onrender.com'
+          ? 'https://upright-inventory.onrender.com'
           : 'http://localhost:5000';
 
         const response = await fetch(`${API_BASE_URL}/api/users/profile/${userId}`, {

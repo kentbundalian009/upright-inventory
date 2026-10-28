@@ -6,7 +6,7 @@ import MaintenanceScreen from './common/MaintenanceScreen';
 import { useTheme } from '../context/ThemeContext';
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
-  ? 'https://one-inventory.onrender.com/api'
+  ? 'https://upright-inventory.onrender.com/api'
   : 'http://localhost:5000/api';
 
 function AdminSettings() {

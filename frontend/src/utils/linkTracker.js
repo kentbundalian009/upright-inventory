@@ -41,7 +41,7 @@ export const trackSharedLinkClick = () => {
     }
 
     const API_BASE = import.meta.env.MODE === 'production'
-      ? 'https://one-inventory.onrender.com/api'
+      ? 'https://upright-inventory.onrender.com/api'
       : 'http://localhost:5000/api';
 
     const payload = {

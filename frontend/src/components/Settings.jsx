@@ -48,7 +48,7 @@ useEffect(() => {
             }
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
-    ? 'https://one-inventory.onrender.com'
+    ? 'https://upright-inventory.onrender.com'
     : 'http://localhost:5000';
 
 const response = await fetch(`${API_BASE_URL}/api/users/profile/${userId}`, {
@@ -108,7 +108,7 @@ const response = await fetch(`${API_BASE_URL}/api/users/profile/${userId}`, {
         try {
             setIsUploadingImage(true);
             const API_BASE_URL = import.meta.env.MODE === 'production'
-                ? 'https://one-inventory.onrender.com'
+                ? 'https://upright-inventory.onrender.com'
                 : 'http://localhost:5000';
 
             const formData = new FormData();
@@ -195,7 +195,7 @@ const response = await fetch(`${API_BASE_URL}/api/users/profile/${userId}`, {
 
         try {
 const API_BASE_URL = import.meta.env.MODE === 'production'
-    ? 'https://one-inventory.onrender.com'
+    ? 'https://upright-inventory.onrender.com'
     : 'http://localhost:5000';
 
 const response = await fetch(`${API_BASE_URL}/api/users/change-password/${userId}`, {

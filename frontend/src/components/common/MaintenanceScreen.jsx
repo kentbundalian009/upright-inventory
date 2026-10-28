@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
-  ? 'https://one-inventory.onrender.com/api'
+  ? 'https://upright-inventory.onrender.com/api'
   : 'http://localhost:5000/api';
 
 function MaintenanceScreen({ maintenanceData, onCheckStatus }) {

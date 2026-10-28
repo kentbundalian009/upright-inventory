@@ -8,7 +8,7 @@ import TablePagination from './common/TablePagination';
 import { useTheme } from '../context/ThemeContext';
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
-  ? 'https://one-inventory.onrender.com/api'
+  ? 'https://upright-inventory.onrender.com/api'
   : 'http://localhost:5000/api';
 
 const RAW_MAT_URL = `${API_BASE_URL}/raw-materials`;

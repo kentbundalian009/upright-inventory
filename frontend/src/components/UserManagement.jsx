@@ -18,7 +18,7 @@ import PageHeader from './layout/PageHeader';
 function AdminUserManagement() {
     // Dynamic Environment URL Strategy
     const API_BASE_URL = import.meta.env.MODE === 'production'
-        ? 'https://one-inventory.onrender.com'
+        ? 'https://upright-inventory.onrender.com'
         : 'http://localhost:5000';
 
     // 1. DATABASE AT LIFECYCLE STATES

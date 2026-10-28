@@ -183,7 +183,7 @@ const UNIT_COLOR_OPTIONS = [
 ];
 
 const BASE_API_URL = import.meta.env.MODE === 'production'
-    ? 'https://one-inventory.onrender.com/api'
+    ? 'https://upright-inventory.onrender.com/api'
     : 'http://localhost:5000/api';
 
 const formatDimensionForPdf = (dimStr) => {
@@ -246,7 +246,7 @@ const getItemConditions = (item) => {
 
 const getBackendBaseUrl = () => {
     if (import.meta.env.MODE === 'production') {
-        return 'https://one-inventory.onrender.com';
+        return 'https://upright-inventory.onrender.com';
     }
     if (typeof window !== 'undefined') {
         return `${window.location.protocol}//${window.location.hostname || 'localhost'}:5000`;

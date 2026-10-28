@@ -629,9 +629,10 @@ export default function RackingsUnit() {
       setRawMaterialsList(activeMaterials);
       console.log("✅ Fetched Rackings Materials in RackingsUnit:", activeMaterials.length);
     } catch (err) {
-      console.warn("Relative fetch failed, trying direct localhost fallback:", err);
+      console.warn("Relative fetch failed, trying direct fallback:", err);
       try {
-        const fallbackRes = await axios.get('http://localhost:5000/api/raw-materials/shared');
+        const fallbackUrl = import.meta.env.MODE === 'production' ? 'https://upright-inventory.onrender.com/api/raw-materials/shared' : 'http://localhost:5000/api/raw-materials/shared';
+        const fallbackRes = await axios.get(fallbackUrl);
         let dataList = [];
         if (Array.isArray(fallbackRes.data)) dataList = fallbackRes.data;
         else if (fallbackRes.data && Array.isArray(fallbackRes.data.Data)) dataList = fallbackRes.data.Data;
@@ -639,7 +640,7 @@ export default function RackingsUnit() {
 
         const activeMaterials = dataList.filter(m => !m.isArchived);
         setRawMaterialsList(activeMaterials);
-        console.log("✅ Fetched via direct localhost fallback:", activeMaterials.length);
+        console.log("✅ Fetched via direct fallback:", activeMaterials.length);
       } catch (finalErr) {
         console.error("Critical: All fetch attempts failed:", finalErr);
         triggerError("Failed to fetch raw materials inventory.");

@@ -30,7 +30,7 @@ import SharedRackingsView from './SharedRackingsView';
 import { trackSharedLinkClick } from '../utils/linkTracker';
 
 const API_BASE_URL = import.meta.env.MODE === 'production'
-  ? 'https://one-inventory.onrender.com/api'
+  ? 'https://upright-inventory.onrender.com/api'
   : 'http://localhost:5000/api';
 
 function Dashboard() {

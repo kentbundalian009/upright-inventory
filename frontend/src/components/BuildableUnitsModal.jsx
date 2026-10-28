@@ -12,7 +12,7 @@ const STORAGE_KEY = 'oneinventory_unit_assembly_recipes_v1';
 
 const getBackendBaseUrl = () => {
   if (import.meta.env.MODE === 'production') {
-    return 'https://one-inventory.onrender.com';
+    return 'https://upright-inventory.onrender.com';
   }
   if (typeof window !== 'undefined') {
     return `${window.location.protocol}//${window.location.hostname || 'localhost'}:5000`;
