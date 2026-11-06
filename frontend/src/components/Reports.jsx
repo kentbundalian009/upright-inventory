@@ -928,7 +928,7 @@ function Reports() {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(6.8);
             doc.setTextColor(71, 85, 105);
-            doc.text('WAREHOUSE OPERATIONS & ENTERPRISE RESOURCE PLANNING', 33, 20.5);
+            doc.text('TOOLROOM DEPARTMENT', 33, 20.5);
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(6.2);
@@ -938,7 +938,7 @@ function Reports() {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(5.5);
             doc.setTextColor(255, 102, 0); // Vibrant Upright Orange #FF6600
-            doc.text('Security Classification: INTERNAL CONFIDENTIAL • Controlled Executive Copy', 33, 29);
+            doc.text('Security Classification: INTERNAL CONFIDENTIAL - Controlled Executive Copy', 33, 29);
 
             // Top-Right Official Metadata
             doc.setFont('helvetica', 'bold');
@@ -4248,14 +4248,14 @@ function Reports() {
                                             type="button"
                                             onClick={() => setSelectedUnitCategory(cat)}
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${isSelected
-                                                    ? (isDark ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white border-orange-500 shadow-md ring-1 ring-orange-500/50' : 'bg-gradient-to-r from-[#18174e] to-[#2b2980] text-white border-[#18174e] shadow-md ring-1 ring-[#18174e]/50')
-                                                    : (isDark ? 'bg-[#141622] text-slate-300 border-slate-700 hover:bg-slate-800 hover:text-white' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:text-slate-900')
+                                                ? (isDark ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white border-orange-500 shadow-md ring-1 ring-orange-500/50' : 'bg-gradient-to-r from-[#18174e] to-[#2b2980] text-white border-[#18174e] shadow-md ring-1 ring-[#18174e]/50')
+                                                : (isDark ? 'bg-[#141622] text-slate-300 border-slate-700 hover:bg-slate-800 hover:text-white' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:text-slate-900')
                                                 }`}
                                         >
                                             <span>{cat}</span>
                                             <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${isSelected
-                                                    ? 'bg-white/20 text-white'
-                                                    : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
+                                                ? 'bg-white/20 text-white'
+                                                : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')
                                                 }`}>
                                                 {count}
                                             </span>
@@ -4422,8 +4422,8 @@ function Reports() {
                                     disabled={loading}
                                     title={`Download ${selectedUnitCategory !== 'All Categories' ? selectedUnitCategory : 'All Categories'} Rackings Unit Report with images (PDF)`}
                                     className={`flex items-center gap-2 text-xs font-bold p-2 sm:px-3.5 sm:py-2 rounded-lg border transition-all cursor-pointer shadow-md flex-shrink-0 disabled:opacity-50 ${isDark
-                                            ? 'border-orange-500 bg-gradient-to-r from-orange-600 to-amber-600 text-white hover:from-orange-500 hover:to-amber-500 shadow-orange-950/40'
-                                            : 'border-orange-600 bg-gradient-to-r from-orange-600 to-amber-600 text-white hover:from-orange-700 hover:to-amber-700 shadow-orange-200'
+                                        ? 'border-orange-500 bg-gradient-to-r from-orange-600 to-amber-600 text-white hover:from-orange-500 hover:to-amber-500 shadow-orange-950/40'
+                                        : 'border-orange-600 bg-gradient-to-r from-orange-600 to-amber-600 text-white hover:from-orange-700 hover:to-amber-700 shadow-orange-200'
                                         }`}
                                 >
                                     <Download className="w-4 h-4 text-white" />
@@ -4443,8 +4443,8 @@ function Reports() {
                                         disabled={loading}
                                         title="Download All Categories Consolidated PDF"
                                         className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-2 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${isDark
-                                                ? 'bg-[#141622] text-slate-300 border-slate-700 hover:bg-slate-800'
-                                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                            ? 'bg-[#141622] text-slate-300 border-slate-700 hover:bg-slate-800'
+                                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                                             }`}
                                     >
                                         <Download className="w-3.5 h-3.5 text-slate-400" />
@@ -4505,8 +4505,8 @@ function Reports() {
                                         ? `Export ${selectedCount} selected items to Excel (Upright Branded Template)`
                                         : (showZeroOnly ? "Download Excel of all 0 quantity items (Upright Template)" : showInventoryOnly ? "Export Alphabetical Inventory Only Ledger Excel (Upright Template)" : showAcquisitionCost ? "Export Acquisition Cost & Valuation Ledger Excel (Upright Template)" : "Export Consolidated Ledger Excel (Upright Template)")}
                                     className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 disabled:opacity-50 ${isDark
-                                            ? 'border-emerald-700/80 bg-emerald-950/80 text-emerald-300 hover:bg-emerald-900/90 hover:border-emerald-500'
-                                            : 'border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800'
+                                        ? 'border-emerald-700/80 bg-emerald-950/80 text-emerald-300 hover:bg-emerald-900/90 hover:border-emerald-500'
+                                        : 'border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800'
                                         }`}
                                 >
                                     <FileSpreadsheet className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-emerald-300" />
@@ -4538,8 +4538,8 @@ function Reports() {
                             onClick={() => setIsAssemblyModalOpen(true)}
                             title="Calculate how many complete units can be formed from available materials (User-Controlled Formula)"
                             className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${isDark
-                                    ? 'border-amber-700/70 bg-amber-950/60 text-amber-300 hover:bg-amber-900/80 hover:border-amber-500'
-                                    : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:border-amber-400'
+                                ? 'border-amber-700/70 bg-amber-950/60 text-amber-300 hover:bg-amber-900/80 hover:border-amber-500'
+                                : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:border-amber-400'
                                 }`}
                         >
                             <Layers className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-amber-500" />
@@ -4700,8 +4700,8 @@ function Reports() {
                                                 <tr
                                                     key={rec.id}
                                                     className={`transition-colors whitespace-nowrap ${isDark
-                                                            ? 'hover:bg-slate-800/40 border-l-4 border-l-transparent'
-                                                            : 'hover:bg-slate-50 border-l-4 border-l-transparent'
+                                                        ? 'hover:bg-slate-800/40 border-l-4 border-l-transparent'
+                                                        : 'hover:bg-slate-50 border-l-4 border-l-transparent'
                                                         }`}
                                                 >
                                                     {/* 1. Image */}
@@ -4802,10 +4802,10 @@ function Reports() {
                                                                                     <span
                                                                                         key={bIdx}
                                                                                         className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium border leading-none ${b.type === 'H' ? (isDark ? 'bg-blue-950/60 text-blue-300 border-blue-800' : 'bg-blue-50 text-blue-700 border-blue-200') :
-                                                                                                b.type === 'W' ? (isDark ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800' : 'bg-emerald-50 text-emerald-700 border-emerald-200') :
-                                                                                                    b.type === 'L' ? (isDark ? 'bg-teal-950/60 text-teal-300 border-teal-800' : 'bg-teal-50 text-teal-700 border-teal-200') :
-                                                                                                        b.type === 'D' ? (isDark ? 'bg-amber-950/60 text-amber-300 border-amber-800' : 'bg-amber-50 text-amber-800 border-amber-200') :
-                                                                                                            (isDark ? 'bg-purple-950/60 text-purple-300 border-purple-800' : 'bg-purple-50 text-purple-800 border-purple-200')
+                                                                                            b.type === 'W' ? (isDark ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800' : 'bg-emerald-50 text-emerald-700 border-emerald-200') :
+                                                                                                b.type === 'L' ? (isDark ? 'bg-teal-950/60 text-teal-300 border-teal-800' : 'bg-teal-50 text-teal-700 border-teal-200') :
+                                                                                                    b.type === 'D' ? (isDark ? 'bg-amber-950/60 text-amber-300 border-amber-800' : 'bg-amber-50 text-amber-800 border-amber-200') :
+                                                                                                        (isDark ? 'bg-purple-950/60 text-purple-300 border-purple-800' : 'bg-purple-50 text-purple-800 border-purple-200')
                                                                                             }`}
                                                                                     >
                                                                                         <span className="font-bold mr-0.5 uppercase">{b.label}:</span>
@@ -4859,8 +4859,8 @@ function Reports() {
                                                                     <div
                                                                         key={cIdx}
                                                                         className={`h-7 flex items-center justify-center px-2.5 rounded-md text-xs font-mono font-bold border ${metrics.maxCompleteUnits > 0
-                                                                                ? (isDark ? 'bg-[#141622] border-slate-700 text-emerald-400' : 'bg-emerald-50/70 border-emerald-200 text-emerald-700')
-                                                                                : (isDark ? 'bg-[#141622] border-slate-700 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400')
+                                                                            ? (isDark ? 'bg-[#141622] border-slate-700 text-emerald-400' : 'bg-emerald-50/70 border-emerald-200 text-emerald-700')
+                                                                            : (isDark ? 'bg-[#141622] border-slate-700 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400')
                                                                             }`}
                                                                         title={`Need: ${usedPcs.toLocaleString()} ${uom} | Total Stock: ${totalStock.toLocaleString()} ${uom}${remainder > 0 ? ` | Butal: ${remainder.toLocaleString()} ${uom}` : ''}`}
                                                                     >
@@ -4876,8 +4876,8 @@ function Reports() {
                                                         <div className="flex flex-col gap-1.5 min-w-[120px]">
                                                             <div
                                                                 className={`h-7 flex items-center justify-center px-2.5 rounded-md text-xs font-mono font-bold border ${metrics.maxCompleteUnits > 0
-                                                                        ? (isDark ? 'bg-[#141622] border-slate-700 text-emerald-400' : 'bg-emerald-50/70 border-emerald-200 text-emerald-700')
-                                                                        : (isDark ? 'bg-[#141622] border-slate-700 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400')
+                                                                    ? (isDark ? 'bg-[#141622] border-slate-700 text-emerald-400' : 'bg-emerald-50/70 border-emerald-200 text-emerald-700')
+                                                                    : (isDark ? 'bg-[#141622] border-slate-700 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400')
                                                                     }`}
                                                             >
                                                                 <span>{metrics.maxCompleteUnits.toLocaleString()} {rec.uom || 'UNITS'}</span>
