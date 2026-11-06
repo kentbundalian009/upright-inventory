@@ -1068,7 +1068,20 @@ export default function RackingsUnit() {
         month: 'short', day: 'numeric', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
       });
-      const loggedUser = localStorage.getItem("username") || localStorage.getItem("SystemRole") || "System User";
+      let loggedUser = "INVENTORY PERSONNEL";
+      try {
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          const u = parsed.user || parsed;
+          const uName = u.Fullname || u.fullname || u.fullName || u.name || (u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : null) || u.Username || u.username;
+          if (uName) loggedUser = uName;
+        }
+        if (loggedUser === "INVENTORY PERSONNEL") {
+          loggedUser = localStorage.getItem("Fullname") || localStorage.getItem("username") || "INVENTORY PERSONNEL";
+        }
+      } catch {}
+      loggedUser = String(loggedUser).trim().toUpperCase();
 
       // Watermark
       try {

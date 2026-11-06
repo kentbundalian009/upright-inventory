@@ -103,6 +103,15 @@ function Login() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       
+      const userFullName = data.user?.Fullname || data.user?.fullname || data.user?.name || '';
+      if (userFullName) {
+        localStorage.setItem('Fullname', userFullName);
+      }
+      const userName = data.user?.Username || data.user?.username || '';
+      if (userName) {
+        localStorage.setItem('username', userName);
+      }
+
       if (data.user && data.user.SystemRole) {
         localStorage.setItem('SystemRole', data.user.SystemRole);
       } else {

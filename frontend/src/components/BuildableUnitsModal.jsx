@@ -496,7 +496,20 @@ export default function BuildableUnitsModal({ isOpen, onClose, rawMaterials = []
         month: 'short', day: 'numeric', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
       });
-      const loggedUser = localStorage.getItem("username") || localStorage.getItem("SystemRole") || "System User";
+      let loggedUser = "INVENTORY PERSONNEL";
+      try {
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          const u = parsed.user || parsed;
+          const uName = u.Fullname || u.fullname || u.fullName || u.name || (u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : null) || u.Username || u.username;
+          if (uName) loggedUser = uName;
+        }
+        if (loggedUser === "INVENTORY PERSONNEL") {
+          loggedUser = localStorage.getItem("Fullname") || localStorage.getItem("username") || "INVENTORY PERSONNEL";
+        }
+      } catch {}
+      loggedUser = String(loggedUser).trim().toUpperCase();
 
       // 1. Watermark
       try {
@@ -783,32 +796,42 @@ export default function BuildableUnitsModal({ isOpen, onClose, rawMaterials = []
       const sigY = finalY;
 
       // Col 1: Prepared By
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      doc.setTextColor(100, 100, 100);
-      doc.text("Prepared By (Inventory Officer):", 14, sigY);
-      doc.line(14, sigY + 9, 14 + sigColWidth, sigY + 9);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(40, 40, 40);
-      doc.text(loggedUser, 14, sigY + 13);
+      doc.setFontSize(6.2);
+      doc.setTextColor(24, 23, 78);
+      doc.text("PREPARED & COMPILED BY:", 14, sigY);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(loggedUser.length > 25 ? 6.0 : 6.8);
+      doc.setTextColor(15, 23, 42);
+      doc.text(loggedUser, 14 + (sigColWidth / 2), sigY + 8.5, { align: 'center' });
+
+      doc.setDrawColor(148, 163, 184);
+      doc.setLineWidth(0.25);
+      doc.line(14, sigY + 10.5, 14 + sigColWidth, sigY + 10.5);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.0);
+      doc.setTextColor(24, 23, 78);
+      doc.text("Inventory Personnel", 14 + (sigColWidth / 2), sigY + 14.5, { align: 'center' });
 
       // Col 2: Verified By
       const sig2X = 14 + sigColWidth + 18;
       doc.setFont("helvetica", "normal");
       doc.setTextColor(100, 100, 100);
       doc.text("Verified By (Production Lead / Engineer):", sig2X, sigY);
-      doc.line(sig2X, sigY + 9, sig2X + sigColWidth, sigY + 9);
+      doc.line(sig2X, sigY + 10.5, sig2X + sigColWidth, sigY + 10.5);
       doc.setFont("helvetica", "italic");
-      doc.text("Signature & Date", sig2X, sigY + 13);
+      doc.text("Signature & Date", sig2X, sigY + 14.5);
 
       // Col 3: Approved By
       const sig3X = sig2X + sigColWidth + 18;
       doc.setFont("helvetica", "normal");
       doc.setTextColor(100, 100, 100);
       doc.text("Approved By (Operations / Plant Manager):", sig3X, sigY);
-      doc.line(sig3X, sigY + 9, sig3X + sigColWidth, sigY + 9);
+      doc.line(sig3X, sigY + 10.5, sig3X + sigColWidth, sigY + 10.5);
       doc.setFont("helvetica", "italic");
-      doc.text("Signature & Date", sig3X, sigY + 13);
+      doc.text("Signature & Date", sig3X, sigY + 14.5);
 
       // 7. Page Decoration Footer on all pages
       const totalPages = doc.internal.getNumberOfPages();

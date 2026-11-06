@@ -20,6 +20,7 @@
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.21.0",
+    "oneinventory": "file:..",
     "oxlint": "^1.69.0",
     "postcss": "^8.5.15",
     "react": "^19.2.7",
