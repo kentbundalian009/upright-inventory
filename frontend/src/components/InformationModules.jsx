@@ -14,7 +14,6 @@ const API_BASE_URL = '/api';
 function Client() {
   const { isDark } = useTheme();
   const userRole = localStorage.getItem('SystemRole') || 'Inventory';
-  const isViewer = userRole?.toLowerCase() === 'viewer';
 
   // Active sub-tab: 'Supplier' | 'Customer' | 'Logistics'
   const [activeType, setActiveType] = useState('Supplier');
@@ -373,28 +372,25 @@ function Client() {
             {/* ACTION CONTROLS */}
             <div className="flex items-center gap-2.5 ml-auto">
 
-              {!isViewer && (
-                <button
-                  onClick={handleOpenAdd}
-                  title={`Register new ${activeType}`}
-                  className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90'
-                    }`}
-                >
-                  <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                  <span className="hidden md:inline">Add New {activeType}</span>
-                  <span className="md:hidden">Add</span>
-                </button>
-              )}
+              <button
+                onClick={handleOpenAdd}
+                title={`Register new ${activeType}`}
+                className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90'
+                  }`}
+              >
+                <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden md:inline">Add New {activeType}</span>
+                <span className="md:hidden">Add</span>
+              </button>
 
-              {!isViewer && (
-                <button
-                  onClick={() => setShowArchivedOnly(!showArchivedOnly)}
-                  title={showArchivedOnly ? `Show Active ${activeType} records` : `Archive Vault`}
-                  className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${showArchivedOnly
-                    ? (isDark ? 'bg-rose-950/40 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100')
-                    : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
-                    }`}
-                >
+              <button
+                onClick={() => setShowArchivedOnly(!showArchivedOnly)}
+                title={showArchivedOnly ? `Show Active ${activeType} records` : `Archive Vault`}
+                className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${showArchivedOnly
+                  ? (isDark ? 'bg-rose-950/40 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100')
+                  : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
+                  }`}
+              >
                   {showArchivedOnly ? (
                     <>
                       <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
@@ -409,7 +405,6 @@ function Client() {
                     </>
                   )}
                 </button>
-              )}
             </div>
           </div>
 
@@ -482,11 +477,9 @@ function Client() {
                         Logistics Name
                       </th>
                       <th className="py-3 px-4 whitespace-nowrap">Date Added</th>
-                      {!isViewer && (
-                        <th className="py-3 px-4 text-center whitespace-nowrap w-28">
-                          Action
-                        </th>
-                      )}
+                      <th className="py-3 px-4 text-center whitespace-nowrap w-28">
+                        Action
+                      </th>
                     </>
                   ) : (
                     <>
@@ -501,11 +494,9 @@ function Client() {
                         {activeType === 'Employee' ? 'Department / Area' : activeType === 'Supplier' ? 'Origin Location Address' : 'Destination Address'}
                       </th>
                       <th className="py-3 px-4 whitespace-nowrap">Date Added</th>
-                      {!isViewer && (
-                        <th className="py-3 px-4 text-center whitespace-nowrap">
-                          Action
-                        </th>
-                      )}
+                      <th className="py-3 px-4 text-center whitespace-nowrap">
+                        Action
+                      </th>
                     </>
                   )}
                 </tr>
@@ -514,7 +505,7 @@ function Client() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 3 : 4)}
+                      colSpan={activeType === 'Logistics' ? 3 : 4}
                       className="text-center py-10 text-green-700 font-medium italic"
                     >
                       Fetching secure {activeType.toLowerCase()} records from database...
@@ -523,7 +514,7 @@ function Client() {
                 ) : error ? (
                   <tr>
                     <td
-                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 3 : 4)}
+                      colSpan={activeType === 'Logistics' ? 3 : 4}
                       className="text-center py-8 text-rose-600 font-semibold"
                     >
                       {error}
@@ -555,87 +546,7 @@ function Client() {
                         </td>
 
                         {/* ACTIONS */}
-                        {!isViewer && (
-                          <td className="py-3.5 px-4 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              {!showArchivedOnly ? (
-                                <>
-                                  <button
-                                    onClick={() => handleOpenEdit(client)}
-                                    title="Edit Details"
-                                    className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`}
-                                  >
-                                    <Edit2 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => openArchiveConfirmation(client)}
-                                    title="Archive"
-                                    className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}
-                                  >
-                                    <Archive className="w-3.5 h-3.5" />
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => openUnarchiveConfirmation(client)}
-                                    title="Restore"
-                                    className={`p-1.5 ${isDark ? 'bg-[#181a26] border-emerald-800/80 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-white border-slate-200 text-emerald-600 hover:bg-emerald-600 hover:text-white'} border rounded transition-all cursor-pointer`}
-                                  >
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => openPermanentDeleteConfirmation(client)}
-                                    title="Delete Permanently"
-                                    className={`p-1.5 ${isDark ? 'bg-[#181a26] border-rose-800/80 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  }
-
-                  return (
-                    <tr key={client._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
-
-                      {/* STICKY CLIENT NAME */}
-                      <td
-                        className={`py-3 px-4 font-semibold static md:sticky md:left-0 z-10 min-w-[170px] sm:min-w-[210px] md:max-w-[300px] whitespace-normal md:whitespace-nowrap transition-colors ${isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
-                          }`}
-                        style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
-                        title={client.name}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold">{client.name}</span>
-                        </div>
-                      </td>
-
-                      {/* ADDRESS */}
-                      <td className="py-3 px-4 whitespace-normal max-w-xs text-xs">
-                        {client.address ? (
-                          <span className="font-medium">{client.address}</span>
-                        ) : (
-                          <span className="text-slate-400 italic">No address specified</span>
-                        )}
-                      </td>
-
-                      {/* DATE ADDED */}
-                      <td className={`py-3 px-4 text-xs font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                        {new Date(client.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </td>
-
-                      {/* ACTIONS */}
-                      {!isViewer && (
-                        <td className="py-3 px-4 text-center">
+                        <td className="py-3.5 px-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             {!showArchivedOnly ? (
                               <>
@@ -674,7 +585,83 @@ function Client() {
                             )}
                           </div>
                         </td>
-                      )}
+                      </tr>
+                    );
+                  }
+
+                  return (
+                    <tr key={client._id} className={`group ${isDark ? 'hover:bg-[#141622] text-slate-300' : 'hover:bg-slate-50/80 text-slate-600'} transition-colors font-medium whitespace-nowrap text-sm`}>
+
+                      {/* STICKY CLIENT NAME */}
+                      <td
+                        className={`py-3 px-4 font-semibold static md:sticky md:left-0 z-10 min-w-[170px] sm:min-w-[210px] md:max-w-[300px] whitespace-normal md:whitespace-nowrap transition-colors ${isDark ? 'bg-[#090b10] group-hover:bg-[#141622] text-slate-100' : 'bg-white group-hover:bg-[#f8fafc] text-slate-800'
+                          }`}
+                        style={{ boxShadow: isDark ? 'inset -2px 0 0 0 #475569, 6px 0 10px -2px rgba(0, 0, 0, 0.4)' : 'inset -2px 0 0 0 #cbd5e1, 6px 0 10px -2px rgba(0, 0, 0, 0.08)' }}
+                        title={client.name}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold">{client.name}</span>
+                        </div>
+                      </td>
+
+                      {/* ADDRESS */}
+                      <td className="py-3 px-4 whitespace-normal max-w-xs text-xs">
+                        {client.address ? (
+                          <span className="font-medium">{client.address}</span>
+                        ) : (
+                          <span className="text-slate-400 italic">No address specified</span>
+                        )}
+                      </td>
+
+                      {/* DATE ADDED */}
+                      <td className={`py-3 px-4 text-xs font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        {new Date(client.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </td>
+
+                      {/* ACTIONS */}
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          {!showArchivedOnly ? (
+                            <>
+                              <button
+                                onClick={() => handleOpenEdit(client)}
+                                title="Edit Details"
+                                className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`}
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => openArchiveConfirmation(client)}
+                                title="Archive"
+                                className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}
+                              >
+                                <Archive className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => openUnarchiveConfirmation(client)}
+                                title="Restore"
+                                className={`p-1.5 ${isDark ? 'bg-[#181a26] border-emerald-800/80 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-white border-slate-200 text-emerald-600 hover:bg-emerald-600 hover:text-white'} border rounded transition-all cursor-pointer`}
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => openPermanentDeleteConfirmation(client)}
+                                title="Delete Permanently"
+                                className={`p-1.5 ${isDark ? 'bg-[#181a26] border-rose-800/80 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
 
                     </tr>
                   );
@@ -683,7 +670,7 @@ function Client() {
                 {filteredClients.length === 0 && !loading && (
                   <tr>
                     <td
-                      colSpan={activeType === 'Logistics' ? (isViewer ? 2 : 3) : (isViewer ? 3 : 4)}
+                      colSpan={activeType === 'Logistics' ? 3 : 4}
                       className="text-center py-10 text-red-600 font-medium italic"
                     >
                       No {activeType.toLowerCase()} records match the selected filters or search queries.

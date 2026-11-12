@@ -41,7 +41,7 @@ router.route("/batch-counts")
   .put(restrictTo("Inventory", "Admin", "Purchasing"), batchUpdateSuppliesActualCounts);
 
 router.route("/")
-  .get(restrictTo("Inventory", "Viewer", "Admin", "Purchasing"), getAllSupplies)    
+  .get(restrictTo("Inventory", "Admin", "Purchasing"), getAllSupplies)    
   .post(restrictTo("Inventory", "Admin", "Purchasing"), createSupplies);
 
 router.route("/:id/unarchive")
@@ -51,7 +51,7 @@ router.route("/:id/permanent")
   .delete(restrictTo("Inventory", "Admin", "Purchasing"), permanentDeleteSupplies);
 
 router.route("/:id")
-  .get(restrictTo("Inventory", "Viewer", "Admin", "Purchasing"), getSuppliesById)   
+  .get(restrictTo("Inventory", "Admin", "Purchasing"), getSuppliesById)   
   .put(restrictTo("Inventory", "Admin", "Purchasing"), updateSupplies)
   .delete(restrictTo("Inventory", "Admin", "Purchasing"), deleteSupplies); 
 

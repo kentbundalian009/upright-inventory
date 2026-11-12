@@ -35,13 +35,13 @@ const router = express.Router();
 // 🖼️ Public & Browser-Cacheable Image Endpoint (walang Bearer header na kailangan ang <img> tags)
 router.get("/:id/image", getRawMaterialImage);
 
-// 🔗 Public Read-Only Endpoint for Shared Link Viewers
+// 🔗 Public Read-Only Endpoint for Shared Links
 router.get("/shared", getAllRawMaterials);
 
 router.use(protectRoute);
 
 router.route("/")
-  .get(restrictTo("Inventory", "Viewer", "Admin", "Purchasing"), getAllRawMaterials)
+  .get(restrictTo("Inventory", "Admin", "Purchasing"), getAllRawMaterials)
   .post(restrictTo("Inventory", "Admin", "Purchasing"), upload.single("image"), createRawMaterial);
 
 router.route("/:id/unarchive")
@@ -51,7 +51,7 @@ router.route("/:id/permanent")
   .delete(restrictTo("Inventory", "Admin", "Purchasing"), permanentDeleteRawMaterial);
 
 router.route("/:id")
-  .get(restrictTo("Inventory", "Viewer", "Admin", "Purchasing"), getRawMaterialById)
+  .get(restrictTo("Inventory", "Admin", "Purchasing"), getRawMaterialById)
   .put(restrictTo("Inventory", "Admin", "Purchasing"), upload.single("image"), updateRawMaterial)
   .delete(restrictTo("Inventory", "Admin", "Purchasing"), deleteRawMaterial);
 

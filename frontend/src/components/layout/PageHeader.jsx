@@ -9,15 +9,12 @@ import {
   History,
   Briefcase,
   Users,
-  Activity,
   FileSpreadsheet,
   ArrowDownCircle,
   TrendingUp,
   Calendar,
   Database,
-  Power,
   Building2,
-  Share2,
   Boxes,
   ClipboardList,
   Calculator
@@ -52,25 +49,10 @@ function PageHeader({ activeTab, title, description, icon, badge, actions, child
       description: 'Manage system users, roles, permissions, and account statuses.',
       icon: Users
     },
-    'user-activity': {
-      title: 'User Activity Logs',
-      description: 'Monitor real-time user actions, system changes, and security audits.',
-      icon: Activity
-    },
-    'shared-viewers': {
-      title: 'Viewer Link Management',
-      description: 'Track generated viewer links, edit viewer details, monitor access counts, and revoke active links.',
-      icon: Share2
-    },
     'admin-backup': {
       title: 'Database Vault & Backup',
       description: 'Generate complete database JSON exports, view collection metrics, and safely restore snapshots.',
       icon: Database
-    },
-    'admin-settings': {
-      title: 'System Maintenance & Lockout',
-      description: 'Control live system availability, emergency shutdown, and broadcast advisory notices to users.',
-      icon: Power
     },
     'inventory': {
       title: 'Inventory Dashboard',

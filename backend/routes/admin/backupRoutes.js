@@ -2,7 +2,6 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import { protectRoute, restrictTo } from "../../middleware/authMiddleware.js";
-import ActivityLog from "../../models/ActivityLog.js";
 import { 
   getScheduleSetting, 
   computeNextRun, 
@@ -37,8 +36,7 @@ router.get("/stats", protectRoute, restrictTo("Admin"), async (req, res) => {
       consumablesCount,
       packingListCount,
       conversionsCount,
-      poCount,
-      logsCount
+      poCount
     ] = await Promise.all([
       User.countDocuments(),
       RawMaterial.countDocuments(),
@@ -47,8 +45,7 @@ router.get("/stats", protectRoute, restrictTo("Admin"), async (req, res) => {
       Consumable.countDocuments(),
       PackingList.countDocuments(),
       Conversion.countDocuments(),
-      PurchaseOrder.countDocuments(),
-      ActivityLog.countDocuments()
+      PurchaseOrder.countDocuments()
     ]);
 
     const totalRecords = usersCount + rawMatCount + suppliesCount + 
@@ -64,8 +61,7 @@ router.get("/stats", protectRoute, restrictTo("Admin"), async (req, res) => {
         consumables: consumablesCount,
         packingLists: packingListCount,
         conversions: conversionsCount,
-        purchaseOrders: poCount,
-        activityLogs: logsCount
+        purchaseOrders: poCount
       },
       lastChecked: new Date().toISOString()
     });
@@ -116,19 +112,6 @@ router.get("/export", protectRoute, restrictTo("Admin"), async (req, res) => {
       backupPayload.collections.settings = await Setting.find().lean();
       backupPayload.collections.palette = await Palette.find().lean();
       backupPayload.collections.paletteSup = await PaletteSup.find().lean();
-    }
-
-    // Log the backup creation in ActivityLog
-    try {
-      await ActivityLog.create({
-        username: req.user?.Username || "Admin",
-        role: "Admin",
-        module: "Database Backup",
-        operation: "APPROVE",
-        action: `Generated JSON database export snapshot [Target: ${collection || "Full DB"}]`
-      });
-    } catch (logErr) {
-      console.warn("Failed to write activity log for backup export:", logErr.message);
     }
 
     const filename = `oneinventory_backup_${collection || "full"}_${new Date().toISOString().split("T")[0]}.json`;
@@ -230,19 +213,6 @@ router.post("/restore", protectRoute, restrictTo("Admin"), async (req, res) => {
       restoredCounts.purchaseOrders = cols.purchaseOrders.length;
     }
 
-    // Log restore action
-    try {
-      await ActivityLog.create({
-        username: req.user?.Username || "Admin",
-        role: "Admin",
-        module: "Database Restore",
-        operation: "UPDATE",
-        action: `Restored database collections (${restoreMode} mode): ${JSON.stringify(restoredCounts)}`
-      });
-    } catch (logErr) {
-      console.warn("Failed to write activity log for restore:", logErr.message);
-    }
-
     return res.status(200).json({
       message: "Database restore executed successfully.",
       restoredCounts
@@ -295,18 +265,6 @@ router.put("/schedule", protectRoute, restrictTo("Admin"), async (req, res) => {
     }
 
     await setting.save();
-
-    try {
-      await ActivityLog.create({
-        username: req.user?.Username || "Admin",
-        role: "Admin",
-        module: "Database Vault",
-        operation: "UPDATE",
-        action: `Configured automated backup schedule: ${frequency.toUpperCase()} (Enabled: ${setting.isMaintenanceActive})`
-      });
-    } catch (logErr) {
-      console.warn("Activity log failed for schedule change:", logErr.message);
-    }
 
     return res.status(200).json({
       message: `Automated backup schedule set to ${frequency.toUpperCase()}.`,
@@ -364,18 +322,6 @@ router.delete("/snapshots/:filename", protectRoute, restrictTo("Admin"), async (
 
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
-    }
-
-    try {
-      await ActivityLog.create({
-        username: req.user?.Username || "Admin",
-        role: "Admin",
-        module: "Database Vault",
-        operation: "DELETE",
-        action: `Deleted server backup snapshot: ${safeFilename}`
-      });
-    } catch (logErr) {
-      console.warn("Activity log failed for snapshot delete:", logErr.message);
     }
 
     return res.status(200).json({
@@ -472,18 +418,6 @@ router.post("/snapshots/:filename/restore", protectRoute, restrictTo("Admin"), a
         await PurchaseOrder.findByIdAndUpdate(_id, doc, { upsert: true, new: true });
       }
       restoredCounts.purchaseOrders = cols.purchaseOrders.length;
-    }
-
-    try {
-      await ActivityLog.create({
-        username: req.user?.Username || "Admin",
-        role: "Admin",
-        module: "Database Restore",
-        operation: "UPDATE",
-        action: `Restored database directly from server snapshot "${safeFilename}" (${restoreMode} mode)`
-      });
-    } catch (logErr) {
-      console.warn("Activity log failed for snapshot restore:", logErr.message);
     }
 
     return res.status(200).json({

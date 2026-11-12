@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios'; 
 import { useTheme } from '../context/ThemeContext';
 import Sidebar from "../components/layout/Sidebar"; 
@@ -6,11 +6,7 @@ import Topbar from "../components/layout/Topbar";
 
 // Dashboard file imports
 import UserManagement from '../components/UserManagement';
-import UserActivity from '../components/UserActivity';
 import DataBackup from '../components/DataBackup';
-import SystemMaintenance from '../components/SystemMaintenance';
-import ViewerLinks from '../components/ViewerLinks';
-import MaintenanceScreen from '../components/common/MaintenanceScreen';
 
 import DashboardOverview from '../components/DashboardOverview';
 import Rackings from '../components/Rackings';
@@ -26,12 +22,6 @@ import InformationModules from '../components/InformationModules';
 import Settings from '../components/Settings';
 import Reports from '../components/Reports';
 import RackingsUnit from '../components/RackingsUnit';
-import SharedRackingsView from './SharedRackingsView';
-import { trackSharedLinkClick } from '../utils/linkTracker';
-
-const API_BASE_URL = import.meta.env.MODE === 'production'
-  ? 'https://upright-inventory.onrender.com/api'
-  : 'http://localhost:5000/api';
 
 function Dashboard() {
     const userRole = localStorage.getItem("SystemRole") || "Inventory"; 
@@ -55,56 +45,7 @@ function Dashboard() {
         } catch (e) {}
         return 'dashboard';
     });
-    const [maintenanceData, setMaintenanceData] = useState({
-        isMaintenanceActive: false,
-        maintenanceMessage: '',
-        updatedAt: null
-    });
-
-    const checkMaintenanceStatus = async () => {
-        try {
-            const res = await axios.get(`${API_BASE_URL}/system/maintenance`);
-            if (res.data) {
-                setMaintenanceData(res.data);
-            }
-        } catch (err) {
-            console.error("Maintenance check error:", err);
-        }
-    };
-
-    useEffect(() => {
-        trackSharedLinkClick();
-        checkMaintenanceStatus();
-
-        const handleStatusChange = () => {
-            checkMaintenanceStatus();
-        };
-
-        window.addEventListener('systemMaintenanceChanged', handleStatusChange);
-        window.addEventListener('focus', handleStatusChange);
-
-        const interval = setInterval(checkMaintenanceStatus, 20000);
-
-        return () => {
-            window.removeEventListener('systemMaintenanceChanged', handleStatusChange);
-            window.removeEventListener('focus', handleStatusChange);
-            clearInterval(interval);
-        };
-    }, []);
-
     const { isDark } = useTheme();
-
-    // 🔒 SYSTEM SHUTDOWN / MAINTENANCE INTERCEPTOR:
-    // If maintenance mode is active, lock out non-admin users and display the 404 / System Shutdown screen
-    if (userRole !== 'Admin' && maintenanceData.isMaintenanceActive) {
-        return <MaintenanceScreen maintenanceData={maintenanceData} onCheckStatus={checkMaintenanceStatus} />;
-    }
-
-    const searchParams = new URLSearchParams(window.location.search);
-    const isSharedLink = Boolean(searchParams.get('sharedBy')) && (searchParams.get('view') === 'rackings' || searchParams.get('tab') === 'raw-materials');
-    if (isSharedLink) {
-        return <SharedRackingsView />;
-    }
 
     const renderContent = () => {
         switch (activeTab) {
@@ -113,14 +54,8 @@ function Dashboard() {
 
             case 'user-management': 
                 return userRole === 'Admin' ? <UserManagement /> : <DashboardOverview />;
-            case 'user-activity': 
-                return userRole === 'Admin' ? <UserActivity /> : <DashboardOverview />;
             case 'admin-backup':
                 return userRole === 'Admin' ? <DataBackup /> : <DashboardOverview />;
-            case 'admin-settings':
-                return userRole === 'Admin' ? <SystemMaintenance /> : <DashboardOverview />;
-            case 'shared-viewers':
-                return userRole === 'Admin' ? <ViewerLinks /> : <DashboardOverview />;
                 
             case 'raw-materials': return <Rackings />;
             case 'client-records': return userRole === 'Purchasing' ? <DashboardOverview /> : <InformationModules />;

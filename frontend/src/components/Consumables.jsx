@@ -11,7 +11,6 @@ function InventoryConsumables({ setActiveTab }) {
   const isPurchasing = userRole === 'Purchasing';
   const isInventory = userRole === 'Inventory';
   const canViewCost = isPurchasing || userRole === 'Admin';
-  const isViewer = false;
 
   const [consumablesList, setConsumablesList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -390,7 +389,7 @@ function InventoryConsumables({ setActiveTab }) {
     return sum + (qty * (Number(item.AcquisitionCost) || 0));
   }, 0);
 
-  const tableColSpan = canViewCost ? 9 : (isViewer ? 6 : 7);
+  const tableColSpan = canViewCost ? 9 : 7;
 
   return (
     <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased relative">
@@ -443,7 +442,7 @@ function InventoryConsumables({ setActiveTab }) {
               <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
             </label>
 
-            {!isViewer && !isPurchasing && (
+            {!isPurchasing && (
               <button
                 onClick={() => setIsPaletteModalOpen(true)}
                 title="Palette Settings"
@@ -455,7 +454,7 @@ function InventoryConsumables({ setActiveTab }) {
             )}
 
             {/* EDIT QTY BUTTON DIRECTLY IN TABLE */}
-            {!isViewer && !isPurchasing && !showArchivedOnly && (
+            {!isPurchasing && !showArchivedOnly && (
               <button
                 onClick={handleToggleEditQty}
                 title={isEditingQty ? "Cancel Edit Qty Mode" : "Directly Edit Actual Count Column"}
@@ -471,7 +470,7 @@ function InventoryConsumables({ setActiveTab }) {
               </button>
             )}
 
-            {!isViewer && !isPurchasing && (
+            {!isPurchasing && (
               <button
                 onClick={() => {
                   if (isEditingQty) {
@@ -503,7 +502,7 @@ function InventoryConsumables({ setActiveTab }) {
             )}
           </div>
 
-          <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isViewer || isPurchasing ? 'md:grid-cols-3' : 'md:grid-cols-4'} md:pb-0`}>
+          <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isPurchasing ? 'md:grid-cols-3' : 'md:grid-cols-4'} md:pb-0`}>
 
             <div className="min-w-[180px] w-full md:min-w-0">
               <div className="relative w-full">
@@ -524,7 +523,7 @@ function InventoryConsumables({ setActiveTab }) {
               </select>
             </div>
 
-            {!isViewer && !isPurchasing && (
+            {!isPurchasing && (
               <div className="min-w-[160px] w-full md:min-w-0">
                 <button onClick={openAddModal} disabled={showArchivedOnly} className={`flex items-center justify-center gap-2 ${isDark ? 'bg-[#ff6600] hover:bg-[#ff6600]/90' : 'bg-[#18174e] hover:bg-[#18174e]/90'} disabled:bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px]`}>
                   <span className="whitespace-nowrap">Add New Consumable Item</span>
@@ -562,11 +561,9 @@ function InventoryConsumables({ setActiveTab }) {
                       <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
                     </>
                   )}
-                  {!isViewer && (
-                    <th className="py-3 px-4 text-center whitespace-nowrap">
-                      Actions
-                    </th>
-                  )}
+                  <th className="py-3 px-4 text-center whitespace-nowrap">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
@@ -673,25 +670,23 @@ function InventoryConsumables({ setActiveTab }) {
                         )}
 
                         {/* 12. Actions */}
-                        {!isViewer && (
-                          <td className="py-3 px-4 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {!item.isArchived ? (
-                                <>
-                                  <button onClick={() => openEditModal(item)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`} title={isPurchasing ? "Edit Acquisition Cost" : "Edit Item"}><Edit2 className="w-3.5 h-3.5" /></button>
-                                  {!isPurchasing && (
-                                    <button onClick={() => handleArchiveConsumable(item)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-red-500 hover:bg-red-500 hover:text-white'} border rounded transition-all cursor-pointer`} title="Archive Item"><Archive className="w-3.5 h-3.5" /></button>
-                                  )}
-                                </>
-                              ) : (
-                                <>
-                                  <button onClick={() => handleUnarchiveConsumable(item)} title="Restore" className={`p-1.5 ${isDark ? 'bg-[#181a26] border-emerald-800/80 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-white border-slate-200 text-emerald-600 hover:bg-emerald-600 hover:text-white'} border rounded transition-all cursor-pointer`}><RotateCcw className="w-3.5 h-3.5" /></button>
-                                  <button onClick={() => handlePermanentDeleteConsumable(item)} title="Delete Permanently" className={`p-1.5 ${isDark ? 'bg-[#181a26] border-rose-800/80 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Trash2 className="w-3.5 h-3.5" /></button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        )}
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {!item.isArchived ? (
+                              <>
+                                <button onClick={() => openEditModal(item)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`} title={isPurchasing ? "Edit Acquisition Cost" : "Edit Item"}><Edit2 className="w-3.5 h-3.5" /></button>
+                                {!isPurchasing && (
+                                  <button onClick={() => handleArchiveConsumable(item)} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-[#18174e]/5 border-slate-200 text-red-500 hover:bg-red-500 hover:text-white'} border rounded transition-all cursor-pointer`} title="Archive Item"><Archive className="w-3.5 h-3.5" /></button>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <button onClick={() => handleUnarchiveConsumable(item)} title="Restore" className={`p-1.5 ${isDark ? 'bg-[#181a26] border-emerald-800/80 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-white border-slate-200 text-emerald-600 hover:bg-emerald-600 hover:text-white'} border rounded transition-all cursor-pointer`}><RotateCcw className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => handlePermanentDeleteConsumable(item)} title="Delete Permanently" className={`p-1.5 ${isDark ? 'bg-[#181a26] border-rose-800/80 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Trash2 className="w-3.5 h-3.5" /></button>
+                              </>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     );
                   })

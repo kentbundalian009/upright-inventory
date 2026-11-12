@@ -539,7 +539,6 @@ function AdminUserManagement() {
                                         <option value="Inventory">Inventory</option>
                                         <option value="Admin">Admin</option>
                                         <option value="Purchasing">Purchasing</option>
-                                        <option value="Viewer">Viewer</option>
                                     </select>
                                 </div>
 
@@ -714,7 +713,6 @@ function AdminUserManagement() {
                                         <option value="Inventory">Inventory</option>
                                         <option value="Admin">Admin</option>
                                         <option value="Purchasing">Purchasing</option>
-                                        <option value="Viewer">Viewer</option>
                                     </select>
                                 </div>
                             </div>

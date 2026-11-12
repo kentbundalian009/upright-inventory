@@ -11,7 +11,6 @@ function InventorySupplies() {
   const isPurchasing = userRole === 'Purchasing';
   const isInventory = userRole === 'Inventory';
   const canViewCost = isPurchasing || userRole === 'Admin';
-  const isViewer = false;
 
   const [suppliesList, setSuppliesList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -517,7 +516,7 @@ function InventorySupplies() {
     return sum + (qty * (Number(item.AcquisitionCost) || 0));
   }, 0);
 
-  const tableColSpan = isPurchasing ? 9 : (userRole === 'Admin' ? 10 : (isViewer ? 7 : 8));
+  const tableColSpan = isPurchasing ? 9 : (userRole === 'Admin' ? 10 : 8);
 
   return (
     <div className="mx-6 md:mx-10 lg:mx-14 mt-6 flex flex-col gap-6 font-sans antialiased relative">
@@ -570,7 +569,7 @@ function InventorySupplies() {
               <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
             </label>
 
-            {!isViewer && !isPurchasing && (
+            {!isPurchasing && (
               <button
                 onClick={() => setIsPaletteModalOpen(true)}
                 title="Palette Settings"
@@ -582,7 +581,7 @@ function InventorySupplies() {
             )}
 
             {/* EDIT QTY BUTTON DIRECTLY IN TABLE */}
-            {!isViewer && !isPurchasing && !showArchivedOnly && (
+            {!isPurchasing && !showArchivedOnly && (
               <button
                 onClick={handleToggleEditQty}
                 title={isEditingQty ? "Cancel Edit Qty Mode" : "Directly Edit Actual Count Column"}
@@ -598,7 +597,7 @@ function InventorySupplies() {
               </button>
             )}
 
-            {!isViewer && !isPurchasing && (
+            {!isPurchasing && (
               <button
                 onClick={() => {
                   if (isEditingQty) {
@@ -630,7 +629,7 @@ function InventorySupplies() {
             )}
           </div>
 
-          <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isViewer || isPurchasing ? 'md:grid-cols-3' : 'md:grid-cols-4'} md:pb-0`}>
+          <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isPurchasing ? 'md:grid-cols-3' : 'md:grid-cols-4'} md:pb-0`}>
 
             <div className="min-w-[180px] w-full md:min-w-0">
               <div className="relative w-full">
@@ -651,7 +650,7 @@ function InventorySupplies() {
               </select>
             </div>
 
-            {!isViewer && !isPurchasing && (
+            {!isPurchasing && (
               <div className="min-w-[160px] w-full md:min-w-0">
                 <button onClick={openAddModal} disabled={showArchivedOnly} className={`flex items-center justify-center gap-2 ${isDark ? 'bg-[#ff6600] hover:bg-[#ff6600]/90' : 'bg-[#18174e] hover:bg-[#18174e]/90'} disabled:bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px]`}>
                   <span className="whitespace-nowrap">Add New Tools & Equipments</span>
@@ -694,11 +693,9 @@ function InventorySupplies() {
                       <th className="py-3 px-4 whitespace-nowrap text-right">Total Acquisition Cost</th>
                     </>
                   )}
-                  {!isViewer && (
-                    <th className="py-3 px-4 text-center whitespace-nowrap">
-                      Actions
-                    </th>
-                  )}
+                  <th className="py-3 px-4 text-center whitespace-nowrap">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
@@ -869,8 +866,7 @@ function InventorySupplies() {
                         )}
 
                         {/* 12. Actions */}
-                        {!isViewer && (
-                          <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
                               {!supply.isArchived ? (
                                 <>
@@ -887,7 +883,6 @@ function InventorySupplies() {
                               )}
                             </div>
                           </td>
-                        )}
                       </tr>
                     );
                   })

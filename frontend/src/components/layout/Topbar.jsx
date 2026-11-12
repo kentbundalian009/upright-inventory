@@ -18,7 +18,7 @@ function Topbar() {
     actionType: 'archive'
   });
 
-  const [handleConfirmAction, setHandleConfirmAction] = useState(() => {});
+  const [handleConfirmAction, setHandleConfirmAction] = useState(() => { });
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -85,16 +85,16 @@ function Topbar() {
       if (response.ok) {
         console.log("Logout backend success!");
       }
-      
+
     } catch (error) {
       console.error("Failed to clear cloud session:", error);
     }
 
-    localStorage.clear(); 
+    localStorage.clear();
     setSuccessMessage("Successfully logged out!");
-    
+
     setTimeout(() => {
-      window.location.href = "/login"; 
+      window.location.href = "/login";
     }, 1500);
   };
 
@@ -161,32 +161,29 @@ function Topbar() {
 
   return (
     <>
-      <header className={`w-full h-14 ${
-        isDark
+      <header className={`w-full h-14 ${isDark
           ? 'bg-[#0b0c13]/95 border-slate-800/90 shadow-md text-slate-200'
           : 'bg-white/90 border-slate-200/80 shadow-sm text-slate-800'
-      } backdrop-blur-md flex justify-between items-center pl-14 sm:pl-6 px-3 sm:px-6 md:px-8 border-b z-30 flex-shrink-0 select-none transition-colors duration-200`}>      
-        
+        } backdrop-blur-md flex justify-between items-center pl-14 sm:pl-6 px-3 sm:px-6 md:px-8 border-b z-30 flex-shrink-0 select-none transition-colors duration-200`}>
+
         {/* Adaptive Real-Time Date/Time Badge */}
-        <div className={`flex items-center gap-2 sm:gap-2.5 ${
-          isDark
+        <div className={`flex items-center gap-2 sm:gap-2.5 ${isDark
             ? 'bg-[#121420] border-slate-800 text-slate-300'
             : 'bg-slate-50 border-slate-200/70 text-slate-700'
-        } border px-2.5 sm:px-3.5 py-1.5 rounded-full shadow-inner shrink-0`}>
+          } border px-2.5 sm:px-3.5 py-1.5 rounded-full shadow-inner shrink-0`}>
           <span className="text-[11px] sm:text-xs font-semibold font-mono tracking-tight whitespace-nowrap">
-            <span className="hidden xl:inline">{fullDateStr || "Monday, June 24, 2026"} • </span>
-            <span className="hidden sm:inline xl:hidden">{shortDateStr || "Mon, Jun 24"} • </span>
+            <span className="hidden xl:inline">{fullDateStr || "Monday, June 24, 2026"} </span>
+            <span className="hidden sm:inline xl:hidden">{shortDateStr || "Mon, Jun 24"} </span>
             <span>{timeStr || "07:16 PM"}</span>
           </span>
         </div>
 
-        {/* User Profile and Logout */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div className={`flex items-center gap-1.5 sm:gap-2 ${
-            isDark
+        {/* User Profile (Pill/Circle Radius) & Circular Icon-Only Logout */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <div className={`flex items-center gap-2 ${isDark
               ? 'bg-[#121420] border-slate-800'
               : 'bg-slate-50 border-slate-200/80'
-          } border px-2 sm:px-2.5 py-1 rounded-xl shadow-sm max-w-[150px] xs:max-w-[190px] sm:max-w-none`}>
+            } border pl-1.5 pr-3.5 py-1 rounded-full shadow-sm max-w-[160px] xs:max-w-[200px] sm:max-w-none`}>
             {profileImage ? (
               <>
                 <img
@@ -216,7 +213,7 @@ function Topbar() {
               </div>
             )}
             <div className="flex flex-col text-left overflow-hidden min-w-0">
-              <span className={`text-[11px] sm:text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'} leading-tight truncate max-w-[70px] xs:max-w-[100px] sm:max-w-[160px] md:max-w-[200px]`}>
+              <span className={`text-[11px] sm:text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'} leading-tight truncate max-w-[80px] xs:max-w-[110px] sm:max-w-[170px] md:max-w-[210px]`}>
                 {userName}
               </span>
               <span className="text-[8px] sm:text-[9px] font-bold text-[#ff6600] uppercase leading-tight truncate">
@@ -228,14 +225,13 @@ function Topbar() {
           <button
             onClick={handleLogoutClick}
             title="Logout"
-            className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-rose-500 ${
-              isDark
+            aria-label="Logout"
+            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-rose-500 ${isDark
                 ? 'bg-rose-950/30 hover:bg-rose-900/50 border-rose-900/60'
                 : 'bg-rose-50/80 hover:bg-rose-100/90 border-rose-200/80'
-            } border transition-all cursor-pointer shadow-sm active:scale-95 shrink-0`}
+              } border transition-all cursor-pointer shadow-sm active:scale-95 shrink-0`}
           >
             <LogOut size={15} className="shrink-0" />
-            <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
       </header>
@@ -253,7 +249,7 @@ function Topbar() {
       {isConfirmModalOpen && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-sm sm:max-w-md p-5 sm:p-6 shadow-2xl relative flex flex-col animate-in zoom-in-95 duration-200">
-            
+
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
               <h3 className="font-bold text-slate-800 text-sm sm:text-base">
                 {confirmModalConfig.title}
@@ -276,16 +272,16 @@ function Topbar() {
             </div>
 
             <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-slate-100 shrink-0">
-              <button 
-                type="button" 
-                onClick={() => setIsConfirmModalOpen(false)} 
+              <button
+                type="button"
+                onClick={() => setIsConfirmModalOpen(false)}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-3.5 sm:px-4 rounded-lg text-xs sm:text-sm transition-colors cursor-pointer"
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
-                onClick={handleConfirmAction} 
+              <button
+                type="button"
+                onClick={handleConfirmAction}
                 className="bg-[#18174e] hover:bg-[#18174e]/90 text-white font-semibold py-2 px-3.5 sm:px-4 rounded-lg text-xs sm:text-sm transition-colors cursor-pointer shadow-md"
               >
                 Confirm

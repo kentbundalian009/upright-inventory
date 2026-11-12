@@ -39,14 +39,14 @@ router.use(protectRoute);
 
 // Consumables items
 router.route("/")
-  .get(restrictTo("Inventory", "Viewer", "Admin", "Purchasing"), getConsumables)
+  .get(restrictTo("Inventory", "Admin", "Purchasing"), getConsumables)
   .post(restrictTo("Inventory", "Admin", "Purchasing"), createConsumable);
 
 router.route("/batch-counts")
   .put(restrictTo("Inventory", "Admin", "Purchasing"), batchUpdateActualCounts);
 
 router.route("/transactions")
-  .get(restrictTo("Inventory", "Viewer", "Admin", "Purchasing"), getTransactions)
+  .get(restrictTo("Inventory", "Admin", "Purchasing"), getTransactions)
   .post(restrictTo("Inventory", "Admin", "Purchasing"), createTransaction);
 
 router.route("/:id/unarchive")
@@ -56,7 +56,7 @@ router.route("/:id/permanent")
   .delete(restrictTo("Inventory", "Admin", "Purchasing"), permanentDeleteConsumable);
 
 router.route("/:id")
-  .get(restrictTo("Inventory", "Viewer", "Admin", "Purchasing"), getConsumableById)
+  .get(restrictTo("Inventory", "Admin", "Purchasing"), getConsumableById)
   .put(restrictTo("Inventory", "Admin", "Purchasing"), updateConsumable)
   .delete(restrictTo("Inventory", "Admin", "Purchasing"), deleteConsumable);
 

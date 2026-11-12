@@ -1,5 +1,4 @@
 import Setting from "../../models/Setting.js";
-import { logActivity } from "../../utils/logger.js";
 
 export const getThresholdByCategory = async (req, res) => {
   try {
@@ -60,10 +59,6 @@ export const updateThresholdByCategory = async (req, res) => {
       { $set: { critical: criticalNum, reorder: reorderNum, overstock: overstockNum } },
       { new: true, upsert: true, runValidators: true }
     );
-    
-    if (req.user) {
-      await logActivity(req.user, "Inventory Settings", "UPDATE", `In-update ang threshold rules para sa ${categoryType}`);
-    }
     
     return res.status(200).json(updatedSettings);
   } catch (error) {

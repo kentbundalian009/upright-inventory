@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, AlertCircle, Filter, X, Edit2, Archive, EyeOff, Sliders, RotateCcw, CheckCircle2, Palette, Image as ImageIcon, Upload, Trash2, Share2, Copy, Coins, ChevronLeft, ChevronRight, Link2, User, Info, Loader2 } from 'lucide-react';
+import { Search, AlertCircle, Filter, X, Edit2, Archive, EyeOff, Sliders, RotateCcw, CheckCircle2, Palette, Image as ImageIcon, Upload, Trash2, Coins, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import PageHeader from './layout/PageHeader';
 import TablePagination from './common/TablePagination';
@@ -25,7 +25,6 @@ function InventoryRawMaterials() {
     const isPurchasing = userRole === 'Purchasing';
     const isInventory = userRole === 'Inventory';
     const canViewCost = isPurchasing || userRole === 'Admin';
-    const isViewer = false;
 
     // 1. DATABASE AT LIFECYCLE STATES
     const [rawMaterialsList, setRawMaterialsList] = useState([]);
@@ -55,13 +54,6 @@ function InventoryRawMaterials() {
     const [isEditing, setIsEditing] = useState(false);
     const [isPaletteModalOpen, setIsPaletteModalOpen] = useState(false);
     const [currentId, setCurrentId] = useState(null);
-
-    // Share Link Modal States
-    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    const [viewerFullname, setViewerFullname] = useState('');
-    const [generatedShareLink, setGeneratedShareLink] = useState(null);
-    const [isGeneratingLink, setIsGeneratingLink] = useState(false);
-    const [isLinkCopied, setIsLinkCopied] = useState(false);
 
     // 🌟 IMAGE PREVIEW LIGHTBOX STATE
     const [previewImage, setPreviewImage] = useState(null);
@@ -256,97 +248,6 @@ function InventoryRawMaterials() {
         setErrorMessage(message);
         setSuccessMessage(null);
         setTimeout(() => setErrorMessage(null), 4000);
-    };
-
-    const openShareModal = () => {
-        setViewerFullname('');
-        setGeneratedShareLink(null);
-        setIsLinkCopied(false);
-        setIsShareModalOpen(true);
-    };
-
-    const handleSaveAndGenerateLink = async (e) => {
-        if (e) e.preventDefault();
-        if (!viewerFullname.trim()) {
-            triggerError("Please enter the Fullname of viewer.");
-            return;
-        }
-
-        try {
-            setIsGeneratingLink(true);
-            let currentUserName = 'Inventory';
-            try {
-                const stored = localStorage.getItem('user');
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    currentUserName = parsed.Username || parsed.username || parsed.Fullname || 'Inventory';
-                } else if (localStorage.getItem('Fullname')) {
-                    currentUserName = localStorage.getItem('Fullname');
-                }
-            } catch (err) {}
-
-            const token = localStorage.getItem('token');
-            const res = await axios.post('/api/shared-links', {
-                viewerName: viewerFullname.trim(),
-                sharedBy: currentUserName,
-                page: 'Rackings (Records)'
-            }, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {}
-            });
-
-            const linkPath = res.data.linkUrl || `/shared/rackings?linkId=${res.data.data?._id}&viewer=${encodeURIComponent(viewerFullname.trim())}&sharedBy=${encodeURIComponent(currentUserName)}`;
-            const fullUrl = `${window.location.origin}${linkPath}`;
-            setGeneratedShareLink(fullUrl);
-            triggerSuccess("Viewer link saved! You can now copy the link.");
-        } catch (err) {
-            console.error("Error generating viewer link:", err);
-            triggerError(err.response?.data?.message || "Failed to generate viewer link.");
-        } finally {
-            setIsGeneratingLink(false);
-        }
-    };
-
-    const handleCopyGeneratedLink = () => {
-        if (!generatedShareLink) return;
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(generatedShareLink)
-                .then(() => {
-                    setIsLinkCopied(true);
-                    triggerSuccess("Link copied to clipboard!");
-                    setTimeout(() => setIsLinkCopied(false), 2500);
-                })
-                .catch(() => {
-                    fallbackCopyText(generatedShareLink);
-                });
-        } else {
-            fallbackCopyText(generatedShareLink);
-        }
-    };
-
-    const fallbackCopyText = (text) => {
-        try {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";
-            textArea.style.left = "-9999px";
-            textArea.style.top = "-9999px";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            const successful = document.execCommand("copy");
-            document.body.removeChild(textArea);
-            if (successful) {
-                setIsLinkCopied(true);
-                triggerSuccess("Link copied to clipboard!");
-                setTimeout(() => setIsLinkCopied(false), 2500);
-            } else {
-                triggerError("Failed to copy link.");
-            }
-        } catch (err) {
-            console.error("Fallback copy failed:", err);
-            triggerError("Could not copy link to clipboard.");
-        }
     };
 
     // 2. READ & FETCH SCHEMAS MULA SA SERVER (API CALLS)
@@ -702,7 +603,7 @@ function InventoryRawMaterials() {
         0
     );
 
-    const tableColSpan = isPurchasing ? 9 : (userRole === 'Admin' ? 10 : (isViewer ? 7 : 8));
+    const tableColSpan = isPurchasing ? 9 : (userRole === 'Admin' ? 10 : 8);
 
     // Reset pagination to page 1 on filter changes
     useEffect(() => {
@@ -783,23 +684,7 @@ function InventoryRawMaterials() {
                                 <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
                             </label>
 
-                            {/* SHARE LINK BUTTON (Opens Modal for Viewer Name) */}
-                            {!isViewer && !isPurchasing && (
-                                <button
-                                    onClick={openShareModal}
-                                    title="Generate Shareable Link for Viewer"
-                                    className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 shadow-sm ${
-                                        isDark 
-                                            ? 'bg-indigo-950/40 text-indigo-300 border-indigo-800/80 hover:bg-indigo-900/60' 
-                                            : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
-                                    }`}
-                                >
-                                    <Share2 className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-indigo-500" />
-                                    <span className="hidden sm:inline">Share Link</span>
-                                </button>
-                            )}
-
-                            {!isViewer && !isPurchasing && (
+                            {!isPurchasing && (
                                 <button
                                     onClick={() => setIsPaletteModalOpen(true)}
                                     title="Palette Settings"
@@ -812,7 +697,7 @@ function InventoryRawMaterials() {
                                 </button>
                             )}
 
-                            {!isViewer && !isPurchasing && (
+                            {!isPurchasing && (
                                 <button
                                     onClick={() => setShowArchivedOnly(!showArchivedOnly)}
                                     title={showArchivedOnly ? "Show Active Materials" : "View Archive Vault"}
@@ -873,7 +758,7 @@ function InventoryRawMaterials() {
                             </select>
                         </div>
 
-                        {!isViewer && !isPurchasing && (
+                        {!isPurchasing && (
                             <div className="min-w-[160px] w-full md:min-w-0">
                                 <button
                                     onClick={openAddModal}
@@ -917,11 +802,9 @@ function InventoryRawMaterials() {
                                         </>
                                     )}
                                     {!isPurchasing && <th className="py-3 px-4 whitespace-nowrap">Stock Health</th>}
-                                    {!isViewer && (
-                                        <th className="py-3 px-4 text-center whitespace-nowrap">
-                                             Action
-                                        </th>
-                                    )}
+                                    <th className="py-3 px-4 text-center whitespace-nowrap">
+                                         Action
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className={`divide-y ${isDark ? 'divide-slate-800/80 bg-[#090b10]' : 'divide-slate-100 bg-white'}`}>
@@ -1048,25 +931,23 @@ function InventoryRawMaterials() {
                                                 </>
                                             )}
                                             {!isPurchasing && <td className="py-3 px-4">{getRawMaterialHealthBadge(rawMat)}</td>}
-                                            {!isViewer && (
-                                                <td className="py-3 px-4 text-center">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        {!showArchivedOnly ? (
-                                                            <>
-                                                                <button onClick={() => openEditModal(rawMat)} title={isPurchasing ? "Edit Acquisition Cost" : "Edit Item"} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Edit2 className="w-3.5 h-3.5" /></button>
-                                                                {!isPurchasing && (
-                                                                    <button onClick={() => openArchiveConfirmation(rawMat)} title="Archive Item" className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Archive className="w-3.5 h-3.5" /></button>
-                                                                )}
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <button onClick={() => openUnarchiveConfirmation(rawMat)} title="Restore" className={`p-1 ${isDark ? 'bg-[#181a26] border-emerald-800/80 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-white border-slate-200 text-emerald-600 hover:bg-emerald-600 hover:text-white'} border rounded transition-all cursor-pointer`}><RotateCcw className="w-3.5 h-3.5" /></button>
-                                                                <button onClick={() => openPermanentDeleteConfirmation(rawMat)} title="Delete Permanently" className={`p-1 ${isDark ? 'bg-[#181a26] border-rose-800/80 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Trash2 className="w-3.5 h-3.5" /></button>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            )}
+                                            <td className="py-3 px-4 text-center">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    {!showArchivedOnly ? (
+                                                        <>
+                                                            <button onClick={() => openEditModal(rawMat)} title={isPurchasing ? "Edit Acquisition Cost" : "Edit Item"} className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-indigo-400 hover:bg-indigo-600 hover:text-white' : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Edit2 className="w-3.5 h-3.5" /></button>
+                                                            {!isPurchasing && (
+                                                                <button onClick={() => openArchiveConfirmation(rawMat)} title="Archive Item" className={`p-1 ${isDark ? 'bg-[#181a26] border-slate-700 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Archive className="w-3.5 h-3.5" /></button>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <button onClick={() => openUnarchiveConfirmation(rawMat)} title="Restore" className={`p-1 ${isDark ? 'bg-[#181a26] border-emerald-800/80 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-white border-slate-200 text-emerald-600 hover:bg-emerald-600 hover:text-white'} border rounded transition-all cursor-pointer`}><RotateCcw className="w-3.5 h-3.5" /></button>
+                                                            <button onClick={() => openPermanentDeleteConfirmation(rawMat)} title="Delete Permanently" className={`p-1 ${isDark ? 'bg-[#181a26] border-rose-800/80 text-rose-400 hover:bg-rose-600 hover:text-white' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-600 hover:text-white'} border rounded transition-all cursor-pointer`}><Trash2 className="w-3.5 h-3.5" /></button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
                                         </tr>
                                     );
                                 })}
@@ -1978,176 +1859,6 @@ function InventoryRawMaterials() {
                             </button>
                         </div>
 
-                    </div>
-                </div>
-            )}
-
-            {/* SHARE LINK MODAL (Fullname of viewer input -> Save -> Copy link revealed) */}
-            {isShareModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className={`w-full max-w-lg ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} border rounded-2xl shadow-2xl p-6 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200 relative`}>
-                        
-                        {/* Header */}
-                        <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} pb-3.5`}>
-                            <div className="flex items-center gap-2.5">
-                                <div className={`p-2 rounded-xl ${isDark ? 'bg-indigo-950/60 text-indigo-400 border border-indigo-800/80' : 'bg-indigo-50 text-indigo-600 border border-indigo-200'}`}>
-                                    <Share2 className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h3 className={`font-bold text-base ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                                        Share Rackings Link
-                                    </h3>
-                                    <p className="text-[11px] text-slate-400">Generate a personalized read-only view for recipients</p>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setIsShareModalOpen(false)}
-                                className={`${isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600'} p-1 cursor-pointer transition-colors`}
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        {!generatedShareLink ? (
-                            <form onSubmit={handleSaveAndGenerateLink} className="flex flex-col gap-4 mt-1">
-                                <div className={`p-3.5 rounded-xl border flex items-start gap-2.5 ${
-                                    isDark ? 'bg-[#141622] border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'
-                                }`}>
-                                    <Info className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-                                    <p className="text-xs leading-relaxed">
-                                        Enter the recipient's full name below. The generated link provides a secure, read-only preview of the Rackings inventory without editing privileges.
-                                    </p>
-                                </div>
-
-                                <div className="flex flex-col gap-1.5">
-                                    <label className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                                        Fullname of Viewer <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <User className={`absolute left-3.5 top-3 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. John Doe, Auditor, Client..."
-                                            value={viewerFullname}
-                                            onChange={(e) => setViewerFullname(e.target.value)}
-                                            className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-medium ${
-                                                isDark 
-                                                    ? 'bg-[#141622] border-slate-700 text-white placeholder-slate-500 focus:border-[#ff6600]' 
-                                                    : 'bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-[#18174e]'
-                                            } focus:outline-none transition-all shadow-sm`}
-                                            autoFocus
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className={`flex items-center justify-end gap-2.5 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsShareModalOpen(false)}
-                                        className={`px-4 py-2 text-xs font-bold rounded-lg border ${
-                                            isDark 
-                                                ? 'border-slate-700 text-slate-300 hover:bg-slate-800' 
-                                                : 'border-slate-200 text-slate-600 hover:bg-slate-100'
-                                        } cursor-pointer transition-colors`}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={isGeneratingLink || !viewerFullname.trim()}
-                                        className={`flex items-center gap-2 px-5 py-2 text-xs font-bold rounded-lg ${
-                                            isDark ? 'bg-[#ff6600] hover:bg-[#ff6600]/90 shadow-orange-500/20' : 'bg-[#18174e] hover:bg-[#18174e]/90 shadow-indigo-950/20'
-                                        } text-white cursor-pointer disabled:opacity-50 transition-all shadow-md`}
-                                    >
-                                        {isGeneratingLink ? (
-                                            <>
-                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                <span>Saving & Generating...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Link2 className="w-3.5 h-3.5" />
-                                                <span>Generate Share Link</span>
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </form>
-                        ) : (
-                            <div className="flex flex-col gap-4 mt-1">
-                                <div className={`p-4 rounded-xl border flex items-start gap-3 ${
-                                    isDark ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                                }`}>
-                                    <div className="p-1 rounded-full bg-emerald-500/20 shrink-0 mt-0.5">
-                                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-bold">
-                                            Shareable Link Generated for: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{viewerFullname}</span>
-                                        </p>
-                                        <p className={`text-[11px] mt-0.5 ${isDark ? 'text-emerald-400/80' : 'text-emerald-700'}`}>
-                                            Anyone with this link will be able to view the Rackings inventory in read-only mode.
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col gap-1.5">
-                                    <label className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                                        Shareable URL
-                                    </label>
-                                    <div className="flex items-center gap-2">
-                                        <div className="relative flex-1">
-                                            <Link2 className={`absolute left-3.5 top-3 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                                            <input
-                                                type="text"
-                                                readOnly
-                                                value={generatedShareLink}
-                                                className={`w-full pl-10 pr-3 py-2.5 rounded-xl border text-xs font-mono select-all ${
-                                                    isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
-                                                } focus:outline-none`}
-                                            />
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={handleCopyGeneratedLink}
-                                            className={`px-4 py-2.5 text-xs font-bold rounded-xl border transition-all cursor-pointer shrink-0 flex items-center gap-1.5 shadow-sm ${
-                                                isLinkCopied
-                                                    ? 'bg-emerald-600 border-emerald-600 text-white'
-                                                    : (isDark ? 'bg-[#ff6600] text-white border-[#ff6600] hover:bg-[#ff6600]/90' : 'bg-[#18174e] text-white border-[#18174e] hover:bg-[#18174e]/90')
-                                            }`}
-                                        >
-                                            {isLinkCopied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                                            <span>{isLinkCopied ? 'Copied!' : 'Copy Link'}</span>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className={`flex items-center justify-between pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setGeneratedShareLink(null);
-                                            setViewerFullname('');
-                                            setIsLinkCopied(false);
-                                        }}
-                                        className={`text-xs font-semibold ${isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-600 hover:text-indigo-700'} cursor-pointer underline flex items-center gap-1`}
-                                    >
-                                        Create another link
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsShareModalOpen(false)}
-                                        className={`px-5 py-2 text-xs font-bold rounded-lg ${
-                                            isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                        } cursor-pointer transition-colors`}
-                                    >
-                                        Done
-                                    </button>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
             )}

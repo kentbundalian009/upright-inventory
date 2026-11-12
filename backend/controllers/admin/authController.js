@@ -2,7 +2,6 @@ import User from "../../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { redis } from "../../lib/redis.js";
-import { logActivity } from "../../utils/logger.js"; 
 import { clearSessionCache } from "../../middleware/authMiddleware.js"; 
 
 export const signupUser = async (req, res) => {
@@ -26,18 +25,6 @@ export const signupUser = async (req, res) => {
       Email,
       Password: hashedPassword, 
     });
-
-    const logUserPayload = {
-      username: newUser.Username,
-      role: newUser.SystemRole
-    };
-
-    await logActivity(
-      logUserPayload, 
-      "User Management", 
-      "CREATE", 
-      `Registered a new account: ${newUser.Username} (${newUser.EmpNo})`
-    );
 
     res.status(201).json({
       message: "User registered successfully!",
@@ -103,18 +90,6 @@ export const loginUser = async (req, res) => {
     
     console.log(`🔑 Session saved in Upstash Redis for user: ${user.Username}`);
 
-    const logUserPayload = {
-      username: user.Username,
-      role: user.SystemRole
-    };
-
-    await logActivity(
-      logUserPayload, 
-      "Auth", 
-      "LOGIN", 
-      `User ${user.Username} successfully logged into the system.`
-    );
-
     res.status(200).json({
       message: "Login successful!", token,
       user: { id: user._id, EmpNo: user.EmpNo, Username: user.Username, Fullname: user.Fullname, Email: user.Email, SystemRole: user.SystemRole, ProfileImage: user.ProfileImage }
@@ -148,23 +123,10 @@ export const logoutUser = async (req, res) => {
       const userId = req.user._id;
       const redisKey = `session:${userId}`;
       
-      const userPayload = {
-        username: req.user.Username || req.user.username,
-        role: req.user.SystemRole || req.user.role
-      };
-
-      await logActivity(
-        userPayload, 
-        "Auth", 
-        "LOGOUT", 
-        `User ${userPayload.username} manually logged out and cleared session.`
-      );
-
       await redis.del(redisKey);
       clearSessionCache(userId);
       
       console.log(`🗑️ Session deleted from Upstash Redis for user ID: ${userId}`);
-      console.log(`📝 Audit Log Created: [Auth LOGOUT] ni ${userPayload.username}`);
       
       return res.status(200).json({ message: "Logged out successfully. Session cleared." });
     } else {

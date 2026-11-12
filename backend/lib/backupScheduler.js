@@ -2,7 +2,6 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import SystemSetting from "../models/SystemSetting.js";
-import ActivityLog from "../models/ActivityLog.js";
 
 // Models to backup
 import User from "../models/User.js";
@@ -139,19 +138,6 @@ export const createServerSnapshot = async (frequencyTag = "manual", adminName = 
       setting.scheduledEndTime = computeNextRun(setting.maintenanceMessage);
     }
     await setting.save();
-
-    // Log action
-    try {
-      await ActivityLog.create({
-        username: adminName,
-        role: "Admin",
-        module: "Database Vault",
-        operation: "APPROVE",
-        action: `Generated server backup snapshot: ${filename} (${(fs.statSync(filePath).size / 1024).toFixed(1)} KB)`
-      });
-    } catch (err) {
-      console.warn("Activity log failed for auto backup:", err.message);
-    }
 
     return {
       filename,

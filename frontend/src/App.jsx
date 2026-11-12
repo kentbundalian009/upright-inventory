@@ -5,10 +5,8 @@ import Index from './pages/Index';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Signup from './pages/Signup';
-import SharedRackingsView from './pages/SharedRackingsView';
 
 import DashboardOverview from './components/DashboardOverview';
-import { trackSharedLinkClick } from './utils/linkTracker';
 
 // =========================================================================
 // 🌟 AXIOS INTERCEPTOR: Awtomatikong nagkakabit ng Susi (Token) sa lahat ng API Calls
@@ -48,8 +46,6 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
 function App() {
   useEffect(() => {
-    trackSharedLinkClick();
-
     const handleWheel = (e) => {
       if (document.activeElement && document.activeElement.type === 'number') {
         document.activeElement.blur();
@@ -66,8 +62,6 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/" element={<Index />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/shared/rackings" element={<SharedRackingsView />} />
-        <Route path="/shared-rackings" element={<SharedRackingsView />} />
 
         {/* 🔒 PROTECTED PAGES (Kailangan ng active Redis session at tamang Token) */}
         <Route 
@@ -82,7 +76,7 @@ function App() {
         <Route 
           path="/inventory" 
           element={
-            <ProtectedRoute allowedRoles={["Inventory", "Admin", "Viewer", "Purchasing"]}>
+            <ProtectedRoute allowedRoles={["Inventory", "Admin", "Purchasing"]}>
               <DashboardOverview />
             </ProtectedRoute>
           } 

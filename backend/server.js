@@ -13,13 +13,9 @@ import { fileURLToPath } from "url";
 // API Routes Imports - Admin
 import authRoutes from "./routes/admin/authRoutes.js";
 import userRoutes from "./routes/admin/userRoutes.js";
-import activityLogRoutes from "./routes/admin/userActivityRoutes.js"; 
 import paletteRoutes from "./routes/admin/paletteRoutes.js"; 
 import paletteSupRoutes from "./routes/admin/paletteSupRoutes.js"; 
-import systemRoutes from "./routes/admin/systemRoutes.js";
 import backupRoutes from "./routes/admin/backupRoutes.js";
-import linkClickRoutes from "./routes/admin/linkClickRoutes.js";
-import sharedLinkRoutes from "./routes/admin/sharedLinkRoutes.js";
 import rackingsUnitRoutes from "./routes/inventory/rackingsUnitRoutes.js";
 
 import { initBackupScheduler } from "./lib/backupScheduler.js";
@@ -65,14 +61,10 @@ app.use("/api/conversions", conversionRoutes);
 app.use("/api/packing-lists", packingListRoutes); 
 app.use("/api/raw-materials", rawMaterialRoutes); 
 app.use("/api/clients", clientRoutes);
-app.use("/api/activity-logs", activityLogRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/settings", paletteRoutes); 
 app.use("/api/settings", paletteSupRoutes);
-app.use("/api/system", systemRoutes);
 app.use("/api/backup", backupRoutes);
-app.use("/api/logs", linkClickRoutes);
-app.use("/api/shared-links", sharedLinkRoutes);
 app.use("/api/rackings-unit", rackingsUnitRoutes);
 
 

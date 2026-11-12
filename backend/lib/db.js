@@ -21,7 +21,6 @@ const connectDB = async () => {
     try {
       const db = mongoose.connection.db;
       Promise.allSettled([
-        db.collection("activitylogs").createIndex({ createdAt: -1 }),
         db.collection("suppliesmovements").createIndex({ createdAt: -1 }),
         db.collection("suppliesmovements").createIndex({ isReturned: 1, transactionType: 1 }),
         db.collection("packinglists").createIndex({ createdAt: -1 }),
