@@ -61,6 +61,7 @@ function InventoryOutboundProducts() {
   const [destinationAddress, setDestinationAddress] = useState(() => initialDraft?.destinationAddress || '');
   const [manifestItems, setManifestItems] = useState(() => (Array.isArray(initialDraft?.manifestItems) ? initialDraft.manifestItems : []));
   const [referencePlNo, setReferencePlNo] = useState(() => initialDraft?.referencePlNo || '');
+  const [joNumber, setJoNumber] = useState(() => initialDraft?.joNumber || '');
   const [preparedBy, setPreparedBy] = useState('System User');
 
   // Check if form currently has unsaved draft data
@@ -69,6 +70,7 @@ function InventoryOutboundProducts() {
     (carrier && carrier.trim()) ||
     (destinationAddress && destinationAddress.trim()) ||
     (referencePlNo && referencePlNo.trim()) ||
+    (joNumber && joNumber.trim()) ||
     (manifestItems && manifestItems.length > 0)
   );
 
@@ -79,6 +81,7 @@ function InventoryOutboundProducts() {
       (carrier && carrier.trim()) ||
       (destinationAddress && destinationAddress.trim()) ||
       (referencePlNo && referencePlNo.trim()) ||
+      (joNumber && joNumber.trim()) ||
       (manifestItems && manifestItems.length > 0)
     );
 
@@ -91,6 +94,7 @@ function InventoryOutboundProducts() {
           carrier,
           destinationAddress,
           referencePlNo,
+          joNumber,
           manifestItems,
           savedAt: new Date().toISOString()
         }));
@@ -100,7 +104,7 @@ function InventoryOutboundProducts() {
     } else {
       localStorage.removeItem(DRAFT_STORAGE_KEY);
     }
-  }, [transactionType, shipmentDate, customer, carrier, destinationAddress, referencePlNo, manifestItems]);
+  }, [transactionType, shipmentDate, customer, carrier, destinationAddress, referencePlNo, joNumber, manifestItems]);
 
   const handleClearDraft = () => {
     try {
@@ -111,6 +115,7 @@ function InventoryOutboundProducts() {
     setCarrier('');
     setDestinationAddress('');
     setReferencePlNo('');
+    setJoNumber('');
     setTransactionType('Outbound');
     showSuccessToast("Outbound draft cleared.");
   };
@@ -303,6 +308,7 @@ function InventoryOutboundProducts() {
     setCarrier(reserveSlip.carrier || '');
     setDestinationAddress(reserveSlip.destinationAddress || '');
     setReferencePlNo(reserveSlip.plNo);
+    setJoNumber(reserveSlip.joNumber || reserveSlip.plNo);
     if (reserveSlip.shipmentDate) {
       setShipmentDate(new Date(reserveSlip.shipmentDate).toISOString().split('T')[0]);
     }
@@ -361,6 +367,7 @@ function InventoryOutboundProducts() {
     setCarrier(reserveSlip.carrier || '');
     setDestinationAddress(reserveSlip.destinationAddress || '');
     setReferencePlNo('');
+    setJoNumber(reserveSlip.joNumber || reserveSlip.plNo);
     if (reserveSlip.shipmentDate) {
       setShipmentDate(new Date(reserveSlip.shipmentDate).toISOString().split('T')[0]);
     }
@@ -420,6 +427,10 @@ function InventoryOutboundProducts() {
 
   const handleInitiateConfirm = (e) => {
     e.preventDefault();
+    if (!joNumber || !joNumber.trim()) {
+      showErrorToast("Please enter Slip Number ng JO # (Job Order Number).");
+      return;
+    }
     if (manifestItems.length === 0) {
       showErrorToast("Please add material lines into your list manifest.");
       return;
@@ -466,6 +477,7 @@ function InventoryOutboundProducts() {
     setIsSaving(true);
     const payload = {
       transactionType, shipmentDate, customer, carrier, destinationAddress, preparedBy, referencePlNo,
+      joNumber: joNumber ? joNumber.trim() : '',
       items: manifestItems.map(i => ({
         materialId: i.materialId || i.productId,
         qtyRequested: Number(i.qtyRequested),
@@ -484,7 +496,7 @@ function InventoryOutboundProducts() {
         try {
           localStorage.removeItem(DRAFT_STORAGE_KEY);
         } catch (e) {}
-        setManifestItems([]); setCustomer(''); setCarrier(''); setDestinationAddress(''); setReferencePlNo('');
+        setManifestItems([]); setCustomer(''); setCarrier(''); setDestinationAddress(''); setReferencePlNo(''); setJoNumber('');
         setTransactionType('Outbound');
         setIsConfirmModalOpen(false);
         fetchData();
@@ -528,6 +540,16 @@ function InventoryOutboundProducts() {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(24, 23, 78);
       doc.text(`${targetSlip.plNo || '—'}`, 48, 38);
+
+      const slipJoNo = targetSlip.joNumber || targetSlip.plNo;
+      if (slipJoNo) {
+        doc.setTextColor(40, 40, 40);
+        doc.setFont("helvetica", "bold");
+        doc.text("JO #:", 100, 38);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 102, 0);
+        doc.text(`${slipJoNo}`, 115, 38);
+      }
 
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
@@ -1112,6 +1134,7 @@ function InventoryOutboundProducts() {
 
   const filteredHistoryLogs = plRecords.filter(rec =>
     rec.plNo?.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
+    rec.joNumber?.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
     rec.customer?.toLowerCase().includes(historySearchQuery.toLowerCase())
   );
 
@@ -1157,6 +1180,7 @@ function InventoryOutboundProducts() {
             {orderedActiveReserves
               .filter(b =>
                 b.plNo?.toLowerCase().includes(quickReserveSearch.toLowerCase()) ||
+                b.joNumber?.toLowerCase().includes(quickReserveSearch.toLowerCase()) ||
                 b.customer?.toLowerCase().includes(quickReserveSearch.toLowerCase())
               )
               .map((b, index, filteredList) => {
@@ -1177,7 +1201,7 @@ function InventoryOutboundProducts() {
                         ? 'scale-105 ring-2 ring-[#ff6600] ring-offset-2 shadow-xl -translate-y-1'
                         : 'hover:scale-[1.02]'
                       }`}
-                    title="Drag and drop to rearrange order, or click to fulfill"
+                    title={`Drag and drop to rearrange order, or click to fulfill (JO #: ${b.joNumber || b.plNo})`}
                   >
                     <button
                       type="button"
@@ -1191,7 +1215,9 @@ function InventoryOutboundProducts() {
                       <span className="font-bold text-[#000] text-[12px] tracking-tighter block mb-0.5 line-clamp-2 break-words max-w-full leading-tight pointer-events-none">
                         {b.customer}
                       </span>
-                      <span className="text-[10px] font-semibold text-slate-800 opacity-75 pointer-events-none">{b.plNo}</span>
+                      <span className="text-[10px] font-bold font-mono text-slate-900 opacity-90 pointer-events-none truncate max-w-full px-1">
+                        {b.joNumber || b.plNo}
+                      </span>
                     </button>
 
                     <div
@@ -1246,6 +1272,7 @@ function InventoryOutboundProducts() {
 
             {activeReserves.filter(b =>
               b.plNo?.toLowerCase().includes(quickReserveSearch.toLowerCase()) ||
+              b.joNumber?.toLowerCase().includes(quickReserveSearch.toLowerCase()) ||
               b.customer?.toLowerCase().includes(quickReserveSearch.toLowerCase())
             ).length === 0 && (
                 <span className={`${isDark ? 'text-slate-500' : 'text-indigo-400'} italic text-xs py-1`}>No matching reservation logs found.</span>
@@ -1305,7 +1332,7 @@ function InventoryOutboundProducts() {
                     {transactionType === 'Reserve' ? '🟡 Editing Packed Rack' : '🔴 Fulfilling Packed Rack'}
                   </span>
                   <span className={`font-medium leading-tight ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                    Slip: <strong className="font-mono text-[#ff8533] font-bold">{referencePlNo}</strong> — {
+                    JO #: <strong className="font-mono text-[#ff8533] font-bold">{joNumber || referencePlNo}</strong> — {
                       transactionType === 'Reserve'
                         ? 'Changes will update this reservation and reconcile inventory.'
                         : 'Any unverified or partial balance will automatically remain reserved.'
@@ -1319,6 +1346,7 @@ function InventoryOutboundProducts() {
                     onClick={() => {
                       const oldRef = referencePlNo;
                       setReferencePlNo('');
+                      if (!joNumber) setJoNumber(oldRef);
                       setTransactionType('Reserve');
                       setManifestItems(prev => prev.map(it => ({
                         ...it,
@@ -1340,6 +1368,7 @@ function InventoryOutboundProducts() {
                     type="button"
                     onClick={() => {
                       setReferencePlNo('');
+                      setJoNumber('');
                       setManifestItems([]);
                       setCustomer('');
                       setDestinationAddress('');
@@ -1409,6 +1438,23 @@ function InventoryOutboundProducts() {
             {/* FORM FIELDS GRID */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <div>
+                <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>
+                  Slip Number ng JO # *
+                </label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={joNumber}
+                    onChange={e => setJoNumber(e.target.value)}
+                    placeholder="Enter JO # (e.g. JO-2026-001)"
+                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-white focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-800 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm font-semibold focus:outline-none`}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
                 <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Customer Name *</label>
                 <select
                   value={customer}
@@ -1470,7 +1516,7 @@ function InventoryOutboundProducts() {
                 />
               </div>
 
-              <div className="sm:col-span-2">
+              <div>
                 <label className={`block text-xs sm:text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Slip Number</label>
                 <div className="relative">
                   <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
@@ -1760,8 +1806,9 @@ function InventoryOutboundProducts() {
                     className={`${isDark ? 'bg-[#141622] border-slate-800 hover:border-[#ff6600]/60 hover:bg-[#181b29]' : 'bg-white border-slate-100 hover:border-[#18174e]/50 hover:shadow-md'} border rounded-xl p-2.5 flex flex-col gap-0.5 transition-all cursor-pointer group`}
                   >
                     <div className={`flex justify-between items-center pb-0.5 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
-                      <span className={`text-[9px] font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1 truncate max-w-[110px]`}>
+                      <span className={`text-[9px] font-black ${isDark ? 'text-[#ff8533] group-hover:text-emerald-400' : 'text-[#18174e] group-hover:text-emerald-600'} flex items-center gap-1 truncate max-w-[160px]`}>
                         {rec.plNo}
+                        <span className="text-[8px] bg-indigo-950/60 text-indigo-300 border border-indigo-800 px-1 py-0.5 rounded font-mono font-bold shrink-0">JO: {rec.joNumber || rec.plNo}</span>
                         {rec.isVoided && <span className="text-[8px] bg-rose-950/60 text-rose-300 border border-rose-800 px-1 py-0.5 rounded font-black uppercase">VOIDED</span>}
                       </span>
                       <span className={`text-[10px] px-1.5 py-0.5 font-bold rounded-md border shrink-0 ${rec.isVoided
@@ -2057,8 +2104,8 @@ function InventoryOutboundProducts() {
                 </span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Tracking No:</span>
-                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{selectedSlip.plNo}</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">JO #:</span>
+                <span className={`font-bold font-mono ${isDark ? 'text-[#ff8533]' : 'text-indigo-600'}`}>{selectedSlip.joNumber || selectedSlip.plNo || '—'}</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Shipment Date:</span>
@@ -2268,6 +2315,10 @@ function InventoryOutboundProducts() {
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Carrier</span>
                 <span className="font-semibold">{carrier || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">JO #</span>
+                <span className="font-semibold font-mono text-indigo-500">{joNumber || referencePlNo || 'N/A'}</span>
               </div>
               <div className="sm:col-span-2">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Destination Address</span>

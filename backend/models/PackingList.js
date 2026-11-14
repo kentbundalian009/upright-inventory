@@ -8,6 +8,11 @@ const packingListSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    joNumber: {
+      type: String,
+      trim: true,
+      default: ""
+    },
     transactionType: {
       type: String,
       required: true,

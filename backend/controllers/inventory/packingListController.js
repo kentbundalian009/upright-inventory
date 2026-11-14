@@ -3,7 +3,7 @@ import RawMaterial from "../../models/RawMaterial.js";
 
 export const createPackingList = async (req, res) => {
   try {
-    const { transactionType, shipmentDate, customer, carrier, destinationAddress, preparedBy, referencePlNo, items } = req.body;
+    const { transactionType, shipmentDate, customer, carrier, destinationAddress, preparedBy, referencePlNo, joNumber, items } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: "Cannot log a packing list without manifest items." });
@@ -70,6 +70,11 @@ export const createPackingList = async (req, res) => {
         originalReserve.customer = customer || originalReserve.customer;
         originalReserve.carrier = carrier || originalReserve.carrier;
         originalReserve.destinationAddress = destinationAddress || originalReserve.destinationAddress;
+        if (joNumber !== undefined && joNumber.trim()) {
+          originalReserve.joNumber = joNumber.trim();
+        } else if (!originalReserve.joNumber) {
+          originalReserve.joNumber = originalReserve.plNo;
+        }
         originalReserve.preparedBy = preparedBy || originalReserve.preparedBy;
         originalReserve.items = formattedItems.filter(it => Number(it.actualCountShipped || 0) > 0);
 
@@ -84,6 +89,7 @@ export const createPackingList = async (req, res) => {
 
           const newReserve = new PackingList({
             plNo: newReservePlNo,
+            joNumber: originalReserve.joNumber || (joNumber ? joNumber.trim() : originalReserve.plNo),
             transactionType: "Reserve",
             referencePlNo: `BALANCE OF ${originalReserve.plNo}`,
             customer: originalReserve.customer,
@@ -120,6 +126,11 @@ export const createPackingList = async (req, res) => {
         originalReserve.customer = customer || originalReserve.customer;
         originalReserve.carrier = carrier || originalReserve.carrier;
         originalReserve.destinationAddress = destinationAddress || originalReserve.destinationAddress;
+        if (joNumber !== undefined && joNumber.trim()) {
+          originalReserve.joNumber = joNumber.trim();
+        } else if (!originalReserve.joNumber) {
+          originalReserve.joNumber = originalReserve.plNo;
+        }
         originalReserve.shipmentDate = shipmentDate || originalReserve.shipmentDate;
         originalReserve.preparedBy = preparedBy || originalReserve.preparedBy;
         originalReserve.items = formattedItems;
@@ -142,6 +153,7 @@ export const createPackingList = async (req, res) => {
 
     const newPL = new PackingList({
       plNo: finalPlNo,
+      joNumber: (joNumber && joNumber.trim()) ? joNumber.trim() : finalPlNo,
       transactionType,
       referencePlNo: "", 
       customer,
@@ -186,11 +198,30 @@ export const createPackingList = async (req, res) => {
 
 export const getPackingLists = async (req, res) => {
   try {
+    // Self-healing migration: fill joNumber with plNo for past legacy records if missing
+    try {
+      await PackingList.updateMany(
+        { $or: [{ joNumber: { $exists: false } }, { joNumber: null }, { joNumber: "" }] },
+        [{ $set: { joNumber: "$plNo" } }],
+        { updatePipeline: true }
+      );
+    } catch (migErr) {
+      // Non-blocking background migration fallback
+    }
+
     const records = await PackingList.find()
       .populate("items.materialId", "Code ItemDescription UOM Segment Dimension Dimensions Length Width Height ActualCount")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(records);
+    const formatted = records.map(doc => {
+      const obj = doc.toObject ? doc.toObject() : doc;
+      if (!obj.joNumber) {
+        obj.joNumber = obj.plNo;
+      }
+      return obj;
+    });
+
+    res.status(200).json(formatted);
   } catch (err) {
     res.status(500).json({ 
       message: "Failed to fetch PL logs", 
@@ -249,7 +280,7 @@ export const cancelPackingList = async (req, res) => {
 export const updatePackingList = async (req, res) => {
   try {
     const { id } = req.params;
-    const { shipmentDate, customer, carrier, destinationAddress, preparedBy, items } = req.body;
+    const { shipmentDate, customer, carrier, destinationAddress, preparedBy, joNumber, items } = req.body;
 
     const originalReserve = await PackingList.findById(id);
     if (!originalReserve) {
@@ -305,6 +336,7 @@ export const updatePackingList = async (req, res) => {
     originalReserve.customer = customer || originalReserve.customer;
     originalReserve.carrier = carrier || originalReserve.carrier;
     originalReserve.destinationAddress = destinationAddress || originalReserve.destinationAddress;
+    if (joNumber !== undefined) originalReserve.joNumber = joNumber ? joNumber.trim() : originalReserve.joNumber;
     originalReserve.shipmentDate = shipmentDate || originalReserve.shipmentDate;
     originalReserve.preparedBy = preparedBy || originalReserve.preparedBy;
     originalReserve.items = formattedItems;

@@ -405,134 +405,230 @@ function InventoryConsumables({ setActiveTab }) {
 
       <div className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100 text-slate-600'} border rounded-2xl p-6 shadow-sm flex flex-col gap-6 transition-colors duration-200`}>
 
-        <div className="flex flex-col gap-1.5">
-          {/* ROW 1: Filter & Acquisition Cost */}
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <div className={`flex items-center gap-2 text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-500'} flex-shrink-0`}>
-              <Filter className={`w-4 h-4 ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`} />
-              <span>{showArchivedOnly ? 'Archive' : 'Filter'}</span>
+        {/* EXCEL-STYLE RIBBON TOOLBAR (WHITE BG, 3-COLUMN STACKED, BG-INDIGO-900/20 BUTTONS) */}
+        <div className={`w-full border-b px-4 py-3 transition-colors ${
+            isDark 
+                ? 'bg-[#141622] border-slate-800 text-slate-200' 
+                : 'bg-white border-slate-200 text-slate-800'
+        }`}>
+            <div className="flex items-stretch gap-4 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                
+                {/* COLUMN 1: SEARCH ON TOP, FILTERS BELOW */}
+                <div className="flex flex-col justify-between pr-4 border-r border-slate-200 dark:border-slate-800 flex-1 min-w-[300px]">
+                    <div className="flex flex-col gap-2">
+                        {/* Row 1: Search Input */}
+                        <div className="relative w-full">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-slate-400" />
+                            <input 
+                                type="text" 
+                                placeholder="Find description, segment, brand..." 
+                                value={searchTerm} 
+                                onChange={(e) => setSearchTerm(e.target.value)} 
+                                className={`w-full h-9 pl-9 pr-8 text-xs font-medium rounded-md border transition-colors focus:outline-none focus:ring-0 focus:border-[#ff6600] ${
+                                    isDark 
+                                        ? 'bg-[#0f1115] border-slate-700 text-slate-100 placeholder-slate-500' 
+                                        : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400'
+                                }`} 
+                            />
+                            {searchTerm && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchTerm('')}
+                                    title="Clear Find"
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer focus:outline-none"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Row 2: Filters (Below Search) */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            {/* Segment Filter */}
+                            <select
+                                value={selectedSegment}
+                                onChange={(e) => setSelectedSegment(e.target.value)}
+                                title="Filter by Segment"
+                                className={`h-8 px-2.5 text-xs rounded-md border cursor-pointer focus:outline-none focus:ring-0 flex-1 min-w-[135px] truncate ${
+                                    selectedSegment !== 'All Segments'
+                                        ? 'bg-indigo-900/20 border-indigo-900/40 text-indigo-950 dark:text-indigo-200 font-semibold'
+                                        : (isDark ? 'bg-[#0f1115] border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-700')
+                                }`}
+                            >
+                                {(segments || []).map(seg => {
+                                    if (seg === 'All Segments') return <option key={seg} value={seg}>{seg}</option>;
+                                    const config = getSegmentStyles(seg);
+                                    return <option key={seg} value={seg}>{config.prefix} {seg}</option>;
+                                })}
+                            </select>
+
+                            {/* Description Filter */}
+                            <select
+                                value={selectedDescription}
+                                onChange={(e) => setSelectedDescription(e.target.value)}
+                                title="Filter by Description"
+                                className={`h-8 px-2.5 text-xs rounded-md border cursor-pointer focus:outline-none focus:ring-0 flex-1 min-w-[155px] truncate ${
+                                    selectedDescription !== 'All Item Descriptions'
+                                        ? 'bg-indigo-900/20 border-indigo-900/40 text-indigo-950 dark:text-indigo-200 font-semibold'
+                                        : (isDark ? 'bg-[#0f1115] border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-700')
+                                }`}
+                            >
+                                {(descriptions || []).map(desc => <option key={desc} value={desc}>{desc}</option>)}
+                            </select>
+
+                            {/* Clear Filter Button */}
+                            {(selectedSegment !== 'All Segments' || selectedDescription !== 'All Item Descriptions' || searchTerm !== '' || hideZeroQty) && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedSegment('All Segments');
+                                        setSelectedDescription('All Item Descriptions');
+                                        setSearchTerm('');
+                                        setHideZeroQty(false);
+                                    }}
+                                    title="Clear All Filters"
+                                    className="flex items-center gap-1 h-8 px-2.5 rounded-md bg-indigo-900/20 hover:bg-indigo-900/30 border border-indigo-900/30 text-indigo-950 dark:text-indigo-200 text-xs font-semibold transition-colors cursor-pointer flex-shrink-0 focus:outline-none focus:ring-0"
+                                >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>Reset</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-center text-slate-400 mt-2 select-none">
+                        {showArchivedOnly ? 'Find & Archive Filters' : 'Find & Filter'}
+                    </span>
+                </div>
+
+                {/* COLUMN 2: STACKED VIEW BUTTONS */}
+                <div className="flex flex-col justify-between pr-4 border-r border-slate-200 dark:border-slate-800 flex-shrink-0 min-w-[145px]">
+                    <div className="flex flex-col gap-1.5">
+                        {/* 1. Hide 0 Qty Toggle */}
+                        <button
+                            type="button"
+                            onClick={() => setHideZeroQty(!hideZeroQty)}
+                            title={hideZeroQty ? "Hide 0 Qty: ON" : "Hide 0 Qty Items"}
+                            className={`flex items-center justify-start gap-2 h-7 px-2.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer select-none w-full focus:outline-none focus:ring-0 ${
+                                hideZeroQty 
+                                    ? 'bg-red-600 hover:bg-red-700 border-red-600 text-white' 
+                                    : 'bg-indigo-900/20 hover:bg-indigo-900/30 border-indigo-900/30 text-indigo-950 dark:text-indigo-200'
+                            }`}
+                        >
+                            <EyeOff className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>Hide 0 Qty</span>
+                        </button>
+
+                        {/* 2. Palette Settings */}
+                        {!isPurchasing && (
+                            <button
+                                type="button"
+                                onClick={() => setIsPaletteModalOpen(true)}
+                                title="Palette Settings"
+                                className="flex items-center justify-start gap-2 h-7 px-2.5 rounded-md text-xs font-semibold bg-indigo-900/20 hover:bg-indigo-900/30 border border-indigo-900/30 text-indigo-950 dark:text-indigo-200 transition-colors cursor-pointer w-full focus:outline-none focus:ring-0"
+                            >
+                                <Palette className="w-3.5 h-3.5 flex-shrink-0" />
+                                <span>Palette</span>
+                            </button>
+                        )}
+
+                        {/* 3. Edit Qty Mode */}
+                        {!isPurchasing && !showArchivedOnly && (
+                            <button
+                                type="button"
+                                onClick={handleToggleEditQty}
+                                title={isEditingQty ? "Cancel Edit Qty Mode" : "Directly Edit Actual Count Column"}
+                                className={`flex items-center justify-start gap-2 h-7 px-2.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer w-full focus:outline-none focus:ring-0 ${
+                                    isEditingQty
+                                        ? 'bg-amber-600 hover:bg-amber-700 border-amber-600 text-white'
+                                        : 'bg-indigo-900/20 hover:bg-indigo-900/30 border-indigo-900/30 text-indigo-950 dark:text-indigo-200'
+                                }`}
+                            >
+                                <Edit2 className="w-3.5 h-3.5 flex-shrink-0" />
+                                <span>{isEditingQty ? 'Editing Qty' : 'Edit Qty'}</span>
+                            </button>
+                        )}
+
+                        {/* 4. Archive Vault Toggle */}
+                        {!isPurchasing && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (isEditingQty) {
+                                        setIsEditingQty(false);
+                                        setEditedQuantities({});
+                                    }
+                                    setShowArchivedOnly(!showArchivedOnly);
+                                }}
+                                title={showArchivedOnly ? "Back to Active Sheet" : "Open Archive Vault"}
+                                className={`flex items-center justify-between gap-2 h-7 px-2.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer w-full focus:outline-none focus:ring-0 ${
+                                    showArchivedOnly
+                                        ? 'bg-red-600 hover:bg-red-700 border-red-600 text-white'
+                                        : 'bg-indigo-900/20 hover:bg-indigo-900/30 border-indigo-900/30 text-indigo-950 dark:text-indigo-200'
+                                }`}
+                            >
+                                <span className="flex items-center gap-2">
+                                    <Archive className="w-3.5 h-3.5 flex-shrink-0" />
+                                    <span>{showArchivedOnly ? 'Active' : 'Archive'}</span>
+                                </span>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                    showArchivedOnly
+                                        ? 'bg-white/20 text-white'
+                                        : 'bg-indigo-900/20 text-indigo-950 dark:text-indigo-200'
+                                }`}>
+                                    {showArchivedOnly ? activeCount : archivedCount}
+                                </span>
+                            </button>
+                        )}
+                    </div>
+
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-center text-slate-400 mt-2 select-none">
+                        View & Tools
+                    </span>
+                </div>
+
+                {/* COLUMN 3: ADD ITEM BUTTON & TOTAL COST */}
+                <div className="flex flex-col justify-between flex-shrink-0 min-w-[175px]">
+                    <div className="flex flex-col gap-2">
+                        {/* Add Item Button */}
+                        {!isPurchasing && (
+                            <button
+                                type="button"
+                                onClick={openAddModal}
+                                disabled={showArchivedOnly}
+                                title="Insert New Consumables Item"
+                                className="flex items-center justify-center gap-2 h-9 px-3.5 rounded-md bg-indigo-900/20 hover:bg-indigo-900/30 border border-indigo-900/30 text-indigo-950 dark:text-indigo-200 text-xs font-bold transition-colors cursor-pointer w-full focus:outline-none focus:ring-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <Plus className="w-4 h-4 stroke-[2.5]" />
+                                <span>Add New Item</span>
+                            </button>
+                        )}
+
+                        {/* Total Acquisition Cost (Formula Style) */}
+                        {canViewCost && (
+                            <div className={`flex items-center justify-between gap-2 h-8 px-2.5 rounded-md border font-mono text-xs ${
+                                isDark 
+                                    ? 'bg-[#0f1115] border-slate-700 text-slate-200' 
+                                    : 'bg-white border-slate-300 text-slate-800'
+                            }`}>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-serif italic font-bold text-slate-400 select-none">fx</span>
+                                    <span className="text-slate-300 dark:text-slate-700">|</span>
+                                    <span className="font-sans text-[11px] text-slate-500">Total:</span>
+                                </div>
+                                <span className="font-bold text-red-600 dark:text-red-400">
+                                    ₱{totalAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-center text-slate-400 mt-2 select-none">
+                        Insert & Summary
+                    </span>
+                </div>
+
             </div>
-
-            {/* TOTAL ACQUISITION COST BADGE IN TOOLBAR */}
-            {canViewCost && (
-              <div className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border select-none flex-shrink-0 transition-all ${isDark ? 'bg-[#141622] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
-                <span>Total Acquisition Cost:</span>
-                <span className="font-mono font-black text-red-600 dark:text-red-400">
-                  ₱{totalAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* ROW 2: Actions Row (Hide 0 Qty under Filter, Palette Settings, Edit Qty, View Archive Vault) */}
-          <div className="flex items-center gap-2 flex-wrap mt-1">
-            <label
-              className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${hideZeroQty
-                ? (isDark ? 'bg-red-950/40 border-red-900/60 text-red-400' : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100')
-                : (isDark ? 'bg-[#141622] border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100')
-                }`}
-            >
-              <input
-                type="checkbox"
-                checked={hideZeroQty}
-                onChange={(e) => setHideZeroQty(e.target.checked)}
-                className={`w-3.5 h-3.5 rounded cursor-pointer transition-all ${hideZeroQty ? 'accent-red-500' : 'accent-[#ff6600]'}`}
-              />
-              <span className="hidden sm:inline">Hide 0 Qty</span>
-              <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
-            </label>
-
-            {!isPurchasing && (
-              <button
-                onClick={() => setIsPaletteModalOpen(true)}
-                title="Palette Settings"
-                className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90'}`}
-              >
-                <Palette className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                <span className="hidden md:inline">Palette Settings</span>
-              </button>
-            )}
-
-            {/* EDIT QTY BUTTON DIRECTLY IN TABLE */}
-            {!isPurchasing && !showArchivedOnly && (
-              <button
-                onClick={handleToggleEditQty}
-                title={isEditingQty ? "Cancel Edit Qty Mode" : "Directly Edit Actual Count Column"}
-                className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${
-                  isEditingQty
-                    ? (isDark ? 'border-amber-500 bg-amber-500 text-white ring-2 ring-amber-400/50 shadow-md' : 'border-amber-600 bg-amber-600 text-white ring-2 ring-amber-500/40 shadow-md')
-                    : (isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90')
-                }`}
-              >
-                <Edit2 className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-white" />
-                <span className="hidden md:inline">{isEditingQty ? 'Editing Qty (Active)' : 'Edit Qty'}</span>
-                <span className="md:hidden">{isEditingQty ? 'Editing' : 'Edit Qty'}</span>
-              </button>
-            )}
-
-            {!isPurchasing && (
-              <button
-                onClick={() => {
-                  if (isEditingQty) {
-                    setIsEditingQty(false);
-                    setEditedQuantities({});
-                  }
-                  setShowArchivedOnly(!showArchivedOnly);
-                }}
-                title={showArchivedOnly ? "Show Active Consumables" : "View Archive Vault"}
-                className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${showArchivedOnly
-                  ? 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'
-                  : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
-                  }`}
-              >
-                {showArchivedOnly ? (
-                  <>
-                    <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                    <span className="hidden md:inline">Show Active Consumables</span>
-                    <span className="text-[11px] font-bold">({activeCount})</span>
-                  </>
-                ) : (
-                  <>
-                    <Archive className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                    <span className="hidden md:inline">View Archive Vault</span>
-                    <span className="text-[11px] font-bold">({archivedCount})</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-
-          <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isPurchasing ? 'md:grid-cols-3' : 'md:grid-cols-4'} md:pb-0`}>
-
-            <div className="min-w-[180px] w-full md:min-w-0">
-              <div className="relative w-full">
-                <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                <input type="text" placeholder="Search Description, Segment, Brand..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
-              </div>
-            </div>
-
-            <div className="min-w-[150px] w-full md:min-w-0">
-              <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className={`${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer truncate`}>
-                {(segments || []).map(seg => <option key={seg} value={seg}>{seg}</option>)}
-              </select>
-            </div>
-
-            <div className="min-w-[170px] w-full md:min-w-0">
-              <select value={selectedDescription} onChange={(e) => setSelectedDescription(e.target.value)} className={`${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-lg px-3 py-2 text-sm focus:outline-none w-full cursor-pointer truncate`}>
-                {(descriptions || []).map(desc => <option key={desc} value={desc}>{desc}</option>)}
-              </select>
-            </div>
-
-            {!isPurchasing && (
-              <div className="min-w-[160px] w-full md:min-w-0">
-                <button onClick={openAddModal} disabled={showArchivedOnly} className={`flex items-center justify-center gap-2 ${isDark ? 'bg-[#ff6600] hover:bg-[#ff6600]/90' : 'bg-[#18174e] hover:bg-[#18174e]/90'} disabled:bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px]`}>
-                  <span className="whitespace-nowrap">Add New Consumable Item</span>
-                </button>
-              </div>
-            )}
-
-          </div>
-          <div className={`h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'} w-full mt-3`}></div>
         </div>
 
         <div className={`${isDark ? 'bg-[#0c0e14] border-slate-800' : 'bg-white border-slate-100'} rounded-xl border shadow-sm overflow-hidden`}>

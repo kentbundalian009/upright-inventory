@@ -399,6 +399,7 @@ function MaterialImageDropdownCell({
 export default function RackingsUnit() {
   const { isDark } = useTheme();
   const userRole = localStorage.getItem("SystemRole") || "Inventory";
+  const isPurchasing = userRole === 'Purchasing';
 
   // Database raw materials state
   const [rawMaterialsList, setRawMaterialsList] = useState([]);
@@ -1306,75 +1307,160 @@ export default function RackingsUnit() {
       {/* 3. MAIN WHITE / DARK CONTAINER (MATCHING RACKINGS.JSX EXACTLY) */}
       <div className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100 text-slate-600'} border rounded-2xl p-6 shadow-sm flex flex-col gap-6 transition-colors duration-200`}>
 
-        {/* FILTER CONTROLS MASTER ROW */}
-        <div className="flex flex-col gap-1.5">
+        {/* EXCEL-STYLE RIBBON TOOLBAR (WHITE BG, 3-COLUMN STACKED, BG-INDIGO-900/20 BUTTONS) */}
+        <div className={`w-full border-b px-4 py-3 transition-colors ${
+            isDark 
+                ? 'bg-[#141622] border-slate-800 text-slate-200' 
+                : 'bg-white border-slate-200 text-slate-800'
+        }`}>
+            <div className="flex items-stretch gap-4 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                
+                {/* COLUMN 1: SEARCH ON TOP, FILTERS BELOW */}
+                <div className="flex flex-col justify-between pr-4 border-r border-slate-200 dark:border-slate-800 flex-1 min-w-[300px]">
+                    <div className="flex flex-col gap-2">
+                        {/* Row 1: Search Input */}
+                        <div className="relative w-full">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-slate-400" />
+                            <input 
+                                type="text" 
+                                placeholder="Find unit description, component, segment..." 
+                                value={searchTerm} 
+                                onChange={(e) => setSearchTerm(e.target.value)} 
+                                className={`w-full h-9 pl-9 pr-8 text-xs font-medium rounded-md border transition-colors focus:outline-none focus:ring-0 focus:border-[#ff6600] ${
+                                    isDark 
+                                        ? 'bg-[#0f1115] border-slate-700 text-slate-100 placeholder-slate-500' 
+                                        : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400'
+                                }`} 
+                            />
+                            {searchTerm && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchTerm('')}
+                                    title="Clear Find"
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer focus:outline-none"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            )}
+                        </div>
 
-          {/* TOP BAR */}
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <div className={`flex items-center gap-2 text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-500'} flex-shrink-0`}>
-                <Filter className={`w-4 h-4 ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`} />
-                <span>Filter</span>
-              </div>
+                        {/* Row 2: Filters (Below Search) */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            {/* Segment Filter */}
+                            <select
+                                value={selectedSegment}
+                                onChange={(e) => setSelectedSegment(e.target.value)}
+                                title="Filter by Segment"
+                                className={`h-8 px-2.5 text-xs rounded-md border cursor-pointer focus:outline-none focus:ring-0 flex-1 min-w-[135px] truncate ${
+                                    selectedSegment !== 'All Segments'
+                                        ? 'bg-indigo-900/20 border-indigo-900/40 text-indigo-950 dark:text-indigo-200 font-semibold'
+                                        : (isDark ? 'bg-[#0f1115] border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-700')
+                                }`}
+                            >
+                                {filterSegments.map(seg => {
+                                    if (seg === 'All Segments') return <option key={seg} value={seg}>{seg}</option>;
+                                    const config = getSegmentStyles(seg);
+                                    return <option key={seg} value={seg}>{config.prefix} {seg}</option>;
+                                })}
+                            </select>
+
+                            {/* Clear Filter Button */}
+                            {(selectedSegment !== 'All Segments' || searchTerm !== '') && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedSegment('All Segments');
+                                        setSearchTerm('');
+                                    }}
+                                    title="Clear All Filters"
+                                    className="flex items-center gap-1 h-8 px-2.5 rounded-md bg-indigo-900/20 hover:bg-indigo-900/30 border border-indigo-900/30 text-indigo-950 dark:text-indigo-200 text-xs font-semibold transition-colors cursor-pointer flex-shrink-0 focus:outline-none focus:ring-0"
+                                >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>Reset</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-center text-slate-400 mt-2 select-none">
+                        Find & Filter
+                    </span>
+                </div>
+
+                {/* COLUMN 2: STACKED VIEW BUTTONS */}
+                <div className="flex flex-col justify-between pr-4 border-r border-slate-200 dark:border-slate-800 flex-shrink-0 min-w-[145px]">
+                    <div className="flex flex-col gap-1.5">
+                        <div
+                            title="Total Configured Unit Records"
+                            className="flex items-center justify-between gap-2 h-7 px-2.5 rounded-md text-xs font-semibold border bg-indigo-900/20 border-indigo-900/30 text-indigo-950 dark:text-indigo-200 select-none w-full"
+                        >
+                            <span className="flex items-center gap-2">
+                                <Box className="w-3.5 h-3.5 flex-shrink-0" />
+                                <span>Total Units</span>
+                            </span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-900/20 text-indigo-950 dark:text-indigo-200">
+                                {unitRecords.length}
+                            </span>
+                        </div>
+
+                        <div
+                            title="Filtered Units Match"
+                            className="flex items-center justify-between gap-2 h-7 px-2.5 rounded-md text-xs font-semibold border bg-indigo-900/20 border-indigo-900/30 text-indigo-950 dark:text-indigo-200 select-none w-full"
+                        >
+                            <span className="flex items-center gap-2">
+                                <Filter className="w-3.5 h-3.5 flex-shrink-0" />
+                                <span>Filtered</span>
+                            </span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-900/20 text-indigo-950 dark:text-indigo-200">
+                                {filteredRecords.length}
+                            </span>
+                        </div>
+                    </div>
+
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-center text-slate-400 mt-2 select-none">
+                        View & Tools
+                    </span>
+                </div>
+
+                {/* COLUMN 3: ADD ITEM BUTTON & SUMMARY */}
+                <div className="flex flex-col justify-between flex-shrink-0 min-w-[175px]">
+                    <div className="flex flex-col gap-2">
+                        {/* Add Item Button */}
+                        {!isPurchasing && (
+                            <button
+                                type="button"
+                                onClick={handleOpenCreateModal}
+                                title="Insert New Rackings Unit Configuration"
+                                className="flex items-center justify-center gap-2 h-9 px-3.5 rounded-md bg-indigo-900/20 hover:bg-indigo-900/30 border border-indigo-900/30 text-indigo-950 dark:text-indigo-200 text-xs font-bold transition-colors cursor-pointer w-full focus:outline-none focus:ring-0"
+                            >
+                                <Plus className="w-4 h-4 stroke-[2.5]" />
+                                <span>Add New Unit</span>
+                            </button>
+                        )}
+
+                        {/* Total Records Formula Style Box */}
+                        <div className={`flex items-center justify-between gap-2 h-8 px-2.5 rounded-md border font-mono text-xs ${
+                            isDark 
+                                ? 'bg-[#0f1115] border-slate-700 text-slate-200' 
+                                : 'bg-white border-slate-300 text-slate-800'
+                        }`}>
+                            <div className="flex items-center gap-1.5">
+                                <span className="font-serif italic font-bold text-slate-400 select-none">fx</span>
+                                <span className="text-slate-300 dark:text-slate-700">|</span>
+                                <span className="font-sans text-[11px] text-slate-500">Records:</span>
+                            </div>
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                {totalRows} Items
+                            </span>
+                        </div>
+                    </div>
+
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-center text-slate-400 mt-2 select-none">
+                        Insert & Summary
+                    </span>
+                </div>
+
             </div>
-          </div>
-
-          {/* LAYER 2: 3-COLUMN FILTER GRID (Search, Segment, Add Button) */}
-          <div className="flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid md:grid-cols-3 md:pb-0">
-            {/* Search */}
-            <div className="min-w-[180px] w-full md:min-w-0">
-              <div className="relative w-full">
-                <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                <input
-                  type="text"
-                  placeholder="Search unit description, component, segment..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'
-                    } border rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none`}
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Segment Filter */}
-            <div className="min-w-[150px] w-full md:min-w-0">
-              <select
-                value={selectedSegment}
-                onChange={(e) => setSelectedSegment(e.target.value)}
-                className={`${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
-                  } border font-semibold rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full`}
-              >
-                {filterSegments.map(seg => {
-                  if (seg === 'All Segments') return <option key={seg} value={seg}>{seg}</option>;
-                  const config = getSegmentStyles(seg);
-                  return <option key={seg} value={seg}>{config.prefix} {seg}</option>;
-                })}
-              </select>
-            </div>
-
-            {/* Add New Rackings Unit Button */}
-            <div className="min-w-[160px] w-full md:min-w-0">
-              <button
-                type="button"
-                onClick={handleOpenCreateModal}
-                className={`flex items-center justify-center gap-2 ${isDark ? 'bg-[#ff6600] hover:bg-[#ff6600]/90' : 'bg-[#18174e] hover:bg-[#18174e]/90'
-                  } text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px]`}
-              >
-                <Plus className="w-4 h-4" />
-                <span className="whitespace-nowrap">Add New Rackings Unit</span>
-              </button>
-            </div>
-          </div>
-
-          <div className={`h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'} w-full mt-3`}></div>
         </div>
 
         {/* MAIN RECORDS TABLE (SAME UI AS RACKINGS.JSX) */}

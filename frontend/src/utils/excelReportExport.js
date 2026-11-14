@@ -59,6 +59,7 @@ export const exportUprightAuditLedgerExcel = async ({
     activeModule = 'raw-materials',
     titleModule = 'Rackings',
     targetMonthLabel = 'Month',
+    selectedPeriodLabel = '',
     currentYearStr = new Date().getFullYear().toString(),
     formattedDate = new Date().toLocaleString(),
     exportData = [],
@@ -110,12 +111,12 @@ export const exportUprightAuditLedgerExcel = async ({
         ];
     } else if (isRackings) {
         if (isInventoryOnly) {
+            const periodTag = selectedPeriodLabel || `${targetMonthLabel} ${currentYearStr}`;
             columns = [
                 { header: 'Item Description', key: 'desc', width: 36 },
                 { header: 'Segment', key: 'segment', width: 18 },
                 { header: 'Dimension', key: 'dimension', width: 22 },
-                { header: 'Actual Count', key: 'actualCount', width: 18 },
-                { header: 'Reserve Count', key: 'reserveCount', width: 18 },
+                { header: `Actual Count (${periodTag})`, key: 'monthActualCount', width: 22 },
                 { header: 'UOM', key: 'uom', width: 12 }
             ];
         } else if (isAcquisitionReport) {
@@ -510,12 +511,12 @@ export const exportUprightAuditLedgerExcel = async ({
 
                 if (isRackings) {
                     if (isInventoryOnly) {
+                        const monthActual = Number(item.MonthActualCount ?? physicalCount);
                         rowData = [
                             { val: finalDesc, align: 'left', bold: true },
                             { val: item.Segment || 'Standard', align: 'left' },
                             { val: formattedDim, align: 'center' },
-                            { val: netCount, align: 'center', bold: true, condition: conditionType },
-                            { val: reserveCount > 0 ? reserveCount : 0, align: 'center', isReserve: true, hasReserve: reserveCount > 0 },
+                            { val: monthActual, align: 'center', bold: true },
                             { val: item.UOM || 'PCS', align: 'center' }
                         ];
                     } else if (isAcquisitionReport) {
@@ -675,6 +676,7 @@ export const exportUprightAuditLedgerExcel = async ({
             currentRowIndex++;
         } else if (isRackings) {
             // General Quantity Totals
+            const totalMonthActual = exportData.reduce((acc, it) => acc + Number(it.MonthActualCount ?? it.ActualCount ?? 0), 0);
             const totalActual = exportData.reduce((acc, it) => acc + Math.max(0, (Number(it.ActualCount || 0) - Number(it.ReserveCount || 0))), 0);
             const totalReserve = exportData.reduce((acc, it) => acc + (Number(it.ReserveCount || 0)), 0);
 
@@ -689,30 +691,47 @@ export const exportUprightAuditLedgerExcel = async ({
             lblCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: UPRIGHT_COLORS.ICE_BLUE_BG } };
             lblCell.border = accountingTotalBorder;
 
-            const cActual = worksheet.getCell(`D${currentRowIndex}`);
-            cActual.value = totalActual;
-            cActual.numFmt = '#,##0';
-            cActual.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: UPRIGHT_COLORS.NAVY_PRIMARY } };
-            cActual.alignment = { vertical: 'middle', horizontal: 'center' };
-            cActual.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: UPRIGHT_COLORS.ICE_BLUE_BG } };
-            cActual.border = accountingTotalBorder;
+            if (isInventoryOnly) {
+                const cMonth = worksheet.getCell(`D${currentRowIndex}`);
+                cMonth.value = totalMonthActual;
+                cMonth.numFmt = '#,##0';
+                cMonth.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: UPRIGHT_COLORS.NAVY_PRIMARY } };
+                cMonth.alignment = { vertical: 'middle', horizontal: 'center' };
+                cMonth.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: UPRIGHT_COLORS.ICE_BLUE_BG } };
+                cMonth.border = accountingTotalBorder;
 
-            const cRes = worksheet.getCell(`E${currentRowIndex}`);
-            cRes.value = totalReserve;
-            cRes.numFmt = '#,##0';
-            cRes.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: UPRIGHT_COLORS.RESERVE_TEXT } };
-            cRes.alignment = { vertical: 'middle', horizontal: 'center' };
-            cRes.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: UPRIGHT_COLORS.ICE_BLUE_BG } };
-            cRes.border = accountingTotalBorder;
+                const cUom = worksheet.getCell(`E${currentRowIndex}`);
+                cUom.value = '—';
+                cUom.font = { name: 'Calibri', size: 9, color: { argb: UPRIGHT_COLORS.TEXT_MUTED } };
+                cUom.alignment = { vertical: 'middle', horizontal: 'center' };
+                cUom.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: UPRIGHT_COLORS.ICE_BLUE_BG } };
+                cUom.border = accountingTotalBorder;
+            } else {
+                const cActual = worksheet.getCell(`D${currentRowIndex}`);
+                cActual.value = totalActual;
+                cActual.numFmt = '#,##0';
+                cActual.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: UPRIGHT_COLORS.NAVY_PRIMARY } };
+                cActual.alignment = { vertical: 'middle', horizontal: 'center' };
+                cActual.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: UPRIGHT_COLORS.ICE_BLUE_BG } };
+                cActual.border = accountingTotalBorder;
 
-            if (totalCols > 5) {
-                worksheet.mergeCells(`F${currentRowIndex}:${endColLetter}${currentRowIndex}`);
-                const cRest = worksheet.getCell(`F${currentRowIndex}`);
-                cRest.value = '—';
-                cRest.font = { name: 'Calibri', size: 9, color: { argb: UPRIGHT_COLORS.TEXT_MUTED } };
-                cRest.alignment = { vertical: 'middle', horizontal: 'center' };
-                cRest.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: UPRIGHT_COLORS.ICE_BLUE_BG } };
-                cRest.border = accountingTotalBorder;
+                const cRes = worksheet.getCell(`E${currentRowIndex}`);
+                cRes.value = totalReserve;
+                cRes.numFmt = '#,##0';
+                cRes.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: UPRIGHT_COLORS.RESERVE_TEXT } };
+                cRes.alignment = { vertical: 'middle', horizontal: 'center' };
+                cRes.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: UPRIGHT_COLORS.ICE_BLUE_BG } };
+                cRes.border = accountingTotalBorder;
+
+                if (totalCols > 5) {
+                    worksheet.mergeCells(`F${currentRowIndex}:${endColLetter}${currentRowIndex}`);
+                    const cRest = worksheet.getCell(`F${currentRowIndex}`);
+                    cRest.value = '—';
+                    cRest.font = { name: 'Calibri', size: 9, color: { argb: UPRIGHT_COLORS.TEXT_MUTED } };
+                    cRest.alignment = { vertical: 'middle', horizontal: 'center' };
+                    cRest.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: UPRIGHT_COLORS.ICE_BLUE_BG } };
+                    cRest.border = accountingTotalBorder;
+                }
             }
 
             currentRowIndex++;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, AlertCircle, Filter, X, Edit2, Archive, EyeOff, Sliders, RotateCcw, CheckCircle2, Palette, Image as ImageIcon, Upload, Trash2, Coins, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Search, AlertCircle, Filter, X, Edit2, Archive, EyeOff, Sliders, RotateCcw, CheckCircle2, Palette, Image as ImageIcon, Upload, Trash2, Coins, ChevronLeft, ChevronRight, Loader2, Plus, FileSpreadsheet, Tag, Package, Activity, Boxes, ArrowUpDown, SlidersHorizontal } from 'lucide-react';
 import axios from 'axios';
 import PageHeader from './layout/PageHeader';
 import TablePagination from './common/TablePagination';
@@ -38,6 +38,8 @@ function InventoryRawMaterials() {
     // View toggles
     const [showArchivedOnly, setShowArchivedOnly] = useState(false);
     const [hideZeroQty, setHideZeroQty] = useState(false);
+    const [showZeroOnly, setShowZeroOnly] = useState(false);
+    const [sortBy, setSortBy] = useState('default');
 
     // Filters at Search States
     const [searchTerm, setSearchTerm] = useState('');
@@ -379,7 +381,7 @@ function InventoryRawMaterials() {
         setCurrentId(item._id);
         setMaterialCode(item.Code || '');
         setMaterialSegment(item.Segment || '');
-        
+
         // Parse and prefill condition state
         const condStr = (item.Condition || '').toLowerCase().trim();
         const descStr = (item.ItemDescription || '').toLowerCase();
@@ -456,8 +458,8 @@ function InventoryRawMaterials() {
             formData.append("Condition", buildConditionString());
             const finalDimension = isPurchasing
                 ? (materialDimension || '').trim()
-                : isCustomDim 
-                    ? materialDimension.trim() 
+                : isCustomDim
+                    ? materialDimension.trim()
                     : buildDimensionString({
                         height: dimHeight,
                         heightType: dimHeightType,
@@ -500,8 +502,8 @@ function InventoryRawMaterials() {
 
             // ⚡ REALTIME LOCAL UPDATE: Instantly reflect the updated item and fresh image in the table
             if (updatedItem && updatedItem._id) {
-                const freshUrl = updatedItem.ImageUrl 
-                    ? `${updatedItem.ImageUrl}${updatedItem.ImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}` 
+                const freshUrl = updatedItem.ImageUrl
+                    ? `${updatedItem.ImageUrl}${updatedItem.ImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`
                     : '';
                 if (isEditing) {
                     setRawMaterialsList(prev => prev.map(m => m._id === currentId ? { ...m, ...updatedItem, ImageUrl: freshUrl } : m));
@@ -554,14 +556,61 @@ function InventoryRawMaterials() {
         } catch (err) { setErrorMessage(err.response?.data?.message || "Failed to process request."); }
     };
 
+    const viewMode = showArchivedOnly ? 'archived' : 'active';
+    const setViewMode = (mode) => setShowArchivedOnly(mode === 'archived');
+
+    const activeCount = rawMaterialsList.filter(item => !item.isArchived).length;
+    const archivedCount = rawMaterialsList.filter(item => item.isArchived).length;
+
+    const statusModules = useMemo(() => {
+        const list = [
+            { id: 'active', label: `Active Materials (${activeCount})` }
+        ];
+        if (!isPurchasing) {
+            list.push({ id: 'archived', label: `Archive Vault (${archivedCount})` });
+        }
+        return list;
+    }, [activeCount, archivedCount, isPurchasing]);
+
     const currentDisplayList = rawMaterialsList.filter(item => showArchivedOnly ? item.isArchived === true : !item.isArchived);
+
+    const zeroCount = useMemo(() => {
+        return currentDisplayList.filter(item => {
+            const physical = Number(item?.ActualCount) || 0;
+            const reserved = Number(item?.ReserveCount) || 0;
+            const available = Math.max(0, physical - reserved);
+            return available <= 0;
+        }).length;
+    }, [currentDisplayList]);
+
+    const handleClearAllFilters = () => {
+        setSelectedSegment('All Segments');
+        setSelectedDescription('All Item Descriptions');
+        setSelectedHealth('All Health Status');
+        setSearchTerm('');
+        setHideZeroQty(false);
+        setShowZeroOnly(false);
+        setSortBy('default');
+    };
+
+    const activeFiltersCount = (selectedSegment !== 'All Segments' ? 1 : 0)
+        + (selectedDescription !== 'All Item Descriptions' ? 1 : 0)
+        + (selectedHealth !== 'All Health Status' ? 1 : 0)
+        + (searchTerm.trim() !== '' ? 1 : 0)
+        + (hideZeroQty ? 1 : 0)
+        + (showZeroOnly ? 1 : 0)
+        + (sortBy !== 'default' ? 1 : 0);
+
     const filteredRawMaterials = currentDisplayList.filter(item => {
         const matchesSegment = selectedSegment === 'All Segments' || item.Segment === selectedSegment;
         const matchesDescription = selectedDescription === 'All Item Descriptions' || item.ItemDescription === selectedDescription;
         const physical = Number(item?.ActualCount) || 0;
         const reserved = Number(item?.ReserveCount) || 0;
         const available = Math.max(0, physical - reserved);
-        const matchesZeroQty = !hideZeroQty || (available > 0);
+        const matchesZeroQty = hideZeroQty
+            ? available > 0
+            : (showZeroOnly ? available <= 0 : true);
+
         let statusText = 'Healthy';
         const crit = item.CriticalAlert !== undefined ? Number(item.CriticalAlert) : 0;
         const reord = item.RestockWarning !== undefined ? Number(item.RestockWarning) : 10;
@@ -570,7 +619,11 @@ function InventoryRawMaterials() {
         if (available <= crit) statusText = 'Critical';
         else if (available <= reord) statusText = 'Re-Stock';
         else if (available > overstk) statusText = 'Overstock';
-        const matchesHealth = selectedHealth === 'All Health Status' || statusText === selectedHealth || (selectedHealth === 'Zero' && available === 0);
+
+        const matchesHealth = selectedHealth === 'All Health Status'
+            || statusText === selectedHealth
+            || (selectedHealth === 'Zero' && available === 0);
+
         const matchesSearch = !searchTerm || [
             item.Code,
             item.Segment,
@@ -578,8 +631,32 @@ function InventoryRawMaterials() {
             item.Dimension,
             item.AccountTo
         ].some(val => val && val.toLowerCase().includes(searchTerm.toLowerCase()));
+
         return matchesSegment && matchesDescription && matchesHealth && matchesSearch && matchesZeroQty;
     }).sort((a, b) => {
+        if (sortBy === 'name_asc') {
+            return (a.ItemDescription || '').localeCompare(b.ItemDescription || '', undefined, { sensitivity: 'base', numeric: true });
+        }
+        if (sortBy === 'name_desc') {
+            return (b.ItemDescription || '').localeCompare(a.ItemDescription || '', undefined, { sensitivity: 'base', numeric: true });
+        }
+        if (sortBy === 'qty_desc') {
+            const availA = (Number(a.ActualCount) || 0) - (Number(a.ReserveCount) || 0);
+            const availB = (Number(b.ActualCount) || 0) - (Number(b.ReserveCount) || 0);
+            return availB - availA;
+        }
+        if (sortBy === 'qty_asc') {
+            const availA = (Number(a.ActualCount) || 0) - (Number(a.ReserveCount) || 0);
+            const availB = (Number(b.ActualCount) || 0) - (Number(b.ReserveCount) || 0);
+            return availA - availB;
+        }
+        if (sortBy === 'code_asc') {
+            return (a.Code || '').localeCompare(b.Code || '', undefined, { sensitivity: 'base', numeric: true });
+        }
+        if (sortBy === 'code_desc') {
+            return (b.Code || '').localeCompare(a.Code || '', undefined, { sensitivity: 'base', numeric: true });
+        }
+
         const descA = (a.ItemDescription || '').trim();
         const descB = (b.ItemDescription || '').trim();
         const cmp = descA.localeCompare(descB, undefined, { sensitivity: 'base', numeric: true });
@@ -591,15 +668,12 @@ function InventoryRawMaterials() {
         return (a.Code || '').localeCompare(b.Code || '', undefined, { sensitivity: 'base', numeric: true });
     });
 
-    const activeCount = rawMaterialsList.filter(item => !item.isArchived).length;
-    const archivedCount = rawMaterialsList.filter(item => item.isArchived).length;
-
     const totalAcquisitionCost = filteredRawMaterials.reduce(
-        (sum, item) => sum + ((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)), 
+        (sum, item) => sum + ((Number(item.ActualCount) || 0) * (Number(item.AcquisitionCost) || 0)),
         0
     );
     const totalActualCount = filteredRawMaterials.reduce(
-        (sum, item) => sum + (Number(item.ActualCount) || 0), 
+        (sum, item) => sum + (Number(item.ActualCount) || 0),
         0
     );
 
@@ -608,7 +682,7 @@ function InventoryRawMaterials() {
     // Reset pagination to page 1 on filter changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, selectedSegment, selectedDescription, selectedHealth, hideZeroQty, showArchivedOnly]);
+    }, [searchTerm, selectedSegment, selectedDescription, selectedHealth, hideZeroQty, showZeroOnly, sortBy, showArchivedOnly]);
 
     // Pagination calculations
     const totalRows = filteredRawMaterials.length;
@@ -639,140 +713,216 @@ function InventoryRawMaterials() {
 
             <div className={`w-full ${isDark ? 'bg-[#0e1017] border-slate-800 text-slate-200' : 'bg-white border-slate-100 text-slate-600'} border rounded-2xl p-6 shadow-sm flex flex-col gap-6 transition-colors duration-200`}>
 
-                {/* FILTER CONTROLS MASTER ROW */}
-                <div className="flex flex-col gap-1.5">
+                {/* EXCEL-STYLE RIBBON TOOLBAR (WHITE BG, 3-COLUMN STACKED, BG-INDIGO-900/20 BUTTONS) */}
+                <div className={`w-full border-b px-4 py-3 transition-colors ${isDark
+                        ? 'bg-[#141622] border-slate-800 text-slate-200'
+                        : 'bg-white border-slate-200 text-slate-800'
+                    }`}>
+                    <div className="flex items-stretch gap-4 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
 
-                    {/* TOP BAR */}
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                            <div className={`flex items-center gap-2 text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-500'} flex-shrink-0`}>
-                                <Filter className={`w-4 h-4 ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`} />
-                                <span>{showArchivedOnly ? 'Archive' : 'Filter'}</span>
+                        {/* COLUMN 1: SEARCH ON TOP, FILTERS BELOW */}
+                        <div className="flex flex-col justify-between pr-4 border-r border-slate-200 dark:border-slate-800 flex-1 min-w-[300px]">
+                            <div className="flex flex-col gap-2">
+                                {/* Row 1: Search Input */}
+                                <div className="relative w-full">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-slate-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Find segment, description..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className={`w-full h-9 pl-9 pr-8 text-xs font-medium rounded-md border transition-colors focus:outline-none focus:ring-0 focus:border-[#ff6600] ${isDark
+                                                ? 'bg-[#0f1115] border-slate-700 text-slate-100 placeholder-slate-500'
+                                                : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400'
+                                            }`}
+                                    />
+                                    {searchTerm && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSearchTerm('')}
+                                            title="Clear Find"
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer focus:outline-none"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Row 2: Filters (Below Search) */}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    {/* Segment Filter */}
+                                    <select
+                                        value={selectedSegment}
+                                        onChange={(e) => setSelectedSegment(e.target.value)}
+                                        title="Filter by Segment"
+                                        className={`h-8 px-2.5 text-xs rounded-md border cursor-pointer focus:outline-none focus:ring-0 flex-1 min-w-[135px] truncate ${selectedSegment !== 'All Segments'
+                                                ? 'bg-indigo-900/20 border-indigo-900/40 text-indigo-950 dark:text-indigo-200 font-semibold'
+                                                : (isDark ? 'bg-[#0f1115] border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-700')
+                                            }`}
+                                    >
+                                        {filterSegments.map(seg => {
+                                            if (seg === 'All Segments') return <option key={seg} value={seg}>{seg}</option>;
+                                            const config = getSegmentStyles(seg);
+                                            return <option key={seg} value={seg}>{config.prefix} {seg}</option>;
+                                        })}
+                                    </select>
+
+                                    {/* Description Filter */}
+                                    <select
+                                        value={selectedDescription}
+                                        onChange={(e) => setSelectedDescription(e.target.value)}
+                                        title="Filter by Description"
+                                        className={`h-8 px-2.5 text-xs rounded-md border cursor-pointer focus:outline-none focus:ring-0 flex-1 min-w-[155px] truncate ${selectedDescription !== 'All Item Descriptions'
+                                                ? 'bg-indigo-900/20 border-indigo-900/40 text-indigo-950 dark:text-indigo-200 font-semibold'
+                                                : (isDark ? 'bg-[#0f1115] border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-700')
+                                            }`}
+                                    >
+                                        {filterDescriptions.map(desc => <option key={desc} value={desc}>{desc}</option>)}
+                                    </select>
+
+                                    {/* Condition Filter */}
+                                    <select
+                                        value={selectedHealth}
+                                        onChange={(e) => setSelectedHealth(e.target.value)}
+                                        title="Filter by Condition"
+                                        className={`h-8 px-2.5 text-xs rounded-md border cursor-pointer focus:outline-none focus:ring-0 flex-1 min-w-[135px] ${selectedHealth !== 'All Health Status'
+                                                ? 'bg-indigo-900/20 border-indigo-900/40 text-indigo-950 dark:text-indigo-200 font-semibold'
+                                                : (isDark ? 'bg-[#0f1115] border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-700')
+                                            }`}
+                                    >
+                                        <option value="All Health Status">All Conditions</option>
+                                        <option value="Healthy">🟢 Healthy Stock</option>
+                                        <option value="Critical">🔴 Critical Reorder</option>
+                                        <option value="Zero">⚪ Out of Stock</option>
+                                    </select>
+
+                                    {/* Clear Filter Button */}
+                                    {(selectedSegment !== 'All Segments' || selectedDescription !== 'All Item Descriptions' || selectedHealth !== 'All Health Status' || searchTerm !== '' || hideZeroQty) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedSegment('All Segments');
+                                                setSelectedDescription('All Item Descriptions');
+                                                setSelectedHealth('All Health Status');
+                                                setSearchTerm('');
+                                                setHideZeroQty(false);
+                                            }}
+                                            title="Clear All Filters"
+                                            className="flex items-center gap-1 h-8 px-2.5 rounded-md bg-indigo-900/20 hover:bg-indigo-900/30 border border-indigo-900/30 text-indigo-950 dark:text-indigo-200 text-xs font-semibold transition-colors cursor-pointer flex-shrink-0 focus:outline-none focus:ring-0"
+                                        >
+                                            <RotateCcw className="w-3.5 h-3.5" />
+                                            <span>Reset</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
-                            {/* TOTAL ACQUISITION COST BADGE IN TOOLBAR */}
-                            {canViewCost && (
-                                <div className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border select-none flex-shrink-0 transition-all ${
-                                    isDark ? 'bg-[#141622] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'
-                                }`}>
-                                    <span>Total Acquisition Cost:</span>
-                                    <span className="font-mono font-black text-red-600 dark:text-red-400">
-                                        ₱{totalAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
-                                </div>
-                            )}
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-center text-slate-400 mt-2 select-none">
+                                {showArchivedOnly ? 'Find & Archive Filters' : 'Find & Filter'}
+                            </span>
                         </div>
 
-                        <div className="flex items-center gap-2 flex-wrap">
-
-                            <label 
-                                className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none border px-2.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${
-                                    hideZeroQty 
-                                        ? (isDark ? 'bg-red-950/40 border-red-900/60 text-red-400' : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100') 
-                                        : (isDark ? 'bg-[#141622] border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100')
-                                }`}
-                            >
-                                <input 
-                                    type="checkbox" 
-                                    checked={hideZeroQty} 
-                                    onChange={(e) => setHideZeroQty(e.target.checked)} 
-                                    className={`w-3.5 h-3.5 rounded cursor-pointer transition-colors ${
-                                        hideZeroQty ? 'accent-red-600' : 'accent-[#ff6600]'
-                                    }`} 
-                                />
-                                <span className="hidden sm:inline">Hide 0 Qty</span>
-                                <span className="sm:hidden text-[10px] font-bold">0 Qty</span>
-                            </label>
-
-                            {!isPurchasing && (
+                        {/* COLUMN 2: STACKED VIEW BUTTONS (BG-INDIGO-900/20 DEFAULT, RED-600 WHEN ACTIVE) */}
+                        <div className="flex flex-col justify-between pr-4 border-r border-slate-200 dark:border-slate-800 flex-shrink-0 min-w-[145px]">
+                            <div className="flex flex-col gap-1.5">
+                                {/* 1. Hide 0 Qty Toggle */}
                                 <button
-                                    onClick={() => setIsPaletteModalOpen(true)}
-                                    title="Palette Settings"
-                                    className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${
-                                        isDark ? 'border-slate-700 bg-[#ff6600] text-white hover:bg-[#ff6600]/90' : 'border-slate-200 bg-[#18174e] text-white hover:bg-[#18174e]/90'
-                                    }`}
-                                >
-                                    <Palette className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                                    <span className="hidden md:inline">Palette Settings</span>
-                                </button>
-                            )}
-
-                            {!isPurchasing && (
-                                <button
-                                    onClick={() => setShowArchivedOnly(!showArchivedOnly)}
-                                    title={showArchivedOnly ? "Show Active Materials" : "View Archive Vault"}
-                                    className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex-shrink-0 ${showArchivedOnly
-                                        ? (isDark ? 'bg-rose-950/40 text-rose-300 border-rose-900/60' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100')
-                                        : (isDark ? 'bg-[#141622] text-slate-200 border-slate-700 hover:bg-slate-800' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100')
+                                    type="button"
+                                    onClick={() => setHideZeroQty(!hideZeroQty)}
+                                    title={hideZeroQty ? "Hide 0 Qty: ON" : "Hide 0 Qty Items"}
+                                    className={`flex items-center justify-start gap-2 h-7 px-2.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer select-none w-full focus:outline-none focus:ring-0 ${hideZeroQty
+                                            ? 'bg-red-600 hover:bg-red-700 border-red-600 text-white'
+                                            : 'bg-indigo-900/20 hover:bg-indigo-900/30 border-indigo-900/30 text-indigo-950 dark:text-indigo-200'
                                         }`}
                                 >
-                                    {showArchivedOnly ? (
-                                        <>
-                                            <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                                            <span className="hidden md:inline">Show Active Materials</span>
-                                            <span className="text-[11px] font-bold">({activeCount})</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Archive className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                                            <span className="hidden md:inline">View Archive Vault</span>
-                                            <span className="text-[11px] font-bold">({archivedCount})</span>
-                                        </>
-                                    )}
+                                    <EyeOff className="w-3.5 h-3.5 flex-shrink-0" />
+                                    <span>Hide 0 Qty</span>
                                 </button>
-                            )}
-                        </div>
-                    </div>
 
-                    <div className={`flex overflow-x-auto gap-2 items-center mt-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 md:grid ${isPurchasing ? 'md:grid-cols-4' : 'md:grid-cols-5'} md:pb-0`}>
+                                {/* 2. Palette Settings */}
+                                {!isPurchasing && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsPaletteModalOpen(true)}
+                                        title="Palette Settings"
+                                        className="flex items-center justify-start gap-2 h-7 px-2.5 rounded-md text-xs font-semibold bg-indigo-900/20 hover:bg-indigo-900/30 border border-indigo-900/30 text-indigo-950 dark:text-indigo-200 transition-colors cursor-pointer w-full focus:outline-none focus:ring-0"
+                                    >
+                                        <Palette className="w-3.5 h-3.5 flex-shrink-0" />
+                                        <span>Palette</span>
+                                    </button>
+                                )}
 
-                        <div className="min-w-[180px] w-full md:min-w-0">
-                            <div className="relative w-full">
-                                <Search className={`absolute left-3 top-2.5 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                                <input type="text" placeholder="Search Segment, Description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none`} />
+                                {/* 3. Archive Vault Toggle */}
+                                {!isPurchasing && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowArchivedOnly(!showArchivedOnly)}
+                                        title={showArchivedOnly ? "Back to Active Sheet" : "Open Archive Vault"}
+                                        className={`flex items-center justify-between gap-2 h-7 px-2.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer w-full focus:outline-none focus:ring-0 ${showArchivedOnly
+                                                ? 'bg-red-600 hover:bg-red-700 border-red-600 text-white'
+                                                : 'bg-indigo-900/20 hover:bg-indigo-900/30 border-indigo-900/30 text-indigo-950 dark:text-indigo-200'
+                                            }`}
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <Archive className="w-3.5 h-3.5 flex-shrink-0" />
+                                            <span>{showArchivedOnly ? 'Active' : 'Archive'}</span>
+                                        </span>
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${showArchivedOnly
+                                                ? 'bg-white/20 text-white'
+                                                : 'bg-indigo-900/20 text-indigo-950 dark:text-indigo-200'
+                                            }`}>
+                                            {showArchivedOnly ? activeCount : archivedCount}
+                                        </span>
+                                    </button>
+                                )}
                             </div>
+
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-center text-slate-400 mt-2 select-none">
+                                View & Tools
+                            </span>
                         </div>
 
-                        <div className="min-w-[150px] w-full md:min-w-0">
-                            <select value={selectedSegment} onChange={(e) => setSelectedSegment(e.target.value)} className={`${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border font-semibold rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full`}>
-                                {filterSegments.map(seg => {
-                                    if (seg === 'All Segments') return <option key={seg} value={seg}>{seg}</option>;
-                                    const config = getSegmentStyles(seg);
-                                    return <option key={seg} value={seg}>{config.prefix} {seg}</option>;
-                                })}
-                            </select>
-                        </div>
+                        {/* COLUMN 3: ADD ITEM BUTTON (BG-INDIGO-900/20) & TOTAL COST */}
+                        <div className="flex flex-col justify-between flex-shrink-0 min-w-[175px]">
+                            <div className="flex flex-col gap-2">
+                                {/* Add Item Button */}
+                                {!isPurchasing && (
+                                    <button
+                                        type="button"
+                                        onClick={openAddModal}
+                                        disabled={showArchivedOnly}
+                                        title="Insert New Rackings Item"
+                                        className="flex items-center justify-center gap-2 h-9 px-3.5 rounded-md bg-indigo-900/20 hover:bg-indigo-900/30 border border-indigo-900/30 text-indigo-950 dark:text-indigo-200 text-xs font-bold transition-colors cursor-pointer w-full focus:outline-none focus:ring-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        <Plus className="w-4 h-4 stroke-[2.5]" />
+                                        <span>Add New Item</span>
+                                    </button>
+                                )}
 
-                        <div className="min-w-[170px] w-full md:min-w-0">
-                            <select value={selectedDescription} onChange={(e) => setSelectedDescription(e.target.value)} className={`${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer w-full truncate`}>
-                                {filterDescriptions.map(desc => <option key={desc} value={desc}>{desc}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="min-w-[150px] w-full md:min-w-0">
-                            <select value={selectedHealth} onChange={(e) => setSelectedHealth(e.target.value)} className={`${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'} border rounded-lg px-3 py-2 text-sm focus:outline-none font-medium w-full cursor-pointer`}>
-                                <option value="All Health Status">All Conditions</option>
-                                <option value="Healthy">🟢 Healthy Stock</option>
-                                <option value="Critical">🔴 Critical Reorder</option>
-                                <option value="Zero">⚪ Out of Stock</option>
-                            </select>
-                        </div>
-
-                        {!isPurchasing && (
-                            <div className="min-w-[160px] w-full md:min-w-0">
-                                <button
-                                    onClick={openAddModal}
-                                    disabled={showArchivedOnly}
-                                    className={`flex items-center justify-center gap-2 ${isDark ? 'bg-[#ff6600] hover:bg-[#ff6600]/90' : 'bg-[#18174e] hover:bg-[#18174e]/90'} disabled:bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm w-full cursor-pointer transition-all h-[38px]`}
-                                >
-                                    <span className="whitespace-nowrap">Add New Rackings Item</span>
-                                </button>
+                                {/* Total Acquisition Cost (Formula Style) */}
+                                {canViewCost && (
+                                    <div className={`flex items-center justify-between gap-2 h-8 px-2.5 rounded-md border font-mono text-xs ${isDark
+                                            ? 'bg-[#0f1115] border-slate-700 text-slate-200'
+                                            : 'bg-white border-slate-300 text-slate-800'
+                                        }`}>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-serif italic font-bold text-slate-400 select-none">fx</span>
+                                            <span className="text-slate-300 dark:text-slate-700">|</span>
+                                            <span className="font-sans text-[11px] text-slate-500">Total:</span>
+                                        </div>
+                                        <span className="font-bold text-red-600 dark:text-red-400">
+                                            ₱{totalAcquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
-                        )}
+
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-center text-slate-400 mt-2 select-none">
+                                Insert & Summary
+                            </span>
+                        </div>
 
                     </div>
-
-                    <div className={`h-px ${isDark ? 'bg-slate-800' : 'bg-slate-100'} w-full mt-3`}></div>
                 </div>
 
                 {/* MAIN CLEAN TABLE MASTERLIST */}
@@ -803,7 +953,7 @@ function InventoryRawMaterials() {
                                     )}
                                     {!isPurchasing && <th className="py-3 px-4 whitespace-nowrap">Stock Health</th>}
                                     <th className="py-3 px-4 text-center whitespace-nowrap">
-                                         Action
+                                        Action
                                     </th>
                                 </tr>
                             </thead>
@@ -862,10 +1012,10 @@ function InventoryRawMaterials() {
                                                     return (
                                                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                                                             {conditions.map((cond, idx) => {
-                                                                let badgeStyle = isDark 
-                                                                    ? 'bg-slate-800 text-slate-300 border-slate-700' 
+                                                                let badgeStyle = isDark
+                                                                    ? 'bg-slate-800 text-slate-300 border-slate-700'
                                                                     : 'bg-slate-100 text-slate-700 border-slate-200';
-                                                                
+
                                                                 if (cond === 'New Stocks') {
                                                                     badgeStyle = isDark
                                                                         ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/80'
@@ -881,8 +1031,8 @@ function InventoryRawMaterials() {
                                                                 }
 
                                                                 return (
-                                                                    <span 
-                                                                        key={idx} 
+                                                                    <span
+                                                                        key={idx}
                                                                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded border leading-none inline-flex items-center gap-1 ${badgeStyle}`}
                                                                     >
                                                                         <span>{cond === 'New Stocks' ? '🟢' : cond === 'Old Stocks' ? '🟡' : cond === 'Fabricated' ? '🟣' : '🏷️'}</span>
@@ -895,10 +1045,9 @@ function InventoryRawMaterials() {
                                                 })()}
                                             </td>
 
-                                            <td 
-                                                className={`py-3 px-4 min-w-[120px] whitespace-normal break-words transition-colors ${
-                                                    isDark ? 'text-slate-300' : 'text-slate-600'
-                                                }`}
+                                            <td
+                                                className={`py-3 px-4 min-w-[120px] whitespace-normal break-words transition-colors ${isDark ? 'text-slate-300' : 'text-slate-600'
+                                                    }`}
                                                 title={rawMat.Dimension}
                                             >
                                                 <RackDimensionCell dimension={rawMat.Dimension} isDark={isDark} />
@@ -1192,527 +1341,335 @@ function InventoryRawMaterials() {
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                                {/* Stock Threshold & Reorder Limits (Moved to top of modal) */}
-                                <div className={`md:col-span-2 rounded-xl p-4 border transition-colors ${
-                                    isDark 
-                                        ? 'bg-[#141622]/80 border-slate-800' 
+                                    {/* Stock Threshold & Reorder Limits (Moved to top of modal) */}
+                                    <div className={`md:col-span-2 rounded-xl p-4 border transition-colors ${isDark
+                                        ? 'bg-[#141622]/80 border-slate-800'
                                         : 'bg-slate-50/80 border-slate-200'
-                                }`}>
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-200/80 dark:border-slate-800">
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <Sliders className={`w-4 h-4 shrink-0 ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`} />
-                                                <h4 className={`text-sm font-bold tracking-tight whitespace-nowrap ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                                                    Stock Threshold & Reorder Limits
-                                                </h4>
-                                            </div>
-                                            <p className={`text-[11px] mt-0.5 whitespace-nowrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                                Item-specific rules evaluated for condition badges & replenishment warnings.
-                                            </p>
-                                        </div>
-
-                                        <div className="self-start sm:self-center shrink-0">
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-sm whitespace-nowrap">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                                                Safe: {Math.max(0, (parseInt(restockWarning) || 0) + 1)} - {parseInt(maxStorage) || 0} {materialUom?.trim() ? materialUom.trim().toUpperCase() : 'PCS'}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
-                                        {/* Critical Alert */}
-                                        <div className={`p-3 rounded-lg border flex flex-col justify-between ${
-                                            isDark ? 'bg-[#0e1017] border-slate-800/80' : 'bg-white border-slate-200/80'
                                         }`}>
-                                            <label className="block text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-1 whitespace-nowrap">
-                                                Critical Alert (≤)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                value={criticalAlert}
-                                                onChange={(e) => setCriticalAlert(Math.max(0, parseInt(e.target.value) || 0))}
-                                                className={`w-full font-mono font-bold text-sm px-3 py-1.5 rounded-lg border ${
-                                                    isDark 
-                                                        ? 'bg-[#141622] border-slate-700 text-white focus:border-rose-500' 
-                                                        : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-rose-500'
-                                                } focus:outline-none transition-all`}
-                                            />
-                                            <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 font-medium whitespace-nowrap">
-                                                Default: 0 (Emergency)
-                                            </span>
-                                        </div>
-
-                                        {/* Restock Warning */}
-                                        <div className={`p-3 rounded-lg border flex flex-col justify-between ${
-                                            isDark ? 'bg-[#0e1017] border-slate-800/80' : 'bg-white border-slate-200/80'
-                                        }`}>
-                                            <label className="block text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1 whitespace-nowrap">
-                                                Restock Warning (≤)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                value={restockWarning}
-                                                onChange={(e) => setRestockWarning(Math.max(0, parseInt(e.target.value) || 0))}
-                                                className={`w-full font-mono font-bold text-sm px-3 py-1.5 rounded-lg border ${
-                                                    isDark 
-                                                        ? 'bg-[#141622] border-slate-700 text-white focus:border-amber-500' 
-                                                        : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-amber-500'
-                                                } focus:outline-none transition-all`}
-                                            />
-                                            <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 font-medium whitespace-nowrap">
-                                                Default: 10 (Reorder)
-                                            </span>
-                                        </div>
-
-                                        {/* Max Storage */}
-                                        <div className={`p-3 rounded-lg border flex flex-col justify-between ${
-                                            isDark ? 'bg-[#0e1017] border-slate-800/80' : 'bg-white border-slate-200/80'
-                                        }`}>
-                                            <label className="block text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1 whitespace-nowrap">
-                                                Max Storage (Overstock)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                value={maxStorage}
-                                                onChange={(e) => setMaxStorage(Math.max(0, parseInt(e.target.value) || 0))}
-                                                className={`w-full font-mono font-bold text-sm px-3 py-1.5 rounded-lg border ${
-                                                    isDark 
-                                                        ? 'bg-[#141622] border-slate-700 text-white focus:border-blue-500' 
-                                                        : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500'
-                                                } focus:outline-none transition-all`}
-                                            />
-                                            <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 font-medium whitespace-nowrap">
-                                                Default: 1000 (Max Capacity)
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="md:col-span-2">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase`}>Item Image Upload</label>
-                                    </div>
-
-                                    {/* IMAGE PREVIEW OR UPLOAD BOX */}
-                                    {(selectedFile || existingImgPreview || isCompressingImg) ? (
-                                        <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-                                            isDark ? 'bg-[#141622] border-slate-700' : 'bg-slate-50 border-slate-200'
-                                        }`}>
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                {isCompressingImg ? (
-                                                    <div className="w-14 h-14 rounded-lg flex items-center justify-center bg-slate-200 dark:bg-slate-800 shrink-0">
-                                                        <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
-                                                    </div>
-                                                ) : (
-                                                    <img
-                                                        src={selectedFile ? URL.createObjectURL(selectedFile) : existingImgPreview}
-                                                        alt="Preview"
-                                                        className={`w-14 h-14 rounded-lg object-cover border ${isDark ? 'border-slate-600' : 'border-slate-300'} shadow-sm shrink-0`}
-                                                    />
-                                                )}
-                                                <div className="min-w-0">
-                                                    {isCompressingImg ? (
-                                                        <>
-                                                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
-                                                                <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500 shrink-0" />
-                                                                <span>Optimizing photo...</span>
-                                                            </div>
-                                                            <span className="text-[10px] text-orange-500 font-medium">Compressing for instant upload</span>
-                                                        </>
-                                                    ) : selectedFile ? (
-                                                        <>
-                                                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
-                                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                                                                <span className="truncate">{selectedFile.name}</span>
-                                                            </div>
-                                                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                                                                Optimized ({(selectedFile.size / 1024).toFixed(0)} KB) • Ready for upload
-                                                            </span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
-                                                                Current Material Image
-                                                            </div>
-                                                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Saved in database</span>
-                                                        </>
-                                                    )}
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-200/80 dark:border-slate-800">
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <Sliders className={`w-4 h-4 shrink-0 ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`} />
+                                                    <h4 className={`text-sm font-bold tracking-tight whitespace-nowrap ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                                                        Stock Threshold & Reorder Limits
+                                                    </h4>
                                                 </div>
+                                                <p className={`text-[11px] mt-0.5 whitespace-nowrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                                    Item-specific rules evaluated for condition badges & replenishment warnings.
+                                                </p>
                                             </div>
 
-                                            <div className="flex items-center gap-2 shrink-0">
-                                                {/* Direct Replace from device */}
-                                                <label className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
-                                                    isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
-                                                }`} title="Replace with new photo from device">
-                                                    <Upload className="w-3.5 h-3.5" />
-                                                    <span>Replace</span>
-                                                    <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                                                </label>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={handleClearImage}
-                                                    title="Remove Image"
-                                                    className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg border border-transparent hover:border-rose-200 dark:hover:border-rose-800 transition-all cursor-pointer"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                            <div className="self-start sm:self-center shrink-0">
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-sm whitespace-nowrap">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                                                    Safe: {Math.max(0, (parseInt(restockWarning) || 0) + 1)} - {parseInt(maxStorage) || 0} {materialUom?.trim() ? materialUom.trim().toUpperCase() : 'PCS'}
+                                                </span>
                                             </div>
                                         </div>
-                                    ) : (
-                                        <label className={`flex flex-col items-center justify-center ${isDark ? 'bg-[#141622] border-slate-700 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100 border-slate-200'} border-2 border-dashed rounded-xl py-4 px-3 transition-all cursor-pointer text-center mt-1`}>
-                                            <Upload className={`w-6 h-6 mb-1.5 ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`} />
-                                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Upload Image from Device</span>
-                                            <span className="text-[10px] text-slate-400 mt-0.5">JPG, PNG, WEBP (Auto-optimized)</span>
-                                            <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                                        </label>
-                                    )}
-                                </div>
 
-                                <div className="md:col-span-2">
-                                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Segment</label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={materialSegment}
-                                            onChange={(e) => setMaterialSegment(e.target.value)}
-                                            list="segments-list"
-                                            placeholder="Search or enter segment"
-                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
-                                        />
-                                        <datalist id="segments-list">
-                                            {[...segmentsInDB]
-                                                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                                                .map((seg) => <option key={seg} value={seg} />)
-                                            }
-                                        </datalist>
-                                    </div>
-                                </div>
-
-                                <div className="md:col-span-2">
-                                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Item Description *</label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            required
-                                            value={itemDescription}
-                                            onChange={(e) => setItemDescription(e.target.value)}
-                                            list="descriptions-list"
-                                            placeholder="Search or enter item description"
-                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
-                                        />
-                                        <datalist id="descriptions-list">
-                                            {[...descriptionsInDB]
-                                                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                                                .map((desc) => <option key={desc} value={desc} />)
-                                            }
-                                        </datalist>
-                                    </div>
-                                </div>
-
-                                {/* Condition Specifications Card */}
-                                <div className={`md:col-span-2 p-3.5 rounded-xl border ${isDark ? 'bg-[#0b0d14]/70 border-slate-800' : 'bg-slate-50/80 border-slate-200/80'} space-y-3`}>
-                                    <div className="flex items-center justify-between gap-2">
-                                        <label className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'} uppercase tracking-wide flex items-center gap-1.5 whitespace-nowrap`}>
-                                            <span>Condition Specifications</span>
-                                        </label>
-                                        <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
-                                            (Old Stocks or New Stocks + Fabricated)
-                                        </span>
-                                    </div>
-
-                                    {/* Grid for Old Stocks, New Stocks, Fabricated */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                        {/* 1. Old Stocks */}
-                                        <label 
-                                            className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none transition-all ${
-                                                isOldStocks 
-                                                    ? (isDark ? 'bg-amber-950/40 border-amber-500/80 text-amber-300 ring-1 ring-amber-500/30' : 'bg-amber-50 border-amber-300 text-amber-800 ring-1 ring-amber-300/50')
-                                                    : (isDark ? 'bg-[#141622] border-slate-700 text-slate-400 hover:border-slate-600' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300')
-                                            }`}
-                                        >
-                                            <input 
-                                                type="checkbox" 
-                                                checked={isOldStocks} 
-                                                onChange={handleToggleOldStocks}
-                                                className="w-4 h-4 rounded accent-amber-600 cursor-pointer shrink-0" 
-                                            />
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="text-xs font-bold flex items-center gap-1 whitespace-nowrap">
-                                                    <span>🟡</span> Old Stocks
-                                                </span>
-                                                <span className="text-[10px] opacity-75 whitespace-nowrap">Existing / previous batch</span>
-                                            </div>
-                                        </label>
-
-                                        {/* 2. New Stocks */}
-                                        <label 
-                                            className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none transition-all ${
-                                                isNewStocks 
-                                                    ? (isDark ? 'bg-emerald-950/40 border-emerald-500/80 text-emerald-300 ring-1 ring-emerald-500/30' : 'bg-emerald-50 border-emerald-300 text-emerald-800 ring-1 ring-emerald-300/50')
-                                                    : (isDark ? 'bg-[#141622] border-slate-700 text-slate-400 hover:border-slate-600' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300')
-                                            }`}
-                                        >
-                                            <input 
-                                                type="checkbox" 
-                                                checked={isNewStocks} 
-                                                onChange={handleToggleNewStocks}
-                                                className="w-4 h-4 rounded accent-emerald-600 cursor-pointer shrink-0" 
-                                            />
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="text-xs font-bold flex items-center gap-1 whitespace-nowrap">
-                                                    <span>🟢</span> New Stocks
-                                                </span>
-                                                <span className="text-[10px] opacity-75 whitespace-nowrap">Fresh inbound delivery</span>
-                                            </div>
-                                        </label>
-
-                                        {/* 3. Fabricated */}
-                                        <label 
-                                            className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none transition-all ${
-                                                isFabricated 
-                                                    ? (isDark ? 'bg-purple-950/40 border-purple-500/80 text-purple-300 ring-1 ring-purple-500/30' : 'bg-purple-50 border-purple-300 text-purple-800 ring-1 ring-purple-300/50')
-                                                    : (isDark ? 'bg-[#141622] border-slate-700 text-slate-400 hover:border-slate-600' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300')
-                                            }`}
-                                        >
-                                            <input 
-                                                type="checkbox" 
-                                                checked={isFabricated} 
-                                                onChange={handleToggleFabricated}
-                                                className="w-4 h-4 rounded accent-purple-600 cursor-pointer shrink-0" 
-                                            />
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="text-xs font-bold flex items-center gap-1 whitespace-nowrap">
-                                                    <span>🟣</span> Fabricated
-                                                </span>
-                                                <span className="text-[10px] opacity-75 whitespace-nowrap">Custom fabricated item</span>
-                                            </div>
-                                        </label>
-                                    </div>
-
-                                    {/* Live Condition Preview Bar */}
-                                    <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} flex items-center justify-between text-xs`}>
-                                        <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">Condition Preview:</span>
-                                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                                            {(!isOldStocks && !isNewStocks && !isFabricated) && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
-                                                    ⚪ Standard / Good
-                                                </span>
-                                            )}
-                                            {isOldStocks && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-xs whitespace-nowrap">
-                                                    🟡 Old Stocks
-                                                </span>
-                                            )}
-                                            {isNewStocks && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs whitespace-nowrap">
-                                                    🟢 New Stocks
-                                                </span>
-                                            )}
-                                            {isFabricated && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 shadow-xs whitespace-nowrap">
-                                                    🟣 Fabricated
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Dimension Specifications Card */}
-                                <div className={`md:col-span-2 p-3.5 rounded-xl border ${isDark ? 'bg-[#0b0d14]/70 border-slate-800' : 'bg-slate-50/80 border-slate-200/80'} space-y-3`}>
-                                    <div className="flex items-center justify-between gap-2">
-                                        <label className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'} uppercase tracking-wide flex items-center gap-1.5 whitespace-nowrap`}>
-                                            <span>Dimension Specifications</span>
-                                        </label>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (!isCustomDim) {
-                                                    const built = buildDimensionString({
-                                                        height: dimHeight,
-                                                        heightType: dimHeightType,
-                                                        width: dimWidth,
-                                                        widthType: dimWidthType,
-                                                        depth: dimDepth,
-                                                        depthType: dimDepthType,
-                                                        profile: dimProfile
-                                                    });
-                                                    setMaterialDimension(built !== '—' ? built : '');
-                                                    setIsCustomDim(true);
-                                                } else {
-                                                    const parsed = parseToFormFields(materialDimension);
-                                                    setDimHeight(parsed.height);
-                                                    setDimHeightType(parsed.heightType || 'H');
-                                                    setDimWidth(parsed.width);
-                                                    setDimWidthType(parsed.widthType || 'W');
-                                                    setDimDepth(parsed.depth);
-                                                    setDimDepthType(parsed.depthType || 'D');
-                                                    setDimProfile(parsed.profile);
-                                                    setIsCustomDim(false);
-                                                }
-                                            }}
-                                            className={`text-[11px] font-semibold transition-colors cursor-pointer hover:underline whitespace-nowrap ${
-                                                isDark ? 'text-amber-400 hover:text-amber-300' : 'text-indigo-600 hover:text-indigo-800'
-                                            }`}
-                                        >
-                                            {isCustomDim ? "Switch to Standard (H/T, W/L, D/P) fields" : "Switch to Freeform / Manual"}
-                                        </button>
-                                    </div>
-
-                                    {isCustomDim ? (
-                                        <div>
-                                            <input
-                                                type="text"
-                                                value={materialDimension}
-                                                onChange={(e) => setMaterialDimension(e.target.value)}
-                                                placeholder="e.g. M10*65 (4.8), 80*60mm, Φ14*47"
-                                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
-                                            />
-                                            <p className="text-[11px] text-slate-500 mt-1 whitespace-nowrap">Manual freeform dimension mode (for bolts, shimplates, and special hardware).</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            {/* Grid for H, W/L, D */}
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                                {/* 1. Height (H) or Thread (T) */}
-                                                <div>
-                                                    <div className="flex items-center justify-between mb-1 gap-1">
-                                                        <label className={`flex items-center gap-1 text-[11px] font-bold ${dimHeightType === 'T' ? 'text-indigo-600 dark:text-indigo-400' : 'text-blue-600 dark:text-blue-400'} uppercase whitespace-nowrap`}>
-                                                            <span className={`w-4 h-4 rounded ${dimHeightType === 'T' ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300' : 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'} flex items-center justify-center text-[10px] shrink-0 font-mono`}>
-                                                                {dimHeightType}
-                                                            </span>
-                                                            <span className="whitespace-nowrap">{dimHeightType === 'T' ? 'Thread (T)' : 'Height (H)'}</span>
-                                                        </label>
-                                                        <div className="flex items-center rounded border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] shrink-0">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setDimHeightType('H')}
-                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimHeightType === 'H' ? 'bg-blue-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                                                            >
-                                                                H
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setDimHeightType('T')}
-                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimHeightType === 'T' ? 'bg-indigo-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                                                            >
-                                                                T
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="text"
-                                                            value={dimHeight}
-                                                            onChange={(e) => setDimHeight(e.target.value)}
-                                                            placeholder={dimHeightType === 'T' ? "e.g. 10" : "e.g. 5550"}
-                                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-700'} ${dimHeightType === 'T' ? (isDark ? 'focus:border-indigo-500' : 'focus:border-indigo-600') : (isDark ? 'focus:border-blue-500' : 'focus:border-blue-600')} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
-                                                        />
-                                                        <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none whitespace-nowrap">mm</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* 2. Width (W) or Length (L) */}
-                                                <div>
-                                                    <div className="flex items-center justify-between mb-1 gap-1">
-                                                        <label className={`flex items-center gap-1 text-[11px] font-bold ${dimWidthType === 'L' ? 'text-teal-600 dark:text-teal-400' : 'text-emerald-600 dark:text-emerald-400'} uppercase whitespace-nowrap`}>
-                                                            <span className={`w-4 h-4 rounded ${dimWidthType === 'L' ? 'bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300' : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300'} flex items-center justify-center text-[10px] shrink-0 font-mono`}>
-                                                                {dimWidthType}
-                                                            </span>
-                                                            <span className="whitespace-nowrap">{dimWidthType === 'L' ? 'Length (L)' : 'Width (W)'}</span>
-                                                        </label>
-                                                        <div className="flex items-center rounded border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] shrink-0">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setDimWidthType('W')}
-                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimWidthType === 'W' ? 'bg-emerald-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                                                            >
-                                                                W
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setDimWidthType('L')}
-                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimWidthType === 'L' ? 'bg-teal-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                                                            >
-                                                                L
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="text"
-                                                            value={dimWidth}
-                                                            onChange={(e) => setDimWidth(e.target.value)}
-                                                            placeholder="e.g. 2700"
-                                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-700'} ${dimWidthType === 'L' ? (isDark ? 'focus:border-teal-500' : 'focus:border-teal-600') : (isDark ? 'focus:border-emerald-500' : 'focus:border-emerald-600')} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
-                                                        />
-                                                        <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none whitespace-nowrap">mm</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* 3. Depth (D) or Pitch (P) */}
-                                                <div>
-                                                    <div className="flex items-center justify-between mb-1 gap-1">
-                                                        <label className={`flex items-center gap-1 text-[11px] font-bold ${dimDepthType === 'P' ? 'text-purple-600 dark:text-purple-400' : 'text-amber-600 dark:text-amber-400'} uppercase whitespace-nowrap`}>
-                                                            <span className={`w-4 h-4 rounded ${dimDepthType === 'P' ? 'bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300' : 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300'} flex items-center justify-center text-[10px] shrink-0 font-mono`}>
-                                                                {dimDepthType}
-                                                            </span>
-                                                            <span className="whitespace-nowrap">{dimDepthType === 'P' ? 'Pitch (P)' : 'Depth (D)'}</span>
-                                                        </label>
-                                                        <div className="flex items-center rounded border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] shrink-0">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setDimDepthType('D')}
-                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimDepthType === 'D' ? 'bg-amber-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                                                            >
-                                                                D
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setDimDepthType('P')}
-                                                                className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimDepthType === 'P' ? 'bg-purple-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                                                            >
-                                                                P
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="text"
-                                                            value={dimDepth}
-                                                            onChange={(e) => setDimDepth(e.target.value)}
-                                                            placeholder={dimDepthType === 'P' ? "e.g. 75" : "e.g. 1050"}
-                                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-700'} ${dimDepthType === 'P' ? (isDark ? 'focus:border-purple-500' : 'focus:border-purple-600') : (isDark ? 'focus:border-amber-500' : 'focus:border-amber-600')} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
-                                                        />
-                                                        <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none whitespace-nowrap">mm</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Profile / Additional specifications */}
-                                            <div>
-                                                <label className={`block text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1 whitespace-nowrap`}>
-                                                    Profile / Thickness / Additional Specs (Optional)
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
+                                            {/* Critical Alert */}
+                                            <div className={`p-3 rounded-lg border flex flex-col justify-between ${isDark ? 'bg-[#0e1017] border-slate-800/80' : 'bg-white border-slate-200/80'
+                                                }`}>
+                                                <label className="block text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-1 whitespace-nowrap">
+                                                    Critical Alert (≤)
                                                 </label>
                                                 <input
-                                                    type="text"
-                                                    value={dimProfile}
-                                                    onChange={(e) => setDimProfile(e.target.value)}
-                                                    placeholder="e.g. (90*70*1.8mm) or (120*50*1.5) T TYPE"
-                                                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none`}
+                                                    type="number"
+                                                    min="0"
+                                                    value={criticalAlert}
+                                                    onChange={(e) => setCriticalAlert(Math.max(0, parseInt(e.target.value) || 0))}
+                                                    className={`w-full font-mono font-bold text-sm px-3 py-1.5 rounded-lg border ${isDark
+                                                        ? 'bg-[#141622] border-slate-700 text-white focus:border-rose-500'
+                                                        : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-rose-500'
+                                                        } focus:outline-none transition-all`}
                                                 />
+                                                <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 font-medium whitespace-nowrap">
+                                                    Default: 0 (Emergency)
+                                                </span>
                                             </div>
 
-                                            {/* Live Dimension Preview Bar */}
-                                            <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} flex items-center justify-between text-xs`}>
-                                                <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">Dimension Preview:</span>
-                                                <div className="whitespace-nowrap">
-                                                    <RackDimensionCell
-                                                        dimension={buildDimensionString({
+                                            {/* Restock Warning */}
+                                            <div className={`p-3 rounded-lg border flex flex-col justify-between ${isDark ? 'bg-[#0e1017] border-slate-800/80' : 'bg-white border-slate-200/80'
+                                                }`}>
+                                                <label className="block text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1 whitespace-nowrap">
+                                                    Restock Warning (≤)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={restockWarning}
+                                                    onChange={(e) => setRestockWarning(Math.max(0, parseInt(e.target.value) || 0))}
+                                                    className={`w-full font-mono font-bold text-sm px-3 py-1.5 rounded-lg border ${isDark
+                                                        ? 'bg-[#141622] border-slate-700 text-white focus:border-amber-500'
+                                                        : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-amber-500'
+                                                        } focus:outline-none transition-all`}
+                                                />
+                                                <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 font-medium whitespace-nowrap">
+                                                    Default: 10 (Reorder)
+                                                </span>
+                                            </div>
+
+                                            {/* Max Storage */}
+                                            <div className={`p-3 rounded-lg border flex flex-col justify-between ${isDark ? 'bg-[#0e1017] border-slate-800/80' : 'bg-white border-slate-200/80'
+                                                }`}>
+                                                <label className="block text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1 whitespace-nowrap">
+                                                    Max Storage (Overstock)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={maxStorage}
+                                                    onChange={(e) => setMaxStorage(Math.max(0, parseInt(e.target.value) || 0))}
+                                                    className={`w-full font-mono font-bold text-sm px-3 py-1.5 rounded-lg border ${isDark
+                                                        ? 'bg-[#141622] border-slate-700 text-white focus:border-blue-500'
+                                                        : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500'
+                                                        } focus:outline-none transition-all`}
+                                                />
+                                                <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 font-medium whitespace-nowrap">
+                                                    Default: 1000 (Max Capacity)
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="md:col-span-2">
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase`}>Item Image Upload</label>
+                                        </div>
+
+                                        {/* IMAGE PREVIEW OR UPLOAD BOX */}
+                                        {(selectedFile || existingImgPreview || isCompressingImg) ? (
+                                            <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${isDark ? 'bg-[#141622] border-slate-700' : 'bg-slate-50 border-slate-200'
+                                                }`}>
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    {isCompressingImg ? (
+                                                        <div className="w-14 h-14 rounded-lg flex items-center justify-center bg-slate-200 dark:bg-slate-800 shrink-0">
+                                                            <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                                                        </div>
+                                                    ) : (
+                                                        <img
+                                                            src={selectedFile ? URL.createObjectURL(selectedFile) : existingImgPreview}
+                                                            alt="Preview"
+                                                            className={`w-14 h-14 rounded-lg object-cover border ${isDark ? 'border-slate-600' : 'border-slate-300'} shadow-sm shrink-0`}
+                                                        />
+                                                    )}
+                                                    <div className="min-w-0">
+                                                        {isCompressingImg ? (
+                                                            <>
+                                                                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
+                                                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500 shrink-0" />
+                                                                    <span>Optimizing photo...</span>
+                                                                </div>
+                                                                <span className="text-[10px] text-orange-500 font-medium">Compressing for instant upload</span>
+                                                            </>
+                                                        ) : selectedFile ? (
+                                                            <>
+                                                                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                                                    <span className="truncate">{selectedFile.name}</span>
+                                                                </div>
+                                                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                                                    Optimized ({(selectedFile.size / 1024).toFixed(0)} KB) • Ready for upload
+                                                                </span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                                                                    Current Material Image
+                                                                </div>
+                                                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Saved in database</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {/* Direct Replace from device */}
+                                                    <label className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                                                        }`} title="Replace with new photo from device">
+                                                        <Upload className="w-3.5 h-3.5" />
+                                                        <span>Replace</span>
+                                                        <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                                                    </label>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleClearImage}
+                                                        title="Remove Image"
+                                                        className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg border border-transparent hover:border-rose-200 dark:hover:border-rose-800 transition-all cursor-pointer"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <label className={`flex flex-col items-center justify-center ${isDark ? 'bg-[#141622] border-slate-700 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100 border-slate-200'} border-2 border-dashed rounded-xl py-4 px-3 transition-all cursor-pointer text-center mt-1`}>
+                                                <Upload className={`w-6 h-6 mb-1.5 ${isDark ? 'text-[#ff8533]' : 'text-[#18174e]'}`} />
+                                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Upload Image from Device</span>
+                                                <span className="text-[10px] text-slate-400 mt-0.5">JPG, PNG, WEBP (Auto-optimized)</span>
+                                                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                                            </label>
+                                        )}
+                                    </div>
+
+                                    <div className="md:col-span-2">
+                                        <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Segment</label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={materialSegment}
+                                                onChange={(e) => setMaterialSegment(e.target.value)}
+                                                list="segments-list"
+                                                placeholder="Search or enter segment"
+                                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                                            />
+                                            <datalist id="segments-list">
+                                                {[...segmentsInDB]
+                                                    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                                    .map((seg) => <option key={seg} value={seg} />)
+                                                }
+                                            </datalist>
+                                        </div>
+                                    </div>
+
+                                    <div className="md:col-span-2">
+                                        <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5`}>Item Description *</label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                required
+                                                value={itemDescription}
+                                                onChange={(e) => setItemDescription(e.target.value)}
+                                                list="descriptions-list"
+                                                placeholder="Search or enter item description"
+                                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                                            />
+                                            <datalist id="descriptions-list">
+                                                {[...descriptionsInDB]
+                                                    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                                    .map((desc) => <option key={desc} value={desc} />)
+                                                }
+                                            </datalist>
+                                        </div>
+                                    </div>
+
+                                    {/* Condition Specifications Card */}
+                                    <div className={`md:col-span-2 p-3.5 rounded-xl border ${isDark ? 'bg-[#0b0d14]/70 border-slate-800' : 'bg-slate-50/80 border-slate-200/80'} space-y-3`}>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <label className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'} uppercase tracking-wide flex items-center gap-1.5 whitespace-nowrap`}>
+                                                <span>Condition Specifications</span>
+                                            </label>
+                                            <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
+                                                (Old Stocks or New Stocks + Fabricated)
+                                            </span>
+                                        </div>
+
+                                        {/* Grid for Old Stocks, New Stocks, Fabricated */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                            {/* 1. Old Stocks */}
+                                            <label
+                                                className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none transition-all ${isOldStocks
+                                                    ? (isDark ? 'bg-amber-950/40 border-amber-500/80 text-amber-300 ring-1 ring-amber-500/30' : 'bg-amber-50 border-amber-300 text-amber-800 ring-1 ring-amber-300/50')
+                                                    : (isDark ? 'bg-[#141622] border-slate-700 text-slate-400 hover:border-slate-600' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300')
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isOldStocks}
+                                                    onChange={handleToggleOldStocks}
+                                                    className="w-4 h-4 rounded accent-amber-600 cursor-pointer shrink-0"
+                                                />
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-xs font-bold flex items-center gap-1 whitespace-nowrap">
+                                                        <span>🟡</span> Old Stocks
+                                                    </span>
+                                                    <span className="text-[10px] opacity-75 whitespace-nowrap">Existing / previous batch</span>
+                                                </div>
+                                            </label>
+
+                                            {/* 2. New Stocks */}
+                                            <label
+                                                className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none transition-all ${isNewStocks
+                                                    ? (isDark ? 'bg-emerald-950/40 border-emerald-500/80 text-emerald-300 ring-1 ring-emerald-500/30' : 'bg-emerald-50 border-emerald-300 text-emerald-800 ring-1 ring-emerald-300/50')
+                                                    : (isDark ? 'bg-[#141622] border-slate-700 text-slate-400 hover:border-slate-600' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300')
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isNewStocks}
+                                                    onChange={handleToggleNewStocks}
+                                                    className="w-4 h-4 rounded accent-emerald-600 cursor-pointer shrink-0"
+                                                />
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-xs font-bold flex items-center gap-1 whitespace-nowrap">
+                                                        <span>🟢</span> New Stocks
+                                                    </span>
+                                                    <span className="text-[10px] opacity-75 whitespace-nowrap">Fresh inbound delivery</span>
+                                                </div>
+                                            </label>
+
+                                            {/* 3. Fabricated */}
+                                            <label
+                                                className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer select-none transition-all ${isFabricated
+                                                    ? (isDark ? 'bg-purple-950/40 border-purple-500/80 text-purple-300 ring-1 ring-purple-500/30' : 'bg-purple-50 border-purple-300 text-purple-800 ring-1 ring-purple-300/50')
+                                                    : (isDark ? 'bg-[#141622] border-slate-700 text-slate-400 hover:border-slate-600' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300')
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isFabricated}
+                                                    onChange={handleToggleFabricated}
+                                                    className="w-4 h-4 rounded accent-purple-600 cursor-pointer shrink-0"
+                                                />
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-xs font-bold flex items-center gap-1 whitespace-nowrap">
+                                                        <span>🟣</span> Fabricated
+                                                    </span>
+                                                    <span className="text-[10px] opacity-75 whitespace-nowrap">Custom fabricated item</span>
+                                                </div>
+                                            </label>
+                                        </div>
+
+                                        {/* Live Condition Preview Bar */}
+                                        <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} flex items-center justify-between text-xs`}>
+                                            <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">Condition Preview:</span>
+                                            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                                {(!isOldStocks && !isNewStocks && !isFabricated) && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                                                        ⚪ Standard / Good
+                                                    </span>
+                                                )}
+                                                {isOldStocks && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-xs whitespace-nowrap">
+                                                        🟡 Old Stocks
+                                                    </span>
+                                                )}
+                                                {isNewStocks && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs whitespace-nowrap">
+                                                        🟢 New Stocks
+                                                    </span>
+                                                )}
+                                                {isFabricated && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30 shadow-xs whitespace-nowrap">
+                                                        🟣 Fabricated
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Dimension Specifications Card */}
+                                    <div className={`md:col-span-2 p-3.5 rounded-xl border ${isDark ? 'bg-[#0b0d14]/70 border-slate-800' : 'bg-slate-50/80 border-slate-200/80'} space-y-3`}>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <label className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'} uppercase tracking-wide flex items-center gap-1.5 whitespace-nowrap`}>
+                                                <span>Dimension Specifications</span>
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (!isCustomDim) {
+                                                        const built = buildDimensionString({
                                                             height: dimHeight,
                                                             heightType: dimHeightType,
                                                             width: dimWidth,
@@ -1720,62 +1677,241 @@ function InventoryRawMaterials() {
                                                             depth: dimDepth,
                                                             depthType: dimDepthType,
                                                             profile: dimProfile
-                                                        })}
-                                                        isDark={isDark}
+                                                        });
+                                                        setMaterialDimension(built !== '—' ? built : '');
+                                                        setIsCustomDim(true);
+                                                    } else {
+                                                        const parsed = parseToFormFields(materialDimension);
+                                                        setDimHeight(parsed.height);
+                                                        setDimHeightType(parsed.heightType || 'H');
+                                                        setDimWidth(parsed.width);
+                                                        setDimWidthType(parsed.widthType || 'W');
+                                                        setDimDepth(parsed.depth);
+                                                        setDimDepthType(parsed.depthType || 'D');
+                                                        setDimProfile(parsed.profile);
+                                                        setIsCustomDim(false);
+                                                    }
+                                                }}
+                                                className={`text-[11px] font-semibold transition-colors cursor-pointer hover:underline whitespace-nowrap ${isDark ? 'text-amber-400 hover:text-amber-300' : 'text-indigo-600 hover:text-indigo-800'
+                                                    }`}
+                                            >
+                                                {isCustomDim ? "Switch to Standard (H/T, W/L, D/P) fields" : "Switch to Freeform / Manual"}
+                                            </button>
+                                        </div>
+
+                                        {isCustomDim ? (
+                                            <div>
+                                                <input
+                                                    type="text"
+                                                    value={materialDimension}
+                                                    onChange={(e) => setMaterialDimension(e.target.value)}
+                                                    placeholder="e.g. M10*65 (4.8), 80*60mm, Φ14*47"
+                                                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                                                />
+                                                <p className="text-[11px] text-slate-500 mt-1 whitespace-nowrap">Manual freeform dimension mode (for bolts, shimplates, and special hardware).</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {/* Grid for H, W/L, D */}
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                                    {/* 1. Height (H) or Thread (T) */}
+                                                    <div>
+                                                        <div className="flex items-center justify-between mb-1 gap-1">
+                                                            <label className={`flex items-center gap-1 text-[11px] font-bold ${dimHeightType === 'T' ? 'text-indigo-600 dark:text-indigo-400' : 'text-blue-600 dark:text-blue-400'} uppercase whitespace-nowrap`}>
+                                                                <span className={`w-4 h-4 rounded ${dimHeightType === 'T' ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300' : 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'} flex items-center justify-center text-[10px] shrink-0 font-mono`}>
+                                                                    {dimHeightType}
+                                                                </span>
+                                                                <span className="whitespace-nowrap">{dimHeightType === 'T' ? 'Thread (T)' : 'Height (H)'}</span>
+                                                            </label>
+                                                            <div className="flex items-center rounded border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] shrink-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setDimHeightType('H')}
+                                                                    className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimHeightType === 'H' ? 'bg-blue-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                                >
+                                                                    H
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setDimHeightType('T')}
+                                                                    className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimHeightType === 'T' ? 'bg-indigo-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                                >
+                                                                    T
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="relative">
+                                                            <input
+                                                                type="text"
+                                                                value={dimHeight}
+                                                                onChange={(e) => setDimHeight(e.target.value)}
+                                                                placeholder={dimHeightType === 'T' ? "e.g. 10" : "e.g. 5550"}
+                                                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-700'} ${dimHeightType === 'T' ? (isDark ? 'focus:border-indigo-500' : 'focus:border-indigo-600') : (isDark ? 'focus:border-blue-500' : 'focus:border-blue-600')} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
+                                                            />
+                                                            <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none whitespace-nowrap">mm</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 2. Width (W) or Length (L) */}
+                                                    <div>
+                                                        <div className="flex items-center justify-between mb-1 gap-1">
+                                                            <label className={`flex items-center gap-1 text-[11px] font-bold ${dimWidthType === 'L' ? 'text-teal-600 dark:text-teal-400' : 'text-emerald-600 dark:text-emerald-400'} uppercase whitespace-nowrap`}>
+                                                                <span className={`w-4 h-4 rounded ${dimWidthType === 'L' ? 'bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300' : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300'} flex items-center justify-center text-[10px] shrink-0 font-mono`}>
+                                                                    {dimWidthType}
+                                                                </span>
+                                                                <span className="whitespace-nowrap">{dimWidthType === 'L' ? 'Length (L)' : 'Width (W)'}</span>
+                                                            </label>
+                                                            <div className="flex items-center rounded border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] shrink-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setDimWidthType('W')}
+                                                                    className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimWidthType === 'W' ? 'bg-emerald-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                                >
+                                                                    W
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setDimWidthType('L')}
+                                                                    className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimWidthType === 'L' ? 'bg-teal-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                                >
+                                                                    L
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="relative">
+                                                            <input
+                                                                type="text"
+                                                                value={dimWidth}
+                                                                onChange={(e) => setDimWidth(e.target.value)}
+                                                                placeholder="e.g. 2700"
+                                                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-700'} ${dimWidthType === 'L' ? (isDark ? 'focus:border-teal-500' : 'focus:border-teal-600') : (isDark ? 'focus:border-emerald-500' : 'focus:border-emerald-600')} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
+                                                            />
+                                                            <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none whitespace-nowrap">mm</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 3. Depth (D) or Pitch (P) */}
+                                                    <div>
+                                                        <div className="flex items-center justify-between mb-1 gap-1">
+                                                            <label className={`flex items-center gap-1 text-[11px] font-bold ${dimDepthType === 'P' ? 'text-purple-600 dark:text-purple-400' : 'text-amber-600 dark:text-amber-400'} uppercase whitespace-nowrap`}>
+                                                                <span className={`w-4 h-4 rounded ${dimDepthType === 'P' ? 'bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300' : 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300'} flex items-center justify-center text-[10px] shrink-0 font-mono`}>
+                                                                    {dimDepthType}
+                                                                </span>
+                                                                <span className="whitespace-nowrap">{dimDepthType === 'P' ? 'Pitch (P)' : 'Depth (D)'}</span>
+                                                            </label>
+                                                            <div className="flex items-center rounded border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] shrink-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setDimDepthType('D')}
+                                                                    className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimDepthType === 'D' ? 'bg-amber-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                                >
+                                                                    D
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setDimDepthType('P')}
+                                                                    className={`px-1.5 py-0.5 cursor-pointer font-bold whitespace-nowrap ${dimDepthType === 'P' ? 'bg-purple-600 text-white' : 'bg-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                                                >
+                                                                    P
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="relative">
+                                                            <input
+                                                                type="text"
+                                                                value={dimDepth}
+                                                                onChange={(e) => setDimDepth(e.target.value)}
+                                                                placeholder={dimDepthType === 'P' ? "e.g. 75" : "e.g. 1050"}
+                                                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-700'} ${dimDepthType === 'P' ? (isDark ? 'focus:border-purple-500' : 'focus:border-purple-600') : (isDark ? 'focus:border-amber-500' : 'focus:border-amber-600')} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none pr-8`}
+                                                            />
+                                                            <span className="absolute right-2 top-1.5 text-[11px] text-slate-400 font-mono pointer-events-none whitespace-nowrap">mm</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Profile / Additional specifications */}
+                                                <div>
+                                                    <label className={`block text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-1 whitespace-nowrap`}>
+                                                        Profile / Thickness / Additional Specs (Optional)
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={dimProfile}
+                                                        onChange={(e) => setDimProfile(e.target.value)}
+                                                        placeholder="e.g. (90*70*1.8mm) or (120*50*1.5) T TYPE"
+                                                        className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none`}
                                                     />
                                                 </div>
+
+                                                {/* Live Dimension Preview Bar */}
+                                                <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} flex items-center justify-between text-xs`}>
+                                                    <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">Dimension Preview:</span>
+                                                    <div className="whitespace-nowrap">
+                                                        <RackDimensionCell
+                                                            dimension={buildDimensionString({
+                                                                height: dimHeight,
+                                                                heightType: dimHeightType,
+                                                                width: dimWidth,
+                                                                widthType: dimWidthType,
+                                                                depth: dimDepth,
+                                                                depthType: dimDepthType,
+                                                                profile: dimProfile
+                                                            })}
+                                                            isDark={isDark}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className={canViewCost ? "" : "md:col-span-2"}>
+                                        <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5 whitespace-nowrap`}>UOM</label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={materialUom}
+                                                onChange={(e) => setMaterialUom(e.target.value)}
+                                                list="uoms-list"
+                                                placeholder="Search or enter UOM"
+                                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
+                                            />
+                                            <datalist id="uoms-list">
+                                                {[...uomsInDB]
+                                                    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                                                    .map((uom) => <option key={uom} value={uom} />)
+                                                }
+                                            </datalist>
+                                        </div>
+                                    </div>
+
+                                    {canViewCost && (
+                                        <div>
+                                            <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5 whitespace-nowrap`}>
+                                                Acquisition Cost (Price)
+                                            </label>
+                                            <div className="relative">
+                                                <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-bold text-base select-none pointer-events-none ${isDark ? 'text-amber-400' : 'text-[#18174e]'}`}>
+                                                    ₱
+                                                </span>
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    placeholder="0.00"
+                                                    value={materialAcquisitionCost}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                                            setMaterialAcquisitionCost(val);
+                                                        }
+                                                    }}
+                                                    className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-8 pr-3 py-2 text-sm font-mono focus:outline-none`}
+                                                />
                                             </div>
                                         </div>
                                     )}
                                 </div>
-
-                                <div className={canViewCost ? "" : "md:col-span-2"}>
-                                    <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5 whitespace-nowrap`}>UOM</label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={materialUom}
-                                            onChange={(e) => setMaterialUom(e.target.value)}
-                                            list="uoms-list"
-                                            placeholder="Search or enter UOM"
-                                            className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg px-3 py-2 text-sm focus:outline-none`}
-                                        />
-                                        <datalist id="uoms-list">
-                                            {[...uomsInDB]
-                                                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-                                                .map((uom) => <option key={uom} value={uom} />)
-                                            }
-                                        </datalist>
-                                    </div>
-                                </div>
-
-                                {canViewCost && (
-                                    <div>
-                                        <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'} uppercase mb-1.5 whitespace-nowrap`}>
-                                            Acquisition Cost (Price)
-                                        </label>
-                                        <div className="relative">
-                                            <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-bold text-base select-none pointer-events-none ${isDark ? 'text-amber-400' : 'text-[#18174e]'}`}>
-                                                ₱
-                                            </span>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                placeholder="0.00"
-                                                value={materialAcquisitionCost}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                                                        setMaterialAcquisitionCost(val);
-                                                    }
-                                                }}
-                                                className={`w-full ${isDark ? 'bg-[#141622] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-[#ff6600]' : 'bg-white border-slate-200 text-slate-700 focus:border-[#18174e]'} border rounded-lg pl-8 pr-3 py-2 text-sm font-mono focus:outline-none`}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                            )}
 
                             <div className={`flex items-center justify-end gap-2 mt-6 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
                                 <button

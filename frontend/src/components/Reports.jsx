@@ -5,7 +5,8 @@ import {
     ShieldAlert,
     Search, Download, Loader2, FileText, FileSpreadsheet,
     TrendingUp, TrendingDown, Calendar, X, Check, ArrowUpRight,
-    Archive, Sliders, Coins, Image as ImageIcon, Layers, Box, Filter
+    Archive, Sliders, Coins, Image as ImageIcon, Layers, Box, Filter,
+    EyeOff, AlertCircle, RotateCcw
 } from 'lucide-react';
 import PageHeader from './layout/PageHeader';
 import TablePagination from './common/TablePagination';
@@ -16,6 +17,7 @@ import RackDimensionCell, { parseRackDimension } from './common/RackDimensionCel
 import ReserveCountBadge from './common/ReserveCountBadge';
 import { exportUprightAuditLedgerExcel } from '../utils/excelReportExport';
 import BuildableUnitsModal from './BuildableUnitsModal';
+import RackingsUnitTable from './reports/RackingsUnitTable';
 
 const RACKINGS_UNIT_STORAGE_KEY = 'oneinventory_unit_calculator_records_v1';
 
@@ -441,6 +443,8 @@ function Reports() {
     const { isDark } = useTheme();
     const userRole = localStorage.getItem("SystemRole") || "Inventory";
     const isPurchasing = userRole === 'Purchasing';
+    const isInventory = userRole === 'Inventory';
+    const canViewCost = isPurchasing || userRole === 'Admin';
     const [activeModule, setActiveModule] = useState('raw-materials');
     const [globalSearch, setGlobalSearch] = useState('');
     const [loading, setLoading] = useState(false);
@@ -616,9 +620,9 @@ function Reports() {
         }
     }, [activeModule]);
 
-    // Sync unit records from localStorage & MongoDB whenever switching to rackings-unit
+    // Sync unit records from localStorage & MongoDB whenever switching to rackings-unit or reserved-units
     useEffect(() => {
-        if (activeModule === 'rackings-unit') {
+        if (activeModule === 'rackings-unit' || activeModule === 'reserved-units') {
             const syncRecords = async () => {
                 try {
                     const saved = localStorage.getItem(RACKINGS_UNIT_STORAGE_KEY);
@@ -822,6 +826,355 @@ function Reports() {
         }
         return result;
     }, [unitRecords, selectedUnitCategory, globalSearch]);
+
+    // Compute Reserved Outbound Slips grouped Per Unit (BOM) + any loose/partial reserved items
+    const reservedUnitRows = useMemo(() => {
+        const activeReserves = (packingLists || []).filter(
+            pl => !pl.isVoided && pl.transactionType === 'Reserve'
+        );
+        const rows = [];
+
+        activeReserves.forEach(slip => {
+            // Map materialId -> { qty, mat, remarks }
+            const slipMatMap = new Map();
+            const slipItemsList = [];
+
+            (slip.items || []).forEach(it => {
+                const matObj = typeof it.materialId === 'object' ? it.materialId : materialsMap.get(String(it.materialId));
+                const matId = matObj?._id ? String(matObj._id) : String(it.materialId || '');
+                const qty = Number(it.qtyRequested || it.actualCountShipped || 0);
+                if (!matId || qty <= 0) return;
+
+                const existing = slipMatMap.get(matId);
+                if (existing) {
+                    existing.qty += qty;
+                } else {
+                    const entry = {
+                        matId,
+                        qty,
+                        remaining: qty,
+                        mat: matObj || materialsMap.get(matId) || null,
+                        remarks: it.remarks || ''
+                    };
+                    slipMatMap.set(matId, entry);
+                    slipItemsList.push(entry);
+                }
+            });
+
+            if (slipItemsList.length === 0) return;
+
+            // Evaluate candidate Unit BOMs against this slip's remaining reserved quantities
+            const matchedUnitEntries = [];
+            (unitRecords || []).forEach(rec => {
+                const comps = rec.components || [];
+                if (comps.length === 0) return;
+
+                let maxUnits = Infinity;
+                const compMatches = [];
+
+                for (const c of comps) {
+                    const mat = findMatchingMaterial(c, rec.segment);
+                    const matId = mat?._id ? String(mat._id) : null;
+                    const slipEntry = matId ? slipMatMap.get(matId) : null;
+                    const availInSlip = slipEntry ? slipEntry.remaining : 0;
+                    const pcsPerUnit = Math.max(1, Number(c.pcsPerUnit || c.divisor || 1));
+                    const capable = Math.floor(availInSlip / pcsPerUnit);
+                    if (capable < maxUnits) maxUnits = capable;
+
+                    compMatches.push({
+                        comp: c,
+                        mat: mat || slipEntry?.mat || null,
+                        matId,
+                        pcsPerUnit,
+                        uom: mat?.UOM || c.uom || 'PCS',
+                        dimension: mat?.Dimension || c.dimension || '—',
+                        reservedInSlip: availInSlip
+                    });
+                }
+
+                if (maxUnits > 0 && maxUnits !== Infinity) {
+                    // Deduct used quantities from remaining so loose/partial items are accurate
+                    compMatches.forEach(cm => {
+                        if (cm.matId && slipMatMap.has(cm.matId)) {
+                            const entry = slipMatMap.get(cm.matId);
+                            entry.remaining = Math.max(0, entry.remaining - (cm.pcsPerUnit * maxUnits));
+                        }
+                    });
+
+                    matchedUnitEntries.push({
+                        id: `${slip._id}-${rec.id}`,
+                        slipId: slip._id,
+                        plNo: slip.plNo,
+                        customer: slip.customer || 'N/A',
+                        destinationAddress: slip.destinationAddress || '',
+                        shipmentDate: slip.shipmentDate,
+                        preparedBy: slip.preparedBy || '—',
+                        isPartial: false,
+                        unitId: rec.id,
+                        unitName: rec.unitName || rec.description || 'Rackings Unit',
+                        segment: rec.segment || 'STANDARD RACKS',
+                        imageUrl: rec.imageUrl || '',
+                        uom: rec.uom || 'UNITS',
+                        totalUnits: maxUnits,
+                        components: compMatches.map(cm => ({
+                            ...cm,
+                            usedQty: cm.pcsPerUnit * maxUnits,
+                            totalReservedForMat: slipMatMap.get(cm.matId)?.qty ?? cm.reservedInSlip
+                        }))
+                    });
+                }
+            });
+
+            matchedUnitEntries.forEach(entry => rows.push(entry));
+
+            // Check for any leftover/unmatched reserved items in this slip
+            const leftoverItems = slipItemsList.filter(item => item.remaining > 0);
+            if (leftoverItems.length > 0) {
+                rows.push({
+                    id: `${slip._id}-partial`,
+                    slipId: slip._id,
+                    plNo: slip.plNo,
+                    customer: slip.customer || 'N/A',
+                    destinationAddress: slip.destinationAddress || '',
+                    shipmentDate: slip.shipmentDate,
+                    preparedBy: slip.preparedBy || '—',
+                    isPartial: true,
+                    unitId: 'partial',
+                    unitName: matchedUnitEntries.length > 0 ? 'Additional / Loose Reserved Parts' : 'Loose / Partial Reserved Items',
+                    segment: leftoverItems[0]?.mat?.Segment || 'LOOSE / PARTIAL',
+                    imageUrl: '',
+                    uom: 'PCS',
+                    totalUnits: 0,
+                    components: leftoverItems.map(li => ({
+                        comp: { role: li.mat?.ItemDescription || 'Reserved Item' },
+                        mat: li.mat,
+                        matId: li.matId,
+                        pcsPerUnit: 1,
+                        uom: li.mat?.UOM || 'PCS',
+                        dimension: li.mat?.Dimension || '—',
+                        usedQty: li.remaining,
+                        totalReservedForMat: li.qty
+                    }))
+                });
+            }
+        });
+
+        let filtered = rows;
+        if (selectedUnitCategory && selectedUnitCategory !== 'All Categories') {
+            filtered = filtered.filter(
+                r => (r.segment || '').trim().toLowerCase() === selectedUnitCategory.trim().toLowerCase()
+            );
+        }
+        if (globalSearch && globalSearch.trim()) {
+            const q = globalSearch.trim().toLowerCase();
+            filtered = filtered.filter(r => {
+                const pl = (r.plNo || '').toLowerCase();
+                const cust = (r.customer || '').toLowerCase();
+                const uName = (r.unitName || '').toLowerCase();
+                const seg = (r.segment || '').toLowerCase();
+                const compMatch = (r.components || []).some(c =>
+                    (c.mat?.ItemDescription || c.comp?.role || '').toLowerCase().includes(q)
+                );
+                return pl.includes(q) || cust.includes(q) || uName.includes(q) || seg.includes(q) || compMatch;
+            });
+        }
+        return filtered;
+    }, [packingLists, unitRecords, materialsMap, rawMaterialsData, selectedUnitCategory, globalSearch]);
+
+    const handleDownloadReservedUnitsPDF = async () => {
+        if (!reservedUnitRows || reservedUnitRows.length === 0) {
+            showErrorToast('No active reserved units found to export.');
+            return;
+        }
+        setLoading(true);
+        showSuccessToast('Preparing Outbound Reserved Units (Per Unit) PDF report...');
+        try {
+            const [logoBase64, watermarkBase64] = await Promise.all([
+                loadBase64Image('/cropped_circle_image.png').then(res => res || loadBase64Image('/upright.png')),
+                loadWatermarkImage('/cropped_circle_image.png', 0.08).then(res => res || loadWatermarkImage('/upright.png', 0.08)),
+            ]);
+
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const logoRatio = 1.0;
+
+            const wmWidth = 95;
+            const wmHeight = wmWidth / logoRatio;
+            const wmX = (pageWidth - wmWidth) / 2;
+            const wmY = (pageHeight - wmHeight) / 2;
+
+            const totalReservedUnits = reservedUnitRows.reduce((sum, r) => sum + (r.totalUnits || 0), 0);
+            const uniqueSlips = new Set(reservedUnitRows.map(r => r.plNo)).size;
+            const uniqueCustomers = new Set(reservedUnitRows.map(r => r.customer)).size;
+            const docNo = `USSP-RES-UNT-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+            const reportTitle = 'OUTBOUND RESERVED UNITS (PER UNIT) AUDIT REPORT';
+
+            if (logoBase64) {
+                try {
+                    doc.addImage(logoBase64, 'PNG', 14, 11, 15 * logoRatio, 15, undefined, 'FAST');
+                } catch (e) { }
+            }
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor(24, 23, 78);
+            doc.text('UPRIGHT STORAGE SOLUTIONS PH. INC', 33, 15.5);
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(6.8);
+            doc.setTextColor(71, 85, 105);
+            doc.text('WAREHOUSE OPERATIONS & OUTBOUND RESERVATIONS', 33, 20.5);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(6.2);
+            doc.setTextColor(100, 116, 139);
+            doc.text('Active Outbound Reserve Slips Consolidated Per Unit BOM', 33, 25);
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(5.5);
+            doc.setTextColor(255, 102, 0);
+            doc.text('Security Classification: INTERNAL CONFIDENTIAL - Controlled Executive Copy', 33, 29);
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8.5);
+            doc.setTextColor(24, 23, 78);
+            doc.text(reportTitle, pageWidth - 14, 15.5, { align: 'right' });
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(6.5);
+            doc.setTextColor(71, 85, 105);
+            doc.text(`DOC NO: ${docNo}`, pageWidth - 14, 20.5, { align: 'right' });
+            doc.text(`SCOPE: ${(selectedUnitCategory || 'All Categories').toUpperCase()}`, pageWidth - 14, 25, { align: 'right' });
+            doc.text(`GENERATED: ${new Date().toLocaleString()}`, pageWidth - 14, 29, { align: 'right' });
+
+            doc.setDrawColor(24, 23, 78);
+            doc.setLineWidth(0.4);
+            doc.line(14, 32.5, pageWidth - 14, 32.5);
+            doc.setDrawColor(255, 102, 0);
+            doc.setLineWidth(0.6);
+            doc.line(14, 32.5, 45, 32.5);
+
+            const kpiColWidth = (pageWidth - 28) / 4;
+            autoTable(doc, {
+                startY: 35.5,
+                margin: { left: 14, right: 14 },
+                head: [['ACTIVE RESERVE SLIPS', 'RESERVED CUSTOMERS', 'TOTAL RESERVED COMPLETE UNITS', 'RECORD ENTRIES']],
+                body: [[
+                    `${uniqueSlips.toLocaleString()} Reserve Slips`,
+                    `${uniqueCustomers.toLocaleString()} Customers`,
+                    `${totalReservedUnits.toLocaleString()} Complete Units`,
+                    `${reservedUnitRows.length.toLocaleString()} Line Groups`
+                ]],
+                theme: 'grid',
+                styles: {
+                    font: 'helvetica',
+                    fontSize: 6.2,
+                    cellPadding: { top: 2.2, bottom: 2.2, left: 1.5, right: 1.5 },
+                    lineColor: [203, 213, 225],
+                    lineWidth: 0.15,
+                    halign: 'center',
+                    valign: 'middle'
+                },
+                headStyles: { fillColor: [234, 239, 249], textColor: [24, 23, 78], fontStyle: 'bold', fontSize: 5.8 },
+                bodyStyles: { fillColor: [255, 255, 255], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 6.2 },
+                columnStyles: {
+                    0: { cellWidth: kpiColWidth },
+                    1: { cellWidth: kpiColWidth },
+                    2: { cellWidth: kpiColWidth },
+                    3: { cellWidth: kpiColWidth }
+                }
+            });
+
+            const columns = ['Reserve Slip', 'Customer', 'Unit Configuration', 'Reserved Components', 'Formula Qty', 'Reserved Units'];
+            const rows = reservedUnitRows.map(r => {
+                const shipDateStr = r.shipmentDate ? new Date(r.shipmentDate).toLocaleDateString() : 'N/A';
+                const compText = (r.components || []).map(c =>
+                    `${c.mat?.ItemDescription || c.comp?.role || 'Item'} (${Number(c.usedQty || 0).toLocaleString()} ${c.uom})`
+                ).join('\n');
+                const formulaText = r.isPartial
+                    ? 'Loose / Partial'
+                    : (r.components || []).map(c => `${c.pcsPerUnit} ${c.uom}`).join('\n');
+                const unitResult = r.isPartial
+                    ? 'Partial / Loose'
+                    : `${r.totalUnits.toLocaleString()} ${r.uom}`;
+
+                return [
+                    `${r.plNo}\n${shipDateStr}`,
+                    r.customer,
+                    `${r.unitName}\n[${r.segment}]`,
+                    compText || '—',
+                    { content: formulaText, styles: { halign: 'center' } },
+                    {
+                        content: unitResult,
+                        styles: {
+                            fillColor: r.isPartial ? [254, 243, 199] : [237, 233, 254],
+                            textColor: r.isPartial ? [180, 83, 9] : [91, 33, 182],
+                            halign: 'center',
+                            fontStyle: 'bold'
+                        }
+                    }
+                ];
+            });
+
+            autoTable(doc, {
+                startY: (doc.lastAutoTable?.finalY || 45) + 4.5,
+                margin: { left: 14, right: 14, top: 19, bottom: 14 },
+                head: [columns],
+                body: rows,
+                theme: 'grid',
+                styles: {
+                    font: 'helvetica',
+                    fontSize: 7,
+                    textColor: [51, 65, 85],
+                    cellPadding: 2.2,
+                    lineColor: [226, 232, 240],
+                    lineWidth: 0.15,
+                    valign: 'middle',
+                    rowPageBreak: 'avoid',
+                    overflow: 'linebreak'
+                },
+                headStyles: { fillColor: [24, 23, 78], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.2, halign: 'center' },
+                alternateRowStyles: { fillColor: [250, 252, 255] },
+                columnStyles: {
+                    0: { cellWidth: 28, halign: 'center', fontStyle: 'bold' },
+                    1: { cellWidth: 44, fontStyle: 'bold' },
+                    2: { cellWidth: 56, fontStyle: 'bold' },
+                    3: { cellWidth: 83 },
+                    4: { cellWidth: 28, halign: 'center' },
+                    5: { cellWidth: 30, halign: 'center' }
+                }
+            });
+
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                if (watermarkBase64) {
+                    try {
+                        doc.addImage(watermarkBase64, 'PNG', wmX, wmY, wmWidth, wmHeight, undefined, 'FAST');
+                    } catch (e) { }
+                }
+                const footerY = pageHeight - 7;
+                doc.setDrawColor(226, 232, 240);
+                doc.setLineWidth(0.2);
+                doc.line(14, footerY - 2.5, pageWidth - 14, footerY - 2.5);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(5.8);
+                doc.setTextColor(100, 116, 139);
+                doc.text('INTERNAL CONFIDENTIAL • CONTROLLED EXECUTIVE COPY', 14, footerY + 1.2);
+                doc.text(`Page ${i} of ${totalPages}`, pageWidth - 14, footerY + 1.2, { align: 'right' });
+            }
+
+            const saveFileName = `USSP_RESERVED_UNITS_REPORT_${Date.now()}.pdf`;
+            doc.save(saveFileName);
+            showSuccessToast(`Exported Reserved Units (Per Unit) PDF: ${saveFileName}`);
+        } catch (err) {
+            console.error('Failed to generate Reserved Units PDF:', err);
+            showErrorToast(`Error generating Reserved Units PDF: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // PDF Download for Rackings Unit (grouped per category with embedded images)
     const handleDownloadRackingsUnitPDF = async (categoryFilter = null) => {
@@ -1620,6 +1973,82 @@ function Reports() {
             const reserveCount = activeModule === 'raw-materials' ? (Number(item.ReserveCount) || 0) : 0;
             const availableCount = Math.max(0, physicalCount - reserveCount);
 
+            // Reconstruct historical ActualCount at the end of the selected month/year
+            let monthActualCount = physicalCount;
+            if (activeModule === 'raw-materials' && !item.isArchived && selectedYear !== 'All' && selectedMonth !== 'All') {
+                const endOfSelectedMonth = new Date(Number(selectedYear), Number(selectedMonth), 0, 23, 59, 59, 999);
+                const endMs = endOfSelectedMonth.getTime();
+                let netChangeAfterMonth = 0;
+
+                const isAfterMonthEnd = (dateStr) => {
+                    if (!dateStr) return false;
+                    const d = new Date(dateStr);
+                    return !isNaN(d.getTime()) && d.getTime() > endMs;
+                };
+
+                const matchesMat = (it) =>
+                    it.materialId?._id === item._id ||
+                    it.materialId === item._id ||
+                    it.materialId?.Code === item.Code ||
+                    it.Code === item.Code;
+
+                const matchesOutputMat = (it) =>
+                    it.itemId?._id === item._id ||
+                    it.itemId === item._id ||
+                    it.itemId?.Code === item.Code ||
+                    it.Code === item.Code;
+
+                purchaseOrders.forEach(po => {
+                    const txDate = po.deliveryDate || po.createdAt || po.date;
+                    if (isAfterMonthEnd(txDate)) {
+                        (po.items || []).forEach(it => {
+                            if (matchesMat(it)) {
+                                const qty = Number(it.qtyReceived || it.qtyOrdered || it.actualCountReceived || it.qty || it.quantity || 0);
+                                if (qty > 0) netChangeAfterMonth += qty;
+                            }
+                        });
+                    }
+                });
+
+                wipConversions.forEach(wip => {
+                    const txDate = wip.conversionDate || wip.dateProcessed || wip.createdAt;
+                    if (isAfterMonthEnd(txDate)) {
+                        (wip.materialsConsumed || wip.inputs || []).forEach(it => {
+                            if (matchesMat(it)) {
+                                const qty = Number(it.qtyUsed || 0);
+                                if (qty > 0) netChangeAfterMonth -= qty;
+                            }
+                        });
+                        (wip.outputs || []).forEach(it => {
+                            if (matchesOutputMat(it)) {
+                                const qty = Number(it.qtyProduced || 0);
+                                if (qty > 0) netChangeAfterMonth += qty;
+                            }
+                        });
+                        (wip.materialsReturned || []).forEach(it => {
+                            if (matchesMat(it)) {
+                                const qty = Number(it.qtyReturned || 0);
+                                if (qty > 0) netChangeAfterMonth += qty;
+                            }
+                        });
+                    }
+                });
+
+                packingLists.filter(pl => !pl.isVoided && pl.transactionType === "Outbound").forEach(pl => {
+                    const txDate = pl.shipmentDate || pl.createdAt;
+                    if (isAfterMonthEnd(txDate)) {
+                        (pl.items || []).forEach(it => {
+                            if (matchesMat(it)) {
+                                const qty = Number(it.actualCountShipped || it.qtyRequested || 0);
+                                if (qty > 0) netChangeAfterMonth -= qty;
+                            }
+                        });
+                    }
+                });
+
+                monthActualCount = Math.max(0, physicalCount - netChangeAfterMonth);
+            }
+
             const isZero = activeModule === 'raw-materials' ? (availableCount === 0) : (physicalCount === 0);
 
             if (showZeroOnly && !isZero) {
@@ -1640,6 +2069,7 @@ function Reports() {
                 SerialNo: item.SerialNo || '—',
                 Damaged: Number(item.DamagedCount ?? item.Damaged ?? 0),
                 ActualCount: physicalCount,
+                MonthActualCount: monthActualCount,
                 ReserveCount: reserveCount,
                 ReserveDetails: item.ReserveDetails || [],
                 AvailableCount: availableCount,
@@ -1881,7 +2311,9 @@ function Reports() {
         ? getDiscrepancyLogs()
         : activeModule === 'rackings-unit'
             ? filteredUnitRecords
-            : consolidatedData;
+            : activeModule === 'reserved-units'
+                ? reservedUnitRows
+                : consolidatedData;
     const totalTableRows = activeTableData.length;
     const indexOfLastRow = currentPage * rowsPerPage;
     const indexOfFirstRow = indexOfLastRow - rowsPerPage;
@@ -2225,7 +2657,7 @@ function Reports() {
         }
 
         const isRackings = activeModule === 'raw-materials';
-        const isAcquisitionReport = (isRackings && showAcquisitionCost) || isPurchasing;
+        const isAcquisitionReport = canViewCost && ((isRackings && showAcquisitionCost) || isPurchasing);
         const isInventoryOnly = !isPurchasing && isRackings && showInventoryOnly;
 
         const exportData = (isRackings || isPurchasing)
@@ -2393,7 +2825,7 @@ function Reports() {
                 else healthy++;
             });
 
-            if (showAcquisitionCost) {
+            if (canViewCost && showAcquisitionCost) {
                 const totalValuation = exportData.reduce((acc, it) => {
                     const cost = Number(it.AcquisitionCost || 0);
                     const qty = Number(it.ActualCount || 0);
@@ -2505,9 +2937,11 @@ function Reports() {
             };
 
             // NOTE: Segment is displayed on the Category Banner row, so no separate Segment column!
+            const selectedMonthShort = monthsList?.find(m => m.value === selectedMonth)?.label?.slice(0, 3) || selectedMonth;
+            const selectedPeriodBadge = `${selectedMonthShort} ${selectedYear}`;
             const columns = isRackings
                 ? (isInventoryOnly
-                    ? ["Image", "Item Description", "Dimension", "Actual Count", "Reserve Count", "UOM"]
+                    ? ["Image", "Item Description", "Dimension", `Actual Count (${selectedPeriodBadge})`, "UOM"]
                     : isAcquisitionReport
                         ? ["Item Description", "Dimension", "Actual Count", "Reserve", "UOM", "Acquisition Cost", "Total Acquisition Cost"]
                         : ["Item Description", "Dimension", "Actual Count", "Reserve", "UOM", "Inflows (This Month)", "Outflows (This Month)"])
@@ -2578,30 +3012,17 @@ function Reports() {
                         : cleanDesc;
 
                     if (isInventoryOnly) {
+                        const monthActual = Number(item.MonthActualCount ?? physicalCount);
                         rows.push([
                             { content: '', rawItemId: item._id },
                             item.isArchived ? `${descText} (Archived)` : descText,
                             formattedDimension,
                             {
-                                content: reserveCount > 0 ? `${displayActualQty} (Tot: ${physicalCount.toLocaleString()})` : displayActualQty,
+                                content: monthActual.toLocaleString(),
                                 styles: {
-                                    fillColor: conditionColors.fillColor,
-                                    textColor: conditionColors.textColor,
+                                    fillColor: [238, 242, 255],
+                                    textColor: [30, 58, 138],
                                     fontStyle: 'bold',
-                                    halign: 'center',
-                                    overflow: 'ellipsize'
-                                }
-                            },
-                            {
-                                content: displayReserveQty,
-                                styles: reserveCount > 0 ? {
-                                    fillColor: [254, 243, 199],
-                                    textColor: [180, 83, 9],
-                                    fontStyle: 'bold',
-                                    halign: 'center',
-                                    overflow: 'ellipsize'
-                                } : {
-                                    textColor: [156, 163, 175],
                                     halign: 'center',
                                     overflow: 'ellipsize'
                                 }
@@ -2846,11 +3267,10 @@ function Reports() {
                 columnStyles: isRackings ? (
                     isInventoryOnly ? {
                         0: { cellWidth: 18, halign: 'center' },
-                        1: { cellWidth: 110, overflow: 'ellipsize' },
-                        2: { cellWidth: 60, overflow: 'ellipsize' },
-                        3: { cellWidth: 28, halign: 'center', fontStyle: 'bold', overflow: 'ellipsize' },
-                        4: { cellWidth: 28, halign: 'center', overflow: 'ellipsize' },
-                        5: { cellWidth: 25, halign: 'center', overflow: 'ellipsize' }
+                        1: { cellWidth: 120, overflow: 'ellipsize' },
+                        2: { cellWidth: 65, overflow: 'ellipsize' },
+                        3: { cellWidth: 38, halign: 'center', fontStyle: 'bold', overflow: 'ellipsize' },
+                        4: { cellWidth: 28, halign: 'center', overflow: 'ellipsize' }
                     } : isAcquisitionReport ? {
                         0: { cellWidth: 84, fontStyle: 'bold', overflow: 'ellipsize' },
                         1: { cellWidth: 40, overflow: 'ellipsize' },
@@ -3156,17 +3576,19 @@ function Reports() {
                 hour: '2-digit', minute: '2-digit'
             });
 
+            const selectedMonthShort = monthsList?.find(m => m.value === selectedMonth)?.label?.slice(0, 3) || selectedMonth;
             await exportUprightAuditLedgerExcel({
                 activeModule,
                 titleModule,
                 targetMonthLabel,
+                selectedPeriodLabel: `${selectedMonthShort} ${currentYearStr}`,
                 currentYearStr,
                 formattedDate,
                 exportData,
                 rawMaterialsData,
                 isRackings,
                 isInventoryOnly: isRackings && showInventoryOnly,
-                showAcquisitionCost: isRackings && showAcquisitionCost,
+                showAcquisitionCost: canViewCost && isRackings && showAcquisitionCost,
                 showZeroOnly,
                 viewMode,
                 formatDimension: formatDimensionForPdf,
@@ -4225,12 +4647,24 @@ function Reports() {
                                     </span>
                                 </div>
                             )}
+
+                            {/* TOTAL RESERVED UNITS BADGE (Reserved Per Unit) */}
+                            {activeModule === 'reserved-units' && (
+                                <div className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border select-none transition-all flex-shrink-0 ${isDark ? 'bg-purple-950/40 text-purple-300 border-purple-800/70 shadow-sm' : 'bg-purple-50 text-purple-800 border-purple-200 shadow-sm'
+                                    }`}>
+                                    <Archive className="w-3.5 h-3.5 text-purple-500" />
+                                    <span>Total Reserved Units:</span>
+                                    <span className="font-mono font-black text-purple-600 dark:text-purple-300">
+                                        {(reservedUnitRows || []).reduce((sum, r) => sum + (r.totalUnits || 0), 0).toLocaleString()} UNITS
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
                     {/* LAYER 2: Quick Filter Checkboxes OR Category Filter Pills */}
                     <div className="flex items-center gap-2 flex-wrap pt-1.5">
-                        {activeModule === 'rackings-unit' ? (
+                        {(activeModule === 'rackings-unit' || activeModule === 'reserved-units') ? (
                             /* Category Filter Pills for Rackings Unit */
                             <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1">
@@ -4435,8 +4869,7 @@ function Reports() {
                                     )}
                                 </button>
 
-                                {/* If filtered by category, also offer export of all categories */}
-                                {selectedUnitCategory !== 'All Categories' && (
+                                    {selectedUnitCategory !== 'All Categories' && (
                                     <button
                                         type="button"
                                         onClick={() => handleDownloadRackingsUnitPDF('All Categories')}
@@ -4452,6 +4885,20 @@ function Reports() {
                                     </button>
                                 )}
                             </>
+                        ) : activeModule === 'reserved-units' ? (
+                            <button
+                                type="button"
+                                onClick={handleDownloadReservedUnitsPDF}
+                                disabled={loading}
+                                title="Download Outbound Reserved Units (Per Unit) Report (PDF)"
+                                className={`flex items-center gap-2 text-xs font-bold p-2 sm:px-3.5 sm:py-2 rounded-lg border transition-all cursor-pointer shadow-md flex-shrink-0 disabled:opacity-50 ${isDark
+                                    ? 'border-purple-500 bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-500 hover:to-indigo-500 shadow-purple-950/40'
+                                    : 'border-purple-600 bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 shadow-purple-200'
+                                    }`}
+                            >
+                                <Download className="w-4 h-4 text-white" />
+                                <span>Download Reserved Units (PDF)</span>
+                            </button>
                         ) : (
                             <>
                                 {/* Movements Summary (PDF) Button - hidden for purchasing */}
@@ -4530,6 +4977,20 @@ function Reports() {
                         >
                             <Box className={`w-4 h-4 sm:w-3.5 sm:h-3.5 ${activeModule === 'rackings-unit' ? 'text-white' : 'text-orange-500'}`} />
                             <span>{activeModule === 'rackings-unit' ? 'Back to Rackings' : 'Show Rackings Unit'}</span>
+                        </button>
+
+                        {/* Reserved (Per Unit) Report Button */}
+                        <button
+                            type="button"
+                            onClick={() => setActiveModule(activeModule === 'reserved-units' ? 'raw-materials' : 'reserved-units')}
+                            title="Show Outbound Reserved Items consolidated Per Unit (BOM)"
+                            className={`flex items-center gap-1.5 text-xs font-bold p-2 sm:px-3 sm:py-1.5 rounded-lg border transition-all cursor-pointer shadow-sm flex-shrink-0 ${activeModule === 'reserved-units'
+                                ? (isDark ? 'border-purple-500 bg-purple-600 text-white shadow-md' : 'border-purple-600 bg-purple-600 text-white shadow-md')
+                                : (isDark ? 'border-purple-700/70 bg-purple-950/60 text-purple-300 hover:bg-purple-900/80 hover:border-purple-500' : 'border-purple-300 bg-purple-50 text-purple-800 hover:bg-purple-100 hover:border-purple-400')
+                                }`}
+                        >
+                            <Archive className={`w-4 h-4 sm:w-3.5 sm:h-3.5 ${activeModule === 'reserved-units' ? 'text-white' : 'text-purple-500'}`} />
+                            <span>{activeModule === 'reserved-units' ? 'Back to Rackings' : 'Reserved (Per Unit)'}</span>
                         </button>
 
                         {/* Buildable Units (BOM) Feasibility Calculator Button */}
@@ -4897,6 +5358,122 @@ function Reports() {
                                 </tbody>
                             </table>
                         </div>
+                    ) : activeModule === 'reserved-units' ? (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr className={`font-bold uppercase text-[11px] tracking-wider whitespace-nowrap ${isDark ? 'bg-[#10121d] text-slate-300 border-b border-slate-800' : 'bg-[#18174e] text-white'}`}>
+                                        <th className="py-3.5 px-4 whitespace-nowrap min-w-[130px]">Reserve Slip</th>
+                                        <th className="py-3.5 px-4 whitespace-nowrap min-w-[170px]">Customer</th>
+                                        <th className="py-3.5 px-4 whitespace-nowrap min-w-[220px]">Unit Configuration</th>
+                                        <th className="py-3.5 px-4 whitespace-nowrap min-w-[260px]">Reserved Components (Qty)</th>
+                                        <th className="py-3.5 px-4 text-center whitespace-nowrap min-w-[120px]">Formula Qty</th>
+                                        <th className="py-3.5 px-4 text-center whitespace-nowrap min-w-[130px]">Reserved Units</th>
+                                    </tr>
+                                </thead>
+                                <tbody className={`divide-y text-xs ${isDark ? 'divide-slate-800/70 bg-[#090b10] text-slate-300' : 'divide-slate-100 bg-white text-slate-700'}`}>
+                                    {paginatedTableData.length > 0 ? (
+                                        paginatedTableData.map((row) => {
+                                            const segStyles = getUnitSegmentStyles(row.segment);
+                                            const shipDateStr = row.shipmentDate ? new Date(row.shipmentDate).toLocaleDateString() : 'N/A';
+                                            return (
+                                                <tr key={row.id} className={`transition-colors whitespace-nowrap ${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'}`}>
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="font-bold font-mono text-purple-600 dark:text-purple-400">
+                                                                {row.plNo}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-400 font-mono">
+                                                                {shipDateStr}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex flex-col gap-0.5 max-w-[200px]">
+                                                            <span className="font-bold truncate text-slate-900 dark:text-slate-100" title={row.customer}>
+                                                                {row.customer}
+                                                            </span>
+                                                            {row.destinationAddress && (
+                                                                <span className="text-[10px] text-slate-400 truncate" title={row.destinationAddress}>
+                                                                    {row.destinationAddress}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex items-center gap-2.5 min-w-[200px]">
+                                                            {row.imageUrl ? (
+                                                                <img
+                                                                    src={getImageSrc(row.imageUrl)}
+                                                                    alt={row.unitName}
+                                                                    className="w-9 h-9 rounded-lg object-cover border border-slate-300 dark:border-slate-700 shrink-0 cursor-zoom-in"
+                                                                    onClick={() => setPreviewImage(getImageSrc(row.imageUrl))}
+                                                                />
+                                                            ) : (
+                                                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center border border-dashed shrink-0 ${isDark ? 'bg-slate-800/70 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-300 text-slate-400'}`}>
+                                                                    <Box className="w-4 h-4" />
+                                                                </div>
+                                                            )}
+                                                            <div className="flex flex-col gap-1 min-w-0">
+                                                                <span className="font-bold text-slate-900 dark:text-slate-100 truncate max-w-[220px]" title={row.unitName}>
+                                                                    {row.unitName}
+                                                                </span>
+                                                                <span className={`inline-flex items-center self-start px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase ${segStyles.classes}`}>
+                                                                    {row.segment}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex flex-col gap-1.5">
+                                                            {(row.components || []).map((c, idx) => (
+                                                                <div
+                                                                    key={idx}
+                                                                    className={`h-7 flex items-center justify-between gap-2 px-2 rounded-md text-xs font-semibold border ${isDark ? 'bg-[#141622] border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'}`}
+                                                                >
+                                                                    <span className="truncate max-w-[190px]" title={c.mat?.ItemDescription || c.comp?.role}>
+                                                                        {c.mat?.ItemDescription || c.comp?.role || 'Item'}
+                                                                    </span>
+                                                                    <span className="font-mono font-bold text-purple-600 dark:text-purple-400 shrink-0">
+                                                                        {Number(c.usedQty || 0).toLocaleString()} {c.uom}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center">
+                                                        <div className="flex flex-col gap-1.5">
+                                                            {(row.components || []).map((c, idx) => (
+                                                                <div
+                                                                    key={idx}
+                                                                    className={`h-7 flex items-center justify-center px-2 rounded-md text-xs font-mono font-bold border ${isDark ? 'bg-[#141622] border-slate-700 text-amber-400' : 'bg-amber-50/70 border-amber-200 text-amber-700'}`}
+                                                                >
+                                                                    {row.isPartial ? 'Loose' : `${c.pcsPerUnit} ${c.uom}`}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center">
+                                                        <div className={`inline-flex items-center justify-center px-3 py-1.5 rounded-md text-xs font-mono font-bold border ${row.isPartial
+                                                            ? (isDark ? 'bg-amber-950/40 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700')
+                                                            : (isDark ? 'bg-purple-950/50 border-purple-700 text-purple-300' : 'bg-purple-50 border-purple-200 text-purple-700')
+                                                            }`}>
+                                                            {row.isPartial ? 'Partial / Loose' : `${row.totalUnits.toLocaleString()} ${row.uom}`}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={6} className="text-center py-12 text-slate-400 italic text-xs">
+                                                No active outbound reserve slips found matching your filters.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     ) : consolidatedData.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse text-xs">
@@ -4922,8 +5499,9 @@ function Reports() {
                                                 <th className="py-3.5 px-3 text-center whitespace-nowrap w-[60px]">Image</th>
                                                 <th className="py-3.5 px-4 whitespace-nowrap min-w-[220px]">Item Description</th>
                                                 <th className="py-3.5 px-4 whitespace-nowrap min-w-[120px]">Dimension</th>
-                                                <th className="py-3.5 px-4 text-center whitespace-nowrap">Actual Count</th>
-                                                <th className="py-3.5 px-4 text-center whitespace-nowrap">Reserve Count</th>
+                                                <th className="py-3.5 px-4 text-center whitespace-nowrap">
+                                                    Actual Count ({monthsList.find(m => m.value === selectedMonth)?.label?.slice(0, 3) || selectedMonth} {selectedYear})
+                                                </th>
                                                 <th className="py-3.5 px-4 text-center whitespace-nowrap">UOM</th>
                                             </>
                                         ) : (
@@ -4950,7 +5528,7 @@ function Reports() {
                                                     </>
                                                 ) : (
                                                     activeModule === 'raw-materials' && (
-                                                        showAcquisitionCost ? (
+                                                        (canViewCost && showAcquisitionCost) ? (
                                                             <>
                                                                 <th className="py-3.5 px-4 text-right whitespace-nowrap min-w-[140px]">Acquisition Cost</th>
                                                                 <th className="py-3.5 px-4 text-right whitespace-nowrap min-w-[170px]">Total Acquisition Cost</th>
@@ -5085,26 +5663,31 @@ function Reports() {
                                                             <RackDimensionCell dimension={row.Dimension} isDark={isDark} />
                                                         </td>
 
-                                                        {/* 4. Actual Count */}
+                                                        {/* 4. Actual Count (Selected Month) */}
                                                         <td className="py-3 px-4 text-center">
-                                                            <div className="flex flex-col items-center justify-center">
-                                                                <span className={`font-bold font-mono text-sm ${Math.max(0, (Number(row.ActualCount) || 0) - (Number(row.ReserveCount) || 0)) === 0 ? 'text-rose-500 font-extrabold' : (isDark ? 'text-white' : 'text-slate-900')}`}>
-                                                                    {Math.max(0, (Number(row.ActualCount) || 0) - (Number(row.ReserveCount) || 0)).toLocaleString()}
-                                                                </span>
-                                                                {Number(row.ReserveCount) > 0 && (
-                                                                    <span className="text-[10px] text-slate-400 font-mono leading-tight mt-0.5 select-none" title={`Total Physical Stock: ${(Number(row.ActualCount) || 0).toLocaleString()} | Reserved: ${Number(row.ReserveCount).toLocaleString()}`}>
-                                                                        (Total: {(Number(row.ActualCount) || 0).toLocaleString()})
-                                                                    </span>
-                                                                )}
-                                                            </div>
+                                                            {(() => {
+                                                                const monthCount = Number(row.MonthActualCount ?? row.ActualCount ?? 0);
+                                                                const presentPhysical = Number(row.ActualCount) || 0;
+                                                                const diff = presentPhysical - monthCount;
+                                                                return (
+                                                                    <div
+                                                                        className="flex flex-col items-center justify-center"
+                                                                        title={`Actual physical count as of end of ${monthsList.find(m => m.value === selectedMonth)?.label || selectedMonth} ${selectedYear}: ${monthCount.toLocaleString()}`}
+                                                                    >
+                                                                        <span className={`font-bold font-mono text-sm ${monthCount === 0 ? 'text-rose-500 font-extrabold' : (isDark ? 'text-indigo-300' : 'text-indigo-900')}`}>
+                                                                            {monthCount.toLocaleString()}
+                                                                        </span>
+                                                                        {diff !== 0 && (
+                                                                            <span className={`text-[10px] font-mono leading-tight mt-0.5 select-none ${diff > 0 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                                                ({diff > 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString()} since)
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </td>
 
-                                                        {/* 5. Reserve Count */}
-                                                        <td className="py-3 px-4 text-center">
-                                                            <ReserveCountBadge rawMat={row} isDark={isDark} />
-                                                        </td>
-
-                                                        {/* 6. UOM */}
+                                                        {/* 5. UOM */}
                                                         <td className={`py-3 px-4 text-center font-medium text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                                             {row.UOM || 'PCS'}
                                                         </td>
@@ -5235,7 +5818,7 @@ function Reports() {
                                                             </>
                                                         ) : (
                                                             activeModule === 'raw-materials' && (
-                                                                showAcquisitionCost ? (
+                                                                (canViewCost && showAcquisitionCost) ? (
                                                                     <>
                                                                         <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-xs">
                                                                             {viewMode === 'detailed' ? (
@@ -5319,7 +5902,7 @@ function Reports() {
                                         );
                                     })}
                                 </tbody>
-                                {((activeModule === 'raw-materials' && showAcquisitionCost) || isPurchasing) && consolidatedData.length > 0 && (
+                                {canViewCost && ((activeModule === 'raw-materials' && showAcquisitionCost) || isPurchasing) && consolidatedData.length > 0 && (
                                     <tfoot>
                                         <tr className={`font-bold text-xs uppercase tracking-wider border-t-2 ${isDark ? 'bg-[#10121d] text-slate-200 border-slate-700' : 'bg-slate-50 text-slate-800 border-slate-200'
                                             }`}>
